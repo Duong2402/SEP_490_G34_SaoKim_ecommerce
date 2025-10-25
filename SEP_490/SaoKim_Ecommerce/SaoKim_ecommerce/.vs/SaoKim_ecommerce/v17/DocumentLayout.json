@@ -1,0 +1,75 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\healthcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\healthcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\weatherforecastcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\weatherforecastcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "WeatherForecastController.cs",
+              "DocumentMoniker": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
+              "ToolTip": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-25T10:44:53.722Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "HealthController.cs",
+              "DocumentMoniker": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
+              "ToolTip": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-25T10:43:59.607Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Program.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Program.cs",
+              "ToolTip": "D:\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Program.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Program.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAAB0AAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-25T10:42:39.564Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
