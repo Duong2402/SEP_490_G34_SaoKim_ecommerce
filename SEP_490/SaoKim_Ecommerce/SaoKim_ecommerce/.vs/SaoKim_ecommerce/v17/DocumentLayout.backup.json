@@ -3,28 +3,56 @@
   "WorkspaceRootPath": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\data\\dbseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\data\\dbseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\data\\saokimdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\data\\saokimdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\saokim_ecommerce_be.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\saokim_ecommerce_be.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\migrations\\20251027164330_updateproductschema.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\migrations\\20251027164330_updateproductschema.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\migrations\\20251027164123_addroletable.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\migrations\\20251027164123_addroletable.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\migrations\\20251027164123_addroletable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\migrations\\20251027164123_addroletable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\product.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\product.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\healthcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\healthcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\role.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\role.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\weatherforecastcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\weatherforecastcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\receivingslipitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\receivingslipitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\receivingslip.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\receivingslip.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\saokim_ecommerce_be.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\saokim_ecommerce_be.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce\\saokim_ecommerce_be\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -34,89 +62,178 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\appsettings.json",
-              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\appsettings.json",
-              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\appsettings.json*",
-              "RelativeToolTip": "SaoKim_ecommerce_BE\\appsettings.json*",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAABHAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-10-25T12:39:38.058Z",
+              "DocumentIndex": 2,
+              "Title": "20251027164330_UpdateProductSchema.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164330_UpdateProductSchema.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Migrations\\20251027164330_UpdateProductSchema.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164330_UpdateProductSchema.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Migrations\\20251027164330_UpdateProductSchema.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAqwCkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-27T16:44:13.459Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "SaoKim_ecommerce_BE",
+              "DocumentIndex": 3,
+              "Title": "20251027164123_AddRoleTable.Designer.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.Designer.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.Designer.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.Designer.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.Designer.cs",
+              "ViewState": "AgIAAB0AAAAAAAAAAAAMwC8AAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-27T16:44:06.117Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "20251027164123_AddRoleTable.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Migrations\\20251027164123_AddRoleTable.cs",
+              "ViewState": "AgIAADQAAAAAAAAAAAAMwEcAAAAzAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-27T16:43:46.424Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Role.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\Role.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\Role.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\Role.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\Role.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-27T16:02:49.092Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "ReceivingSlipItem.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAqAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-26T07:04:22.549Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "ReceivingSlip.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAwAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-26T07:03:54.384Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SaoKimDBContext.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Data\\SaoKimDBContext.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Data\\SaoKimDBContext.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Data\\SaoKimDBContext.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Data\\SaoKimDBContext.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAADUAAAAzAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-25T13:28:22.093Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Product.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\Product.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\Product.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Entities\\Product.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\Product.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEMAAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-10-25T13:23:42.327Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "SaoKim_ecommerce_BE.csproj",
               "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj",
               "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj",
               "RelativeToolTip": "SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
               "WhenOpened": "2025-10-25T12:36:57.551Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "WareHouseManagerController.cs",
               "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAJEAAAAAAAAAAAAMwNIAAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-10-25T12:36:55.58Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "WeatherForecastController.cs",
-              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
-              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
-              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
-              "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\WeatherForecastController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "DbSeeder.cs",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Data\\DbSeeder.cs",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Data\\DbSeeder.cs",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Data\\DbSeeder.cs",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\Data\\DbSeeder.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAA4AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-25T10:44:53.722Z",
+              "WhenOpened": "2025-10-26T07:10:27.451Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "HealthController.cs",
-              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
-              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
-              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
-              "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\HealthController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-25T10:43:59.607Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 11,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Program.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Program.cs",
               "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\Program.cs",
               "RelativeToolTip": "SaoKim_ecommerce_BE\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAEAAAAAAAAAA==",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAACIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-25T10:42:39.564Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-10-25T10:42:39.564Z"
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\appsettings.json",
+              "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\appsettings.json",
+              "ToolTip": "D:\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce\\SaoKim_ecommerce_BE\\appsettings.json",
+              "RelativeToolTip": "SaoKim_ecommerce_BE\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAABEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-10-25T12:39:38.058Z"
             }
           ]
         }

@@ -1,19 +1,12 @@
-import { useEffect, useState } from 'react';
-import { getHealth } from './api/http';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ReceivingList from "./pages/warehousemanager/ReceivingList";
 
 export default function App() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getHealth().then(setData).catch(e => setError(e.message));
-  }, []);
-
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Test API Connection</h1>
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-      {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/receiving-slips" element={<ReceivingList />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

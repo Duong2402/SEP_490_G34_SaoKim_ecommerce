@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-//using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +10,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//builder.Services.AddDbContext<AppDbContext>(options =>
-//    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
-//);
+builder.Services.AddDbContext<SaoKimDBContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
 builder.Services.AddCors(options =>
 {
@@ -25,6 +25,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SaoKimDBContext>();
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(db);
+}
+
 
 if (app.Environment.IsDevelopment())
 {
