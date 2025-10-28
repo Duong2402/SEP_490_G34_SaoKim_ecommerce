@@ -6,55 +6,18 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.DTOs.WareHouseManager;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
-    [Route("api/warehousemanager")] // đặt rõ để path cố định
+    [Route("api/warehousemanager")]
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
         public WarehouseManagerController(SaoKimDBContext db) => _db = db;
 
-        // ====== DTOs ======
-        public class ReceivingSlipListQuery
-        {
-            public string? Search { get; set; }
-            public DateTime? DateFrom { get; set; }
-            public DateTime? DateTo { get; set; }
-            public ReceivingSlipStatus? Status { get; set; } // 0 Draft, 1 Confirmed
-            public int Page { get; set; } = 1;
-            public int PageSize { get; set; } = 20;
-        }
 
-        public class ReceivingSlipItemDto
-        {
-            public int? ProductId { get; set; }
-            public string ProductName { get; set; } = "";
-            public string Uom { get; set; } = "unit";
-            public int Quantity { get; set; }
-            public decimal UnitPrice { get; set; }
-        }
-
-        public class ReceivingSlipCreateDto
-        {
-            public string Supplier { get; set; } = "";
-            public DateTime ReceiptDate { get; set; }
-            public string ReferenceNo { get; set; } = "";
-            public string? Note { get; set; }
-            public List<ReceivingSlipItemDto> Items { get; set; } = new();
-        }
-
-        public class ReceivingSlipUpdateDto
-        {
-            public string Supplier { get; set; } = "";
-            public DateTime ReceiptDate { get; set; }
-            public string ReferenceNo { get; set; } = "";
-            public string? Note { get; set; }
-            public List<ReceivingSlipItemDto> Items { get; set; } = new();
-        }
-
-        // ====== 1) LIST ======
         // GET /api/warehousemanager/receiving-slips
         [HttpGet("receiving-slips")]
         public async Task<IActionResult> GetReceivingSlipList([FromQuery] ReceivingSlipListQuery q)
@@ -79,7 +42,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             var total = await query.CountAsync();
             var items = await query
                 .OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
-                .Select(x => new {
+                .Select(x => new
+                {
                     x.Id,
                     x.ReferenceNo,
                     x.Supplier,
@@ -95,7 +59,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
         }
 
-        // ====== 2) CREATE (Draft) ======
+
         // POST /api/warehousemanager/receiving-slips
         [HttpPost("receiving-slips")]
         public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
@@ -131,60 +95,186 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db.ReceivingSlips.Add(slip);
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetReceivingSlipById), new { id = slip.Id }, new { slip.Id, slip.ReferenceNo });
+            return CreatedAtAction(nameof(GetReceivingSlipItems), new { id = slip.Id }, new { slip.Id, slip.ReferenceNo });
         }
 
-        // ====== 3) DETAIL ======
-        // GET /api/warehousemanager/receiving-slips/{id}
-        [HttpGet("receiving-slips/{id:int}")]
-        public async Task<IActionResult> GetReceivingSlipById([FromRoute] int id)
-        {
-            var slip = await _db.ReceivingSlips
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
 
-            return slip is null ? NotFound() : Ok(slip);
+        [HttpGet("receiving-slips/{id:int}/items")]
+        public async Task<IActionResult> GetReceivingSlipItems([FromRoute] int id)
+        {
+            var exists = await _db.ReceivingSlips.AnyAsync(x => x.Id == id);
+            if (!exists) return NotFound(new { message = "Receiving slip not found" });
+
+            var items = await _db.ReceivingSlipItems
+                .Where(i => i.ReceivingSlipId == id)
+                .OrderBy(i => i.Id)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.ProductId,
+                    i.ProductName,
+                    i.Uom,
+                    i.Quantity,
+                    i.UnitPrice,
+                    i.Total
+                })
+                .ToListAsync();
+
+            return Ok(items);
         }
 
-        // ====== 4) UPDATE (chỉ khi Draft) ======
-        // PUT /api/warehousemanager/receiving-slips/{id}
-        [HttpPut("receiving-slips/{id:int}")]
-        public async Task<IActionResult> UpdateReceivingSlip([FromRoute] int id, [FromBody] ReceivingSlipUpdateDto dto)
+        [HttpPost("receiving-slips/{id:int}/items")]
+        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
         {
-            var slip = await _db.ReceivingSlips
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
+            if (slip is null) return NotFound(new { message = "Receiving slip not found" });
 
-            if (slip is null) return NotFound();
             if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be edited" });
+                return Conflict(new { message = "Only Draft slips can be modified" });
 
-            var dupRef = await _db.ReceivingSlips.AnyAsync(x => x.ReferenceNo == dto.ReferenceNo && x.Id != id);
-            if (dupRef) return Conflict(new { message = "ReferenceNo already exists" });
+            if (string.IsNullOrWhiteSpace(dto.ProductName))
+                return BadRequest(new { message = "ProductName is required" });
+            if (dto.Quantity <= 0)
+                return BadRequest(new { message = "Quantity must be > 0" });
+            if (dto.UnitPrice < 0)
+                return BadRequest(new { message = "UnitPrice cannot be negative" });
 
-            slip.Supplier = dto.Supplier.Trim();
-            slip.ReceiptDate = dto.ReceiptDate;
-            slip.ReferenceNo = dto.ReferenceNo.Trim();
-            slip.Note = dto.Note?.Trim();
+            if (dto.ProductId.HasValue)
+            {
+                var pExists = await _db.Products.AnyAsync(p => p.ProductID == dto.ProductId.Value);
+                if (!pExists) return BadRequest(new { message = $"ProductId {dto.ProductId.Value} not found" });
+            }
 
-            // thay toàn bộ items
-            _db.ReceivingSlipItems.RemoveRange(slip.Items);
-            slip.Items = dto.Items.Select(i => new ReceivingSlipItem
+            var item = new ReceivingSlipItem
             {
                 ReceivingSlipId = slip.Id,
-                ProductId = i.ProductId,
-                ProductName = i.ProductName.Trim(),
-                Uom = i.Uom.Trim(),
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice,
-                Total = i.Quantity * i.UnitPrice
-            }).ToList();
+                ProductId = dto.ProductId,
+                ProductName = dto.ProductName.Trim(),
+                Uom = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                Quantity = dto.Quantity,
+                UnitPrice = dto.UnitPrice,
+                Total = dto.Quantity * dto.UnitPrice
+            };
 
+            _db.ReceivingSlipItems.Add(item);
             await _db.SaveChangesAsync();
-            return Ok(new { slip.Id, slip.ReferenceNo });
+
+            // Trả về item mới tạo
+            return CreatedAtAction(nameof(GetReceivingSlipItems), new { id = slip.Id }, new
+            {
+                item.Id,
+                item.ProductId,
+                item.ProductName,
+                item.Uom,
+                item.Quantity,
+                item.UnitPrice,
+                item.Total
+            });
         }
 
-        // ====== 5) DELETE (chỉ khi Draft) ======
+        [HttpPut("receiving-items/{itemId:int}")]
+        public async Task<IActionResult> UpdateReceivingSlipItem([FromRoute] int itemId, [FromBody] ReceivingSlipItemDto dto)
+        {
+            var item = await _db.ReceivingSlipItems
+                .Include(i => i.ReceivingSlip)
+                .FirstOrDefaultAsync(i => i.Id == itemId);
+
+            if (item is null) return NotFound(new { message = "Item not found" });
+
+            if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            if (string.IsNullOrWhiteSpace(dto.ProductName))
+                return BadRequest(new { message = "ProductName is required" });
+            if (dto.Quantity <= 0)
+                return BadRequest(new { message = "Quantity must be > 0" });
+            if (dto.UnitPrice < 0)
+                return BadRequest(new { message = "UnitPrice cannot be negative" });
+
+            if (dto.ProductId.HasValue)
+            {
+                var exists = await _db.Products.AnyAsync(p => p.ProductID == dto.ProductId.Value);
+                if (!exists) return BadRequest(new { message = $"ProductId {dto.ProductId.Value} not found" });
+            }
+
+            item.ProductId = dto.ProductId;
+            item.ProductName = dto.ProductName.Trim();
+            item.Uom = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
+            item.Quantity = dto.Quantity;
+            item.UnitPrice = dto.UnitPrice;
+            item.Total = dto.Quantity * dto.UnitPrice;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                item.Id,
+                item.ProductId,
+                item.ProductName,
+                item.Uom,
+                item.Quantity,
+                item.UnitPrice,
+                item.Total
+            });
+        }
+
+        [HttpDelete("receiving-items/{itemId:int}")]
+        public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
+        {
+            var item = await _db.ReceivingSlipItems
+                .Include(i => i.ReceivingSlip)
+                .FirstOrDefaultAsync(i => i.Id == itemId);
+
+            if (item is null) return NotFound(new { message = "Item not found" });
+
+            if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            _db.ReceivingSlipItems.Remove(item);
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
+        // PUT /api/warehousemanager/receiving-slips/{id}
+        //[HttpPut("receiving-slips/{id:int}")]
+        //public async Task<IActionResult> UpdateReceivingSlip([FromRoute] int id, [FromBody] ReceivingSlipUpdateDto dto)
+        //{
+        //    var slip = await _db.ReceivingSlips
+        //        .Include(x => x.Items)
+        //        .FirstOrDefaultAsync(x => x.Id == id);
+
+        //    if (slip is null) return NotFound();
+        //    if (slip.Status != ReceivingSlipStatus.Draft)
+        //        return Conflict(new { message = "Only Draft slips can be edited" });
+
+        //    var dupRef = await _db.ReceivingSlips.AnyAsync(x => x.ReferenceNo == dto.ReferenceNo && x.Id != id);
+        //    if (dupRef) return Conflict(new { message = "ReferenceNo already exists" });
+
+        //    slip.Supplier = dto.Supplier.Trim();
+        //    slip.ReceiptDate = dto.ReceiptDate;
+        //    slip.ReferenceNo = dto.ReferenceNo.Trim();
+        //    slip.Note = dto.Note?.Trim();
+
+
+        //    _db.ReceivingSlipItems.RemoveRange(slip.Items);
+        //    slip.Items = dto.Items.Select(i => new ReceivingSlipItem
+        //    {
+        //        ReceivingSlipId = slip.Id,
+        //        ProductId = i.ProductId,
+        //        ProductName = i.ProductName.Trim(),
+        //        Uom = i.Uom.Trim(),
+        //        Quantity = i.Quantity,
+        //        UnitPrice = i.UnitPrice,
+        //        Total = i.Quantity * i.UnitPrice
+        //    }).ToList();
+
+        //    await _db.SaveChangesAsync();
+        //    return Ok(new { slip.Id, slip.ReferenceNo });
+        //}
+
+
         // DELETE /api/warehousemanager/receiving-slips/{id}
         [HttpDelete("receiving-slips/{id:int}")]
         public async Task<IActionResult> DeleteReceivingSlip([FromRoute] int id)
@@ -200,7 +290,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
-        // ====== 6) CONFIRM (cộng tồn kho) ======
+
         // POST /api/warehousemanager/receiving-slips/{id}/confirm
         [HttpPost("receiving-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmReceivingSlip([FromRoute] int id)
@@ -219,7 +309,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (slip.Items.Any(i => i.ProductId == null))
                 return BadRequest(new { message = "All items must have ProductId before confirming" });
 
-            // tổng số lượng theo ProductId
+
             var qtyByProduct = slip.Items
                 .GroupBy(i => i.ProductId!.Value)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
@@ -253,5 +343,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 affectedProducts = qtyByProduct.Select(kv => new { ProductId = kv.Key, AddedQty = kv.Value })
             });
         }
+
     }
 }
