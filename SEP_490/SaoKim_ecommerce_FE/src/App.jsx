@@ -1,19 +1,35 @@
-import { useEffect, useState } from 'react';
-import { getHealth } from './api/http';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import ReceivingList from "./pages/warehousemanager/ReceivingList";
+import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ForgetPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import Home from "./pages/commons/Home";
+
+// import ReceivingList from "./pages/ReceivingList";
+// import Outbound from "./pages/Outbound";
+// import Inbound from "./pages/Inbound";
+// import DispatchList from "./pages/DispatchList";
 
 export default function App() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getHealth().then(setData).catch(e => setError(e.message));
-  }, []);
-
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Test API Connection</h1>
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-      {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/inbound" element={<Navigate to="/receiving-slips" replace />} />
+        <Route path="/forgot-password" element={<ForgetPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+        <Route path="/receiving-slips" element={<ReceivingList />} />
+        <Route path="/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
+        {/* 
+        <Route path="/outbound" element={<Outbound />} />
+        <Route path="/receiving-list" element={<ReceivingList />} />
+        <Route path="/dispatch-list" element={<DispatchList />} /> */}
+      </Routes>
+    </BrowserRouter>
   );
 }
