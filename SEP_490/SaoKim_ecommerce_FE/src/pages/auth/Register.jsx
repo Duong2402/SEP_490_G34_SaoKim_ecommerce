@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faEnvelope, faUnlockAlt, faAngleLeft } from "@fortawesome/free-solid-svg-icons";
-import { Col, Row, Form, Card, Button, Container, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import { Form, Card, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
+import BgImage from "../../assets/signin.svg";
+import "../../assets/css/Auth.css";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -51,117 +53,115 @@ export default function Register() {
 
       setSuccess("Registration successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 1500);
-    } catch (err) {
+    } catch {
       setError("Server error. Please try again later.");
     }
   };
 
   return (
     <main>
-      <section className="d-flex align-items-center my-5 mt-lg-6 mb-lg-5">
-        <Container>
-          <p className="text-center">
+      <section className="auth-page" style={{ backgroundImage: `url(${BgImage})` }}>
+        <div className="auth-overlay" />
+
+        <div className="auth-card-wrap">
+          <p className="text-center mb-3">
             <Card.Link as={Link} to="/" className="text-gray-700">
               <FontAwesomeIcon icon={faAngleLeft} className="me-2" /> Back to homepage
             </Card.Link>
           </p>
 
-          <Row className="justify-content-center">
-            <Col xs={12} className="d-flex align-items-center justify-content-center">
-              <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100 fmxw-500">
-                <div className="text-center text-md-center mb-4 mt-md-0">
-                  <h3 className="mb-0">Create an account</h3>
-                </div>
+          <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100">
+            <div className="text-center mb-4">
+              <h3 className="mb-0">Create an account</h3>
+            </div>
 
-                {error && <Alert variant="danger">{error}</Alert>}
-                {success && <Alert variant="success">{success}</Alert>}
+            {error && <Alert variant="danger">{error}</Alert>}
+            {success && <Alert variant="success">{success}</Alert>}
 
-                <Form className="mt-4" onSubmit={handleSubmit}>
-                  <Form.Group id="fullName" className="mb-4">
-                    <Form.Label>Full Name</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text>
-                        <FontAwesomeIcon icon={faUser} />
-                      </InputGroup.Text>
-                      <Form.Control
-                        name="fullName"
-                        type="text"
-                        required
-                        placeholder="Your full name"
-                        value={form.fullName}
-                        onChange={handleChange}
-                      />
-                    </InputGroup>
-                  </Form.Group>
+            <Form className="mt-4" onSubmit={handleSubmit}>
+              <Form.Group id="fullName" className="mb-4">
+                <Form.Label>Full Name</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>
+                    <FontAwesomeIcon icon={faUser} />
+                  </InputGroup.Text>
+                  <Form.Control
+                    name="fullName"
+                    type="text"
+                    required
+                    placeholder="Your full name"
+                    value={form.fullName}
+                    onChange={handleChange}
+                  />
+                </InputGroup>
+              </Form.Group>
 
-                  <Form.Group id="email" className="mb-4">
-                    <Form.Label>Email Address</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text>
-                        <FontAwesomeIcon icon={faEnvelope} />
-                      </InputGroup.Text>
-                      <Form.Control
-                        name="email"
-                        type="email"
-                        required
-                        placeholder="example@company.com"
-                        value={form.email}
-                        onChange={handleChange}
-                      />
-                    </InputGroup>
-                  </Form.Group>
+              <Form.Group id="email" className="mb-4">
+                <Form.Label>Email Address</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>
+                    <FontAwesomeIcon icon={faEnvelope} />
+                  </InputGroup.Text>
+                  <Form.Control
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="example@company.com"
+                    value={form.email}
+                    onChange={handleChange}
+                  />
+                </InputGroup>
+              </Form.Group>
 
-                  <Form.Group id="password" className="mb-4">
-                    <Form.Label>Password</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text>
-                        <FontAwesomeIcon icon={faUnlockAlt} />
-                      </InputGroup.Text>
-                      <Form.Control
-                        name="password"
-                        type="password"
-                        required
-                        placeholder="Password"
-                        value={form.password}
-                        onChange={handleChange}
-                      />
-                    </InputGroup>
-                  </Form.Group>
+              <Form.Group id="password" className="mb-4">
+                <Form.Label>Password</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>
+                    <FontAwesomeIcon icon={faUnlockAlt} />
+                  </InputGroup.Text>
+                  <Form.Control
+                    name="password"
+                    type="password"
+                    required
+                    placeholder="Password"
+                    value={form.password}
+                    onChange={handleChange}
+                  />
+                </InputGroup>
+              </Form.Group>
 
-                  <Form.Group id="confirmPassword" className="mb-4">
-                    <Form.Label>Confirm Password</Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text>
-                        <FontAwesomeIcon icon={faUnlockAlt} />
-                      </InputGroup.Text>
-                      <Form.Control
-                        name="confirmPassword"
-                        type="password"
-                        required
-                        placeholder="Confirm password"
-                        value={form.confirmPassword}
-                        onChange={handleChange}
-                      />
-                    </InputGroup>
-                  </Form.Group>
+              <Form.Group id="confirmPassword" className="mb-4">
+                <Form.Label>Confirm Password</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>
+                    <FontAwesomeIcon icon={faUnlockAlt} />
+                  </InputGroup.Text>
+                  <Form.Control
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    placeholder="Confirm password"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                  />
+                </InputGroup>
+              </Form.Group>
 
-                  <Button variant="primary" type="submit" className="w-100">
-                    Create account
-                  </Button>
-                </Form>
+              <Button variant="primary" type="submit" className="w-100">
+                Create account
+              </Button>
+            </Form>
 
-                <div className="d-flex justify-content-center align-items-center mt-4">
-                  <span className="fw-normal">
-                    Already have an account?{" "}
-                    <Card.Link as={Link} to="/login" className="fw-bold">
-                      {`Login here`}
-                    </Card.Link>
-                  </span>
-                </div>
-              </div>
-            </Col>
-          </Row>
-        </Container>
+            <div className="d-flex justify-content-center align-items-center mt-4">
+              <span className="fw-normal">
+                Already have an account?{" "}
+                <Card.Link as={Link} to="/login" className="fw-bold">
+                  Login here
+                </Card.Link>
+              </span>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   );
