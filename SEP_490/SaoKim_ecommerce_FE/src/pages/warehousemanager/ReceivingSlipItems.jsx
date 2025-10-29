@@ -46,9 +46,9 @@ export default function ReceivingSlipItems() {
     unitPrice: 0
   });
   const [editId, setEditId] = useState(null);
-  const [formErr, setFormErr] = useState("");
+  const [formErrs, setFormErrs] = useState({});
 
-  // Load items
+
   useEffect(() => {
     load();
     loadProducts();
@@ -74,13 +74,17 @@ export default function ReceivingSlipItems() {
       const res = await fetch(`${API_BASE}/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setProducts(data.items || []);
+      const raw = Array.isArray(data) ? data : (data.items || []);
+      const normalized = raw.map(p => ({
+        id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
+        name: p.name ?? p.Name ?? p.productName ?? p.ProductName
+      })).filter(p => p.id != null && p.name);
+      setProducts(normalized);
     } catch (e) {
       console.error("Error loading products:", e);
     }
   }
 
-  // Delete
   const handleDelete = async (itemId) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
@@ -97,7 +101,7 @@ export default function ReceivingSlipItems() {
   const openCreate = () => {
     setMode("create");
     setEditId(null);
-    setFormErr("");
+    setFormErrs("");
     setForm({
       productId: "",
       productName: "",
@@ -114,7 +118,7 @@ export default function ReceivingSlipItems() {
     if (!it) return;
     setMode("edit");
     setEditId(itemId);
-    setFormErr("");
+    setFormErrs("");
     setForm({
       productId: it.productId ?? "",
       productName: it.productName ?? "",
@@ -145,31 +149,14 @@ export default function ReceivingSlipItems() {
     }
   };
 
-  // Validate form
-  function validate() {
-    if (form.productId === "" && !form.productName?.trim()) {
-      return "Vui lòng chọn một sản phẩm hoặc nhập tên sản phẩm mới.";
-    }
-    if (!form.uom?.trim()) return "UoM is required";
-    const q = Number(form.quantity);
-    if (!Number.isFinite(q) || q <= 0) return "Quantity must be > 0";
-    const up = Number(form.unitPrice);
-    if (!Number.isFinite(up) || up < 0) return "Unit price cannot be negative";
-    return "";
-  }
-
-  // Save (create or edit)
   const handleSave = async () => {
-    const v = validate();
-    if (v) { setFormErr(v); return; }
-
     setSaving(true);
-    setFormErr("");
+    setFormErrs({}); // reset lỗi cũ
     try {
       const payload = {
         productId: form.productId === "" ? null : Number(form.productId),
         productName: form.productId !== ""
-          ? products.find(p => p.id === Number(form.productId))?.name || form.productName
+          ? (products.find(p => Number(p.id) === Number(form.productId))?.name || form.productName)
           : form.productName.trim(),
         uom: form.uom.trim(),
         quantity: Number(form.quantity),
@@ -178,14 +165,12 @@ export default function ReceivingSlipItems() {
 
       let res;
       if (mode === "create") {
-        // POST /receiving-slips/{id}/items
         res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        // PUT /receiving-items/{itemId}
         res = await fetch(`${API_BASE}/api/warehousemanager/receiving-items/${editId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -193,20 +178,26 @@ export default function ReceivingSlipItems() {
         });
       }
 
-      const text = await res.text();
       if (!res.ok) {
-        throw new Error(text || `HTTP ${res.status}`);
+        const data = await res.json();
+        // Nếu BE trả về object validation errors
+        if (data.errors) {
+          setFormErrs(data.errors);
+        } else {
+          setFormErrs({ general: data.message || `HTTP ${res.status}` });
+        }
+        return;
       }
 
-      // Refresh list
       await load();
       setShowModal(false);
     } catch (err) {
-      setFormErr(err.message || "Save failed");
+      setFormErrs({ general: err.message });
     } finally {
       setSaving(false);
     }
   };
+
 
   return (
     <WarehouseLayout>
@@ -259,7 +250,7 @@ export default function ReceivingSlipItems() {
                   <th className="text-end">UoM</th>
                   <th className="text-end">Quantity</th>
                   <th className="text-end">Unit Price</th>
-                  <th className="text-end">Total</th>
+                  <th className="text-end">Amount</th>
                   <th className="text-end">Action</th>
                 </tr>
               </thead>
@@ -306,7 +297,6 @@ export default function ReceivingSlipItems() {
         </Card.Body>
       </Card>
 
-      {/* Modal Create/Edit */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>
@@ -314,15 +304,15 @@ export default function ReceivingSlipItems() {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {formErr && (
-            <div className="alert alert-danger py-2">{formErr}</div>
+          {formErrs && (
+            <div className="alert alert-danger py-2">{formErrs}</div>
           )}
           <Form>
             <Row className="mb-3">
               <Col md={6}>
                 <Form.Label>Product</Form.Label>
                 <Form.Select
-                  value={form.productId || "other"}
+                  value={form.productId === "" ? "other" : String(form.productId)}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "other") {
@@ -336,8 +326,8 @@ export default function ReceivingSlipItems() {
                       });
                     }
                   }}
+                  isInvalid={!!formErrs.productId}
                 >
-                  <option value="other">-- Select Product --</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.id} - {p.name}
@@ -345,6 +335,9 @@ export default function ReceivingSlipItems() {
                   ))}
                   <option value="other">Other (enter manually)</option>
                 </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.productId}
+                </Form.Control.Feedback>
               </Col>
               <Col md={6}>
                 <Form.Label>UoM</Form.Label>
@@ -373,7 +366,11 @@ export default function ReceivingSlipItems() {
                   min={1}
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  isInvalid={!!formErrs.quantity}
                 />
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.quantity}
+                </Form.Control.Feedback>
               </Col>
               <Col md={6}>
                 <Form.Label>Unit Price</Form.Label>
