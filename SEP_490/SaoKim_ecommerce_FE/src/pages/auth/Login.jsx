@@ -64,7 +64,7 @@ export default function Login() {
                 <Col xs={12} sm={10} md={8} lg={5} xl={4}>
                   <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100">
                     <div className="text-center mb-4">
-                      <h3 className="mb-0">SaoKim welcome</h3>
+                      <h3 className="mb-0">SaoKim welcome ban toi voi chung toi</h3>
                     </div>
 
                     {error && <Alert variant="danger">{error}</Alert>}
