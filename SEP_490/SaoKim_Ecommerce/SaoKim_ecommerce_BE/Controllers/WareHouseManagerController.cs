@@ -123,56 +123,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(items);
         }
 
-        [HttpPost("receiving-slips/{id:int}/items")]
-        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
-        {
-            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
-            if (slip is null) return NotFound(new { message = "Receiving slip not found" });
-
-            if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be modified" });
-
-            if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest(new { message = "ProductName is required" });
-            if (dto.Quantity <= 0)
-                return BadRequest(new { message = "Quantity must be > 0" });
-            if (dto.UnitPrice < 0)
-                return BadRequest(new { message = "UnitPrice cannot be negative" });
-
-            if (dto.ProductId.HasValue)
-            {
-                var pExists = await _db.Products.AnyAsync(p => p.ProductID == dto.ProductId.Value);
-                if (!pExists) return BadRequest(new { message = $"ProductId {dto.ProductId.Value} not found" });
-            }
-
-            var item = new ReceivingSlipItem
-            {
-                ReceivingSlipId = slip.Id,
-                ProductId = dto.ProductId,
-                ProductName = dto.ProductName.Trim(),
-                Uom = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
-                Quantity = dto.Quantity,
-                UnitPrice = dto.UnitPrice,
-                Total = dto.Quantity * dto.UnitPrice
-            };
-
-            _db.ReceivingSlipItems.Add(item);
-            await _db.SaveChangesAsync();
-
-            // Trả về item mới tạo
-            return CreatedAtAction(nameof(GetReceivingSlipItems), new { id = slip.Id }, new
-            {
-                item.Id,
-                item.ProductId,
-                item.ProductName,
-                item.Uom,
-                item.Quantity,
-                item.UnitPrice,
-                item.Total
-            });
-        }
-
-        [HttpPut("receiving-items/{itemId:int}")]
+        [HttpPut("receiving-items/{itemId:int}/items")]
         public async Task<IActionResult> UpdateReceivingSlipItem([FromRoute] int itemId, [FromBody] ReceivingSlipItemDto dto)
         {
             var item = await _db.ReceivingSlipItems
@@ -191,15 +142,39 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.UnitPrice < 0)
                 return BadRequest(new { message = "UnitPrice cannot be negative" });
 
+            // ✅ Tự động tạo Product nếu chưa có
+            Product? product = null;
+
             if (dto.ProductId.HasValue)
             {
-                var exists = await _db.Products.AnyAsync(p => p.ProductID == dto.ProductId.Value);
-                if (!exists) return BadRequest(new { message = $"ProductId {dto.ProductId.Value} not found" });
+                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                if (product == null)
+                {
+                    product = new Product
+                    {
+                        ProductName = dto.ProductName.Trim(),
+                        Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        Price = dto.UnitPrice
+                    };
+                    _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                product = new Product
+                {
+                    ProductName = dto.ProductName.Trim(),
+                    Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    Price = dto.UnitPrice
+                };
+                _db.Products.Add(product);
+                await _db.SaveChangesAsync();
             }
 
-            item.ProductId = dto.ProductId;
-            item.ProductName = dto.ProductName.Trim();
-            item.Uom = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
+            item.ProductId = product.ProductID;
+            item.ProductName = product.ProductName;
+            item.Uom = product.Unit;
             item.Quantity = dto.Quantity;
             item.UnitPrice = dto.UnitPrice;
             item.Total = dto.Quantity * dto.UnitPrice;
@@ -218,6 +193,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
         {
@@ -235,45 +211,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return NoContent();
         }
-
-
-        // PUT /api/warehousemanager/receiving-slips/{id}
-        //[HttpPut("receiving-slips/{id:int}")]
-        //public async Task<IActionResult> UpdateReceivingSlip([FromRoute] int id, [FromBody] ReceivingSlipUpdateDto dto)
-        //{
-        //    var slip = await _db.ReceivingSlips
-        //        .Include(x => x.Items)
-        //        .FirstOrDefaultAsync(x => x.Id == id);
-
-        //    if (slip is null) return NotFound();
-        //    if (slip.Status != ReceivingSlipStatus.Draft)
-        //        return Conflict(new { message = "Only Draft slips can be edited" });
-
-        //    var dupRef = await _db.ReceivingSlips.AnyAsync(x => x.ReferenceNo == dto.ReferenceNo && x.Id != id);
-        //    if (dupRef) return Conflict(new { message = "ReferenceNo already exists" });
-
-        //    slip.Supplier = dto.Supplier.Trim();
-        //    slip.ReceiptDate = dto.ReceiptDate;
-        //    slip.ReferenceNo = dto.ReferenceNo.Trim();
-        //    slip.Note = dto.Note?.Trim();
-
-
-        //    _db.ReceivingSlipItems.RemoveRange(slip.Items);
-        //    slip.Items = dto.Items.Select(i => new ReceivingSlipItem
-        //    {
-        //        ReceivingSlipId = slip.Id,
-        //        ProductId = i.ProductId,
-        //        ProductName = i.ProductName.Trim(),
-        //        Uom = i.Uom.Trim(),
-        //        Quantity = i.Quantity,
-        //        UnitPrice = i.UnitPrice,
-        //        Total = i.Quantity * i.UnitPrice
-        //    }).ToList();
-
-        //    await _db.SaveChangesAsync();
-        //    return Ok(new { slip.Id, slip.ReferenceNo });
-        //}
-
 
         // DELETE /api/warehousemanager/receiving-slips/{id}
         [HttpDelete("receiving-slips/{id:int}")]
