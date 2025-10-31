@@ -6,6 +6,11 @@ import Register from "./pages/auth/Register";
 import ForgetPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Home from "./pages/commons/Home";
+import Outbound from "./pages/warehousemanager/DispatchList";
+import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
+import DispatchList from "./pages/warehousemanager/DispatchList";
+
+
 
 // import ReceivingList from "./pages/ReceivingList";
 // import Outbound from "./pages/Outbound";
@@ -25,10 +30,10 @@ export default function App() {
 
         <Route path="/receiving-slips" element={<ReceivingList />} />
         <Route path="/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
-        {/* 
-        <Route path="/outbound" element={<Outbound />} />
-        <Route path="/receiving-list" element={<ReceivingList />} />
-        <Route path="/dispatch-list" element={<DispatchList />} /> */}
+
+        <Route path="/dispatch-slips" element={<DispatchList />} />
+        <Route path="/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+
       </Routes>
     </BrowserRouter>
   );
