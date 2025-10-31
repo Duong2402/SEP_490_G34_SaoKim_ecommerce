@@ -15,11 +15,11 @@ const WarehouseSidebar = () => {
   const location = useLocation();
 
   const menuItems = [
-    { title: "Manage Inbound", icon: faTruckLoading, link: "/receiving-slips" },
-    { title: "Manage Outbound", icon: faTruckMoving, link: "/dispatch-slips" },
-    { title: "Manage Inventory", icon: faBoxes, link: "/inventory" },
-    { title: "Warehouse Report", icon: faChartBar, link: "/warehouse-report" },
-    { title: "Traceability", icon: faSearchLocation, link: "/traceability" },
+    { title: "Manage Inbound", icon: faTruckLoading, link: "/warehouse-dashboard/receiving-slips" },
+    { title: "Manage Outbound", icon: faTruckMoving, link: "/warehouse-dashboard/dispatch-slips" },
+    { title: "Manage Inventory", icon: faBoxes, link: "/warehouse-dashboard/inventory" },
+    { title: "Warehouse Report", icon: faChartBar, link: "/warehouse-dashboard/warehouse-report" },
+    { title: "Traceability", icon: faSearchLocation, link: "/warehouse-dashboard/traceability" },
 
   ];
 

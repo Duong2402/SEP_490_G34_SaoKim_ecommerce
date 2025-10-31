@@ -281,5 +281,54 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+        // GET /api/warehousemanager/inbound-report
+        [HttpGet("inbound-report")]
+        public async Task<IActionResult> GetInboundReport([FromQuery] InboundReportQuery q)
+        {
+            var query = _db.ReceivingSlips
+                .Include(s => s.Items)
+                .AsQueryable();
+
+            // --- Bộ lọc ---
+            if (!string.IsNullOrWhiteSpace(q.Supplier))
+                query = query.Where(s => s.Supplier.Contains(q.Supplier));
+
+            if (!string.IsNullOrWhiteSpace(q.Project))
+                query = query.Where(s => s.Note != null && s.Note.Contains(q.Project));
+
+            if (!string.IsNullOrWhiteSpace(q.Source))
+                query = query.Where(s => s.Note != null && s.Note.Contains(q.Source));
+
+            if (q.FromDate.HasValue)
+                query = query.Where(s => s.ReceiptDate >= q.FromDate.Value);
+
+            if (q.ToDate.HasValue)
+                query = query.Where(s => s.ReceiptDate <= q.ToDate.Value);
+
+            var report = await query
+                .Select(s => new
+                {
+                    s.Supplier,
+                    s.ReceiptDate,
+                    TotalItems = s.Items.Count,
+                    TotalQuantity = s.Items.Sum(i => i.Quantity),
+                    TotalValue = s.Items.Sum(i => i.Total)
+                })
+                .OrderByDescending(x => x.ReceiptDate)
+                .ToListAsync();
+
+            return Ok(report);
+        }
+
+        [HttpGet("inbound-report/export")]
+        public async Task<IActionResult> ExportInboundReport([FromQuery] InboundReportQuery q)
+        {
+            var report = await GetInboundReport(q) as OkObjectResult;
+            var data = report?.Value as List<InboundReportDto>;
+
+            return Ok(data);
+        }
+
+
     }
 }

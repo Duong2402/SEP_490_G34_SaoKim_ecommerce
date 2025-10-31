@@ -3,16 +3,20 @@
   "WorkspaceRootPath": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\dtos\\warehousemanagerdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\dtos\\warehousemanagerdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\receivingslip.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\receivingslip.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\entities\\receivingslipitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\entities\\receivingslipitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\controllers\\warehousemanagercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -29,10 +33,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\dtos\\authdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\dtos\\authdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|d:\\sep490\\sep_490_g34_saokim_ecommerce\\sep_490\\saokim_ecommerce\\saokim_ecommerce_be\\dtos\\warehousemanagerdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{2390F0A7-214D-47C9-AE72-390F589A0C0A}|SaoKim_ecommerce_BE\\SaoKim_ecommerce_BE.csproj|solutionrelative:saokim_ecommerce_be\\dtos\\warehousemanagerdtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -42,7 +42,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,7 +50,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "ReceivingSlip.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
@@ -58,12 +58,11 @@
               "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlip.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-30T13:08:48.346Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-10-30T13:08:48.346Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "ReceivingSlipItem.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
@@ -71,25 +70,24 @@
               "RelativeToolTip": "SaoKim_ecommerce_BE\\Entities\\ReceivingSlipItem.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-30T13:08:47.505Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-10-30T13:08:47.505Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 0,
               "Title": "WareHouseManagerController.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "ToolTip": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
               "RelativeToolTip": "SaoKim_ecommerce_BE\\Controllers\\WareHouseManagerController.cs",
-              "ViewState": "AgIAAHIAAAAAAAAAAAAAAIIAAAA6AAAAAAAAAA==",
+              "ViewState": "AgIAACQBAAAAAAAAAAAQwGgAAABMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-10-30T08:29:47.539Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "PasswordResetService.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Services\\PasswordResetService.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Services\\PasswordResetService.cs",
@@ -101,7 +99,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "EmailService.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Services\\EmailService.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Services\\EmailService.cs",
@@ -113,7 +111,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "AuthController.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\Controllers\\AuthController.cs",
@@ -125,7 +123,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "AuthDTOs.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\DTOs\\AuthDTOs.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\DTOs\\AuthDTOs.cs",
@@ -137,15 +135,16 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 1,
               "Title": "WareHouseManagerDTOs.cs",
               "DocumentMoniker": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\DTOs\\WareHouseManagerDTOs.cs",
               "RelativeDocumentMoniker": "SaoKim_ecommerce_BE\\DTOs\\WareHouseManagerDTOs.cs",
               "ToolTip": "D:\\SEP490\\SEP_490_G34_SaoKim_ecommerce\\SEP_490\\SaoKim_Ecommerce\\SaoKim_ecommerce_BE\\DTOs\\WareHouseManagerDTOs.cs",
               "RelativeToolTip": "SaoKim_ecommerce_BE\\DTOs\\WareHouseManagerDTOs.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAgAAAAAAAAAAAA9wDoAAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-29T18:04:11.725Z"
+              "WhenOpened": "2025-10-29T18:04:11.725Z",
+              "EditorCaption": ""
             }
           ]
         }

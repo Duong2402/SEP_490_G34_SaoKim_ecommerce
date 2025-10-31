@@ -146,7 +146,7 @@ export default function ReceivingSlipItems() {
         productName:
           form.productId !== ""
             ? products.find((p) => Number(p.id) === Number(form.productId))?.name ||
-              form.productName
+            form.productName
             : form.productName.trim(),
         uom: form.uom.trim(),
         quantity: Number(form.quantity),
@@ -196,7 +196,7 @@ export default function ReceivingSlipItems() {
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
             <Breadcrumb.Item>
-              <FontAwesomeIcon icon={faHome} />
+              <FontAwesomeIcon icon={faHome} href="/warehouse-dashboard" />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Manage Inbound</Breadcrumb.Item>
             <Breadcrumb.Item href="/receiving-slips">
