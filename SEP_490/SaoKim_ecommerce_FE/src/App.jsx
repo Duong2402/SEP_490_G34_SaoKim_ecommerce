@@ -6,10 +6,11 @@ import Register from "./pages/auth/Register";
 import ForgetPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Home from "./pages/commons/Home";
-import Outbound from "./pages/warehousemanager/DispatchList";
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
 import DispatchList from "./pages/warehousemanager/DispatchList";
-
+import InboundReport from "./pages/warehousemanager/InboundReport";
+import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
+import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
 
 
 // import ReceivingList from "./pages/ReceivingList";
@@ -28,11 +29,19 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        <Route path="/receiving-slips" element={<ReceivingList />} />
-        <Route path="/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
+        <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
 
-        <Route path="/dispatch-slips" element={<DispatchList />} />
-        <Route path="/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+        <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
+        <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
+
+        <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
+        <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+
+        <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
+        <Route
+          path="/warehouse-dashboard/warehouse-report/inbound-report"
+          element={<InboundReport />}
+        />
 
       </Routes>
     </BrowserRouter>
