@@ -93,20 +93,28 @@ public class AuthController : ControllerBase
     [FromServices] IPasswordResetService resetService,
     [FromServices] IEmailService emailService)
     {
-        if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { message = "Email required" });
+        if (string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Email required" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null) return BadRequest(new { message = "Email not found" });
+        if (user == null)
+            return BadRequest(new { message = "Email not found" });
 
         var ttl = TimeSpan.FromMinutes(5);
         var code = resetService.GenerateCode(req.Email, ttl);
 
-        var subject = "Your password reset code";
-        var body = $"Your verification code is: {code}. It will expire in {ttl.TotalMinutes} minutes.";
-        await emailService.SendAsync(req.Email, subject, body);
+        var resetLink = $"http://localhost:5173/reset-password/{code}";
 
-        return Ok(new { message = "Verification code has been sent to your email." });
+        var subject = "Reset your password";
+        var body = $@"
+        Hi {user.Email},
+        Click the link below to reset your password. This link will expire in {ttl.TotalMinutes} minutes: {resetLink}
+        If you didn't request this, you can safely ignore this email.
+    ";
+        await emailService.SendAsync(req.Email, subject, body);
+        return Ok(new { message = "Password reset link has been sent to your email." });
     }
+
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req,
@@ -114,9 +122,6 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Code) || string.IsNullOrWhiteSpace(req.NewPassword))
             return BadRequest(new { message = "Missing data" });
-
-        var verified = resetService.VerifyCode(req.Email, req.Code);
-        if (!verified) return BadRequest(new { message = "Invalid or expired code" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
         if (user == null) return BadRequest(new { message = "User not found" });

@@ -7,6 +7,12 @@ import Home from "./pages/commons/Home";
 import ManageProduct from "./pages/staff-manager/StaffManager";
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
+import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
+import DispatchList from "./pages/warehousemanager/DispatchList";
+import InboundReport from "./pages/warehousemanager/InboundReport";
+import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
+import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
+
 
 // import ReceivingList from "./pages/ReceivingList";
 // import Outbound from "./pages/Outbound";
@@ -27,16 +33,24 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        <Route path="/receiving-slips" element={<ReceivingList />} />
+        <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
+
+        <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
         <Route
-          path="/receiving-slips/:id/items"
+          path="/warehouse-dashboard/receiving-slips/:id/items"
           element={<ReceivingSlipItems />}
         /> 
           <Route path="/products" element={<ManageProduct />} />
-        {/* 
-        <Route path="/outbound" element={<Outbound />} />
-        <Route path="/receiving-list" element={<ReceivingList />} />
-        <Route path="/dispatch-list" element={<DispatchList />} /> */}
+
+        <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
+        <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+
+        <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
+        <Route
+          path="/warehouse-dashboard/warehouse-report/inbound-report"
+          element={<InboundReport />}
+        />
+
       </Routes>
     </BrowserRouter>
   );
