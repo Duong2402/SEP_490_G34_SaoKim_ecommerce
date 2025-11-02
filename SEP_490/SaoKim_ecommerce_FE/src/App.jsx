@@ -6,7 +6,6 @@ import { useLanguage } from "./i18n/LanguageProvider.jsx";
 // Auth & commons
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import ForgetPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Home from "./pages/commons/Home";
 

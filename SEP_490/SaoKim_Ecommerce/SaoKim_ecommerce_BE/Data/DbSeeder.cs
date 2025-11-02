@@ -11,7 +11,7 @@ namespace SaoKim_ecommerce_BE.Data
             {
                 new Role { RoleId = 1, Name = "admin" },
                 new Role { RoleId = 2, Name = "warehouse_manager" },
-                new Role { RoleId = 3, Name = "sales" },
+                new Role { RoleId = 3, Name = "staff" },
                 new Role { RoleId = 4, Name = "customer" },
                 new Role { RoleId = 5, Name = "manager" },
                 new Role { RoleId = 6, Name = "project_manager" }
