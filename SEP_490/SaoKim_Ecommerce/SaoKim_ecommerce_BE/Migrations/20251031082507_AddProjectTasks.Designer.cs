@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SaoKim_ecommerce_BE.Data;
@@ -11,9 +12,11 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    partial class SaoKimDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251031082507_AddProjectTasks")]
+    partial class AddProjectTasks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -153,7 +156,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime?>("EndDate")
-                        .HasColumnType("date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -161,7 +164,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<DateTime?>("StartDate")
-                        .HasColumnType("date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
@@ -290,7 +293,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -333,7 +336,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

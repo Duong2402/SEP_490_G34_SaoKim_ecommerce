@@ -37,24 +37,4 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? Note { get; set; }
         public List<ReceivingSlipItemDto> Items { get; set; } = new();
     }
-
-    public class InboundReportDto
-    {
-        public string? Supplier { get; set; }
-        public string? Project { get; set; }
-        public string? Source { get; set; }
-        public DateTime? ReceiptDate { get; set; }
-        public int TotalItems { get; set; }
-        public decimal TotalQuantity { get; set; }
-        public decimal TotalValue { get; set; }
-    }
-
-    public class InboundReportQuery
-    {
-        public string? Supplier { get; set; }
-        public string? Project { get; set; }
-        public string? Source { get; set; }
-        public DateTime? FromDate { get; set; }
-        public DateTime? ToDate { get; set; }
-    }
 }
