@@ -71,7 +71,7 @@ export default function ReceivingList() {
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
             <Breadcrumb.Item>
-              <FontAwesomeIcon icon={faHome} href="/warehouse-dashboard"/>
+              <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Manage Inbound</Breadcrumb.Item>
             <Breadcrumb.Item active>Receiving Slips</Breadcrumb.Item>
@@ -199,7 +199,7 @@ export default function ReceivingList() {
                         size="sm"
                         className="me-2"
                         title="View"
-                        onClick={() => window.location.href = `/warehouse-dashboard/receiving-slips/${r.id}/items`}
+                        onClick={() => window.location.href = `/receiving-slips/${r.id}/items`}
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>

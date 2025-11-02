@@ -9,9 +9,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     resolve: {
-      alias: {
-        '@': '/src',
-      },
+      alias: { '@': '/src' },
     },
 
     server: {
@@ -23,6 +21,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
+          // KHÔNG đọc token/localStorage ở đây
         },
       },
     },
@@ -36,6 +35,5 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: true,
     },
-
   }
 })

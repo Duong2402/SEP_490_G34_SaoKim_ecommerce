@@ -1,60 +1,54 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import ForgetPassword from "./pages/auth/ForgotPassword";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import "./App.css";
+import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
+import { useLanguage } from "./i18n/LanguageProvider.jsx";
+
+// Auth & commons
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Home from "./pages/commons/Home";
-import ManageProduct from "./pages/staff-manager/StaffManager";
+
+// Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
-import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
-import DispatchList from "./pages/warehousemanager/DispatchList";
-import InboundReport from "./pages/warehousemanager/InboundReport";
-import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
-import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
-import ChangePassword from "./pages/auth/ChangePassword";
 
-
-// import ReceivingList from "./pages/ReceivingList";
-// import Outbound from "./pages/Outbound";
-// import Inbound from "./pages/Inbound";
-// import DispatchList from "./pages/DispatchList";
+// Projects
+import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
+import ProjectList from "./pages/ProjectManager/ProjectList";
+import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
+import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 
 export default function App() {
+  const { t } = useLanguage();
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/inbound"
-          element={<Navigate to="/receiving-slips" replace />}
-        />
-        <Route path="/forgot-password" element={<ForgetPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
+    <div className="page-wrapper">
+      <LanguageSwitcher />
+      <BrowserRouter>
+        <Routes>
+          {/* Commons */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgetPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        <Route path="/change-password" element={<ChangePassword/>} />
+          {/* Warehouse */}
+          <Route path="/inbound" element={<Navigate to="/receiving-slips" replace />} />
+          <Route path="/receiving-slips" element={<ReceivingList />} />
+          <Route path="/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
 
-        <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
+          {/* Projects */}
+          <Route path="/projects" element={<ProjectList />} />
+          <Route path="/projects/create" element={<ProjectCreate />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
+          <Route path="/projects/:id/edit" element={<ProjectEdit />} />
 
-        <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
-        <Route
-          path="/warehouse-dashboard/receiving-slips/:id/items"
-          element={<ReceivingSlipItems />}
-        /> 
-          <Route path="/products" element={<ManageProduct />} />
-
-        <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
-        <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
-
-        <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
-        <Route
-          path="/warehouse-dashboard/warehouse-report/inbound-report"
-          element={<InboundReport />}
-        />
-
-      </Routes>
-    </BrowserRouter>
+          {/* 404 */}
+          <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }
