@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Services;
-using System.Text.Json.Serialization; // <-- thêm
+using System.Text.Json.Serialization; // <-- thï¿½m
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +18,7 @@ builder.Services.AddControllers()
         // Enum serialize/deserialize b?ng CH?: "New" | "InProgress" | "Done"
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 
-        // (tu? ch?n) n?i l?ng phân bi?t hoa/th??ng khi parse tên thu?c tính
+        // (tu? ch?n) n?i l?ng phï¿½n bi?t hoa/th??ng khi parse tï¿½n thu?c tï¿½nh
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
@@ -28,13 +28,14 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProductService, ProductService>(); // Duy
 builder.Services.AddScoped<IProjectService, ProjectService>();
 
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// 2) CORS – ??c t? appsettings.json
+// 2) CORS ï¿½ ??c t? appsettings.json
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? new[] { "http://localhost:5173" };
@@ -75,10 +76,10 @@ else
 
 app.UseHttpsRedirection();
 
-// ??t CORS tr??c MapControllers (và tr??c auth n?u có)
+// ??t CORS tr??c MapControllers (vï¿½ tr??c auth n?u cï¿½)
 app.UseCors("AllowFE");
 
-// N?u có auth sau này:
+// N?u cï¿½ auth sau nï¿½y:
 // app.UseAuthentication();
 // app.UseAuthorization();
 
