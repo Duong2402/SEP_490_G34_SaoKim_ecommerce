@@ -24,6 +24,16 @@ export default defineConfig(({ mode }) => {
           secure: false,
           ws: true,
         },
+        '/images': {
+          target: API_TARGET,
+          changeOrigin: true,
+          secure: false,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('proxy error', err);
+            });
+          },
+        },
       },
     },
 
