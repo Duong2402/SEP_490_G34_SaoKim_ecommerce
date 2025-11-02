@@ -199,7 +199,7 @@ export default function ReceivingSlipItems() {
               <FontAwesomeIcon icon={faHome} href="/warehouse-dashboard" />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Manage Inbound</Breadcrumb.Item>
-            <Breadcrumb.Item href="/warehouse-dashboard/receiving-slips">
+            <Breadcrumb.Item href="/receiving-slips">
               Receiving Slips
             </Breadcrumb.Item>
             <Breadcrumb.Item active>Items</Breadcrumb.Item>
@@ -217,7 +217,7 @@ export default function ReceivingSlipItems() {
             Add New Item
           </Button>
 
-          <Link to="/warehouse-dashboard/receiving-slips" className="btn btn-outline-primary btn-sm">
+          <Link to="/receiving-slips" className="btn btn-outline-primary btn-sm">
             <FontAwesomeIcon icon={faArrowLeft} className="me-1" />
             Back to List
           </Link>

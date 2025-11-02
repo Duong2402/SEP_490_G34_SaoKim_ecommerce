@@ -130,9 +130,10 @@ namespace SaoKim_ecommerce_BE.Services
             {
                 Page = page,
                 PageSize = size,
-                Total = total,
+                TotalItems = (int)total,
                 Items = items
             };
+
         }
 
         public async Task<ProjectResponseDTO?> UpdateAsync(int id, UpdateProjectDTO dto, string? updatedBy)

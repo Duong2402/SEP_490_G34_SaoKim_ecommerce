@@ -23,27 +23,42 @@ namespace SaoKim_ecommerce_BE.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // ===== Products =====
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
                 e.HasKey(x => x.ProductID);
-                e.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
-                e.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
-                e.HasIndex(x => x.ProductCode).IsUnique();
-                e.Property(x => x.Unit).HasMaxLength(50);
-                e.Property(x => x.Description).HasMaxLength(500);
-                e.Property(x => x.Supplier).HasMaxLength(200);
-                e.Property(x => x.Image).HasMaxLength(300);
-                e.Property(x => x.Price).HasColumnType("decimal(18,2)");
-                e.Property(x => x.Note).HasMaxLength(500);
-                e.Property(x => x.Category).HasMaxLength(100);
-                e.Property(x => x.Status).HasMaxLength(50);
-                e.Property(x => x.CreateAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
-                e.Property(x => x.UpdateAt).IsRequired(false);
+                e.Property(x => x.ProductName)
+                    .HasMaxLength(200)
+                    .IsRequired();
+                e.Property(x => x.ProductCode)
+                    .HasMaxLength(50)
+                    .IsRequired();
+                e.HasIndex(x => x.ProductCode)
+                    .IsUnique();
+                e.Property(x => x.Unit)
+                    .HasMaxLength(50);
+                e.Property(x => x.Description)
+                    .HasMaxLength(500);
+                e.Property(x => x.Supplier)
+                    .HasMaxLength(200);
+                e.Property(x => x.Image)
+                    .HasMaxLength(300);
+                e.Property(x => x.Price)
+                    .HasColumnType("decimal(18,2)");
+                e.Property(x => x.Note)
+                    .HasMaxLength(500);
+                e.Property(x => x.Category)
+                    .HasMaxLength(100);
+                e.Property(x => x.Status)
+                    .HasMaxLength(50);
+                e.Property(x => x.CreateAt)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                e.Property(x => x.UpdateAt)
+                    .IsRequired(false);
             });
 
-            // ===== ReceivingSlip / Items =====
             modelBuilder.Entity<ReceivingSlip>(e =>
             {
                 e.ToTable("receiving_slips");
