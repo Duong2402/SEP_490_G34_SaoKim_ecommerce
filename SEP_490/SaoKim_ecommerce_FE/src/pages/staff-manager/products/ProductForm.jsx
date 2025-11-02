@@ -89,7 +89,7 @@ export default function ProductForm({
             <Form.Label>Price</Form.Label>
             <Form.Control
               type="number"
-              step="0.01"
+              step="1"
               min={0}
               placeholder="0"
               {...register("price", {
@@ -139,7 +139,11 @@ export default function ProductForm({
 
         <Col md={12} className="d-flex gap-2 justify-content-end">
           {onCancel && (
-            <Button variant="outline-secondary" onClick={onCancel} disabled={disabled}>
+            <Button
+              variant="outline-secondary"
+              onClick={onCancel}
+              disabled={disabled}
+            >
               Cancel
             </Button>
           )}

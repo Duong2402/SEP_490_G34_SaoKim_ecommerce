@@ -44,6 +44,13 @@ export default function Register() {
         }),
       });
 
+      console.log("response", {
+          name: form.fullName,
+          email: form.email,
+          password: form.password,
+          role: "customer",
+        });
+
       const data = await res.json();
 
       if (!res.ok) {

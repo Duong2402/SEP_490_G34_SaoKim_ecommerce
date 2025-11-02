@@ -25,26 +25,16 @@ function ConfirmDeleteModal({
 
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={onClose} disabled={loading}>
-          {cancelText}
+          {cancelText} Cancel
         </Button>
         <Button variant="danger" onClick={onConfirm} disabled={loading}>
-          {confirmText}
+          {confirmText} Confirm
         </Button>
       </Modal.Footer>
     </Modal>
   );
 }
 
-ConfirmDeleteModal.propTypes = {
-  show: PropTypes.bool.isRequired,
-  title: PropTypes.string,
-  message: PropTypes.string,
-  confirmText: PropTypes.string,
-  cancelText: PropTypes.string,
-  onConfirm: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
-  loading: PropTypes.bool,
-};
 
 ConfirmDeleteModal.defaultProps = {
   title: "Delete Product",

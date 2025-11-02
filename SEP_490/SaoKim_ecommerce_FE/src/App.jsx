@@ -12,6 +12,7 @@ import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
 import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
+import ChangePassword from "./pages/auth/ChangePassword";
 
 
 // import ReceivingList from "./pages/ReceivingList";
@@ -32,6 +33,8 @@ export default function App() {
         />
         <Route path="/forgot-password" element={<ForgetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+        <Route path="/change-password" element={<ChangePassword/>} />
 
         <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
 

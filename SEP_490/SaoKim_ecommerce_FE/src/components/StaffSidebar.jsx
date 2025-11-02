@@ -28,7 +28,7 @@ const StaffSidebar = () => {
   return (
     <div className="sidebar d-flex flex-column bg-dark text-white p-3" style={{ minHeight: "100vh", width: "400px" }}>
       <div className="sidebar-header mb-4">
-        <h5 className="text-white"> Staff Manager</h5>
+        <h5 className="text-white"> 👔 Staff Manager</h5>
       </div>
 
       <Nav className="flex-column">

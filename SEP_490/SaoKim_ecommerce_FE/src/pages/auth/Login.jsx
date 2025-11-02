@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAngleLeft, faEnvelope, faUnlockAlt } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useState } from "react";
 // import { faFacebookF, faGithub, faTwitter } from "@fortawesome/free-brands-svg-icons";
-import { Col, Row, Form, Card, Button, FormCheck, Container, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import { Alert, Button, Card, Form, FormCheck, InputGroup } from "@themesberg/react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import BgImage from "../../assets/signin.svg";
 import "../../assets/css/Auth.css";
+import BgImage from "../../assets/signin.svg";
 
 
 export default function Login() {
@@ -115,6 +115,7 @@ export default function Login() {
                 <Card.Link as={Link} to="/forgot-password" className="small text-end">
                   Forget Password
                 </Card.Link>
+                
               </div>
 
               <Button variant="primary" type="submit" className="w-100">
@@ -130,6 +131,7 @@ export default function Login() {
                 </Card.Link>
               </span>
             </div>
+            <div className="text-center mt-4"><Card.Link as={Link} to="/change-password">Change Password</Card.Link></div>
           </div>
         </div>
       </section>
