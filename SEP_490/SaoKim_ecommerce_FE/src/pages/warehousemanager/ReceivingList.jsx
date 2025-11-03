@@ -99,9 +99,15 @@ export default function ReceivingList() {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
+          <button
+            type="button"
+            className="wm-btn wm-btn--light"
+            onClick={() => {
+              window.open(`${API_BASE}/api/warehousemanager/download-template`, "_blank");
+            }}
+          >
             <FontAwesomeIcon icon={faCloudArrowDown} />
-            Tải mẫu CSV
+            Tải mẫu Excel
           </button>
           <button type="button" className="wm-btn">
             <FontAwesomeIcon icon={faFileImport} />
@@ -154,7 +160,7 @@ export default function ReceivingList() {
         <table className="table align-middle mb-0">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>#</th>
               <th>Mã phiếu</th>
               <th>Nhà cung cấp</th>
               <th>Ngày nhận</th>

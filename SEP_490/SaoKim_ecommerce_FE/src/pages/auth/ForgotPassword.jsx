@@ -5,7 +5,7 @@ import {
   faPaperPlane,
   faClockRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
-import { Form, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import { Form, Button, InputGroup } from "@themesberg/react-bootstrap";
 import { Link } from "react-router-dom";
 import AuthLayout from "../../components/AuthLayout";
 import BgImage from "../../assets/signin.svg";
@@ -13,8 +13,8 @@ import "../../assets/css/Auth.css";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [variant, setVariant] = useState("info");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -23,13 +23,23 @@ export default function ForgotPassword() {
       const timer = setTimeout(() => setCooldown((prev) => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
-    return undefined;
   }, [cooldown]);
 
   const submit = async (event) => {
     event.preventDefault();
-    setMessage("");
-    setVariant("info");
+    setError("");
+    setSuccess("");
+
+    // ✅ Kiểm tra thủ công thay vì để HTML báo lỗi
+    if (!email) {
+      setError("Vui lòng nhập email đã đăng ký!");
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError("Định dạng email không hợp lệ!");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -38,21 +48,21 @@ export default function ForgotPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
+
       const data = await res.json();
 
       if (!res.ok) {
-        setVariant("danger");
-        setMessage(data.message || "Không thể gửi yêu cầu. Vui lòng thử lại.");
+        setError(data.message || "Không thể gửi yêu cầu. Vui lòng thử lại.");
         return;
       }
 
-      setVariant("success");
-      setMessage(data.message || "Chúng tôi đã gửi mã xác thực đến email của bạn.");
+      setSuccess(
+        data.message || "Chúng tôi đã gửi mã xác thực đến email của bạn."
+      );
       setCooldown(60);
     } catch (err) {
       console.error("Forgot password error:", err);
-      setVariant("danger");
-      setMessage("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
+      setError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
@@ -85,13 +95,12 @@ export default function ForgotPassword() {
         </p>
       </div>
 
-      {message && (
-        <Alert variant={variant} className="auth-alert">
-          {message}
-        </Alert>
-      )}
+      {/* ✅ Hiển thị lỗi / thành công tùy theo state */}
+      {error && <div className="alert alert-danger text-center">{error}</div>}
+      {success && <div className="alert alert-success text-center">{success}</div>}
 
-      <Form className="auth-form" onSubmit={submit}>
+      {/* ✅ Tắt validation mặc định bằng noValidate */}
+      <Form className="auth-form" noValidate onSubmit={submit}>
         <Form.Group controlId="forgotPasswordEmail">
           <Form.Label>Email đã đăng ký</Form.Label>
           <InputGroup>
@@ -104,7 +113,6 @@ export default function ForgotPassword() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
-              required
             />
           </InputGroup>
         </Form.Group>
@@ -112,21 +120,23 @@ export default function ForgotPassword() {
         <Button
           variant="primary"
           type="submit"
-          className="auth-submit w-100"
+          className="auth-submit w-100 mt-3"
           disabled={loading || cooldown > 0}
         >
-          <FontAwesomeIcon icon={cooldown > 0 ? faClockRotateLeft : faPaperPlane} />
+          <FontAwesomeIcon
+            icon={cooldown > 0 ? faClockRotateLeft : faPaperPlane}
+            className="me-2"
+          />
           {buttonLabel()}
         </Button>
 
-        <Link to="/" className="btn auth-secondary w-100">
+        <Link to="/" className="btn auth-secondary w-100 mt-2">
           Về trang chủ
         </Link>
       </Form>
 
       <div className="auth-meta">
-        Nhớ mật khẩu rồi?
-        <Link to="/login">Đăng nhập ngay</Link>
+        Nhớ mật khẩu rồi? <Link to="/login">Đăng nhập ngay</Link>
       </div>
     </AuthLayout>
   );

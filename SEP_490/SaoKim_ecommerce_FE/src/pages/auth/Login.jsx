@@ -24,6 +24,30 @@ export default function Login() {
     setForm({ ...form, [event.target.name]: event.target.value });
   };
 
+  const extractErrorMessage = (res, data) => {
+    // data có thể là object (JSON) hoặc string (HTML/text) hoặc null
+    if (data && typeof data === "object") {
+      const msg = data.message ?? data.Message ?? data.error ?? data.title ?? null;
+      if (msg) return String(msg);
+
+      if (data.errors && typeof data.errors === "object") {
+        const k = Object.keys(data.errors)[0];
+        if (k && Array.isArray(data.errors[k]) && data.errors[k][0]) {
+          return String(data.errors[k][0]);
+        }
+      }
+      try { return JSON.stringify(data); } catch { /* ignore */ }
+    }
+
+    if (typeof data === "string" && data.trim()) {
+      // nếu BE trả text/HTML
+      return data.slice(0, 200);
+    }
+
+    // fallback cuối
+    return res?.status ? `Lỗi ${res.status}` : "Đã xảy ra lỗi";
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -33,27 +57,40 @@ export default function Login() {
       const res = await fetch("https://localhost:7278/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password,
-        }),
+        body: JSON.stringify({ email: form.email.trim(), password: form.password }),
       });
 
-      const data = await res.json();
+      // đọc text trước rồi cố parse
+      let text = "";
+      try { text = await res.text(); } catch { }
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = null; }
 
       if (!res.ok) {
-        setError(data.message || "Không thể đăng nhập. Vui lòng thử lại.");
+        const msg = extractErrorMessage(res, data ?? text) || "Sai email hoặc mật khẩu.";
+        console.warn("LOGIN FAILED:", res.status, data ?? text, "=>", msg);
+        setError(msg);
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userEmail", data.email);
-      localStorage.setItem("role", data.role);
+      // hỗ trợ camelCase/PascalCase
+      const token = (data?.token ?? data?.Token) || "";
+      const email = data?.email ?? data?.Email ?? "";
+      const role = data?.role ?? data?.Role ?? "";
 
-      navigate("/");
+      if (!token) {
+        setError("Phản hồi không hợp lệ từ máy chủ.");
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      if (email) localStorage.setItem("userEmail", email);
+      if (role) localStorage.setItem("role", role);
+
+      navigate("/warehouse-dashboard");
     } catch (err) {
       console.error("Login error:", err);
-      setError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
+      setError("Không thể kết nối tới máy chủ. Vui lòng thử lại sau.");
     } finally {
       setSubmitting(false);
     }
@@ -80,13 +117,26 @@ export default function Login() {
         </p>
       </div>
 
-      {error && (
-        <Alert variant="danger" className="auth-alert">
+      {error !== "" && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            marginTop: 12,
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #dc3545",
+            background: "#ffe5e7",
+            color: "#842029",
+            fontWeight: 500
+          }}
+        >
           {error}
-        </Alert>
+        </div>
       )}
 
-      <Form className="auth-form" onSubmit={handleSubmit}>
+      <Form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Form.Group controlId="loginEmail">
           <Form.Label>Email</Form.Label>
           <InputGroup>
@@ -143,21 +193,22 @@ export default function Login() {
           disabled={submitting}
         >
           {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
-          {!submitting && <FontAwesomeIcon icon={faArrowRight} />}
+          {!submitting && <FontAwesomeIcon icon={faArrowRight} className="ms-2" />}
         </Button>
 
-        <Link to="/" className="btn auth-secondary w-100">
+        <Link to="/" className="btn auth-secondary w-100 mt-2">
           Về trang chủ
         </Link>
       </Form>
 
-      <div className="auth-meta">
-        Chưa có tài khoản?
-        <Link to="/register">Đăng ký ngay</Link>
+      <div className="auth-meta mt-3">
+        Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
       </div>
 
       <div className="auth-footer-note">
-        Bằng việc tiếp tục, bạn đồng ý với <Link to="/terms">điều khoản</Link> và <Link to="/privacy">chính sách bảo mật</Link> của chúng tôi.
+        Bằng việc tiếp tục, bạn đồng ý với{" "}
+        <Link to="/terms">điều khoản</Link> và{" "}
+        <Link to="/privacy">chính sách bảo mật</Link> của chúng tôi.
       </div>
     </AuthLayout>
   );

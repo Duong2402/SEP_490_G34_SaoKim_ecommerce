@@ -19,17 +19,18 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [message, setMessage] = useState("");
-  const [variant, setVariant] = useState("info");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
 
   const submit = async (event) => {
     event.preventDefault();
-    setMessage("");
+    setError("");
+    setSuccess("");
 
     if (newPassword !== confirmPassword) {
-      setVariant("danger");
-      setMessage("Mật khẩu xác nhận không khớp.");
+      setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
@@ -38,23 +39,20 @@ export default function ResetPassword() {
       const res = await fetch("https://localhost:7278/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, newPassword }),
+        body: JSON.stringify({ email, newPassword }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setVariant("danger");
-        setMessage(data.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.");
+        setError(data.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.");
         return;
       }
 
-      setVariant("success");
-      setMessage("Đặt lại mật khẩu thành công. Đang chuyển hướng...");
-      setTimeout(() => navigate("/login"), 1500);
+      setSuccess("Đã đổi mật khẩu thành công!");
+      setTimeout(() => navigate("/login"), 1000);
     } catch (err) {
       console.error("Reset password error:", err);
-      setVariant("danger");
-      setMessage("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
+      setError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
@@ -81,13 +79,24 @@ export default function ResetPassword() {
         </p>
       </div>
 
-      {message && (
-        <Alert variant={variant} className="auth-alert">
-          {message}
-        </Alert>
-      )}
+      {error && <div className="alert alert-danger text-center">{error}</div>}
+      {success && <div className="alert alert-success text-center">{success}</div>}
 
       <Form className="auth-form" onSubmit={submit}>
+        <Form.Group controlId="resetEmail">
+          <Form.Label>Email</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>@</InputGroup.Text>
+            <Form.Control
+              type="email"
+              placeholder="Nhập email đã đăng ký"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </InputGroup>
+        </Form.Group>
+
         <Form.Group controlId="resetNewPassword">
           <Form.Label>Mật khẩu mới</Form.Label>
           <InputGroup>

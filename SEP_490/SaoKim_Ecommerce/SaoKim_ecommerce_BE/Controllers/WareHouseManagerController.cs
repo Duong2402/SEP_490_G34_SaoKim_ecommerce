@@ -329,6 +329,26 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(data);
         }
 
+        [HttpGet("download-template")]
+        public IActionResult DownloadTemplate()
+        {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "templates", "receiving_template.xlsx");
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound(new { message = "Không tìm thấy file mẫu Excel." });
+            }
+
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+            var fileName = "receiving_template.xlsx";
+
+            return File(
+                fileBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName
+            );
+        }
+
 
     }
 }

@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,11 @@ using SaoKim_ecommerce_BE.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-[Route("api/[controller]")]
+
 [ApiController]
+[Route("api/[controller]")]
+[AllowAnonymous]
+
 public class AuthController : ControllerBase
 {
     private readonly SaoKimDBContext _context;
@@ -24,16 +28,45 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromForm] RegisterRequest req)
     {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
         if (await _context.Users.AnyAsync(u => u.Email == req.Email))
-            return BadRequest(new { message = "Email already exists" });
+        {
+            ModelState.AddModelError("Email", "Email already exists");
+            return ValidationProblem(ModelState);
+        }
 
-        string hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == (req.Role ?? "User"));
+        var roleName = string.IsNullOrWhiteSpace(req.Role) ? "customer" : req.Role;
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
         if (role == null)
-            return BadRequest(new { message = "Role not found" });
+        {
+            ModelState.AddModelError("Role", "Role not found");
+            return ValidationProblem(ModelState);
+        }
+
+        string? imagePath = null;
+        if (req.Image != null && req.Image.Length > 0)
+        {
+            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadDir))
+                Directory.CreateDirectory(uploadDir);
+
+            var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
+            var filePath = Path.Combine(uploadDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await req.Image.CopyToAsync(stream);
+            }
+
+            imagePath = $"/uploads/{fileName}";
+        }
+
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
         var user = new User
         {
@@ -41,6 +74,11 @@ public class AuthController : ControllerBase
             Email = req.Email,
             Password = hashedPassword,
             RoleId = role.RoleId,
+            PhoneNumber = req.PhoneNumber,
+            DOB = req.DOB.HasValue
+    ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc)
+    : (DateTime?)null,
+            Image = imagePath,
             Status = "Active",
             CreateAt = DateTime.UtcNow
         };
@@ -48,15 +86,31 @@ public class AuthController : ControllerBase
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Register successful", Email = user.Email, Role = role.Name });
+        return Ok(new
+        {
+            message = "Register successful",
+            email = user.Email,
+            role = role.Name,
+            image = imagePath
+        });
     }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.Email) && string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Invalid email or password" });
+
+        if (string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Please enter your email" });
+
+        if (string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Please enter your password" });
+
         var user = await _context.Users
-    .Include(u => u.Role)
-    .FirstOrDefaultAsync(u => u.Email == req.Email);
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Email == req.Email);
 
         if (user == null)
             return Unauthorized(new { message = "Invalid email or password" });
@@ -66,17 +120,21 @@ public class AuthController : ControllerBase
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]);
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new Claim[]
+            Subject = new ClaimsIdentity(new[]
             {
             new Claim(ClaimTypes.Name, user.Email),
             new Claim("UserId", user.UserID.ToString()),
             new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
-            }),
+        }),
             Expires = DateTime.UtcNow.AddHours(2),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha256Signature)
         };
+
         var token = tokenHandler.CreateToken(tokenDescriptor);
 
         return Ok(new LoginResponse
@@ -88,10 +146,11 @@ public class AuthController : ControllerBase
         });
     }
 
+
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
-    [FromServices] IPasswordResetService resetService,
-    [FromServices] IEmailService emailService)
+        [FromServices] IPasswordResetService resetService,
+        [FromServices] IEmailService emailService)
     {
         if (string.IsNullOrWhiteSpace(req.Email))
             return BadRequest(new { message = "Email required" });
@@ -120,7 +179,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req,
         [FromServices] IPasswordResetService resetService)
     {
-        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Code) || string.IsNullOrWhiteSpace(req.NewPassword))
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.NewPassword))
             return BadRequest(new { message = "Missing data" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);

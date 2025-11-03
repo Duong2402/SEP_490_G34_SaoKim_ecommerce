@@ -4,21 +4,20 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Services;
-using System.Text.Json.Serialization; // <-- thêm
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Services
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
-        // camelCase, ISO8601
         o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 
-        // Enum serialize/deserialize b?ng CH?: "New" | "InProgress" | "Done"
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 
-        // (tu? ch?n) n?i l?ng phân bi?t hoa/th??ng khi parse tên thu?c tính
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
@@ -34,7 +33,6 @@ builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// 2) CORS – ??c t? appsettings.json
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? new[] { "http://localhost:5173" };
@@ -48,13 +46,56 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials()
               .SetPreflightMaxAge(TimeSpan.FromHours(1));
-        // .WithExposedHeaders("X-Total-Count"); // n?u c?n expose header
     });
 });
 
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var key = builder.Configuration["Jwt:Key"];
+        var issuer = builder.Configuration["Jwt:Issuer"];
+        var audience = builder.Configuration["Jwt:Audience"];
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = ctx =>
+            {
+                ctx.HandleResponse();
+                if (!ctx.Response.HasStarted)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    ctx.Response.ContentType = "application/json; charset=utf-8";
+                    return ctx.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
+                }
+                return Task.CompletedTask;
+            },
+            OnForbidden = ctx =>
+            {
+                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+                return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+
 var app = builder.Build();
 
-// 3) DB migrate + seed
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SaoKimDBContext>();
@@ -62,7 +103,6 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(db);
 }
 
-// 4) Middleware pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -73,14 +113,15 @@ else
     app.UseHsts();
 }
 
+
+app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
-// ??t CORS tr??c MapControllers (và tr??c auth n?u có)
 app.UseCors("AllowFE");
 
-// N?u có auth sau này:
-// app.UseAuthentication();
-// app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
