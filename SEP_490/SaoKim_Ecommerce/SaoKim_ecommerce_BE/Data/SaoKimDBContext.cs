@@ -13,9 +13,16 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<Project> Projects { get; set; }
+
+        // NEW:
+        public DbSet<TaskItem> TaskItems { get; set; }
+        public DbSet<TaskDay> TaskDays { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Product>(e =>
@@ -83,6 +90,57 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // ===== Project =====
+            modelBuilder.Entity<Project>(e =>
+            {
+                e.HasIndex(p => p.Code).IsUnique();
+
+                e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
+                e.Property(p => p.Status).HasDefaultValue("Draft");
+
+                // Map các trường ngày sang PostgreSQL DATE (tránh timezone)
+                e.Property(p => p.StartDate).HasColumnType("date");
+                e.Property(p => p.EndDate).HasColumnType("date");
+            });
+
+            // ===== TaskItem =====
+            modelBuilder.Entity<TaskItem>(e =>
+            {
+                e.ToTable("project_tasks");
+                e.HasKey(t => t.Id);
+                e.Property(t => t.Name).HasMaxLength(200).IsRequired();
+                e.Property(t => t.Assignee).HasMaxLength(150);
+
+                // Map StartDate sang DATE
+                e.Property(t => t.StartDate).HasColumnType("date");
+
+                e.HasOne(t => t.Project)
+                 .WithMany(p => p.Tasks)
+                 .HasForeignKey(t => t.ProjectId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(t => t.DependsOn)
+                 .WithMany()
+                 .HasForeignKey(t => t.DependsOnTaskId)
+                 .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ===== TaskDay =====
+            modelBuilder.Entity<TaskDay>(e =>
+            {
+                e.ToTable("project_task_days");
+                e.HasKey(d => d.Id);
+
+                // Map Date sang DATE
+                e.Property(d => d.Date).IsRequired().HasColumnType("date");
+
+                e.HasOne(d => d.TaskItem)
+                 .WithMany(t => t.Days)
+                 .HasForeignKey(d => d.TaskItemId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
+            });
         }
     }
 }
