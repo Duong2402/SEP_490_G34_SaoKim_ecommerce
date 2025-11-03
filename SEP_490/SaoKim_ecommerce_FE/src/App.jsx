@@ -28,6 +28,7 @@ import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 
 //Products
 import ProductDetail from "./pages/products/ProductDetail";
+import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 
 export default function App() {
@@ -42,7 +43,7 @@ export default function App() {
           <Route path="/" element={<HomeProductsBody />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgetPassword />} />
+          {/* <Route path="/forgot-password" element={<ForgetPassword />} /> */}
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Warehouse */}
@@ -64,6 +65,7 @@ export default function App() {
 
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/products" element={<ManageProduct />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
