@@ -44,7 +44,7 @@ const formatDate = (value, lang = "en") => {
   if (!value) return "-";
   try {
     return new Date(value).toLocaleDateString(dateLocales[lang] || dateLocales.en);
-  } catch (err) {
+  } catch {
     return "-";
   }
 };

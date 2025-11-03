@@ -1,27 +1,35 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAngleLeft, faUnlockAlt } from "@fortawesome/free-solid-svg-icons";
-import { Form, Card, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import {
+  faUnlockAlt,
+  faEye,
+  faEyeSlash,
+  faArrowRight,
+} from "@fortawesome/free-solid-svg-icons";
+import { Form, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import AuthLayout from "../../components/AuthLayout";
 import BgImage from "../../assets/signin.svg";
 import "../../assets/css/Auth.css";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { code } = useParams(); // Lấy mã reset từ URL
+  const { code } = useParams();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [msg, setMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [message, setMessage] = useState("");
   const [variant, setVariant] = useState("info");
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setMsg("");
+  const submit = async (event) => {
+    event.preventDefault();
+    setMessage("");
 
     if (newPassword !== confirmPassword) {
       setVariant("danger");
-      setMsg("Passwords do not match!");
+      setMessage("Mật khẩu xác nhận không khớp.");
       return;
     }
 
@@ -36,87 +44,119 @@ export default function ResetPassword() {
 
       if (!res.ok) {
         setVariant("danger");
-        setMsg(data.message || "Reset failed");
-      } else {
-        setVariant("success");
-        setMsg("Password reset successfully. Redirecting to login...");
-        setTimeout(() => navigate("/login"), 1500);
+        setMessage(data.message || "Không thể đặt lại mật khẩu. Vui lòng thử lại.");
+        return;
       }
-    } catch {
+
+      setVariant("success");
+      setMessage("Đặt lại mật khẩu thành công. Đang chuyển hướng...");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      console.error("Reset password error:", err);
       setVariant("danger");
-      setMsg("Server error. Please try again later.");
+      setMessage("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main>
-      <section className="auth-page" style={{ backgroundImage: `url(${BgImage})` }}>
-        <div className="auth-overlay" />
-        <div className="auth-card-wrap">
-          <p className="text-center mb-3">
-            <Card.Link as={Link} to="/" className="text-gray-700">
-              <FontAwesomeIcon icon={faAngleLeft} className="me-2" /> Back to homepage
-            </Card.Link>
-          </p>
+    <AuthLayout
+      illustration={BgImage}
+      badge="Bảo mật Sao Kim"
+      headline="Đặt lại lớp bảo vệ tài khoản mua sắm"
+      subHeadline="Tạo mật khẩu mới để bảo vệ thông tin thanh toán và những ưu đãi dành riêng cho bạn."
+      insights={[
+        "Kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt",
+        "Không chia sẻ mật khẩu cho bất kỳ ai",
+        "Đổi mật khẩu định kỳ để tăng cường bảo mật",
+      ]}
+      footerNote="Niềm tin của khách hàng là ánh sáng dẫn đường cho Sao Kim Lighting."
+      backLink={{ to: "/", label: "Quay lại trang chủ" }}
+    >
+      <div className="auth-content__header">
+        <h1 className="auth-content__title">Đặt lại mật khẩu</h1>
+        <p className="auth-content__subtitle">
+          Nhập và xác nhận mật khẩu mới cho tài khoản Sao Kim của bạn.
+        </p>
+      </div>
 
-          <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100">
-            <div className="text-center mb-4">
-              <h3 className="mb-0">Reset Password</h3>
-            </div>
+      {message && (
+        <Alert variant={variant} className="auth-alert">
+          {message}
+        </Alert>
+      )}
 
-            {msg && <Alert variant={variant}>{msg}</Alert>}
+      <Form className="auth-form" onSubmit={submit}>
+        <Form.Group controlId="resetNewPassword">
+          <Form.Label>Mật khẩu mới</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUnlockAlt} />
+            </InputGroup.Text>
+            <Form.Control
+              type={showPassword ? "text" : "password"}
+              placeholder="Nhập mật khẩu mới"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              required
+            />
+            <Button
+              type="button"
+              variant="link"
+              className="auth-form__toggle"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+            </Button>
+          </InputGroup>
+        </Form.Group>
 
-            <Form className="mt-4" onSubmit={submit}>
-              <Form.Group id="newPassword" className="mb-4">
-                <Form.Label>New Password</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faUnlockAlt} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    type="password"
-                    placeholder="New password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Form.Group controlId="resetConfirmPassword">
+          <Form.Label>Xác nhận mật khẩu mới</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUnlockAlt} />
+            </InputGroup.Text>
+            <Form.Control
+              type={showConfirm ? "text" : "password"}
+              placeholder="Nhập lại mật khẩu"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete="new-password"
+              required
+            />
+            <Button
+              type="button"
+              variant="link"
+              className="auth-form__toggle"
+              onClick={() => setShowConfirm((prev) => !prev)}
+            >
+              <FontAwesomeIcon icon={showConfirm ? faEyeSlash : faEye} />
+            </Button>
+          </InputGroup>
+        </Form.Group>
 
-              <Form.Group id="confirmPassword" className="mb-4">
-                <Form.Label>Confirm New Password</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faUnlockAlt} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    type="password"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Button
+          variant="primary"
+          type="submit"
+          className="auth-submit w-100"
+          disabled={loading}
+        >
+          {loading ? "Đang cập nhật..." : "Lưu mật khẩu mới"}
+          {!loading && <FontAwesomeIcon icon={faArrowRight} />}
+        </Button>
 
-              <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-                {loading ? "Resetting..." : "Reset Password"}
-              </Button>
-            </Form>
+        <Link to="/" className="btn auth-secondary w-100">
+          Về trang chủ
+        </Link>
+      </Form>
 
-            <div className="d-flex justify-content-center align-items-center mt-4">
-              <span className="fw-normal">
-                Back to{" "}
-                <Card.Link as={Link} to="/login" className="fw-bold">
-                  Login
-                </Card.Link>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+      <div className="auth-meta">
+        Cần hỗ trợ thêm?
+        <Link to="/forgot-password">Gửi lại email xác nhận</Link>
+      </div>
+    </AuthLayout>
   );
 }

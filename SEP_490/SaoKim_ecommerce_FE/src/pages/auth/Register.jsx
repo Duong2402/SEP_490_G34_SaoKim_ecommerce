@@ -1,37 +1,48 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUser, faEnvelope, faUnlockAlt, faAngleLeft } from "@fortawesome/free-solid-svg-icons";
-import { Form, Card, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import {
+  faUser,
+  faEnvelope,
+  faUnlockAlt,
+  faEye,
+  faEyeSlash,
+  faArrowRight,
+} from "@fortawesome/free-solid-svg-icons";
+import { Form, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
+import AuthLayout from "../../components/AuthLayout";
 import BgImage from "../../assets/signin.svg";
 import "../../assets/css/Auth.css";
 
 export default function Register() {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (event) => {
+    setForm({ ...form, [event.target.name]: event.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError("");
     setSuccess("");
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match!");
+      setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
+    setSubmitting(true);
     try {
       const res = await fetch("https://localhost:7278/api/auth/register", {
         method: "POST",
@@ -47,122 +58,160 @@ export default function Register() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Registration failed");
+        setError(data.message || "Không thể tạo tài khoản. Vui lòng thử lại.");
         return;
       }
 
-      setSuccess("Registration successful! Redirecting to login...");
+      setSuccess("Đăng ký thành công! Đang chuyển hướng tới trang đăng nhập...");
       setTimeout(() => navigate("/login"), 1500);
-    } catch {
-      setError("Server error. Please try again later.");
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <main>
-      <section className="auth-page" style={{ backgroundImage: `url(${BgImage})` }}>
-        <div className="auth-overlay" />
+    <AuthLayout
+      illustration={BgImage}
+      badge="Sao Kim"
+      headline="Gia nhập cộng đồng yêu ánh sáng Sao Kim"
+      subHeadline="Tạo tài khoản để tích lũy điểm thưởng, theo dõi lịch sử đơn hàng và nhận ưu đãi dành riêng cho bạn."
+      insights={[
+        "Ưu đãi độc quyền cho hội viên Sao Kim",
+        "Lưu danh sách đèn yêu thích trong tích tắc",
+        "Nhận thông báo giao hàng và bảo hành tức thì",
+      ]}
+      footerNote="Sao Kim Lighting – nguồn sáng chuẩn châu Âu cho mọi không gian sống."
+      backLink={{ to: "/", label: "Quay lại trang chủ" }}
+    >
+      <div className="auth-content__header">
+        <h1 className="auth-content__title">Tạo tài khoản</h1>
+        <p className="auth-content__subtitle">
+          Hoàn thiện thông tin để bắt đầu hành trình mua sắm ánh sáng đẳng cấp cùng Sao Kim.
+        </p>
+      </div>
 
-        <div className="auth-card-wrap">
-          <p className="text-center mb-3">
-            <Card.Link as={Link} to="/" className="text-gray-700">
-              <FontAwesomeIcon icon={faAngleLeft} className="me-2" /> Back to homepage
-            </Card.Link>
-          </p>
+      {error && (
+        <Alert variant="danger" className="auth-alert">
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert variant="success" className="auth-alert">
+          {success}
+        </Alert>
+      )}
 
-          <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100">
-            <div className="text-center mb-4">
-              <h3 className="mb-0">Create an account</h3>
-            </div>
+      <Form className="auth-form" onSubmit={handleSubmit}>
+        <Form.Group controlId="registerFullName">
+          <Form.Label>Họ và tên</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUser} />
+            </InputGroup.Text>
+            <Form.Control
+              name="fullName"
+              type="text"
+              placeholder="Nguyễn Văn A"
+              value={form.fullName}
+              onChange={handleChange}
+              autoComplete="name"
+              required
+            />
+          </InputGroup>
+        </Form.Group>
 
-            {error && <Alert variant="danger">{error}</Alert>}
-            {success && <Alert variant="success">{success}</Alert>}
+        <Form.Group controlId="registerEmail">
+          <Form.Label>Email</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faEnvelope} />
+            </InputGroup.Text>
+            <Form.Control
+              name="email"
+              type="email"
+              placeholder="example@saokim.vn"
+              value={form.email}
+              onChange={handleChange}
+              autoComplete="email"
+              required
+            />
+          </InputGroup>
+        </Form.Group>
 
-            <Form className="mt-4" onSubmit={handleSubmit}>
-              <Form.Group id="fullName" className="mb-4">
-                <Form.Label>Full Name</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faUser} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    name="fullName"
-                    type="text"
-                    required
-                    placeholder="Your full name"
-                    value={form.fullName}
-                    onChange={handleChange}
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Form.Group controlId="registerPassword">
+          <Form.Label>Mật khẩu</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUnlockAlt} />
+            </InputGroup.Text>
+            <Form.Control
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Tối thiểu 8 ký tự"
+              value={form.password}
+              onChange={handleChange}
+              autoComplete="new-password"
+              required
+            />
+            <Button
+              type="button"
+              variant="link"
+              className="auth-form__toggle"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+            </Button>
+          </InputGroup>
+        </Form.Group>
 
-              <Form.Group id="email" className="mb-4">
-                <Form.Label>Email Address</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faEnvelope} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="example@company.com"
-                    value={form.email}
-                    onChange={handleChange}
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Form.Group controlId="registerConfirmPassword">
+          <Form.Label>Xác nhận mật khẩu</Form.Label>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUnlockAlt} />
+            </InputGroup.Text>
+            <Form.Control
+              name="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              placeholder="Nhập lại mật khẩu"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+              required
+            />
+            <Button
+              type="button"
+              variant="link"
+              className="auth-form__toggle"
+              onClick={() => setShowConfirm((prev) => !prev)}
+            >
+              <FontAwesomeIcon icon={showConfirm ? faEyeSlash : faEye} />
+            </Button>
+          </InputGroup>
+        </Form.Group>
 
-              <Form.Group id="password" className="mb-4">
-                <Form.Label>Password</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faUnlockAlt} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    name="password"
-                    type="password"
-                    required
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={handleChange}
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Button
+          variant="primary"
+          type="submit"
+          className="auth-submit w-100"
+          disabled={submitting}
+        >
+          {submitting ? "Đang xử lý..." : "Tạo tài khoản"}
+          {!submitting && <FontAwesomeIcon icon={faArrowRight} />}
+        </Button>
 
-              <Form.Group id="confirmPassword" className="mb-4">
-                <Form.Label>Confirm Password</Form.Label>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <FontAwesomeIcon icon={faUnlockAlt} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    name="confirmPassword"
-                    type="password"
-                    required
-                    placeholder="Confirm password"
-                    value={form.confirmPassword}
-                    onChange={handleChange}
-                  />
-                </InputGroup>
-              </Form.Group>
+        <Link to="/" className="btn auth-secondary w-100">
+          Về trang chủ
+        </Link>
+      </Form>
 
-              <Button variant="primary" type="submit" className="w-100">
-                Create account
-              </Button>
-            </Form>
-
-            <div className="d-flex justify-content-center align-items-center mt-4">
-              <span className="fw-normal">
-                Already have an account?{" "}
-                <Card.Link as={Link} to="/login" className="fw-bold">
-                  Login here
-                </Card.Link>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+      <div className="auth-meta">
+        Đã có tài khoản?
+        <Link to="/login">Đăng nhập ngay</Link>
+      </div>
+    </AuthLayout>
   );
 }

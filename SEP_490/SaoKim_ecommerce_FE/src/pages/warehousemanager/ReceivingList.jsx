@@ -1,28 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faCog, faHome, faSearch, faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
 import {
-  Col,
-  Row,
-  Form,
-  Button,
-  ButtonGroup,
+  faHome,
+  faSearch,
+  faCog,
+  faEye,
+  faCheck,
+  faTrash,
+  faCloudArrowDown,
+  faFileImport,
+  faFileExport,
+} from "@fortawesome/free-solid-svg-icons";
+import {
   Breadcrumb,
+  Form,
   InputGroup,
   Dropdown,
-  Card,
-  Table,
   Badge,
+  Button,
 } from "@themesberg/react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 
+const API_BASE = "https://localhost:7278";
 
 export default function ReceivingList() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-
-  const API_BASE = "https://localhost:7278";
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const loadData = async () => {
@@ -31,12 +38,13 @@ export default function ReceivingList() {
         const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`);
         const data = await res.json();
         setRows(data.items || []);
-      } catch (err) {
-        console.error("Error loading data:", err);
+      } catch (error) {
+        console.error("Error loading receiving slips:", error);
       } finally {
         setLoading(false);
       }
     };
+
     loadData();
   }, []);
 
@@ -45,193 +53,182 @@ export default function ReceivingList() {
       const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/confirm`, {
         method: "POST",
       });
-      if (res.ok) {
-        alert("Confirmed successfully!");
-        setRows((prev) => prev.map(r => r.id === id ? { ...r, status: 1, confirmedAt: new Date().toISOString() } : r));
-      } else {
-        alert("Confirm failed!");
+      if (!res.ok) {
+        throw new Error("Confirm failed");
       }
-    } catch (err) {
-      console.error(err);
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, status: 1, confirmedAt: new Date().toISOString() } : r
+        )
+      );
+    } catch (error) {
+      console.error("Confirm failed:", error);
+      alert("Không thể xác nhận phiếu. Vui lòng thử lại.");
     }
   };
 
-  const filteredRows = rows.filter(
-    (r) =>
-      r.referenceNo?.toLowerCase().includes(search.toLowerCase()) ||
-      r.supplier?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredRows = useMemo(() => {
+    if (!search) return rows;
+    const keyword = search.toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.referenceNo?.toLowerCase().includes(keyword) ||
+        r.supplier?.toLowerCase().includes(keyword)
+    );
+  }, [rows, search]);
+
+  const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 
   return (
     <WarehouseLayout>
-      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-        <div className="d-block mb-4 mb-md-0">
-          <Breadcrumb
-            className="d-none d-md-inline-block"
-            listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
-          >
-            <Breadcrumb.Item>
-              <FontAwesomeIcon icon={faHome} href="/warehouse-dashboard"/>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>Manage Inbound</Breadcrumb.Item>
-            <Breadcrumb.Item active>Receiving Slips</Breadcrumb.Item>
-          </Breadcrumb>
-          <h4>Receiving Slips</h4>
-          <p className="mb-0">Manage all incoming goods and their receipts.</p>
+      <div className="wm-page-header">
+        <div>
+          <div className="wm-breadcrumb">
+            <Breadcrumb listProps={{ className: "breadcrumb-transparent" }}>
+              <Breadcrumb.Item href="/warehouse-dashboard">
+                <FontAwesomeIcon icon={faHome} /> Bảng điều phối
+              </Breadcrumb.Item>
+              <Breadcrumb.Item active>Phiếu nhập kho</Breadcrumb.Item>
+            </Breadcrumb>
+          </div>
+          <h1 className="wm-page-title">Quản lý phiếu nhập kho</h1>
+          <p className="wm-page-subtitle">
+            Kiểm soát luồng hàng vào kho, xác nhận phiếu và theo dõi tiến độ tiếp nhận.
+          </p>
         </div>
-        <div className="btn-toolbar mb-2 mb-md-0">
-          <ButtonGroup>
-            <Button variant="outline-primary" size="sm">
-              Download
-            </Button>
-            <Button variant="outline-primary" size="sm">
-              Import
-            </Button>
-            <Button variant="outline-primary" size="sm">
-              Export
-            </Button>
-          </ButtonGroup>
+
+        <div className="wm-page-actions">
+          <button type="button" className="wm-btn wm-btn--light">
+            <FontAwesomeIcon icon={faCloudArrowDown} />
+            Tải mẫu CSV
+          </button>
+          <button type="button" className="wm-btn">
+            <FontAwesomeIcon icon={faFileImport} />
+            Nhập danh sách
+          </button>
+          <button type="button" className="wm-btn wm-btn--primary">
+            <FontAwesomeIcon icon={faFileExport} />
+            Xuất báo cáo
+          </button>
         </div>
       </div>
 
-      {/* Search & Filter section */}
-      <div className="table-settings mb-4">
-        <Row className="justify-content-between align-items-center">
-          <Col xs={8} md={6} lg={3} xl={4}>
-            <InputGroup>
-              <InputGroup.Text>
-                <FontAwesomeIcon icon={faSearch} />
-              </InputGroup.Text>
-              <Form.Control
-                type="text"
-                placeholder="Search by reference or supplier"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </InputGroup>
-          </Col>
+      <div className="wm-surface wm-toolbar">
+        <div className="wm-toolbar__search">
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faSearch} />
+            </InputGroup.Text>
+            <Form.Control
+              type="text"
+              placeholder="Tìm theo mã phiếu hoặc nhà cung cấp..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </InputGroup>
+        </div>
 
-          <Col xs={4} md={2} xl={1} className="ps-md-0 text-end">
-            <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle
-                split
-                as={Button}
-                variant="link"
-                className="text-dark m-0 p-0"
-              >
-                <span className="icon icon-sm icon-gray">
-                  <FontAwesomeIcon icon={faCog} />
-                </span>
-              </Dropdown.Toggle>
-              <Dropdown.Menu className="dropdown-menu-xs dropdown-menu-right">
-                <Dropdown.Item className="fw-bold text-dark">Show</Dropdown.Item>
-                <Dropdown.Item className="d-flex fw-bold">
-                  10{" "}
-                  <span className="icon icon-small ms-auto">
-                    <FontAwesomeIcon icon={faCheck} />
-                  </span>
+        <div className="wm-toolbar__actions">
+          <Dropdown>
+            <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
+              <FontAwesomeIcon icon={faCog} />
+              Hiển thị {pageSize}
+            </Dropdown.Toggle>
+            <Dropdown.Menu align="end">
+              {[10, 20, 30, 50].map((size) => (
+                <Dropdown.Item
+                  key={size}
+                  active={pageSize === size}
+                  onClick={() => setPageSize(size)}
+                >
+                  {size} bản ghi
                 </Dropdown.Item>
-                <Dropdown.Item className="fw-bold">20</Dropdown.Item>
-                <Dropdown.Item className="fw-bold">30</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </Col>
-        </Row>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
       </div>
 
-      <Card border="light" className="table-wrapper table-responsive shadow-sm">
-        <Card.Body className="pt-0">
-          <Table hover className="user-table align-items-center mb-0">
-            <thead>
+      <div className="wm-surface wm-table wm-scroll">
+        <table className="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Mã phiếu</th>
+              <th>Nhà cung cấp</th>
+              <th>Ngày nhận</th>
+              <th>Trạng thái</th>
+              <th>Ngày tạo</th>
+              <th>Ngày xác nhận</th>
+              <th>Ghi chú</th>
+              <th className="text-end">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>ID</th>
-                <th>Reference No</th>
-                <th>Supplier</th>
-                <th>Receipt Date</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Confirmed</th>
-                <th>Note</th>
-                <th className="text-end">Actions</th>
+                <td colSpan={9} className="wm-empty">
+                  Đang tải dữ liệu...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-4">
-                    Loading...
+            ) : filteredRows.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="wm-empty">
+                  Không tìm thấy phiếu phù hợp.
+                </td>
+              </tr>
+            ) : (
+              filteredRows.slice(0, pageSize).map((r) => (
+                <tr key={r.id}>
+                  <td>{r.id}</td>
+                  <td>{r.referenceNo}</td>
+                  <td>{r.supplier}</td>
+                  <td>{formatDate(r.receiptDate)}</td>
+                  <td>
+                    {r.status === 1 ? (
+                      <Badge bg="success">Đã xác nhận</Badge>
+                    ) : (
+                      <Badge bg="warning" text="dark">
+                        Nháp
+                      </Badge>
+                    )}
+                  </td>
+                  <td>{formatDate(r.createdAt)}</td>
+                  <td>{formatDate(r.confirmedAt)}</td>
+                  <td>{r.note || "-"}</td>
+                  <td className="text-end">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => navigate(`/warehouse-dashboard/receiving-slips/${r.id}/items`)}
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </Button>
+                    {r.status === 0 && (
+                      <>
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleConfirm(r.id)}
+                        >
+                          <FontAwesomeIcon icon={faCheck} />
+                        </Button>
+                        <Button variant="outline-danger" size="sm">
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </>
+                    )}
                   </td>
                 </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-4 text-muted">
-                    No data found
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.id}</td>
-                    <td>{r.referenceNo}</td>
-                    <td>{r.supplier}</td>
-                    <td>{new Date(r.receiptDate).toLocaleDateString()}</td>
-                    <td>
-                      {r.status === 1 ? (
-                        <Badge bg="success" text="white">
-                          Confirmed
-                        </Badge>
-                      ) : (
-                        <Badge bg="warning" text="dark">
-                          Draft
-                        </Badge>
-                      )}
-                    </td>
-                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      {r.confirmedAt
-                        ? new Date(r.confirmedAt).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td>{r.note}</td>
-                    <td className="text-end">
-                      <Button
-                        variant="outline-info"
-                        size="sm"
-                        className="me-2"
-                        title="View"
-                        onClick={() => window.location.href = `/warehouse-dashboard/receiving-slips/${r.id}/items`}
-                      >
-                        <FontAwesomeIcon icon={faEye} />
-                      </Button>
-
-                      {r.status === 0 && (
-                        <>
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            className="me-2"
-                            title="Confirm"
-                            onClick={() => handleConfirm(r.id)}
-                          >
-                            <FontAwesomeIcon icon={faCheck} />
-                          </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            title="Delete"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </Button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
-        </Card.Body>
-      </Card>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </WarehouseLayout>
   );
 }
+

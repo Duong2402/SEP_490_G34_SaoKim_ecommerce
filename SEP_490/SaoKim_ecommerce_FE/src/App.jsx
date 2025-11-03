@@ -18,6 +18,8 @@ import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
 import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
+import WarehouseInventory from "./pages/warehousemanager/WarehouseInventory";
+import ProductTrace from "./pages/warehousemanager/ProductTrace";
 
 // Projects
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
@@ -50,6 +52,8 @@ export default function App() {
           <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
           <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
           <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+          <Route path="/warehouse-dashboard/inventory" element={<WarehouseInventory />} />
+          <Route path="/warehouse-dashboard/trace" element={<ProductTrace />} />
           <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
           <Route path="/warehouse-dashboard/warehouse-report/inbound-report" element={<InboundReport />} />
 

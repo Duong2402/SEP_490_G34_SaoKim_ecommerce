@@ -166,7 +166,7 @@ function ProductCard({ product }) {
       </div>
 
       <div className="product-card__footer">
-        <Link to={`/products/${product.id}`} className="btn btn-primary btn-sm">
+        <Link to={`/products/${product.id}`} className="btn btn-primary btn-small">
           View details
         </Link>
       </div>
@@ -348,23 +348,23 @@ function HomeWrapper() {
           <div className="home-container">
             <div className="home-hero__content">
               <span className="home-hero__badge">
-                <i className="fa-solid fa-star" aria-hidden="true" />
-                New season collection
-              </span>
-              <h1>Illuminate every space with tailored lighting design</h1>
-              <p>
-                Discover a curated collection of architectural lighting, crafted to elevate hospitality,
-                retail and residential experiences. Handpicked fixtures with flexible control and sustainable performance.
-              </p>
-              <div className="home-hero__actions">
-                <a className="btn btn-primary btn-sm" href="#catalog">
-                  Browse catalogue
-                </a>
-                <Link to="/login" className="home-hero__link">
-                  Partner portal&nbsp;
-                  <i className="fa-solid fa-arrow-right" aria-hidden="true" />
-                </Link>
-              </div>
+              <i className="fa-solid fa-star" aria-hidden="true" />
+              Sao Kim Lightning
+            </span>
+            <h1>Chieu sang an tuong cho moi khong gian song va kinh doanh</h1>
+            <p>
+              Lua chon danh muc den trang tri, downlight, tracklight va giai phap chieu sang thong minh duoc Sao Kim
+              tu van chuyen sau. Toi uu anh sang, tiet kiem nang luong va dam bao tieu chuan thiet ke du an.
+            </p>
+            <div className="home-hero__actions">
+              <a className="btn btn-primary btn-small" href="#catalog">
+                Xem danh muc san pham
+              </a>
+              <Link to="/login" className="home-hero__link">
+                Giai phap cho doi tac&nbsp;
+                <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+              </Link>
+            </div>
             </div>
           </div>
         </section>
@@ -378,15 +378,83 @@ function HomeWrapper() {
           />
           <HomeProductsBody category={selectedCategory} priceFilter={priceFilter} />
         </div>
+
+        <section className="home-solutions" id="solutions">
+          <div className="home-container">
+            <div className="home-section__header">
+              <h2>Giai phap chieu sang theo linh vuc</h2>
+              <p>
+                Sao Kim Lightning ho tro tu giai phap trien khai nhanh cho cua hang den cac goi thiet ke chuyen sau
+                cho khach san va cong trinh cao cap.
+              </p>
+            </div>
+            <div className="home-solutions__grid">
+              <article className="home-solutions__card">
+                <h3>Showroom & Retail</h3>
+                <p>Gan ket trai nghiem mua sam voi den tracklight, downlight CRI cao va dieu khien dimming linh hoat.</p>
+              </article>
+              <article className="home-solutions__card">
+                <h3>Khach san & Nha hang</h3>
+                <p>Bo suu tap den trang tri, wall washer va day dan LED dam bao tong the sang trong, tinh te.</p>
+              </article>
+              <article className="home-solutions__card">
+                <h3>Can ho & Biet thu</h3>
+                <p>Tu van layout anh sang thong minh, toi uu cong suat va an toan dien cho khong gian song.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className="home-showcase" id="projects">
+          <div className="home-container">
+            <div className="home-section__header">
+              <h2>Bo suu tap noi bat</h2>
+              <p>Lua chon san pham ban chay duoc nhieu nha thiet ke tin dung trong cac du an gan day.</p>
+            </div>
+            <div className="home-showcase__grid">
+              <article className="home-showcase__card">
+                <h4>Seri NovaSpot</h4>
+                <span>Tracklight tinh chinh goc chieu 10-40&deg;, phu hop trien lam</span>
+              </article>
+              <article className="home-showcase__card">
+                <h4>Downlight Aurora</h4>
+                <span>Downlight am tran, UGR &lt; 16, sang mem cho khach san</span>
+              </article>
+              <article className="home-showcase__card">
+                <h4>Linear Flex Pro</h4>
+                <span>Day dan LED IP66, phoi mau linh hoat cho mat dung ngoai troi</span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className="home-contact" id="contact">
+          <div className="home-container home-contact__shell">
+            <div className="home-contact__copy">
+              <h2>Can ho tro tu van chieu sang?</h2>
+              <p>
+                Gui thong tin cho chung toi hoac lien he hotline de duoc ky su Sao Kim de xuat giai phap nhanh chong.
+              </p>
+            </div>
+            <div className="home-contact__actions">
+              <a className="btn btn-primary" href="tel:0918113559">
+                Goi 0918 113 559
+              </a>
+              <a className="btn btn-outline" href="mailto:contact@saokim.vn">
+                contact@saokim.vn
+              </a>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="site-footer">
         <div className="home-container site-footer__inner">
           <div>
-            <h5>SaoKim Commerce</h5>
-            <div>Premium lighting, seamless control, thoughtful service.</div>
+            <h5>Sao Kim Lightning</h5>
+            <div>Chuyen gia cung cap thiet bi va giai phap chieu sang chuyen nghiep.</div>
           </div>
-          <div>&copy; {new Date().getFullYear()} SaoKim. All rights reserved.</div>
+          <div>&copy; {new Date().getFullYear()} Sao Kim Lightning. All rights reserved.</div>
         </div>
       </footer>
     </div>

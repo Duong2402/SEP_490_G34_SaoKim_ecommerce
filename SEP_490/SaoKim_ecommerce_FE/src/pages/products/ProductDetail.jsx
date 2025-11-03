@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo } from "react";
+﻿import { useEffect, useMemo, useState, memo } from "react";
 import { Link, useParams } from "react-router-dom";
 import EcommerceHeader from "../../components/EcommerceHeader";
 import "../../styles/product-detail.css";
@@ -126,7 +126,7 @@ function pickHighlights(product) {
   }
   if (typeof source === "string") {
     return source
-      .split(/\n|•|\-/)
+      .split(/\n|\u2022|-/u)
       .map((item) => item.trim())
       .filter(Boolean);
   }
@@ -134,23 +134,24 @@ function pickHighlights(product) {
 }
 
 const RelatedProductCard = memo(function RelatedProductCard({ product }) {
+  const [imageError, setImageError] = useState(false);
+
   if (!product) return null;
 
   const imageUrl = buildImageUrl(product.image || product.thumbnailUrl);
-  const [imageError, setImageError] = useState(false);
 
   return (
     <Link to={`/products/${product.id}`} className="product-related-card">
       <div className="product-related-card__media">
         <img
           src={imageError ? FALLBACK_IMAGE : imageUrl}
-          alt={product.name || "Product"}
+          alt={product.name || "San pham"}
           loading="lazy"
           onError={() => setImageError(true)}
         />
       </div>
       <div className="product-related-card__body">
-        <div className="product-related-card__title">{product.name || "Sản phẩm"}</div>
+        <div className="product-related-card__title">{product.name || "San pham"}</div>
         <div className="product-related-card__price">{formatCurrency(product.price)}</div>
       </div>
     </Link>
@@ -310,10 +311,10 @@ export default function ProductDetail() {
               <span>/</span>
               <Link to="/#catalog">Product catalogue</Link>
               <span>/</span>
-              <span>{product.name || "Product detail"}</span>
+              <span>{product.name || "San pham"}</span>
             </div>
             <div className="product-detail-hero__content">
-              <h1>{product.name || "Sản phẩm"}</h1>
+              <h1>{product.name || "San pham"}</h1>
               <p>{heroSummary}</p>
               <div className="product-detail-hero__meta">
                 <span className="product-detail-hero__badge">Authentic product</span>
@@ -330,7 +331,7 @@ export default function ProductDetail() {
               <div className="product-gallery__main">
                 <img
                   src={activeImage}
-                  alt={product.name || "Product image"}
+                  alt={product.name || "San pham"}
                   onError={() => setMainImageError(true)}
                 />
               </div>
@@ -393,10 +394,7 @@ export default function ProductDetail() {
                     <button type="button" className="btn btn-primary product-info__cta-primary">
                       Add to cart
                     </button>
-                    <a
-                      className="btn btn-outline-primary product-info__cta-secondary"
-                      href="tel:0918113559"
-                    >
+                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
                       Lighting consultation
                     </a>
                   </>
@@ -405,10 +403,7 @@ export default function ProductDetail() {
                     <Link to="/login" className="btn btn-primary product-info__cta-primary">
                       Sign in to purchase
                     </Link>
-                    <a
-                      className="btn btn-outline-primary product-info__cta-secondary"
-                      href="tel:0918113559"
-                    >
+                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
                       Call 0918 113 559
                     </a>
                   </>
