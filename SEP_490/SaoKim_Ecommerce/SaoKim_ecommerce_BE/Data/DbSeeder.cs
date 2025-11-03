@@ -7,37 +7,90 @@ namespace SaoKim_ecommerce_BE.Data
     {
         public static async Task SeedAsync(SaoKimDBContext db)
         {
-            var roleSeeds = new List<Role>
-            {
-                new Role { RoleId = 1, Name = "admin" },
-                new Role { RoleId = 2, Name = "warehouse_manager" },
-                new Role { RoleId = 3, Name = "staff" },
-                new Role { RoleId = 4, Name = "customer" },
-                new Role { RoleId = 5, Name = "manager" },
-                new Role { RoleId = 6, Name = "project_manager" }
-            };
-
+            var roleSeeds = new List<Role> {
+        new Role { RoleId = 1, Name = "admin" },
+        new Role { RoleId = 2, Name = "warehouse_manager" },
+        new Role { RoleId = 3, Name = "staff" },
+        new Role { RoleId = 4, Name = "customer" },
+        new Role { RoleId = 5, Name = "manager" },
+        new Role { RoleId = 6, Name = "project_manager" }
+    };
             foreach (var r in roleSeeds)
+                if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
+            await db.SaveChangesAsync();
+
+            var seeds = new List<Product>
+    {
+        new() {
+            ProductName = "Đèn Rạng Đông",
+            ProductCode = "RD-01",
+            Supplier    = "Rạng Đông",
+            Quantity    = 120,
+            Unit        = "Cái",
+            Price       = 120000m,
+            Status      = "Active",
+            Category    = "Đèn LED",
+            Description = "Đèn LED Rạng Đông công suất 12W",
+            Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
+            CreateAt    = DateTime.UtcNow
+        },
+        new() {
+            ProductName = "Đèn Hừng Sáng",
+            ProductCode = "HS-01",
+            Supplier    = "Hừng Sáng",
+            Quantity    = 85,
+            Unit        = "Cái",
+            Price       = 95000m,
+            Status      = "Active",
+            Category    = "Đèn LED",
+            Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
+            Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
+            CreateAt    = DateTime.UtcNow
+        },
+        new() {
+            ProductName = "Đèn Sáng",
+            ProductCode = "HS-02",
+            Supplier    = "Sáng",
+            Quantity    = 60,
+            Unit        = "Cái",
+            Price       = 110000m,
+            Status      = "Active",
+            Category    = "Đèn LED",
+            Description = "Mẫu đèn khác để test",
+            Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
+            CreateAt    = DateTime.UtcNow
+        }
+    };
+
+            foreach (var s in seeds)
             {
-                var exists = await db.Roles.AnyAsync(x => x.Name == r.Name);
-                if (!exists)
+                var exist = await db.Products.SingleOrDefaultAsync(x => x.ProductCode == s.ProductCode);
+                if (exist == null)
                 {
-                    db.Roles.Add(r);
+                    db.Products.Add(s);
+                }
+                else
+                {
+                    exist.ProductName = s.ProductName;
+                    exist.Supplier = s.Supplier;
+                    exist.Quantity = s.Quantity;
+                    exist.Unit = s.Unit;
+                    exist.Price = s.Price;
+                    exist.Status = s.Status;
+                    exist.Category = s.Category;
+                    exist.Description = s.Description;
+                    exist.Image = s.Image;
+                    exist.UpdateAt = DateTime.UtcNow;
                 }
             }
             await db.SaveChangesAsync();
 
-            if (!db.Products.Any())
-            {
-                db.Products.AddRange(
-                    new Product { ProductName = "Đèn Rạng Đông", ProductCode = "RĐ-01", Supplier = "Rạng Đông", Quantity = 0, Unit = "cái"},
-                    new Product { ProductName = "Đèn Hừng Sáng", ProductCode = "HS-01", Supplier = "Hừng Sáng", Quantity = 0, Unit = "cái"}
-                );
-            }
+            var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");
+            var hs1 = await db.Products.SingleAsync(p => p.ProductCode == "HS-01");
 
-            if (!db.ReceivingSlips.Any())
+            // ---- RECEIVING SLIPS (tạo nếu chưa có) ----
+            if (!await db.ReceivingSlips.AnyAsync())
             {
-                // --- RCV-001 ---
                 var slip1 = new ReceivingSlip
                 {
                     ReferenceNo = "RCV-001",
@@ -53,26 +106,25 @@ namespace SaoKim_ecommerce_BE.Data
                     new ReceivingSlipItem
                     {
                         ReceivingSlipId = slip1.Id,
-                        ProductName = "Đèn Rạng Đông",
-                        ProductId = db.Products.First().ProductID,
-                        Uom = "cái",
+                        ProductName = rd.ProductName,
+                        ProductId = rd.ProductID,
+                        Uom = "Cái",
                         Quantity = 10,
-                        UnitPrice = 200000,
-                        Total = 10 * 200000
+                        UnitPrice = 200000m,
+                        Total = 10 * 200000m
                     },
                     new ReceivingSlipItem
                     {
                         ReceivingSlipId = slip1.Id,
-                        ProductName = "Đèn Hừng Sáng",
-                        ProductId = db.Products.Skip(1).First().ProductID,
-                        Uom = "cái",
+                        ProductName = hs1.ProductName,
+                        ProductId = hs1.ProductID,
+                        Uom = "Cái",
                         Quantity = 5,
-                        UnitPrice = 350000,
-                        Total = 5 * 350000
+                        UnitPrice = 350000m,
+                        Total = 5 * 350000m
                     }
                 );
 
-                // --- RCV-002 ---
                 var slip2 = new ReceivingSlip
                 {
                     ReferenceNo = "RCV-002",
@@ -88,28 +140,27 @@ namespace SaoKim_ecommerce_BE.Data
                     new ReceivingSlipItem
                     {
                         ReceivingSlipId = slip2.Id,
-                        ProductName = "Đèn Rạng Đông",
-                        ProductId = db.Products.First().ProductID,
-                        Uom = "cái",
+                        ProductName = rd.ProductName,
+                        ProductId = rd.ProductID,
+                        Uom = "Cái",
                         Quantity = 15,
-                        UnitPrice = 210000,
-                        Total = 15 * 210000
+                        UnitPrice = 210000m,
+                        Total = 15 * 210000m
                     },
                     new ReceivingSlipItem
                     {
                         ReceivingSlipId = slip2.Id,
-                        ProductName = "Đèn Hừng Sáng",
-                        ProductId = db.Products.Skip(1).First().ProductID,
-                        Uom = "cái",
+                        ProductName = hs1.ProductName,
+                        ProductId = hs1.ProductID,
+                        Uom = "Cái",
                         Quantity = 8,
-                        UnitPrice = 360000,
-                        Total = 8 * 360000
+                        UnitPrice = 360000m,
+                        Total = 8 * 360000m
                     }
                 );
+
+                await db.SaveChangesAsync();
             }
-
-            await db.SaveChangesAsync();
-
         }
     }
 }

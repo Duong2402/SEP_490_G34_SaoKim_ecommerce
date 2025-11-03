@@ -39,7 +39,7 @@ export function LanguageProvider({ children }) {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored && stored in translations) return stored;
-    } catch (err) {
+    } catch {
       // ignore storage errors
     }
     return DEFAULT_LANGUAGE;
@@ -48,7 +48,7 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, lang);
-    } catch (err) {
+    } catch {
       // ignore storage errors
     }
   }, [lang]);
@@ -109,4 +109,5 @@ export function LanguageProvider({ children }) {
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useLanguage = () => useContext(LanguageContext);
