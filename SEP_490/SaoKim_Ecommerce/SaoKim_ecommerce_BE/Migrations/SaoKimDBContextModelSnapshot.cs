@@ -47,6 +47,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("create_by");
 
+                    b.Property<DateTime?>("Created")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("date");
@@ -91,6 +95,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
 
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock");
+
                     b.Property<string>("Supplier")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
@@ -115,7 +123,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("ProductCode")
                         .IsUnique();
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>
