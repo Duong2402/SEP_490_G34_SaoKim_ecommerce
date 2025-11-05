@@ -102,8 +102,12 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("receiving-slips/{id:int}/items")]
         public async Task<IActionResult> GetReceivingSlipItems([FromRoute] int id)
         {
-            var exists = await _db.ReceivingSlips.AnyAsync(x => x.Id == id);
-            if (!exists) return NotFound(new { message = "Receiving slip not found" });
+            var slip = await _db.ReceivingSlips
+        .Include(s => s.Items)
+        .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (slip == null)
+                return NotFound(new { message = "Receiving slip not found" });
 
             var items = await _db.ReceivingSlipItems
                 .Where(i => i.ReceivingSlipId == id)
@@ -120,7 +124,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(items);
+            return Ok(new
+            {
+                supplier = slip.Supplier,
+                items
+            });
         }
 
         [HttpPut("receiving-items/{itemId:int}/items")]
@@ -142,7 +150,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.UnitPrice < 0)
                 return BadRequest(new { message = "UnitPrice cannot be negative" });
 
-            // ✅ Tự động tạo Product nếu chưa có
             Product? product = null;
 
             if (dto.ProductId.HasValue)
@@ -349,6 +356,23 @@ namespace SaoKim_ecommerce_BE.Controllers
             );
         }
 
+        [HttpPatch("receiving-slips/{id:int}")]
+        public async Task<IActionResult> UpdateSupplier([FromRoute] int id, [FromBody] SupplierUpdateDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Supplier))
+                return BadRequest(new { message = "Supplier cannot be empty" });
+
+            var slip = await _db.ReceivingSlips.FindAsync(id);
+            if (slip == null) return NotFound(new { message = "Receiving slip not found" });
+
+            if (slip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            slip.Supplier = dto.Supplier.Trim();
+            await _db.SaveChangesAsync();
+
+            return Ok(new { slip.Id, slip.Supplier });
+        }
 
     }
 }

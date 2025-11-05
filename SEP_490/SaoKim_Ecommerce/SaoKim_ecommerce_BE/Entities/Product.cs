@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SaoKim_ecommerce_BE.Entities
 {
-    [Table("Products")]
+    [Table("products")]
     public class Product
     {
         [Key]
@@ -19,47 +19,47 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("product_code")]
         [Required, MaxLength(50)]
-        public string ProductCode { get; set; } = string.Empty; // SKU hoặc mã sản phẩm
+        public string ProductCode { get; set; } = string.Empty;
 
         [Column("category")]
         [MaxLength(100)]
-        public string? Category { get; set; }  // Loại sản phẩm (Bóng đèn, Công tắc,...)
+        public string? Category { get; set; }
 
         [Column("unit")]
         [MaxLength(50)]
-        public string? Unit { get; set; }      // Đơn vị tính (cái, hộp,...)
+        public string? Unit { get; set; }
 
         [Column("price", TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }     // Giá bán
+        public decimal Price { get; set; }
 
         [Column("quantity")]
-        public int Quantity { get; set; }      // Số lượng trong kho
+        public int Quantity { get; set; }
 
         [Column("stock")]
-        public int Stock { get; set; }         // Số lượng tồn (nếu bạn cần tách riêng giữa tồn kho & số lượng nhập)
+        public int Stock { get; set; }
 
         [Column("status")]
         [MaxLength(50)]
-        public string? Status { get; set; }    // Trạng thái (Active / Inactive)
+        public string? Status { get; set; }
 
         [MaxLength(300)]
         [Column("image")]
-        public string? Image { get; set; }     // Đường dẫn ảnh sản phẩm
+        public string? Image { get; set; }
 
         [Column("description")]
         [MaxLength(500)]
-        public string? Description { get; set; } // Mô tả sản phẩm
+        public string? Description { get; set; }
 
         [Column("supplier")]
         [MaxLength(200)]
-        public string? Supplier { get; set; }  // Nhà cung cấp
+        public string? Supplier { get; set; }
 
         [Column("note")]
         [MaxLength(500)]
-        public string? Note { get; set; }      // Ghi chú
+        public string? Note { get; set; }
 
         [Column("created")]
-        public DateTime? Created { get; set; } = DateTime.UtcNow; // Ngày tạo hiển thị trong UI
+        public DateTime? Created { get; set; } = DateTime.UtcNow;
 
         [Column("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;
