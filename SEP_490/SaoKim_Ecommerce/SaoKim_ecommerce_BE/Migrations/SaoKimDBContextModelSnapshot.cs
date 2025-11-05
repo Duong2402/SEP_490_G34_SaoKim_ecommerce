@@ -47,6 +47,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("create_by");
 
+                    b.Property<DateTime?>("Created")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("date");
@@ -90,6 +94,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
+
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock");
 
                     b.Property<string>("Supplier")
                         .HasMaxLength(200)

@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +11,11 @@ using SaoKim_ecommerce_BE.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-[Route("api/[controller]")]
+
 [ApiController]
+[Route("api/[controller]")]
+[AllowAnonymous]
+
 public class AuthController : ControllerBase
 {
     private readonly SaoKimDBContext _context;
@@ -24,16 +28,45 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromForm] RegisterRequest req)
     {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
         if (await _context.Users.AnyAsync(u => u.Email == req.Email))
-            return BadRequest(new { message = "Email already exists" });
+        {
+            ModelState.AddModelError("Email", "Email already exists");
+            return ValidationProblem(ModelState);
+        }
 
-        string hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == (req.Role ?? "User"));
+        var roleName = string.IsNullOrWhiteSpace(req.Role) ? "customer" : req.Role;
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
         if (role == null)
-            return BadRequest(new { message = "Role not found" });
+        {
+            ModelState.AddModelError("Role", "Role not found");
+            return ValidationProblem(ModelState);
+        }
+
+        string? imagePath = null;
+        if (req.Image != null && req.Image.Length > 0)
+        {
+            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadDir))
+                Directory.CreateDirectory(uploadDir);
+
+            var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
+            var filePath = Path.Combine(uploadDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await req.Image.CopyToAsync(stream);
+            }
+
+            imagePath = $"/uploads/{fileName}";
+        }
+
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
         var user = new User
         {
@@ -41,6 +74,11 @@ public class AuthController : ControllerBase
             Email = req.Email,
             Password = hashedPassword,
             RoleId = role.RoleId,
+            PhoneNumber = req.PhoneNumber,
+            DOB = req.DOB.HasValue
+    ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc)
+    : (DateTime?)null,
+            Image = imagePath,
             Status = "Active",
             CreateAt = DateTime.UtcNow
         };
@@ -48,15 +86,31 @@ public class AuthController : ControllerBase
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Register successful", Email = user.Email, Role = role.Name });
+        return Ok(new
+        {
+            message = "Register successful",
+            email = user.Email,
+            role = role.Name,
+            image = imagePath
+        });
     }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
+        if (string.IsNullOrWhiteSpace(req.Email) && string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Invalid email or password" });
+
+        if (string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Please enter your email" });
+
+        if (string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Please enter your password" });
+
         var user = await _context.Users
-    .Include(u => u.Role)
-    .FirstOrDefaultAsync(u => u.Email == req.Email);
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Email == req.Email);
 
         if (user == null)
             return Unauthorized(new { message = "Invalid email or password" });
@@ -66,17 +120,21 @@ public class AuthController : ControllerBase
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]);
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new Claim[]
+            Subject = new ClaimsIdentity(new[]
             {
             new Claim(ClaimTypes.Name, user.Email),
             new Claim("UserId", user.UserID.ToString()),
             new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
-            }),
+        }),
             Expires = DateTime.UtcNow.AddHours(2),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha256Signature)
         };
+
         var token = tokenHandler.CreateToken(tokenDescriptor);
 
         return Ok(new LoginResponse
@@ -88,35 +146,41 @@ public class AuthController : ControllerBase
         });
     }
 
+
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
-    [FromServices] IPasswordResetService resetService,
-    [FromServices] IEmailService emailService)
+        [FromServices] IPasswordResetService resetService,
+        [FromServices] IEmailService emailService)
     {
-        if (string.IsNullOrWhiteSpace(req.Email)) return BadRequest(new { message = "Email required" });
+        if (string.IsNullOrWhiteSpace(req.Email))
+            return BadRequest(new { message = "Email required" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null) return BadRequest(new { message = "Email not found" });
+        if (user == null)
+            return BadRequest(new { message = "Email not found" });
 
         var ttl = TimeSpan.FromMinutes(5);
         var code = resetService.GenerateCode(req.Email, ttl);
 
-        var subject = "Your password reset code";
-        var body = $"Your verification code is: {code}. It will expire in {ttl.TotalMinutes} minutes.";
-        await emailService.SendAsync(req.Email, subject, body);
+        var resetLink = $"http://localhost:5173/reset-password/{code}";
 
-        return Ok(new { message = "Verification code has been sent to your email." });
+        var subject = "Reset your password";
+        var body = $@"
+        Hi {user.Email},
+        Click the link below to reset your password. This link will expire in {ttl.TotalMinutes} minutes: {resetLink}
+        If you didn't request this, you can safely ignore this email.
+    ";
+        await emailService.SendAsync(req.Email, subject, body);
+        return Ok(new { message = "Password reset link has been sent to your email." });
     }
+
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req,
         [FromServices] IPasswordResetService resetService)
     {
-        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Code) || string.IsNullOrWhiteSpace(req.NewPassword))
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.NewPassword))
             return BadRequest(new { message = "Missing data" });
-
-        var verified = resetService.VerifyCode(req.Email, req.Code);
-        if (!verified) return BadRequest(new { message = "Invalid or expired code" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
         if (user == null) return BadRequest(new { message = "User not found" });
@@ -125,6 +189,46 @@ public class AuthController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Password reset successful" });
+    }
+
+    // POST: /api/auth/change-password
+    //[Authorize] // yêu cầu đăng nhập; nếu chưa cấu hình JWT có thể tạm bỏ dòng này
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        // Lấy email từ token (ClaimTypes.Name) hoặc fallback sang req.Email
+        var emailFromToken = User?.Identity?.Name;
+        var email = string.IsNullOrWhiteSpace(emailFromToken) ? req.Email : emailFromToken;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(new { message = "Email is required" });
+
+        if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
+            return BadRequest(new { message = "CurrentPassword and NewPassword are required" });
+
+        // Không cho đổi sang đúng mật khẩu cũ
+        if (req.CurrentPassword == req.NewPassword)
+            return BadRequest(new { message = "New password must be different from current password" });
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return NotFound(new { message = "User not found" });
+
+        // Kiểm tra mật khẩu hiện tại
+        var ok = BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.Password);
+        if (!ok)
+            return BadRequest(new { message = "Current password is incorrect" });
+
+        // (Tuỳ chọn) Kiểm tra policy mật khẩu mới
+        // Ví dụ: tối thiểu 6 ký tự
+        if (req.NewPassword.Length < 6)
+            return BadRequest(new { message = "New password must be at least 6 characters" });
+
+        // Cập nhật mật khẩu mới
+        user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Password changed successfully" });
     }
 
 

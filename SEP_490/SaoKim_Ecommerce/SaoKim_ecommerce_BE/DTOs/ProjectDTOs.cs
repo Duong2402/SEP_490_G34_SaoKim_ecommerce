@@ -59,7 +59,7 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? Sort { get; set; } = "-CreatedAt"; // "Name" hoặc "-CreatedAt"
     }
 
-    public class PagedResult<T>
+    public class ProjectPagedResult<T>
     {
         public int Page { get; set; }
         public int PageSize { get; set; }
