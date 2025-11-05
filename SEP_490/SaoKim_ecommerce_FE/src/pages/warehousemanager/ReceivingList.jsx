@@ -24,6 +24,17 @@ import WarehouseLayout from "../../layouts/WarehouseLayout";
 
 const API_BASE = "https://localhost:7278";
 
+const toStatusCode = (v) => {
+  if (v === 1 || v === "1") return 1;
+  if (v === 0 || v === "0") return 0;
+  if (typeof v === "string") {
+    const s = v.toLowerCase();
+    if (s.includes("confirm")) return 1;
+    if (s.includes("draft")) return 0;
+  }
+  return 0;
+};
+
 export default function ReceivingList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -59,7 +70,13 @@ export default function ReceivingList() {
 
       setRows((prev) =>
         prev.map((r) =>
-          r.id === id ? { ...r, status: 1, confirmedAt: new Date().toISOString() } : r
+          r.id === id
+            ? {
+              ...r,
+              status: 1, // sau confirm, chuẩn về code 1
+              confirmedAt: new Date().toISOString(),
+            }
+            : r
         )
       );
     } catch (error) {
@@ -134,26 +151,6 @@ export default function ReceivingList() {
             />
           </InputGroup>
         </div>
-
-        <div className="wm-toolbar__actions">
-          <Dropdown>
-            <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              <FontAwesomeIcon icon={faCog} />
-              Hiển thị {pageSize}
-            </Dropdown.Toggle>
-            <Dropdown.Menu align="end">
-              {[10, 20, 30, 50].map((size) => (
-                <Dropdown.Item
-                  key={size}
-                  active={pageSize === size}
-                  onClick={() => setPageSize(size)}
-                >
-                  {size} bản ghi
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
       </div>
 
       <div className="wm-surface wm-table wm-scroll">
@@ -185,51 +182,62 @@ export default function ReceivingList() {
                 </td>
               </tr>
             ) : (
-              filteredRows.slice(0, pageSize).map((r) => (
-                <tr key={r.id}>
-                  <td>{r.id}</td>
-                  <td>{r.referenceNo}</td>
-                  <td>{r.supplier}</td>
-                  <td>{formatDate(r.receiptDate)}</td>
-                  <td>
-                    {r.status === 1 ? (
-                      <Badge bg="success">Đã xác nhận</Badge>
-                    ) : (
-                      <Badge bg="warning" text="dark">
-                        Nháp
-                      </Badge>
-                    )}
-                  </td>
-                  <td>{formatDate(r.createdAt)}</td>
-                  <td>{formatDate(r.confirmedAt)}</td>
-                  <td>{r.note || "-"}</td>
-                  <td className="text-end">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => navigate(`/warehouse-dashboard/receiving-slips/${r.id}/items`)}
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </Button>
-                    {r.status === 0 && (
-                      <>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleConfirm(r.id)}
-                        >
-                          <FontAwesomeIcon icon={faCheck} />
-                        </Button>
-                        <Button variant="outline-danger" size="sm">
-                          <FontAwesomeIcon icon={faTrash} />
-                        </Button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))
+              filteredRows.slice(0, pageSize).map((r) => {
+                const code = toStatusCode(r.status);
+                const isConfirmed = code === 1;
+
+                return (
+                  <tr key={r.id}>
+                    <td>{r.id}</td>
+                    <td>{r.referenceNo}</td>
+                    <td>{r.supplier}</td>
+                    <td>{formatDate(r.receiptDate)}</td>
+
+                    <td>
+                      {isConfirmed ? (
+                        <Badge bg="success">Đã xác nhận</Badge>
+                      ) : (
+                        <Badge bg="warning" text="dark">
+                          Nháp
+                        </Badge>
+                      )}
+                    </td>
+
+                    <td>{formatDate(r.createdAt)}</td>
+                    <td>{formatDate(r.confirmedAt)}</td>
+                    <td>{r.note || "-"}</td>
+
+                    <td className="text-end">
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() =>
+                          navigate(`/warehouse-dashboard/receiving-slips/${r.id}/items`)
+                        }
+                      >
+                        <FontAwesomeIcon icon={faEye} />
+                      </Button>
+
+                      {!isConfirmed && (
+                        <>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            className="me-2"
+                            onClick={() => handleConfirm(r.id)}
+                          >
+                            <FontAwesomeIcon icon={faCheck} />
+                          </Button>
+                          <Button variant="outline-danger" size="sm">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </Button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -237,4 +245,3 @@ export default function ReceivingList() {
     </WarehouseLayout>
   );
 }
-
