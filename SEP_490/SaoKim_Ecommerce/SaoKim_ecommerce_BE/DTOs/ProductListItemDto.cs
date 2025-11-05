@@ -8,7 +8,7 @@
         public decimal Price { get; set; }
         public string? ThumbnailUrl { get; set; }
         public DateTime CreatedAt { get; set; }
-        public bool InStock => Stock > 0;
+        //public bool InStock => Stock > 0;
         public int Stock { get; set; }        // map từ Product.Stock (nếu tên khác, sửa ở Service)
     }
 
