@@ -1,16 +1,38 @@
 ﻿namespace SaoKim_ecommerce_BE.DTOs
 {
+    //public class ProductListItemDto
+    //{
+    //    public int Id { get; set; }
+    //    public string Sku { get; set; } = string.Empty;   // map ProductCode
+    //    public string Name { get; set; } = string.Empty;  // map ProductName
+    //    public string? Category { get; set; }
+    //    public decimal Price { get; set; }
+    //    public int Quantity { get; set; }
+    //    public int Stock { get; set; }
+    //    public string? Status { get; set; }
+    //    public DateTime? Created { get; set; }
+    //}
+
     public class ProductListItemDto
     {
         public int Id { get; set; }
-        public string Sku { get; set; } = string.Empty;   // map ProductCode
-        public string Name { get; set; } = string.Empty;  // map ProductName
+
+        public string Sku { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Slug { get; set; }
         public string? Category { get; set; }
+
+
         public decimal Price { get; set; }
         public int Quantity { get; set; }
         public int Stock { get; set; }
+        public bool InStock => Stock > 0;
+
+
+        public string? ThumbnailUrl { get; set; }
         public string? Status { get; set; }
-        public DateTime? Created { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
     }
 
     public class ProductDetailDto : ProductListItemDto

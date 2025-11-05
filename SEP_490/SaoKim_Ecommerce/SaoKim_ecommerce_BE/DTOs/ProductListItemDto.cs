@@ -1,16 +1,16 @@
 ﻿namespace SaoKim_ecommerce_BE.DTOs
 {
-    public class ProductListItemDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string? Slug { get; set; }     // nếu chưa có thì để null
-        public decimal Price { get; set; }
-        public string? ThumbnailUrl { get; set; }
-        public DateTime CreatedAt { get; set; }
-        //public bool InStock => Stock > 0;
-        public int Stock { get; set; }        // map từ Product.Stock (nếu tên khác, sửa ở Service)
-    }
+    //public class ProductListItemDto
+    //{
+    //    public int Id { get; set; }
+    //    public string Name { get; set; } = "";
+    //    public string? Slug { get; set; }     // nếu chưa có thì để null
+    //    public decimal Price { get; set; }
+    //    public string? ThumbnailUrl { get; set; }
+    //    public DateTime CreatedAt { get; set; }
+    //    public bool InStock => Stock > 0;
+    //    public int Stock { get; set; }        // map từ Product.Stock (nếu tên khác, sửa ở Service)
+    //}
 
     public class PagedResult<T>
     {

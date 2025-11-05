@@ -123,7 +123,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("ProductCode")
                         .IsUnique();
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("products", (string)null);
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>

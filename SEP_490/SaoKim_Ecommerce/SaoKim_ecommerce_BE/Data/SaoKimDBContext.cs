@@ -23,12 +23,9 @@ namespace SaoKim_ecommerce_BE.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            base.OnModelCreating(modelBuilder);
-
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
-                e.ToTable("Products");
                 e.HasKey(x => x.ProductID);
                 e.Property(x => x.ProductName)
                     .HasMaxLength(200)

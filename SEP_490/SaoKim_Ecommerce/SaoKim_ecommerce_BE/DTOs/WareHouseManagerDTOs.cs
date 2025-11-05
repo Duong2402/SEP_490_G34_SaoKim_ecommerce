@@ -57,4 +57,9 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
     }
+
+    public class SupplierUpdateDto
+    {
+        public string Supplier { get; set; } = "";
+    }
 }
