@@ -4,10 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using SaoKim_ecommerce_BE.Helpers;
+using SaoKim_ecommerce_BE.Services;
+
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -64,42 +63,62 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // POST /api/warehousemanager/receiving-slips
         [HttpPost("receiving-slips")]
+
         public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Supplier))
                 return BadRequest(new { message = "Supplier is required" });
-            if (string.IsNullOrWhiteSpace(dto.ReferenceNo))
-                return BadRequest(new { message = "ReferenceNo is required" });
             if (dto.Items == null || dto.Items.Count == 0)
                 return BadRequest(new { message = "At least one item is required" });
-
-            var dupRef = await _db.ReceivingSlips.AnyAsync(x => x.ReferenceNo == dto.ReferenceNo);
-            if (dupRef) return Conflict(new { message = "ReferenceNo already exists" });
 
             var slip = new ReceivingSlip
             {
                 Supplier = dto.Supplier.Trim(),
                 ReceiptDate = dto.ReceiptDate,
-                ReferenceNo = dto.ReferenceNo.Trim(),
                 Note = dto.Note?.Trim(),
                 Status = ReceivingSlipStatus.Draft,
-                Items = dto.Items.Select(i => new ReceivingSlipItem
+                Items = new List<ReceivingSlipItem>()
+            };
+
+            foreach (var i in dto.Items)
+            {
+                int? productId = i.ProductId;
+
+                if (productId == null || productId == 0)
                 {
-                    ProductId = i.ProductId,
+                    var newProduct = new Product
+                    {
+                        ProductName = i.ProductName.Trim(),
+                        Unit = i.Uom.Trim(),
+                        Price = i.UnitPrice,
+                        Status = "Active"
+                    };
+                    _db.Products.Add(newProduct);
+                    await _db.SaveChangesAsync();
+                    productId = newProduct.ProductID;
+                }
+
+                slip.Items.Add(new ReceivingSlipItem
+                {
+                    ProductId = productId.Value,
                     ProductName = i.ProductName.Trim(),
                     Uom = i.Uom.Trim(),
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     Total = i.Quantity * i.UnitPrice
-                }).ToList()
-            };
+                });
+            }
 
             _db.ReceivingSlips.Add(slip);
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetReceivingSlipItems), new { id = slip.Id }, new { slip.Id, slip.ReferenceNo });
-        }
+            slip.ReferenceNo = $"RCV-{slip.Id:D3}";
+            await _db.SaveChangesAsync();
 
+            return CreatedAtAction(nameof(GetReceivingSlipItems),
+                new { id = slip.Id },
+                new { slip.Id, slip.ReferenceNo });
+        }
 
         [HttpGet("receiving-slips/{id:int}/items")]
         public async Task<IActionResult> GetReceivingSlipItems([FromRoute] int id)
@@ -119,6 +138,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     i.Id,
                     i.ProductId,
                     i.ProductName,
+                    i.ProductCode,
                     i.Uom,
                     i.Quantity,
                     i.UnitPrice,
@@ -139,6 +159,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var item = await _db.ReceivingSlipItems
                 .Include(i => i.ReceivingSlip)
+                .Include(i => i.Product) // include để dễ update Product
                 .FirstOrDefaultAsync(i => i.Id == itemId);
 
             if (item is null) return NotFound(new { message = "Item not found" });
@@ -155,7 +176,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             Product? product = null;
 
-            if (dto.ProductId.HasValue)
+            if (dto.ProductId.HasValue && dto.ProductId.Value != 0)
             {
                 product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
                 if (product == null)
@@ -164,9 +185,24 @@ namespace SaoKim_ecommerce_BE.Controllers
                     {
                         ProductName = dto.ProductName.Trim(),
                         Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
-                        Price = dto.UnitPrice
+                        Price = dto.UnitPrice,
+                        Status = "Active"
                     };
                     _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+
+                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                    _db.Products.Update(product);
+                    await _db.SaveChangesAsync();
+                }
+                else
+                {
+                    product.ProductName = dto.ProductName.Trim();
+                    product.Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
+                    product.Price = dto.UnitPrice;
+
+                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                    _db.Products.Update(product);
                     await _db.SaveChangesAsync();
                 }
             }
@@ -176,14 +212,20 @@ namespace SaoKim_ecommerce_BE.Controllers
                 {
                     ProductName = dto.ProductName.Trim(),
                     Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
-                    Price = dto.UnitPrice
+                    Price = dto.UnitPrice,
+                    Status = "Active"
                 };
                 _db.Products.Add(product);
+                await _db.SaveChangesAsync();
+
+                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                _db.Products.Update(product);
                 await _db.SaveChangesAsync();
             }
 
             item.ProductId = product.ProductID;
             item.ProductName = product.ProductName;
+            item.ProductCode = product.ProductCode;
             item.Uom = product.Unit;
             item.Quantity = dto.Quantity;
             item.UnitPrice = dto.UnitPrice;
@@ -196,6 +238,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 item.Id,
                 item.ProductId,
                 item.ProductName,
+                item.ProductCode,
                 item.Uom,
                 item.Quantity,
                 item.UnitPrice,
@@ -203,12 +246,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
+
         [HttpPost("receiving-slips/{id:int}/items")]
         public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
         {
-            var slip = await _db.ReceivingSlips
-                .FirstOrDefaultAsync(x => x.Id == id);
-
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
             if (slip is null)
                 return NotFound(new { message = "Receiving slip not found" });
 
@@ -233,9 +276,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                     {
                         ProductName = dto.ProductName.Trim(),
                         Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
-                        Price = dto.UnitPrice
+                        Price = dto.UnitPrice,
+                        Status = "Active"
                     };
                     _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+
+                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                    _db.Products.Update(product);
                     await _db.SaveChangesAsync();
                 }
             }
@@ -245,9 +293,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                 {
                     ProductName = dto.ProductName.Trim(),
                     Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
-                    Price = dto.UnitPrice
+                    Price = dto.UnitPrice,
+                    Status = "Active"
                 };
                 _db.Products.Add(product);
+                await _db.SaveChangesAsync();
+
+                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                _db.Products.Update(product);
                 await _db.SaveChangesAsync();
             }
 
@@ -256,6 +309,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 ReceivingSlipId = id,
                 ProductId = product.ProductID,
                 ProductName = product.ProductName,
+                ProductCode = product.ProductCode,
                 Uom = product.Unit,
                 Quantity = dto.Quantity,
                 UnitPrice = dto.UnitPrice,
@@ -270,12 +324,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                 newItem.Id,
                 newItem.ProductId,
                 newItem.ProductName,
+                newItem.ProductCode,
                 newItem.Uom,
                 newItem.Quantity,
                 newItem.UnitPrice,
                 newItem.Total
             });
         }
+
 
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
@@ -300,14 +356,95 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> DeleteReceivingSlip([FromRoute] int id)
         {
             var slip = await _db.ReceivingSlips.FindAsync(id);
-            if (slip is null) return NotFound();
-
+            if (slip == null) return NotFound();
             if (slip.Status != ReceivingSlipStatus.Draft)
                 return Conflict(new { message = "Only Draft slips can be deleted" });
-
-            _db.ReceivingSlips.Remove(slip);
+            slip.IsDeleted = true;
             await _db.SaveChangesAsync();
-            return NoContent();
+            return Ok(new { message = "Phiếu đã được đưa vào thùng rác." });
+        }
+
+        [HttpPost("receiving-slips/import")]
+        public async Task<IActionResult> ImportReceivingSlips(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Vui lòng chọn file Excel hợp lệ." });
+
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+            var worksheet = workbook.Worksheets.First();
+
+            var rows = worksheet.RangeUsed().RowsUsed().Skip(1);
+
+            var data = rows.Select(r => new
+            {
+                Supplier = r.Cell(1).GetString(),
+                ReceiptDate = ExcelHelper.ParseExcelDate(r.Cell(2)),
+                Note = r.Cell(3).GetString(),
+                ProductName = r.Cell(4).GetString(),
+                Uom = r.Cell(5).GetString(),
+                Quantity = ExcelHelper.SafeInt(r.Cell(6).GetDouble()),
+                UnitPrice = ExcelHelper.SafeDecimal(r.Cell(7).GetDouble())
+            }).ToList();
+
+            var grouped = data
+                .GroupBy(x => new { x.Supplier, x.ReceiptDate })
+                .ToList();
+
+            foreach (var g in grouped)
+            {
+                var slip = new ReceivingSlip
+                {
+                    Supplier = g.Key.Supplier,
+                    ReceiptDate = g.Key.ReceiptDate,
+                    Note = g.First().Note,
+                    Status = ReceivingSlipStatus.Draft,
+                    Items = new List<ReceivingSlipItem>()
+                };
+
+                foreach (var i in g)
+                {
+                    var product = await _db.Products.FirstOrDefaultAsync(p => p.ProductName == i.ProductName);
+                    if (product == null)
+                    {
+                        product = new Product
+                        {
+                            ProductName = i.ProductName,
+                            Unit = string.IsNullOrWhiteSpace(i.Uom) ? "unit" : i.Uom,
+                            Price = i.UnitPrice,
+                            Status = "Active"
+                        };
+                        _db.Products.Add(product);
+                        await _db.SaveChangesAsync();
+
+                        product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                        _db.Products.Update(product);
+                        await _db.SaveChangesAsync();
+                    }
+
+                    slip.Items.Add(new ReceivingSlipItem
+                    {
+                        ProductId = product.ProductID,
+                        ProductName = product.ProductName,
+                        ProductCode = product.ProductCode,
+                        Uom = product.Unit,
+                        Quantity = i.Quantity,
+                        UnitPrice = i.UnitPrice,
+                        Total = i.Quantity * i.UnitPrice
+                    });
+                }
+
+                _db.ReceivingSlips.Add(slip);
+                await _db.SaveChangesAsync();
+
+                slip.ReferenceNo = $"RCV-{slip.Id:D3}";
+                _db.ReceivingSlips.Update(slip);
+                await _db.SaveChangesAsync();
+            }
+
+            return Ok(new { message = $"Đã nhập {grouped.Count} phiếu thành công!" });
         }
 
 
@@ -547,6 +684,63 @@ namespace SaoKim_ecommerce_BE.Controllers
             var itemsCombined = sales.Cast<object>().Concat(projects.Cast<object>()).ToList();
 
             return Ok(new { total = itemsCombined.Count, items = itemsCombined });
+        }
+
+        [HttpGet("receiving-slips/weekly-summary")]
+        public async Task<IActionResult> GetWeeklyInboundSummary()
+        {
+            var today = DateTime.UtcNow.Date;
+            var dayOfWeek = (int)today.DayOfWeek;
+            var startOfThisWeek = today.AddDays(-dayOfWeek + 1);
+            var startOfLastWeek = startOfThisWeek.AddDays(-7);
+
+            var thisWeekTotal = await _db.ReceivingSlips
+                .Where(s => s.Status == ReceivingSlipStatus.Confirmed && s.ReceiptDate >= startOfThisWeek)
+                .CountAsync();
+
+            var lastWeekTotal = await _db.ReceivingSlips
+                .Where(s => s.Status == ReceivingSlipStatus.Confirmed && s.ReceiptDate >= startOfLastWeek && s.ReceiptDate < startOfThisWeek)
+                .CountAsync();
+
+            return Ok(new
+            {
+                thisWeek = thisWeekTotal,
+                lastWeek = lastWeekTotal
+            });
+        }
+        [HttpGet("dispatch-slips/weekly-summary")]
+
+        public async Task<IActionResult> GetWeeklyOutboundSummary()
+        {
+            var today = DateTime.UtcNow.Date;
+            var dayOfWeek = (int)today.DayOfWeek;
+            var startOfThisWeek = today.AddDays(-dayOfWeek + 1); // Thứ 2
+            var startOfLastWeek = startOfThisWeek.AddDays(-7);
+
+            var thisWeekTotal = await _db.Dispatches
+                .Where(s => s.Status == DispatchStatus.Confirmed && s.DispatchDate >= startOfThisWeek)
+                .CountAsync();
+
+            var lastWeekTotal = await _db.Dispatches
+                .Where(s => s.Status == DispatchStatus.Confirmed
+                            && s.DispatchDate >= startOfLastWeek
+                            && s.DispatchDate < startOfThisWeek)
+                .CountAsync();
+
+            return Ok(new
+            {
+                thisWeek = thisWeekTotal,
+                lastWeek = lastWeekTotal
+            });
+        }
+
+        [HttpGet("total-stock")]
+        public async Task<IActionResult> GetTotalStock()
+        {
+            var totalStock = await _db.Products
+                .SumAsync(p => p.Quantity);
+
+            return Ok(new { totalStock });
         }
     }
 }

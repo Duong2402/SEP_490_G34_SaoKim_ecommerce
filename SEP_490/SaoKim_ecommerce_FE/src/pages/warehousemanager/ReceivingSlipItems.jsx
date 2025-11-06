@@ -31,7 +31,6 @@ const initialForm = {
   unitPrice: 0,
 };
 
-// chuẩn hoá status về 0/1 giống ReceivingList
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
   if (v === 0 || v === "0") return 0;
@@ -63,7 +62,7 @@ const ReceivingSlipItems = () => {
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
-  const [status, setStatus] = useState(0); // đã chuẩn hoá 0/1
+  const [status, setStatus] = useState(0);
 
   useEffect(() => {
     load();
@@ -83,7 +82,6 @@ const ReceivingSlipItems = () => {
     };
   }, [items]);
 
-  // giống ReceivingList: chuẩn hoá status -> setStatus(0/1)
   async function load() {
     setLoading(true);
     setError("");
@@ -99,9 +97,8 @@ const ReceivingSlipItems = () => {
       setSupplier(String(sup));
 
       const rawStatus = (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
-      setStatus(toStatusCode(rawStatus)); // <= chuẩn hoá giống ReceivingList
+      setStatus(toStatusCode(rawStatus));
 
-      // console.log("Receiving slip data:", data);
     } catch (e) {
       setError(e.message || "Không thể tải danh sách hàng hóa.");
     } finally {
@@ -257,7 +254,7 @@ const ReceivingSlipItems = () => {
               <Breadcrumb.Item active>Chi tiết phiếu</Breadcrumb.Item>
             </Breadcrumb>
           </div>
-          <h1 className="wm-page-title">Chi tiết phiếu nhập #{id}</h1>
+          <h1 className="wm-page-title">Chi tiết phiếu nhập RC{id}</h1>
           <p className="wm-page-subtitle">
             Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp nhận thực tế.
           </p>
@@ -273,7 +270,6 @@ const ReceivingSlipItems = () => {
             Quay lại danh sách
           </button>
 
-          {/* Ẩn nút “Tạo mới” khi đã Confirm (giống ReceivingList ẩn Confirm/Delete) */}
           {!isConfirmed && (
             <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
               <FontAwesomeIcon icon={faPlus} />
@@ -283,42 +279,43 @@ const ReceivingSlipItems = () => {
         </div>
       </div>
 
-      {/* Supplier: vẫn giữ logic bấm bút chì mới cho sửa */}
       <div className="wm-surface mb-3">
         <div className="d-flex align-items-center justify-content-between mb-1">
           <Form.Label className="mb-0">Nhà cung cấp</Form.Label>
-          {!isEditingSupplier ? (
-            <FontAwesomeIcon
-              icon={faEdit}
-              role="button"
-              className="text-primary fs-5 ms-2"
-              title="Chỉnh sửa"
-              onClick={() => setIsEditingSupplier(true)}
-              style={{ cursor: "pointer" }}
-            />
-          ) : (
-            <div className="d-flex gap-2">
-              <Button
-                variant="success"
-                size="sm"
-                onClick={saveSupplier}
-                disabled={savingSupplier}
-              >
-                <FontAwesomeIcon icon={faSave} />
-              </Button>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => {
-                  setIsEditingSupplier(false);
-                  setSupplierErr("");
-                  load();
-                }}
-                disabled={savingSupplier}
-              >
-                Hủy
-              </Button>
-            </div>
+          {!isConfirmed && (
+            !isEditingSupplier ? (
+              <FontAwesomeIcon
+                icon={faEdit}
+                role="button"
+                className="text-primary fs-5 ms-2"
+                title="Chỉnh sửa"
+                onClick={() => setIsEditingSupplier(true)}
+                style={{ cursor: "pointer" }}
+              />
+            ) : (
+              <div className="d-flex gap-2">
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={saveSupplier}
+                  disabled={savingSupplier}
+                >
+                  <FontAwesomeIcon icon={faSave} />
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditingSupplier(false);
+                    setSupplierErr("");
+                    load();
+                  }}
+                  disabled={savingSupplier}
+                >
+                  Hủy
+                </Button>
+              </div>
+            )
           )}
         </div>
         <Form.Control
@@ -369,7 +366,6 @@ const ReceivingSlipItems = () => {
               <th>Số lượng</th>
               <th>Đơn giá</th>
               <th>Thành tiền</th>
-              {/* Ẩn cột thao tác khi đã Confirm (giống ReceivingList) */}
               {!isConfirmed && <th className="text-end">Thao tác</th>}
             </tr>
           </thead>
@@ -391,7 +387,7 @@ const ReceivingSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productId || "N/A"}</span>
+                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
@@ -404,7 +400,6 @@ const ReceivingSlipItems = () => {
                     đ
                   </td>
 
-                  {/* Ẩn icon khi đã Confirm */}
                   {!isConfirmed && (
                     <td className="text-end">
                       <Button

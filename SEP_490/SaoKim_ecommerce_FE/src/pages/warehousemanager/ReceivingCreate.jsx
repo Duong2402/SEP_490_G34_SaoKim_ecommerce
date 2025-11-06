@@ -32,9 +32,7 @@ const emptyItem = () => ({
 
 export default function ReceivingCreate() {
   const navigate = useNavigate();
-
   const [supplier, setSupplier] = useState("");
-  const [referenceNo, setReferenceNo] = useState("");
   const [receiptDate, setReceiptDate] = useState(() => {
     const d = new Date();
     const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
@@ -48,7 +46,7 @@ export default function ReceivingCreate() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrs, setFieldErrs] = useState({});
-  const [itemErrs, setItemErrs] = useState({}); 
+  const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
@@ -65,7 +63,7 @@ export default function ReceivingCreate() {
           }))
           .filter((p) => p.id != null && p.name);
         setProducts(normalized);
-      } catch (_) {}
+      } catch (_) { }
     };
     loadProducts();
   }, []);
@@ -95,7 +93,6 @@ export default function ReceivingCreate() {
   const validate = () => {
     const errs = {};
     if (!supplier.trim()) errs.supplier = "Nhà cung cấp bắt buộc.";
-    if (!referenceNo.trim()) errs.referenceNo = "Mã phiếu bắt buộc.";
     if (!receiptDate) errs.receiptDate = "Ngày nhận bắt buộc.";
     setFieldErrs(errs);
 
@@ -127,7 +124,6 @@ export default function ReceivingCreate() {
 
     const payload = {
       supplier: supplier.trim(),
-      referenceNo: referenceNo.trim(),
       receiptDate: new Date(receiptDate).toISOString(),
       note: note?.trim() || null,
       items: items.map((it) => ({
@@ -222,9 +218,29 @@ export default function ReceivingCreate() {
         </Alert>
       )}
 
+      <div className="wm-summary">
+        <div className="wm-summary__card">
+          <span className="wm-summary__label">Tổng số lượng</span>
+          <span className="wm-summary__value">{totals.totalQty}</span>
+          <span className="wm-subtle-text">Không theo đơn vị cụ thể</span>
+        </div>
+        <div className="wm-summary__card">
+          <span className="wm-summary__label">Tổng giá trị</span>
+          <span className="wm-summary__value">
+            {totals.totalValue.toLocaleString("vi-VN")} đ
+          </span>
+          <span className="wm-subtle-text">Chưa gồm thuế</span>
+        </div>
+        <div className="wm-summary__card">
+          <span className="wm-summary__label">Trạng thái</span>
+          <span className="wm-summary__value"><Badge bg="warning" text="dark">Nháp</Badge></span>
+          <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
+        </div>
+      </div>
+
       <div className="wm-surface mb-3">
         <div className="row">
-          <div className="col-md-4 mb-3">
+          <div className="col-md-6 mb-3">
             <Form.Label>Nhà cung cấp <span className="text-danger">*</span></Form.Label>
             <Form.Control
               value={supplier}
@@ -237,20 +253,7 @@ export default function ReceivingCreate() {
             </Form.Control.Feedback>
           </div>
 
-          <div className="col-md-4 mb-3">
-            <Form.Label>Mã phiếu <span className="text-danger">*</span></Form.Label>
-            <Form.Control
-              value={referenceNo}
-              onChange={(e) => setReferenceNo(e.target.value)}
-              isInvalid={!!fieldErrs.referenceNo}
-              placeholder="VD: RC-2025-0001"
-            />
-            <Form.Control.Feedback type="invalid">
-              {fieldErrs.referenceNo}
-            </Form.Control.Feedback>
-          </div>
-
-          <div className="col-md-4 mb-3">
+          <div className="col-md-6 mb-3">
             <Form.Label>Ngày nhận <span className="text-danger">*</span></Form.Label>
             <Form.Control
               type="date"
@@ -274,26 +277,6 @@ export default function ReceivingCreate() {
             placeholder="Ghi chú thêm (không bắt buộc)"
           />
         </Form.Group>
-      </div>
-
-      <div className="wm-summary">
-        <div className="wm-summary__card">
-          <span className="wm-summary__label">Tổng số lượng</span>
-          <span className="wm-summary__value">{totals.totalQty}</span>
-          <span className="wm-subtle-text">Không theo đơn vị cụ thể</span>
-        </div>
-        <div className="wm-summary__card">
-          <span className="wm-summary__label">Tổng giá trị</span>
-          <span className="wm-summary__value">
-            {totals.totalValue.toLocaleString("vi-VN")} đ
-          </span>
-          <span className="wm-subtle-text">Chưa gồm thuế</span>
-        </div>
-        <div className="wm-summary__card">
-          <span className="wm-summary__label">Trạng thái</span>
-          <span className="wm-summary__value"><Badge bg="warning" text="dark">Nháp</Badge></span>
-          <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
-        </div>
       </div>
 
       <div className="wm-surface wm-table wm-scroll">

@@ -20,7 +20,6 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
-            // ----- Seed Products -----
             var seeds = new List<Product>
             {
                 new() {
@@ -85,7 +84,6 @@ namespace SaoKim_ecommerce_BE.Data
             }
             await db.SaveChangesAsync();
 
-            // ----- Seed Receiving Slips -----
             var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");
             var hs1 = await db.Products.SingleAsync(p => p.ProductCode == "HS-01");
 
@@ -127,7 +125,6 @@ namespace SaoKim_ecommerce_BE.Data
                 await db.SaveChangesAsync();
             }
 
-            // ----- Seed Dispatches -----
             await SeedDispatchesAsync(db);
         }
 
