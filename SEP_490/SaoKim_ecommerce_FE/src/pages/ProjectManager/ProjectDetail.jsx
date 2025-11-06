@@ -1,9 +1,11 @@
+// src/pages/ProjectManager/ProjectDetail.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
 import "dayjs/locale/vi";
 import { ProjectAPI, TaskAPI } from "../../api/ProjectManager/projects";
+import { ProjectProductAPI } from "../../api/ProjectManager/project-products";
 import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   formatBudget,
@@ -11,6 +13,8 @@ import {
   getStatusBadgeClass,
   getStatusLabel,
 } from "./projectHelpers";
+import AddEditProjectProductModal from "../../components/AddEditProjectProductModal.jsx";
+import MultiAddProjectProductsModal from "../../components/MultiAddProjectProductsModal.jsx";
 
 const UI_TO_BE = {
   Pending: "New",
@@ -80,6 +84,13 @@ function ProjectDetail() {
   const [formErrors, setFormErrors] = useState({});
   const [savingTask, setSavingTask] = useState(false);
 
+  // --- ProjectProducts state ---
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [showMultiAddModal, setShowMultiAddModal] = useState(false);
+
   const loadProject = useCallback(async () => {
     if (!id) return;
     setLoadingProject(true);
@@ -109,10 +120,26 @@ function ProjectDetail() {
     }
   }, [id]);
 
+  const loadProducts = useCallback(async () => {
+    if (!id) return;
+    setLoadingProducts(true);
+    try {
+      const res = await ProjectProductAPI.list(id);
+      // BE trả {data: {items, subtotal}} => lấy items
+      setProducts(res?.data?.data?.items ?? []);
+    } catch (error) {
+      console.error(error);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadProject();
     loadTasks();
-  }, [loadProject, loadTasks]);
+    loadProducts();
+  }, [loadProject, loadTasks, loadProducts]);
 
   useEffect(() => {
     if (!isModalOpen) return undefined;
@@ -181,9 +208,7 @@ function ProjectDetail() {
   );
 
   const today = dayjs();
-  const monthLabel = month
-    .locale(lang === "vi" ? "vi" : "en")
-    .format("MMMM YYYY");
+  const monthLabel = month.locale(lang === "vi" ? "vi" : "en").format("MMMM YYYY");
 
   const openCreateTask = () => {
     setEditingTask(null);
@@ -489,6 +514,7 @@ function ProjectDetail() {
           </div>
         </section>
 
+        {/* ---- TASKS ---- */}
         <section className="panel">
           <div className="project-section-header">
             <div>
@@ -656,6 +682,149 @@ function ProjectDetail() {
             </div>
           )}
         </section>
+
+        {/* ---- PROJECT PRODUCTS ---- */}
+        <section className="panel">
+          <div className="project-section-header">
+            <div>
+              <h2 className="project-section-title">Sản phẩm sử dụng</h2>
+              <p className="project-section-subtitle">
+                Danh sách các sản phẩm thuộc dự án này, bao gồm số lượng và đơn giá.
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ marginRight: 8 }}
+                onClick={() => setShowMultiAddModal(true)}
+              >
+                + Thêm nhiều sản phẩm
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditingProduct(null);
+                  setShowAddProductModal(true);
+                }}
+              >
+                + Thêm sản phẩm
+              </button>
+            </div>
+          </div>
+
+          {loadingProducts ? (
+            <div className="loading-state">Đang tải danh sách sản phẩm...</div>
+          ) : products.length ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Tên sản phẩm</th>
+                    <th>Đơn vị</th>
+                    <th>Số lượng</th>
+                    <th>Đơn giá (VND)</th>
+                    <th>Thành tiền</th>
+                    <th>Ghi chú</th>
+                    <th style={{ width: 140 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.productName}</td>
+                      <td>{item.uom}</td>
+                      <td>{formatNumber(item.quantity)}</td>
+                      <td>{formatNumber(item.unitPrice)}</td>
+                      <td><strong>{formatNumber(item.total)}</strong></td>
+                      <td>{item.note || "-"}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => {
+                              setEditingProduct(item);
+                              setShowAddProductModal(true);
+                            }}
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: "#dc2626" }}
+                            onClick={async () => {
+                              if (!window.confirm("Bạn có chắc muốn xoá sản phẩm này?")) return;
+                              try {
+                                await ProjectProductAPI.remove(id, item.id);
+                                await loadProducts();
+                              } catch (err) {
+                                console.error(err);
+                                alert("Xoá thất bại!");
+                              }
+                            }}
+                          >
+                            Xoá
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "right" }}>
+                      <strong>Tổng cộng:</strong>
+                    </td>
+                    <td colSpan={3}>
+                      <strong>
+                        {formatNumber(
+                          products.reduce((sum, p) => sum + (Number(p.total) || 0), 0)
+                        )}{" "}
+                        VND
+                      </strong>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-title">Chưa có sản phẩm nào</div>
+              <div className="empty-state-subtitle">Hãy thêm sản phẩm cho dự án này.</div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditingProduct(null);
+                  setShowAddProductModal(true);
+                }}
+              >
+                + Thêm sản phẩm
+              </button>
+            </div>
+          )}
+
+          {showAddProductModal && (
+            <AddEditProjectProductModal
+              projectId={id}
+              product={editingProduct}
+              onClose={() => {
+                setShowAddProductModal(false);
+                setEditingProduct(null);
+              }}
+              onSaved={loadProducts}
+            />
+          )}
+
+          {showMultiAddModal && (
+            <MultiAddProjectProductsModal
+              projectId={id}
+              onClose={() => setShowMultiAddModal(false)}
+              onSaved={loadProducts}
+            />
+          )}
+        </section>
       </div>
 
       <TaskModal
@@ -687,7 +856,6 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
 
   return createPortal(
     <div
-      // BACKDROP: style inline để chắc chắn có nền đen + căn giữa + nổi trên cùng
       onClick={onClose}
       style={{
         position: "fixed",
@@ -703,8 +871,7 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-modal-title"
-        onClick={(e) => e.stopPropagation()} // chặn click lọt xuống backdrop
-        // MODAL CONTAINER: style inline nền trắng, bo góc, bóng đổ, width cố định
+        onClick={(e) => e.stopPropagation()}
         style={{
           background: "#fff",
           width: 520,
@@ -795,6 +962,5 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
     document.body
   );
 }
-
 
 export default ProjectDetail;
