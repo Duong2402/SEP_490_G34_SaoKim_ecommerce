@@ -263,46 +263,47 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { featured, newArrivals, all });
         }
+        
         // GET: api/products/123
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetProductById([FromRoute] int id)
-        {
-            var p = await _db.Products
-                .AsNoTracking()
-                .Where(x => x.ProductID == id)
-                .Select(x => new
-                {
-                    id = x.ProductID,
-                    name = x.ProductName,
-                    code = x.ProductCode,
-                    price = x.Price,
-                    image = x.Image != null ? $"/images/{x.Image}" : null,
-                    quantity = x.Quantity,
-                    category = x.Category,
-                    description = x.Description,
-                    createdAt = x.CreateAt ?? x.Date
-                })
-                .FirstOrDefaultAsync();
+        //[HttpGet("{id:int}")]
+        //public async Task<IActionResult> GetProductById([FromRoute] int id)
+        //{
+        //    var p = await _db.Products
+        //        .AsNoTracking()
+        //        .Where(x => x.ProductID == id)
+        //        .Select(x => new
+        //        {
+        //            id = x.ProductID,
+        //            name = x.ProductName,
+        //            code = x.ProductCode,
+        //            price = x.Price,
+        //            image = x.Image != null ? $"/images/{x.Image}" : null,
+        //            quantity = x.Quantity,
+        //            category = x.Category,
+        //            description = x.Description,
+        //            createdAt = x.CreateAt ?? x.Date
+        //        })
+        //        .FirstOrDefaultAsync();
 
-            if (p == null) return NotFound();
+        //    if (p == null) return NotFound();
 
-            // gợi ý sản phẩm liên quan
-            var related = await _db.Products
-                .AsNoTracking()
-                .Where(x => x.Category == p.category && x.ProductID != id)
-                .OrderByDescending(x => x.CreateAt ?? x.Date)
-                .Take(8)
-                .Select(x => new
-                {
-                    id = x.ProductID,
-                    name = x.ProductName,
-                    price = x.Price,
-                    image = x.Image != null ? $"/images/{x.Image}" : null
-                })
-                .ToListAsync();
+        //    // gợi ý sản phẩm liên quan
+        //    var related = await _db.Products
+        //        .AsNoTracking()
+        //        .Where(x => x.Category == p.category && x.ProductID != id)
+        //        .OrderByDescending(x => x.CreateAt ?? x.Date)
+        //        .Take(8)
+        //        .Select(x => new
+        //        {
+        //            id = x.ProductID,
+        //            name = x.ProductName,
+        //            price = x.Price,
+        //            image = x.Image != null ? $"/images/{x.Image}" : null
+        //        })
+        //        .ToListAsync();
 
-            return Ok(new { product = p, related });
-        }
+        //    return Ok(new { product = p, related });
+        //}
     }
 }
 

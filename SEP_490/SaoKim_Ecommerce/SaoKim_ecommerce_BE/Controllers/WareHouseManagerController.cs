@@ -1,17 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Entities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/warehousemanager")]
+    //[Authorize(Roles = "warehouse_manager")]
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
@@ -126,12 +128,13 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new
             {
+                status = slip.Status,
                 supplier = slip.Supplier,
                 items
             });
         }
 
-        [HttpPut("receiving-items/{itemId:int}/items")]
+        [HttpPut("receiving-items/{itemId:int}")]
         public async Task<IActionResult> UpdateReceivingSlipItem([FromRoute] int itemId, [FromBody] ReceivingSlipItemDto dto)
         {
             var item = await _db.ReceivingSlipItems
@@ -200,6 +203,79 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+        [HttpPost("receiving-slips/{id:int}/items")]
+        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
+        {
+            var slip = await _db.ReceivingSlips
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (slip is null)
+                return NotFound(new { message = "Receiving slip not found" });
+
+            if (slip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            if (string.IsNullOrWhiteSpace(dto.ProductName))
+                return BadRequest(new { message = "ProductName is required" });
+            if (dto.Quantity <= 0)
+                return BadRequest(new { message = "Quantity must be > 0" });
+            if (dto.UnitPrice < 0)
+                return BadRequest(new { message = "UnitPrice cannot be negative" });
+
+            Product? product = null;
+
+            if (dto.ProductId.HasValue)
+            {
+                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                if (product == null)
+                {
+                    product = new Product
+                    {
+                        ProductName = dto.ProductName.Trim(),
+                        Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        Price = dto.UnitPrice
+                    };
+                    _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                product = new Product
+                {
+                    ProductName = dto.ProductName.Trim(),
+                    Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    Price = dto.UnitPrice
+                };
+                _db.Products.Add(product);
+                await _db.SaveChangesAsync();
+            }
+
+            var newItem = new ReceivingSlipItem
+            {
+                ReceivingSlipId = id,
+                ProductId = product.ProductID,
+                ProductName = product.ProductName,
+                Uom = product.Unit,
+                Quantity = dto.Quantity,
+                UnitPrice = dto.UnitPrice,
+                Total = dto.Quantity * dto.UnitPrice
+            };
+
+            _db.ReceivingSlipItems.Add(newItem);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                newItem.Id,
+                newItem.ProductId,
+                newItem.ProductName,
+                newItem.Uom,
+                newItem.Quantity,
+                newItem.UnitPrice,
+                newItem.Total
+            });
+        }
 
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
@@ -296,7 +372,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .Include(s => s.Items)
                 .AsQueryable();
 
-            // --- Bộ lọc ---
             if (!string.IsNullOrWhiteSpace(q.Supplier))
                 query = query.Where(s => s.Supplier.Contains(q.Supplier));
 
@@ -374,5 +449,104 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { slip.Id, slip.Supplier });
         }
 
+        [HttpGet("dispatch-slips")]
+        public async Task<IActionResult> GetDispatchSlips([FromQuery] string? type, [FromQuery] string? search)
+        {
+            if (!string.IsNullOrWhiteSpace(type) && type.Equals("Sales", StringComparison.OrdinalIgnoreCase))
+            {
+                var querySales = _db.Set<RetailDispatch>().AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var s = search.Trim().ToLower();
+                    querySales = querySales.Where(r =>
+                        r.ReferenceNo.ToLower().Contains(s) ||
+                        r.CustomerName.ToLower().Contains(s));
+                }
+
+                var items = await querySales
+                    .OrderByDescending(x => x.DispatchDate)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        Type = "Sales",
+                        x.ReferenceNo,
+                        x.CustomerName,
+                        x.CustomerId,
+                        DispatchDate = x.DispatchDate,
+                        x.Status,
+                        x.CreatedAt,
+                        x.ConfirmedAt,
+                        x.Note
+                    })
+                    .ToListAsync();
+
+                return Ok(new { total = items.Count, items });
+            }
+
+            if (!string.IsNullOrWhiteSpace(type) && type.Equals("Project", StringComparison.OrdinalIgnoreCase))
+            {
+                var queryProject = _db.Set<ProjectDispatch>().AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var s = search.Trim().ToLower();
+                    queryProject = queryProject.Where(p =>
+                        p.ReferenceNo.ToLower().Contains(s) ||
+                        p.ProjectName.ToLower().Contains(s));
+                }
+
+                var items = await queryProject
+                    .OrderByDescending(x => x.DispatchDate)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        Type = "Project",
+                        x.ReferenceNo,
+                        x.ProjectName,
+                        x.ProjectId,
+                        DispatchDate = x.DispatchDate,
+                        x.Status,
+                        x.CreatedAt,
+                        x.ConfirmedAt,
+                        x.Note
+                    })
+                    .ToListAsync();
+
+                return Ok(new { total = items.Count, items });
+            }
+
+            var sales = await _db.Set<RetailDispatch>().Select(x => new
+            {
+                x.Id,
+                Type = "Sales",
+                x.ReferenceNo,
+                x.CustomerName,
+                x.CustomerId,
+                DispatchDate = x.DispatchDate,
+                x.Status,
+                x.CreatedAt,
+                x.ConfirmedAt,
+                x.Note
+            }).ToListAsync();
+
+            var projects = await _db.Set<ProjectDispatch>().Select(x => new
+            {
+                x.Id,
+                Type = "Project",
+                x.ReferenceNo,
+                x.ProjectName,
+                x.ProjectId,
+                DispatchDate = x.DispatchDate,
+                x.Status,
+                x.CreatedAt,
+                x.ConfirmedAt,
+                x.Note
+            }).ToListAsync();
+
+            var itemsCombined = sales.Cast<object>().Concat(projects.Cast<object>()).ToList();
+
+            return Ok(new { total = itemsCombined.Count, items = itemsCombined });
+        }
     }
 }

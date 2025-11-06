@@ -7,68 +7,68 @@ namespace SaoKim_ecommerce_BE.Data
     {
         public static async Task SeedAsync(SaoKimDBContext db)
         {
+            // ----- Seed Roles -----
             var roleSeeds = new List<Role> {
-        new Role { RoleId = 1, Name = "admin" },
-        new Role { RoleId = 2, Name = "warehouse_manager" },
-        new Role { RoleId = 3, Name = "staff" },
-        new Role { RoleId = 4, Name = "customer" },
-        new Role { RoleId = 5, Name = "manager" },
-        new Role { RoleId = 6, Name = "project_manager" }
-    };
+                new Role { RoleId = 1, Name = "admin" },
+                new Role { RoleId = 2, Name = "warehouse_manager" },
+                new Role { RoleId = 3, Name = "staff" },
+                new Role { RoleId = 4, Name = "customer" },
+                new Role { RoleId = 5, Name = "manager" },
+                new Role { RoleId = 6, Name = "project_manager" }
+            };
             foreach (var r in roleSeeds)
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
+            // ----- Seed Products -----
             var seeds = new List<Product>
-    {
-        new() {
-            ProductName = "Đèn Rạng Đông",
-            ProductCode = "RD-01",
-            Supplier    = "Rạng Đông",
-            Quantity    = 120,
-            Unit        = "Cái",
-            Price       = 120000m,
-            Status      = "Active",
-            Category    = "Đèn LED",
-            Description = "Đèn LED Rạng Đông công suất 12W",
-            Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
-            CreateAt    = DateTime.UtcNow
-        },
-        new() {
-            ProductName = "Đèn Hừng Sáng",
-            ProductCode = "HS-01",
-            Supplier    = "Hừng Sáng",
-            Quantity    = 85,
-            Unit        = "Cái",
-            Price       = 95000m,
-            Status      = "Active",
-            Category    = "Đèn LED",
-            Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
-            Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
-            CreateAt    = DateTime.UtcNow
-        },
-        new() {
-            ProductName = "Đèn Sáng",
-            ProductCode = "HS-02",
-            Supplier    = "Sáng",
-            Quantity    = 60,
-            Unit        = "Cái",
-            Price       = 110000m,
-            Status      = "Active",
-            Category    = "Đèn LED",
-            Description = "Mẫu đèn khác để test",
-            Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
-            CreateAt    = DateTime.UtcNow
-        }
-    };
+            {
+                new() {
+                    ProductName = "Đèn Rạng Đông",
+                    ProductCode = "RD-01",
+                    Supplier    = "Rạng Đông",
+                    Quantity    = 120,
+                    Unit        = "Cái",
+                    Price       = 120000m,
+                    Status      = "Active",
+                    Category    = "Đèn LED",
+                    Description = "Đèn LED Rạng Đông công suất 12W",
+                    Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
+                    CreateAt    = DateTime.UtcNow
+                },
+                new() {
+                    ProductName = "Đèn Hừng Sáng",
+                    ProductCode = "HS-01",
+                    Supplier    = "Hừng Sáng",
+                    Quantity    = 85,
+                    Unit        = "Cái",
+                    Price       = 95000m,
+                    Status      = "Active",
+                    Category    = "Đèn LED",
+                    Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
+                    Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
+                    CreateAt    = DateTime.UtcNow
+                },
+                new() {
+                    ProductName = "Đèn Sáng",
+                    ProductCode = "HS-02",
+                    Supplier    = "Sáng",
+                    Quantity    = 60,
+                    Unit        = "Cái",
+                    Price       = 110000m,
+                    Status      = "Active",
+                    Category    = "Đèn LED",
+                    Description = "Mẫu đèn khác để test",
+                    Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
+                    CreateAt    = DateTime.UtcNow
+                }
+            };
 
             foreach (var s in seeds)
             {
                 var exist = await db.Products.SingleOrDefaultAsync(x => x.ProductCode == s.ProductCode);
                 if (exist == null)
-                {
                     db.Products.Add(s);
-                }
                 else
                 {
                     exist.ProductName = s.ProductName;
@@ -85,10 +85,10 @@ namespace SaoKim_ecommerce_BE.Data
             }
             await db.SaveChangesAsync();
 
+            // ----- Seed Receiving Slips -----
             var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");
             var hs1 = await db.Products.SingleAsync(p => p.ProductCode == "HS-01");
 
-            // ---- RECEIVING SLIPS (tạo nếu chưa có) ----
             if (!await db.ReceivingSlips.AnyAsync())
             {
                 var slip1 = new ReceivingSlip
@@ -124,43 +124,65 @@ namespace SaoKim_ecommerce_BE.Data
                         Total = 5 * 350000m
                     }
                 );
-
-                var slip2 = new ReceivingSlip
-                {
-                    ReferenceNo = "RCV-002",
-                    Supplier = "Điện Quang",
-                    ReceiptDate = DateTime.UtcNow.AddDays(-2),
-                    Status = ReceivingSlipStatus.Draft,
-                    Note = "Seed 2"
-                };
-                db.ReceivingSlips.Add(slip2);
-                await db.SaveChangesAsync();
-
-                db.ReceivingSlipItems.AddRange(
-                    new ReceivingSlipItem
-                    {
-                        ReceivingSlipId = slip2.Id,
-                        ProductName = rd.ProductName,
-                        ProductId = rd.ProductID,
-                        Uom = "Cái",
-                        Quantity = 15,
-                        UnitPrice = 210000m,
-                        Total = 15 * 210000m
-                    },
-                    new ReceivingSlipItem
-                    {
-                        ReceivingSlipId = slip2.Id,
-                        ProductName = hs1.ProductName,
-                        ProductId = hs1.ProductID,
-                        Uom = "Cái",
-                        Quantity = 8,
-                        UnitPrice = 360000m,
-                        Total = 8 * 360000m
-                    }
-                );
-
                 await db.SaveChangesAsync();
             }
+
+            // ----- Seed Dispatches -----
+            await SeedDispatchesAsync(db);
+        }
+
+        public static async Task SeedDispatchesAsync(SaoKimDBContext db)
+        {
+            if (await db.Dispatches.AnyAsync())
+                return;
+
+            var retail1 = new RetailDispatch
+            {
+                ReferenceNo = "R-001",
+                CustomerName = "Khách hàng A",
+                CustomerId = 101,
+                DispatchDate = DateTime.UtcNow.AddDays(-3),
+                Status = DispatchStatus.Draft,
+                Note = "Phiếu bán lẻ A",
+                CreatedAt = DateTime.UtcNow.AddDays(-5)
+            };
+
+            var retail2 = new RetailDispatch
+            {
+                ReferenceNo = "R-002",
+                CustomerName = "Khách hàng B",
+                CustomerId = 102,
+                DispatchDate = DateTime.UtcNow.AddDays(-2),
+                Status = DispatchStatus.Confirmed,
+                ConfirmedAt = DateTime.UtcNow.AddDays(-1),
+                Note = "Phiếu bán lẻ B",
+                CreatedAt = DateTime.UtcNow.AddDays(-4)
+            };
+
+            var project1 = new ProjectDispatch
+            {
+                ReferenceNo = "P-001",
+                ProjectName = "Dự án X",
+                ProjectId = 201,
+                DispatchDate = DateTime.UtcNow.AddDays(-1),
+                Status = DispatchStatus.Draft,
+                Note = "Phiếu dự án X",
+                CreatedAt = DateTime.UtcNow.AddDays(-3)
+            };
+
+            var project2 = new ProjectDispatch
+            {
+                ReferenceNo = "P-002",
+                ProjectName = "Dự án Y",
+                ProjectId = 202,
+                DispatchDate = DateTime.UtcNow,
+                Status = DispatchStatus.Confirmed,
+                ConfirmedAt = DateTime.UtcNow,
+                Note = "Phiếu dự án Y",
+                CreatedAt = DateTime.UtcNow.AddDays(-2)
+            };
+            await db.Dispatches.AddRangeAsync(retail1, retail2, project1, project2);
+            await db.SaveChangesAsync();
         }
     }
 }
