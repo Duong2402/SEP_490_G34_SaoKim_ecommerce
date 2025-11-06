@@ -7,10 +7,13 @@ import { useLanguage } from "./i18n/LanguageProvider.jsx";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomeProductsBody from "./pages/homepage/HomeProductsBody";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
+import ReceivingCreate from "./pages/warehousemanager/ReceivingCreate.jsx";
+
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
 import DispatchList from "./pages/warehousemanager/DispatchList";
@@ -43,12 +46,13 @@ export default function App() {
           <Route path="/" element={<HomeProductsBody />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          {/* <Route path="/forgot-password" element={<ForgetPassword />} /> */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Warehouse */}
           <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
           <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
+          <Route path="/warehouse-dashboard/receiving-slips/create" element={<ReceivingCreate />} />
           <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
           <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
           <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />

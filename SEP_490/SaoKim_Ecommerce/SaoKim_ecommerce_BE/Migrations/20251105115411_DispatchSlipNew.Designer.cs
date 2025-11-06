@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SaoKim_ecommerce_BE.Data;
@@ -11,9 +12,11 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    partial class SaoKimDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251105115411_DispatchSlipNew")]
+    partial class DispatchSlipNew
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -286,9 +289,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -324,10 +324,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ProductCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer");

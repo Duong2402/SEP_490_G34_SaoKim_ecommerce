@@ -31,6 +31,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ConfirmedAt { get; set; }
 
+        public bool IsDeleted { get; set; } = false;
         public ICollection<ReceivingSlipItem> Items { get; set; } = new List<ReceivingSlipItem>();
     }
 }
