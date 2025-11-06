@@ -65,7 +65,7 @@ export default function App() {
 
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/products" element={<ManageProduct />} />
+          <Route path="/staff/manager-products" element={<ManageProduct />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />

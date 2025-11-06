@@ -248,7 +248,7 @@ export default function ManageProduct() {
                 <th>Name</th>
                 <th>Category</th>
                 <th className="text-end">Price</th>
-                <th className="text-end">Stock</th>
+                {/*<th className="text-end">Stock</th>*/}
                 <th>Status</th>
                 <th className="text-end">Actions</th>
               </tr>
@@ -263,7 +263,7 @@ export default function ManageProduct() {
                   <td className="text-end">
                     {(p.price ?? 0).toLocaleString("vi-VN")}đ
                   </td>
-                  <td className="text-end">{p.stock}</td>
+                  {/*<td className="text-end">{p.stock}</td>*/}
                   <td>{renderStatus(p.status)}</td>
                   <td className="text-end">
                     {/* icon mat */}
