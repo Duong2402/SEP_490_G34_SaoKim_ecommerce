@@ -82,6 +82,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             foreach (var i in dto.Items)
             {
+                var uom = await _db.UnitOfMeasures
+        .FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
+
+                if (uom == null)
+                    return BadRequest(new { message = "UOM not found" });
+
                 int? productId = i.ProductId;
 
                 if (productId == null || productId == 0)
@@ -89,7 +95,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     var newProduct = new Product
                     {
                         ProductName = i.ProductName.Trim(),
-                        Unit = i.Uom.Trim(),
+                        //Unit = i.Uom.Trim(),
+                        Unit = uom.Name,
                         Price = i.UnitPrice,
                         Status = "Active"
                     };
@@ -102,7 +109,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 {
                     ProductId = productId.Value,
                     ProductName = i.ProductName.Trim(),
-                    Uom = i.Uom.Trim(),
+                    //Uom = i.Uom.Trim(),
+                    Uom = uom.Name,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     Total = i.Quantity * i.UnitPrice
@@ -159,7 +167,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var item = await _db.ReceivingSlipItems
                 .Include(i => i.ReceivingSlip)
-                .Include(i => i.Product) // include để dễ update Product
+                .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == itemId);
 
             if (item is null) return NotFound(new { message = "Item not found" });
@@ -174,6 +182,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.UnitPrice < 0)
                 return BadRequest(new { message = "UnitPrice cannot be negative" });
 
+            var uom = await _db.UnitOfMeasures
+                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+
+            if (uom == null)
+                return BadRequest(new { message = "Đơn vị tính không hợp lệ" });
+
             Product? product = null;
 
             if (dto.ProductId.HasValue && dto.ProductId.Value != 0)
@@ -184,7 +198,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     product = new Product
                     {
                         ProductName = dto.ProductName.Trim(),
-                        Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        //Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        Unit = uom.Name,
                         Price = dto.UnitPrice,
                         Status = "Active"
                     };
@@ -198,7 +213,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 else
                 {
                     product.ProductName = dto.ProductName.Trim();
-                    product.Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
+                    //product.Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
+                    product.Unit = uom.Name;
                     product.Price = dto.UnitPrice;
 
                     product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
@@ -211,7 +227,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product = new Product
                 {
                     ProductName = dto.ProductName.Trim(),
-                    Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    //Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    Unit = uom.Name,
                     Price = dto.UnitPrice,
                     Status = "Active"
                 };
@@ -265,6 +282,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.UnitPrice < 0)
                 return BadRequest(new { message = "UnitPrice cannot be negative" });
 
+            var uom = await _db.UnitOfMeasures
+                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+
+            if (uom == null)
+                return BadRequest(new { message = "UOM not found" });
+
             Product? product = null;
 
             if (dto.ProductId.HasValue)
@@ -275,7 +298,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     product = new Product
                     {
                         ProductName = dto.ProductName.Trim(),
-                        Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        //Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                        Unit = uom.Name,
                         Price = dto.UnitPrice,
                         Status = "Active"
                     };
@@ -292,7 +316,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product = new Product
                 {
                     ProductName = dto.ProductName.Trim(),
-                    Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    //Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim(),
+                    Unit = uom.Name,
                     Price = dto.UnitPrice,
                     Status = "Active"
                 };
@@ -742,5 +767,16 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { totalStock });
         }
+
+        [HttpGet("unit-of-measures")]
+        public async Task<IActionResult> GetUnitOfMeasures()
+        {
+            var uoms = await _db.UnitOfMeasures
+                                .Where(u => u.Status == "Active")
+                                .OrderBy(u => u.Name)
+                                .ToListAsync();
+            return Ok(uoms.Select(u => new { id = u.Id, name = u.Name }));
+        }
+
     }
 }

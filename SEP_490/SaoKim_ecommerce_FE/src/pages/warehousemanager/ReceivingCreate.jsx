@@ -48,6 +48,8 @@ export default function ReceivingCreate() {
   const [fieldErrs, setFieldErrs] = useState({});
   const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
+  const [uoms, setUoms] = useState([]);
+
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -66,7 +68,20 @@ export default function ReceivingCreate() {
       } catch (_) { }
     };
     loadProducts();
+
+    const loadUoms = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setUoms(data.map(u => u.name));
+      } catch (e) {
+        console.error("Không thể tải đơn vị tính:", e);
+      }
+    };
+    loadUoms();
   }, []);
+
 
   const totals = useMemo(() => {
     const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
@@ -363,12 +378,18 @@ export default function ReceivingCreate() {
                       </Form.Control.Feedback>
                     </td>
                     <td>
-                      <Form.Control
+                      <Form.Select
                         value={it.uom}
                         onChange={(e) => patchItem(idx, { uom: e.target.value })}
                         isInvalid={!!errs.uom}
-                        placeholder="pcs/box/..."
-                      />
+                      >
+                        <option value="">-- Chọn ĐVT --</option>
+                        {uoms.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {errs.uom}
                       </Form.Control.Feedback>
@@ -384,7 +405,6 @@ export default function ReceivingCreate() {
                           }
                           isInvalid={!!errs.quantity}
                         />
-                        <InputGroup.Text>{it.uom || "unit"}</InputGroup.Text>
                         <Form.Control.Feedback type="invalid">
                           {errs.quantity}
                         </Form.Control.Feedback>
@@ -405,7 +425,7 @@ export default function ReceivingCreate() {
                       </Form.Control.Feedback>
                     </td>
                     <td className="fw-semibold">
-                      {lineTotal.toLocaleString("vi-VN")} đ
+                      {lineTotal.toLocaleString("vi-VN")} VNĐ
                     </td>
                     <td className="text-end">
                       <Button

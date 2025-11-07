@@ -17,6 +17,7 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<TaskDay> TaskDays { get; set; }
         public DbSet<DispatchBase> Dispatches { get; set; }
+        public DbSet<UnitOfMeasure> UnitOfMeasures { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -263,7 +263,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { featured, newArrivals, all });
         }
-        
+
         // GET: api/products/123
         //[HttpGet("{id:int}")]
         //public async Task<IActionResult> GetProductById([FromRoute] int id)

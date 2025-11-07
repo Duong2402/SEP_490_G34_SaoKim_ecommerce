@@ -63,6 +63,7 @@ const ReceivingSlipItems = () => {
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
   const [status, setStatus] = useState(0);
+  const [uoms, setUoms] = useState([]);
 
   useEffect(() => {
     load();
@@ -105,6 +106,21 @@ const ReceivingSlipItems = () => {
       setLoading(false);
     }
   }
+
+  async function loadUOMs() {
+    try {
+      const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setUoms(data);
+    } catch (e) {
+      console.error("Không thể tải đơn vị tính:", e);
+    }
+  }
+
+  useEffect(() => {
+    loadUOMs();
+  }, []);
 
   async function loadProducts() {
     try {
@@ -167,6 +183,7 @@ const ReceivingSlipItems = () => {
 
   const validate = () => {
     const errs = {};
+
     if (!form.productId && !form.productName) {
       errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
     }
@@ -179,9 +196,16 @@ const ReceivingSlipItems = () => {
     if (!form.quantity || Number(form.quantity) <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
     }
+
+    const price = Number(form.unitPrice);
+    if (!form.unitPrice || isNaN(price) || price < 1000) {
+      errs.unitPrice = "Đơn giá phải lớn hơn 1.000.";
+    }
+
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
   };
+
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -488,6 +512,7 @@ const ReceivingSlipItems = () => {
               ) : (
                 <Form.Control
                   type="number"
+                  min={1}
                   placeholder="Nhập mã sản phẩm"
                   value={form.productId}
                   onChange={(e) => {
@@ -496,7 +521,7 @@ const ReceivingSlipItems = () => {
                     if (found) {
                       setForm({ ...form, productId: val, productName: found.name });
                     } else {
-                      setForm({ ...form, productId: val });
+                      setForm({ ...form, productId: val, productName: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -529,15 +554,19 @@ const ReceivingSlipItems = () => {
             <div className="row">
               <div className="col-md-6 mb-3">
                 <Form.Label>Đơn vị tính</Form.Label>
-                <Form.Control
+                <Form.Select
                   value={form.uom}
                   onChange={(e) => setForm({ ...form, uom: e.target.value })}
-                  placeholder="pcs / box / carton"
                   isInvalid={!!formErrs.uom}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.uom}
-                </Form.Control.Feedback>
+                >
+                  <option value="">-- Chọn đơn vị --</option>
+                  {uoms.map(u => (
+                    <option key={u.id} value={u.name}>
+                      {u.name}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">{formErrs.uom}</Form.Control.Feedback>
               </div>
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng</Form.Label>
@@ -549,7 +578,6 @@ const ReceivingSlipItems = () => {
                     onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     isInvalid={!!formErrs.quantity}
                   />
-                  <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
                   <Form.Control.Feedback type="invalid">
                     {formErrs.quantity}
                   </Form.Control.Feedback>
@@ -557,15 +585,25 @@ const ReceivingSlipItems = () => {
               </div>
             </div>
 
-            <Form.Group className="mb-1">
+            <Form.Group className="mb-3">
               <Form.Label>Đơn giá</Form.Label>
-              <Form.Control
-                type="number"
-                min={0}
-                value={form.unitPrice}
-                onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-              />
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  value={form.unitPrice}
+                  onChange={(e) =>
+                    setForm({ ...form, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })
+                  }
+                  isInvalid={!!formErrs.unitPrice}
+                />
+                <InputGroup.Text>VNĐ</InputGroup.Text>
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.unitPrice}
+                </Form.Control.Feedback>
+              </InputGroup>
             </Form.Group>
+
           </Form>
         </Modal.Body>
         <Modal.Footer>
