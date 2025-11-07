@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import "dayjs/locale/vi";
 import { ProjectAPI, TaskAPI } from "../../api/ProjectManager/projects";
 import { ProjectProductAPI } from "../../api/ProjectManager/project-products";
+import { ProjectExpenseAPI } from "../../api/ProjectManager/project-expenses";
 import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   formatBudget,
@@ -15,6 +16,7 @@ import {
 } from "./projectHelpers";
 import AddEditProjectProductModal from "../../components/AddEditProjectProductModal.jsx";
 import MultiAddProjectProductsModal from "../../components/MultiAddProjectProductsModal.jsx";
+import AddEditProjectExpenseModal from "../../components/AddEditProjectExpenseModal.jsx";
 
 const UI_TO_BE = {
   Pending: "New",
@@ -91,6 +93,12 @@ function ProjectDetail() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
 
+  // --- Expenses state ---
+  const [expenses, setExpenses] = useState([]);
+  const [loadingExpenses, setLoadingExpenses] = useState(true);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+
   const loadProject = useCallback(async () => {
     if (!id) return;
     setLoadingProject(true);
@@ -125,7 +133,6 @@ function ProjectDetail() {
     setLoadingProducts(true);
     try {
       const res = await ProjectProductAPI.list(id);
-      // BE trả {data: {items, subtotal}} => lấy items
       setProducts(res?.data?.data?.items ?? []);
     } catch (error) {
       console.error(error);
@@ -135,11 +142,27 @@ function ProjectDetail() {
     }
   }, [id]);
 
+  const loadExpenses = useCallback(async () => {
+    if (!id) return;
+    setLoadingExpenses(true);
+    try {
+      const res = await ProjectExpenseAPI.list(id, { sort: "-Date", page: 1, pageSize: 100 });
+      const items = res?.data?.data?.page?.items ?? [];
+      setExpenses(Array.isArray(items) ? items : []);
+    } catch (err) {
+      console.error(err);
+      setExpenses([]);
+    } finally {
+      setLoadingExpenses(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadProject();
     loadTasks();
     loadProducts();
-  }, [loadProject, loadTasks, loadProducts]);
+    loadExpenses();
+  }, [loadProject, loadTasks, loadProducts, loadExpenses]);
 
   useEffect(() => {
     if (!isModalOpen) return undefined;
@@ -352,6 +375,24 @@ function ProjectDetail() {
 
   const goToPreviousMonth = () => setMonth((current) => current.subtract(1, "month"));
   const goToNextMonth = () => setMonth((current) => current.add(1, "month"));
+
+  // --- Totals for Budget vs Actual (combined: Products + Expenses) ---
+  const totalProductCost = useMemo(
+    () => products.reduce((sum, p) => sum + (Number(p.total) || 0), 0),
+    [products]
+  );
+  const totalExpenseCost = useMemo(
+    () => expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+    [expenses]
+  );
+  const totalActualAllIn = useMemo(
+    () => totalProductCost + totalExpenseCost,
+    [totalProductCost, totalExpenseCost]
+  );
+  const variance = useMemo(() => {
+    const planned = Number(project?.budget || 0);
+    return planned - totalActualAllIn;
+  }, [project?.budget, totalActualAllIn]);
 
   if (loadingProject) {
     return (
@@ -822,6 +863,158 @@ function ProjectDetail() {
               projectId={id}
               onClose={() => setShowMultiAddModal(false)}
               onSaved={loadProducts}
+            />
+          )}
+        </section>
+
+        {/* ---- PROJECT EXPENSES (OTHER COSTS) ---- */}
+        <section className="panel" style={{ marginTop: 16 }}>
+          <div className="project-section-header">
+            <div>
+              <h2 className="project-section-title">Chi phí dự án</h2>
+              <p className="project-section-subtitle">
+                Quản lý các khoản chi liên quan đến dự án (mua hàng phụ trợ, vận chuyển, lắp đặt, v.v.).
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => { setEditingExpense(null); setShowExpenseModal(true); }}
+              >
+                + Thêm chi phí
+              </button>
+            </div>
+          </div>
+
+          {/* Summary Budget vs Actual (All-in) */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
+            gap: 12,
+            marginBottom: 12
+          }}>
+            <div className="project-overview__card">
+              <div className="project-overview__label">Planned (Budget)</div>
+              <div className="project-overview__value">
+                {formatBudget(project.budget, lang)}
+              </div>
+              <div className="project-overview__description">Ngân sách kế hoạch.</div>
+            </div>
+            <div className="project-overview__card">
+              <div className="project-overview__label">Actual (All-in)</div>
+              <div className="project-overview__value">
+                {formatBudget(totalActualAllIn, lang)}
+              </div>
+              <div className="project-overview__description">
+                Gồm Sản phẩm {formatBudget(totalProductCost, lang)} + Chi phí khác {formatBudget(totalExpenseCost, lang)}.
+              </div>
+            </div>
+            <div className="project-overview__card">
+              <div className="project-overview__label">Variance</div>
+              <div
+                className="project-overview__value"
+                style={{ color: variance < 0 ? "#dc2626" : "#16a34a" }}
+              >
+                {formatBudget(variance, lang)}
+              </div>
+              <div className="project-overview__description">
+                {variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách"}
+              </div>
+            </div>
+          </div>
+
+          {loadingExpenses ? (
+            <div className="loading-state">Đang tải danh sách chi phí...</div>
+          ) : expenses.length ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Ngày</th>
+                    <th>Nhóm</th>
+                    <th>Nhà cung cấp</th>
+                    <th>Mô tả</th>
+                    <th>Số tiền (VND)</th>
+                    <th>Hóa đơn</th>
+                    <th style={{ width: 140 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((e) => (
+                    <tr key={e.id}>
+                      <td>{formatDate(e.date, lang)}</td>
+                      <td>{e.category || "-"}</td>
+                      <td>{e.vendor || "-"}</td>
+                      <td>{e.description || "-"}</td>
+                      <td><strong>{formatNumber(e.amount)}</strong></td>
+                      <td>
+                        {e.receiptUrl
+                          ? <a href={e.receiptUrl} target="_blank" rel="noreferrer">Xem</a>
+                          : "-"}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => { setEditingExpense(e); setShowExpenseModal(true); }}
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: "#dc2626" }}
+                            onClick={async () => {
+                              if (!window.confirm("Xóa khoản chi này?")) return;
+                              try {
+                                await ProjectExpenseAPI.remove(id, e.id);
+                                await loadExpenses();
+                              } catch (err) {
+                                console.error(err);
+                                alert("Xóa thất bại!");
+                              }
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "right" }}>
+                      <strong>Tổng cộng:</strong>
+                    </td>
+                    <td colSpan={3}>
+                      <strong>{formatNumber(totalExpenseCost)} VND</strong>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-title">Chưa có khoản chi nào</div>
+              <div className="empty-state-subtitle">Hãy thêm chi phí cho dự án này.</div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => { setEditingExpense(null); setShowExpenseModal(true); }}
+              >
+                + Thêm chi phí
+              </button>
+            </div>
+          )}
+
+          {showExpenseModal && (
+            <AddEditProjectExpenseModal
+              open={showExpenseModal}
+              projectId={id}
+              expense={editingExpense}
+              onClose={() => { setShowExpenseModal(false); setEditingExpense(null); }}
+              onSaved={loadExpenses}
             />
           )}
         </section>
