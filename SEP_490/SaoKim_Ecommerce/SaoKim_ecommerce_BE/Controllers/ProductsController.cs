@@ -65,6 +65,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     name = p.ProductName,
                     category = p.Category,
                     price = p.Price,
+                    unit = p.Unit,
                     stock = p.Stock,
                     status = p.Status,
                     created = p.Created

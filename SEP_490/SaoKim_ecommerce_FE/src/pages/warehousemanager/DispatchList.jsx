@@ -3,13 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faSearch,
-  faCog,
   faEye,
   faCheck,
   faTrash,
   faPlus,
   faArrowDownShortWide,
-  faArrowUpShortWide,
   faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -25,6 +23,16 @@ import Dropdown from "react-bootstrap/Dropdown";
 
 const API_BASE = "https://localhost:7278";
 const TYPE_FILTERS = ["All", "Sales", "Project"];
+const toStatusCode = (v) => {
+  if (v === 1 || v === "1") return 1;
+  if (v === 0 || v === "0") return 0;
+  if (typeof v === "string") {
+    const s = v.toLowerCase();
+    if (s.includes("confirm")) return 1;
+    if (s.includes("draft")) return 0;
+  }
+  return 0;
+};
 
 const DispatchList = () => {
   const navigate = useNavigate();
@@ -231,9 +239,12 @@ const DispatchList = () => {
                 </td>
               </tr>
             ) : (
-              pagedRows.map((r,index) => {
+              pagedRows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
+                const code = toStatusCode(r.status);      // 0 = Draft, 1 = Confirmed
+                const isConfirmed = code === 1;
+
                 return (
                   <tr key={r.id}>
                     <td>{(currentPage - 1) * pageSize + index + 1}</td>
@@ -242,10 +253,22 @@ const DispatchList = () => {
                     </td>
                     <td>{isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo}</td>
                     <td>{isSales ? r.customerName || "-" : r.projectName || "-"}</td>
-                    <td>{formatDate(r.slipDate)}</td>
+
+                    {/* Nếu API trả dispatchDate, nên dùng r.dispatchDate thay cho r.slipDate */}
+                    <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
+
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
-                    <td>{renderStatus(r.status)}</td>
+
+                    {/* Trạng thái giống ReceivingList */}
+                    <td>
+                      {isConfirmed ? (
+                        <Badge bg="success">Đã xác nhận</Badge>
+                      ) : (
+                        <Badge bg="warning" text="dark">Nháp</Badge>
+                      )}
+                    </td>
+
                     <td>{r.note || "-"}</td>
                     <td className="text-end">
                       <Button
@@ -256,7 +279,8 @@ const DispatchList = () => {
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
-                      {r.status === 0 && (
+
+                      {!isConfirmed && (
                         <>
                           <Button
                             variant="outline-success"
@@ -279,6 +303,7 @@ const DispatchList = () => {
                   </tr>
                 );
               })
+
             )}
           </tbody>
         </table>

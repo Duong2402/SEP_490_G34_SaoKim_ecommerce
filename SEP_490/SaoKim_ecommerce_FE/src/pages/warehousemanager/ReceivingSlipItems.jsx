@@ -20,6 +20,7 @@ import {
   faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import Select from "react-select";
 
 const API_BASE = "https://localhost:7278";
 
@@ -485,30 +486,30 @@ const ReceivingSlipItems = () => {
             <Form.Group className="mb-3">
               <Form.Label>Mã sản phẩm</Form.Label>
               {productInputMode === "select" ? (
-                <Form.Select
-                  value={form.productId === "" ? "" : String(form.productId)}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
+                <Select
+                  options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                  value={
+                    form.productId
+                      ? { value: form.productId, label: `${form.productId} - ${form.productName}` }
+                      : null
+                  }
+                  onChange={(option) => {
+                    if (!option) {
                       setForm({ ...form, productId: "", productName: "" });
                       return;
                     }
-                    const selected = findProductById(val);
+                    const selected = findProductById(option.value);
                     setForm({
                       ...form,
-                      productId: val,
+                      productId: option.value,
                       productName: selected?.name || "",
                     });
                   }}
-                  isInvalid={!!formErrs.productId}
-                >
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} - {p.name}
-                    </option>
-                  ))}
-                </Form.Select>
+                  placeholder="Chọn sản phẩm"
+                  isClearable
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                  menuPortalTarget={document.body}
+                />
               ) : (
                 <Form.Control
                   type="number"
@@ -553,20 +554,19 @@ const ReceivingSlipItems = () => {
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <Form.Label>Đơn vị tính</Form.Label>
-                <Form.Select
-                  value={form.uom}
-                  onChange={(e) => setForm({ ...form, uom: e.target.value })}
-                  isInvalid={!!formErrs.uom}
-                >
-                  <option value="">-- Chọn đơn vị --</option>
-                  {uoms.map(u => (
-                    <option key={u.id} value={u.name}>
-                      {u.name}
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">{formErrs.uom}</Form.Control.Feedback>
+                <Form.Group className="mb-3">
+                  <Form.Label>Đơn vị tính</Form.Label>
+                  <Select
+                    options={uoms.map((u) => ({ value: u.name, label: u.name }))}
+                    value={form.uom ? { value: form.uom, label: form.uom } : null}
+                    onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
+                    placeholder="Chọn đơn vị tính"
+                    isClearable
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    menuPortalTarget={document.body}
+                  />
+                  {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
+                </Form.Group>
               </div>
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng</Form.Label>

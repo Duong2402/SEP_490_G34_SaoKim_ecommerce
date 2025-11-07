@@ -62,4 +62,32 @@ namespace SaoKim_ecommerce_BE.DTOs
     {
         public string Supplier { get; set; } = "";
     }
+
+    public class RetailDispatchCreateDto
+    {
+        public DateTime DispatchDate { get; set; } = DateTime.UtcNow;
+        public string CustomerName { get; set; } = "";   // bắt buộc
+        public int? CustomerId { get; set; }             // tùy chọn
+        public string? Note { get; set; }
+    }
+
+    public class ProjectDispatchCreateDto
+    {
+        public DateTime DispatchDate { get; set; } = DateTime.UtcNow;
+        public string ProjectName { get; set; } = "";    // bắt buộc
+        public int? ProjectId { get; set; }              // tùy chọn
+        public string? Note { get; set; }
+    }
+
+    public class DispatchItemDto
+    {
+        public int? Id { get; set; }
+        public int? ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string Uom { get; set; } = "pcs";
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string? Note { get; set; }
+    }
+
 }
