@@ -4,7 +4,7 @@ using System.Data;
 
 namespace SaoKim_ecommerce_BE.Data
 {
-    public class SaoKimDBContext : DbContext
+    public partial class SaoKimDBContext : DbContext
     {
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
