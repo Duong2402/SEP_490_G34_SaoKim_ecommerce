@@ -261,7 +261,6 @@ const ReceivingSlipItems = () => {
     }
   };
 
-  // giống ReceivingList
   const isConfirmed = status === 1;
 
   return (

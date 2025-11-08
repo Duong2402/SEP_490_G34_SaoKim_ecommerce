@@ -19,6 +19,9 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<DispatchBase> Dispatches { get; set; }
         public DbSet<DispatchItem> DispatchItems { get; set; }
         public DbSet<UnitOfMeasure> UnitOfMeasures { get; set; }
+        public DbSet<InventoryThreshold> InventoryThresholds { get; set; } = default!;
+        public DbSet<TraceIdentity> TraceIdentities { get; set; }
+        public DbSet<TraceEvent> TraceEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -235,6 +238,22 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
+
+            modelBuilder.Entity<TraceIdentity>()
+        .HasIndex(x => x.IdentityCode)
+        .IsUnique();
+
+            modelBuilder.Entity<TraceIdentity>()
+                .HasOne(x => x.Product)
+                .WithMany() // không cần navigation ngược
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TraceEvent>()
+                .HasOne(e => e.TraceIdentity)
+                .WithMany(i => i.Events)
+                .HasForeignKey(e => e.TraceIdentityId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

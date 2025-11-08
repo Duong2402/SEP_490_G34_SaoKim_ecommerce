@@ -26,7 +26,7 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? DateTo { get; set; }
         public ReceivingSlipStatus? Status { get; set; }
         public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+        public int PageSize { get; set; } = 10;
     }
 
     public class ReceivingSlipUpdateDto
@@ -66,16 +66,16 @@ namespace SaoKim_ecommerce_BE.DTOs
     public class RetailDispatchCreateDto
     {
         public DateTime DispatchDate { get; set; } = DateTime.UtcNow;
-        public string CustomerName { get; set; } = "";   // bắt buộc
-        public int? CustomerId { get; set; }             // tùy chọn
+        public string CustomerName { get; set; } = "";
+        public int? CustomerId { get; set; }
         public string? Note { get; set; }
     }
 
     public class ProjectDispatchCreateDto
     {
         public DateTime DispatchDate { get; set; } = DateTime.UtcNow;
-        public string ProjectName { get; set; } = "";    // bắt buộc
-        public int? ProjectId { get; set; }              // tùy chọn
+        public string ProjectName { get; set; } = "";
+        public int? ProjectId { get; set; }
         public string? Note { get; set; }
     }
 

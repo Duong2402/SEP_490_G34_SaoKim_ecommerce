@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.DTOs.WarehouseManagerDTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Services;
@@ -17,7 +18,6 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         public WarehouseManagerController(SaoKimDBContext db) => _db = db;
-
 
         // GET /api/warehousemanager/receiving-slips
         [HttpGet("receiving-slips")]
@@ -59,7 +59,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
         }
-
 
         // POST /api/warehousemanager/receiving-slips
         [HttpPost("receiving-slips")]
@@ -211,7 +210,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 else
                 {
                     product.ProductName = dto.ProductName.Trim();
-                    //product.Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
                     product.Unit = uom.Name;
                     product.Price = dto.UnitPrice;
 
@@ -257,6 +255,96 @@ namespace SaoKim_ecommerce_BE.Controllers
                 item.Quantity,
                 item.UnitPrice,
                 item.Total
+            });
+        }
+
+        [HttpPost("receiving-slips/{id:int}/items")]
+        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
+        {
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
+            if (slip is null)
+                return NotFound(new { message = "Receiving slip not found" });
+
+            if (slip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            if (string.IsNullOrWhiteSpace(dto.ProductName))
+                return BadRequest(new { message = "ProductName is required" });
+            if (dto.Quantity <= 0)
+                return BadRequest(new { message = "Quantity must be > 0" });
+            if (dto.UnitPrice < 0)
+                return BadRequest(new { message = "UnitPrice cannot be negative" });
+
+            var uom = await _db.UnitOfMeasures
+                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+
+            if (uom == null)
+                return BadRequest(new { message = "UOM not found" });
+
+            Product? product = null;
+
+            if (dto.ProductId.HasValue)
+            {
+                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                if (product == null)
+                {
+                    product = new Product
+                    {
+                        ProductName = dto.ProductName.Trim(),
+                        Unit = uom.Name,
+                        Price = dto.UnitPrice,
+                        Status = "Active"
+                    };
+                    _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+
+                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                    _db.Products.Update(product);
+                    await _db.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                product = new Product
+                {
+                    ProductName = dto.ProductName.Trim(),
+                    Unit = uom.Name,
+                    Price = dto.UnitPrice,
+                    Status = "Active"
+                };
+                _db.Products.Add(product);
+                await _db.SaveChangesAsync();
+
+                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                _db.Products.Update(product);
+                await _db.SaveChangesAsync();
+            }
+
+            var newItem = new ReceivingSlipItem
+            {
+                ReceivingSlipId = id,
+                ProductId = product.ProductID,
+                ProductName = product.ProductName,
+                ProductCode = product.ProductCode,
+                Uom = product.Unit,
+                Quantity = dto.Quantity,
+                UnitPrice = dto.UnitPrice,
+                Total = dto.Quantity * dto.UnitPrice
+            };
+
+            _db.ReceivingSlipItems.Add(newItem);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                newItem.Id,
+                newItem.ProductId,
+                newItem.ProductName,
+                newItem.ProductCode,
+                newItem.Uom,
+                newItem.Quantity,
+                newItem.UnitPrice,
+                newItem.Total
             });
         }
 
@@ -999,6 +1087,254 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
+        [HttpGet("inventory")]
+        public async Task<IActionResult> GetInventory([FromQuery] InventoryListQuery q)
+        {
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
+            var query = _db.Products.AsNoTracking().Where(p => p.Status == "Active");
+
+            // lọc theo từ khóa
+            if (!string.IsNullOrWhiteSpace(q.Search))
+            {
+                var s = q.Search.Trim().ToLower();
+                query = query.Where(p =>
+                    (p.ProductCode ?? "").ToLower().Contains(s) ||
+                    p.ProductName.ToLower().Contains(s));
+            }
+
+            var baseQuery =
+                from p in query
+                join th in _db.InventoryThresholds.AsNoTracking()
+                    on p.ProductID equals th.ProductId into thg
+                from th in thg.DefaultIfEmpty()
+                select new
+                {
+                    p.ProductID,
+                    p.ProductCode,
+                    p.ProductName,
+                    p.Quantity,
+                    p.Unit,
+                    MinStock = (int?)th.MinStock ?? 0
+                };
+
+            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
+            {
+                switch (q.Status)
+                {
+                    case "critical":
+                        baseQuery = baseQuery.Where(x => x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
+                        break;
+                    case "alert":
+                        baseQuery = baseQuery.Where(x => x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
+                        break;
+                    case "stock":
+                        baseQuery = baseQuery.Where(x => x.MinStock == 0 || x.Quantity >= x.MinStock);
+                        break;
+                }
+            }
+
+            var total = await baseQuery.CountAsync();
+
+            var items = await baseQuery
+                .OrderBy(x => x.ProductName)
+                .ThenBy(x => x.ProductCode)
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
+                .Select(x => new
+                {
+                    productId = x.ProductID,
+                    productCode = x.ProductCode,
+                    productName = x.ProductName,
+                    onHand = x.Quantity,
+                    uomName = x.Unit,
+                    minStock = x.MinStock,
+                    status = (string?)null,
+                    note = (string?)null
+                })
+                .ToListAsync();
+
+            return Ok(new { total, items });
+        }
+
+        [HttpPatch("inventory/{productId:int}/min-stock")]
+        public async Task<IActionResult> UpdateMinStock([FromRoute] int productId, [FromBody] UpdateMinStockDto dto)
+        {
+            if (dto.MinStock < 0)
+                return BadRequest(new { message = "MinStock must be >= 0" });
+
+            var productExists = await _db.Products.AnyAsync(p => p.ProductID == productId);
+            if (!productExists)
+                return NotFound(new { message = "Product not found" });
+
+            var threshold = await _db.InventoryThresholds
+                .FirstOrDefaultAsync(t => t.ProductId == productId);
+
+            if (threshold == null)
+            {
+                threshold = new InventoryThreshold
+                {
+                    ProductId = productId,
+                    MinStock = dto.MinStock,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.InventoryThresholds.Add(threshold);
+            }
+            else
+            {
+                threshold.MinStock = dto.MinStock;
+                threshold.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { productId, minStock = threshold.MinStock });
+        }
+
+
+        [HttpGet("trace")]
+        public async Task<IActionResult> SearchTrace([FromQuery] TraceSearchQuery q)
+        {
+            IQueryable<TraceIdentity> query = _db.TraceIdentities.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(q.Query))
+            {
+                var s = q.Query.Trim().ToLower();
+
+                // Lọc theo code, sku, tên sp, dự án
+                query = query.Where(i =>
+                    i.IdentityCode.ToLower().Contains(s) ||
+                    ((i.Product!.ProductCode ?? "").ToLower().Contains(s)) ||
+                    i.Product!.ProductName.ToLower().Contains(s) ||
+                    ((i.ProjectName ?? "").ToLower().Contains(s))
+                );
+            }
+
+            query = query
+                .Include(i => i.Product)
+                .Include(i => i.Events);
+
+            var items = await query
+                .OrderByDescending(i => i.UpdatedAt)
+                .Take(100)
+                .Select(i => new
+                {
+                    id = i.Id,
+                    serial = i.IdentityCode,
+                    sku = i.Product != null ? i.Product.ProductCode : null,
+                    productName = i.Product != null ? i.Product.ProductName : null,
+                    status = i.Status,
+                    project = i.ProjectName,
+                    currentLocation = i.CurrentLocation,
+                    timeline = i.Events
+                        .OrderBy(e => e.OccurredAt)
+                        .Select(e => new
+                        {
+                            time = e.OccurredAt,
+                            type = e.EventType,
+                            @ref = e.RefCode,
+                            actor = e.Actor,
+                            note = e.Note
+                        })
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        // GET /api/warehousemanager/trace/{id}
+        [HttpGet("trace/{id:int}")]
+        public async Task<IActionResult> GetTraceById([FromRoute] int id)
+        {
+            var i = await _db.TraceIdentities
+                .AsNoTracking()
+                .Include(x => x.Product)
+                .Include(x => x.Events)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (i == null) return NotFound();
+
+            var payload = new
+            {
+                id = i.Id,
+                serial = i.IdentityCode,
+                sku = i.Product!.ProductCode,
+                productName = i.Product!.ProductName,
+                status = i.Status,
+                project = i.ProjectName,
+                currentLocation = i.CurrentLocation,
+                timeline = i.Events
+                    .OrderBy(e => e.OccurredAt)
+                    .Select(e => new
+                    {
+                        time = e.OccurredAt,
+                        type = e.EventType,
+                        @ref = e.RefCode,
+                        actor = e.Actor,
+                        note = e.Note
+                    })
+                    .ToList()
+            };
+
+            return Ok(payload);
+        }
+
+        // POST /api/warehousemanager/trace/identities
+        [HttpPost("trace/identities")]
+        public async Task<IActionResult> CreateTraceIdentity([FromBody] CreateTraceIdentityDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdentityCode))
+                return BadRequest(new { message = "IdentityCode is required" });
+
+            var exists = await _db.TraceIdentities.AnyAsync(x => x.IdentityCode == dto.IdentityCode);
+            if (exists) return Conflict(new { message = "IdentityCode already exists" });
+
+            var product = await _db.Products.FindAsync(dto.ProductId);
+            if (product == null) return BadRequest(new { message = "Product not found" });
+
+            var identity = new TraceIdentity
+            {
+                IdentityCode = dto.IdentityCode.Trim(),
+                IdentityType = string.IsNullOrWhiteSpace(dto.IdentityType) ? "serial" : dto.IdentityType.Trim(),
+                ProductId = dto.ProductId,
+                ProjectName = dto.ProjectName,
+                CurrentLocation = dto.CurrentLocation,
+                Status = string.IsNullOrWhiteSpace(dto.Status) ? "Unknown" : dto.Status.Trim(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _db.TraceIdentities.Add(identity);
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetTraceById), new { id = identity.Id }, new { identity.Id });
+        }
+
+        // POST /api/warehousemanager/trace/{id}/events
+        [HttpPost("trace/{id:int}/events")]
+        public async Task<IActionResult> AppendTraceEvent([FromRoute] int id, [FromBody] AppendTraceEventDto dto)
+        {
+            var identity = await _db.TraceIdentities.FirstOrDefaultAsync(x => x.Id == id);
+            if (identity == null) return NotFound(new { message = "Trace identity not found" });
+
+            var ev = new TraceEvent
+            {
+                TraceIdentityId = id,
+                EventType = string.IsNullOrWhiteSpace(dto.EventType) ? "import" : dto.EventType.Trim(),
+                OccurredAt = dto.OccurredAt ?? DateTime.UtcNow,
+                RefCode = dto.RefCode,
+                Actor = dto.Actor,
+                Note = dto.Note
+            };
+
+            _db.TraceEvents.Add(ev);
+
+            identity.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return Ok(new { ev.Id });
+        }
     }
 }
