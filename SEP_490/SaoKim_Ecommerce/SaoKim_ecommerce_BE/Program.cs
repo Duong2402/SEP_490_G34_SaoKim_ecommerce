@@ -27,6 +27,7 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProductService, ProductService>(); // Duy
 builder.Services.AddScoped<IProjectService, ProjectService>();
 
 builder.Services.AddDbContext<SaoKimDBContext>(options =>

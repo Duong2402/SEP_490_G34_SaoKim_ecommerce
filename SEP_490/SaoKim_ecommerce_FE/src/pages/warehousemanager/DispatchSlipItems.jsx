@@ -21,6 +21,7 @@ import {
   faTruckPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import Select from "react-select";
 
 const API_BASE = "https://localhost:7278";
 
@@ -92,6 +93,7 @@ const DispatchSlipItems = () => {
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          uom: p.uom ?? p.UOM ?? p.unit ?? p.Unit,
         }))
         .filter((p) => p.id != null && p.name);
       setProducts(normalized);
@@ -155,9 +157,6 @@ const DispatchSlipItems = () => {
     }
     if (!form.quantity || Number(form.quantity) <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
-    }
-    if (Number(form.deliveredQuantity) < 0) {
-      errs.deliveredQuantity = "Số lượng đã giao không hợp lệ.";
     }
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
@@ -239,7 +238,7 @@ const DispatchSlipItems = () => {
 
       <div className="wm-summary">
         <div className="wm-summary__card">
-          <span className="wm-summary__label">Tổng số dòng hàng</span>
+          <span className="wm-summary__label">Tổng số hàng</span>
           <span className="wm-summary__value">{totals.totalItems}</span>
           <span className="wm-subtle-text">Theo phiếu xuất hiện tại</span>
         </div>
@@ -247,11 +246,6 @@ const DispatchSlipItems = () => {
           <span className="wm-summary__label">Tổng số lượng xuất</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
           <span className="wm-subtle-text">Theo kế hoạch xuất kho</span>
-        </div>
-        <div className="wm-summary__card">
-          <span className="wm-summary__label">Đã giao thực tế</span>
-          <span className="wm-summary__value">{totals.deliveredQty}</span>
-          <span className="wm-subtle-text">Được cập nhật từ đội giao hàng</span>
         </div>
       </div>
 
@@ -264,7 +258,6 @@ const DispatchSlipItems = () => {
               <th>Tên sản phẩm</th>
               <th>Đơn vị</th>
               <th>Số lượng xuất</th>
-              <th>Đã giao</th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
@@ -292,11 +285,6 @@ const DispatchSlipItems = () => {
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
-                  <td>
-                    <Badge bg={item.deliveredQuantity >= item.quantity ? "success" : "secondary"}>
-                      {item.deliveredQuantity}
-                    </Badge>
-                  </td>
                   <td>{item.note || "-"}</td>
                   <td className="text-end">
                     <Button variant="outline-primary" size="sm" className="me-2" onClick={() => openEdit(item)}>
@@ -329,85 +317,34 @@ const DispatchSlipItems = () => {
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>
-            {mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}
-          </Modal.Title>
+          <Modal.Title>{mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <span className="wm-subtle-text">
-              {mode === "create"
-                ? "Điền thông tin sản phẩm sẽ xuất kho."
-                : "Chỉnh sửa thông tin dòng hàng đã chọn."}
-            </span>
-            <div className="d-flex gap-2">
-              <Badge
-                bg={productInputMode === "select" ? "primary" : "light"}
-                text={productInputMode === "select" ? undefined : "dark"}
-                role="button"
-                onClick={() => setProductInputMode("select")}
-              >
-                Chọn từ danh sách
-              </Badge>
-              <Badge
-                bg={productInputMode === "input" ? "primary" : "light"}
-                text={productInputMode === "input" ? undefined : "dark"}
-                role="button"
-                onClick={() => setProductInputMode("input")}
-              >
-                Nhập thủ công
-              </Badge>
-            </div>
-          </div>
-
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Mã sản phẩm</Form.Label>
-              {productInputMode === "select" ? (
-                <Form.Select
-                  value={form.productId === "" ? "" : String(form.productId)}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
-                      setForm({ ...form, productId: "", productName: "" });
-                      return;
-                    }
-                    const selected = findProductById(val);
-                    setForm({
-                      ...form,
-                      productId: val,
-                      productName: selected?.name || "",
-                    });
-                  }}
-                  isInvalid={!!formErrs.productId}
-                >
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} - {p.name}
-                    </option>
-                  ))}
-                </Form.Select>
-              ) : (
-                <Form.Control
-                  type="number"
-                  placeholder="Nhập mã sản phẩm"
-                  value={form.productId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const found = findProductById(val);
-                    if (found) {
-                      setForm({ ...form, productId: val, productName: found.name });
-                    } else {
-                      setForm({ ...form, productId: val });
-                    }
-                  }}
-                  isInvalid={!!formErrs.productId}
-                />
-              )}
-              <Form.Control.Feedback type="invalid">
-                {formErrs.productId}
-              </Form.Control.Feedback>
+              <Form.Label>Sản phẩm</Form.Label>
+              <Select
+                options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                value={form.productId ? { value: form.productId, label: `${form.productId} - ${form.productName}` } : null}
+                onChange={(option) => {
+                  if (!option) {
+                    setForm(initialForm);
+                    return;
+                  }
+                  const p = findProductById(option.value);
+                  setForm({
+                    ...form,
+                    productId: p.id,
+                    productName: p.name,
+                    uom: p.uom,
+                  });
+                }}
+                placeholder="Chọn sản phẩm"
+                isClearable
+                styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+                menuPortalTarget={document.body}
+              />
+              {formErrs.productId && <div className="text-danger mt-1">{formErrs.productId}</div>}
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -432,15 +369,7 @@ const DispatchSlipItems = () => {
             <div className="row">
               <div className="col-md-6 mb-3">
                 <Form.Label>Đơn vị tính</Form.Label>
-                <Form.Control
-                  value={form.uom}
-                  onChange={(e) => setForm({ ...form, uom: e.target.value })}
-                  placeholder="pcs / set / box"
-                  isInvalid={!!formErrs.uom}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.uom}
-                </Form.Control.Feedback>
+                <Form.Control value={form.uom} disabled />
               </div>
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng xuất</Form.Label>
@@ -453,26 +382,10 @@ const DispatchSlipItems = () => {
                     isInvalid={!!formErrs.quantity}
                   />
                   <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
-                  <Form.Control.Feedback type="invalid">
-                    {formErrs.quantity}
-                  </Form.Control.Feedback>
+                  <Form.Control.Feedback type="invalid">{formErrs.quantity}</Form.Control.Feedback>
                 </InputGroup>
               </div>
             </div>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Đã giao thực tế</Form.Label>
-              <Form.Control
-                type="number"
-                min={0}
-                value={form.deliveredQuantity}
-                onChange={(e) => setForm({ ...form, deliveredQuantity: e.target.value })}
-                isInvalid={!!formErrs.deliveredQuantity}
-              />
-              <Form.Control.Feedback type="invalid">
-                {formErrs.deliveredQuantity}
-              </Form.Control.Feedback>
-            </Form.Group>
 
             <Form.Group className="mb-1">
               <Form.Label>Ghi chú</Form.Label>

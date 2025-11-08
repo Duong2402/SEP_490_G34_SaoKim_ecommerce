@@ -6,14 +6,17 @@ import { useLanguage } from "./i18n/LanguageProvider.jsx";
 // Auth & commons
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import ForgetPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomeProductsBody from "./pages/homepage/HomeProductsBody";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
+import ReceivingCreate from "./pages/warehousemanager/ReceivingCreate.jsx";
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
+
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
+import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
@@ -29,6 +32,7 @@ import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 
 //Products
 import ProductDetail from "./pages/products/ProductDetail";
+import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 
 export default function App() {
@@ -43,14 +47,16 @@ export default function App() {
           <Route path="/" element={<HomeProductsBody />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgetPassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Warehouse */}
           <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
           <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
+          <Route path="/warehouse-dashboard/receiving-slips/create" element={<ReceivingCreate />} />
           <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
           <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
+          <Route path="/warehouse-dashboard/dispatch-slips/create" element={<DispatchCreate />} />
           <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
           <Route path="/warehouse-dashboard/inventory" element={<WarehouseInventory />} />
           <Route path="/warehouse-dashboard/trace" element={<ProductTrace />} />
@@ -65,6 +71,7 @@ export default function App() {
 
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/products" element={<ManageProduct />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />

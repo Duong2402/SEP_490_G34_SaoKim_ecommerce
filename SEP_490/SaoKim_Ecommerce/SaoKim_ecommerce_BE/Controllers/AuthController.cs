@@ -191,6 +191,46 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Password reset successful" });
     }
 
+    // POST: /api/auth/change-password
+    //[Authorize] // yêu cầu đăng nhập; nếu chưa cấu hình JWT có thể tạm bỏ dòng này
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        // Lấy email từ token (ClaimTypes.Name) hoặc fallback sang req.Email
+        var emailFromToken = User?.Identity?.Name;
+        var email = string.IsNullOrWhiteSpace(emailFromToken) ? req.Email : emailFromToken;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return BadRequest(new { message = "Email is required" });
+
+        if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
+            return BadRequest(new { message = "CurrentPassword and NewPassword are required" });
+
+        // Không cho đổi sang đúng mật khẩu cũ
+        if (req.CurrentPassword == req.NewPassword)
+            return BadRequest(new { message = "New password must be different from current password" });
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return NotFound(new { message = "User not found" });
+
+        // Kiểm tra mật khẩu hiện tại
+        var ok = BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.Password);
+        if (!ok)
+            return BadRequest(new { message = "Current password is incorrect" });
+
+        // (Tuỳ chọn) Kiểm tra policy mật khẩu mới
+        // Ví dụ: tối thiểu 6 ký tự
+        if (req.NewPassword.Length < 6)
+            return BadRequest(new { message = "New password must be at least 6 characters" });
+
+        // Cập nhật mật khẩu mới
+        user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Password changed successfully" });
+    }
+
 
     [HttpPost("logout")]
     public IActionResult Logout()

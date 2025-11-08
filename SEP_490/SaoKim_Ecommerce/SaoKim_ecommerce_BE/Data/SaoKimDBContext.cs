@@ -14,15 +14,17 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
-
-        // NEW:
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<TaskDay> TaskDays { get; set; }
+        public DbSet<DispatchBase> Dispatches { get; set; }
+        public DbSet<DispatchItem> DispatchItems { get; set; }
+        public DbSet<UnitOfMeasure> UnitOfMeasures { get; set; }
+        public DbSet<InventoryThreshold> InventoryThresholds { get; set; } = default!;
+        public DbSet<TraceIdentity> TraceIdentities { get; set; }
+        public DbSet<TraceEvent> TraceEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder);
-
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Product>(e =>
@@ -90,20 +92,118 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ===== Project =====
-            modelBuilder.Entity<Project>(e =>
+            modelBuilder.Entity<DispatchBase>(e =>
             {
-                e.HasIndex(p => p.Code).IsUnique();
+                e.ToTable("dispatch_list");
 
-                e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
-                e.Property(p => p.Status).HasDefaultValue("Draft");
+                e.HasKey(x => x.Id);
 
-                // Map các trường ngày sang PostgreSQL DATE (tránh timezone)
-                e.Property(p => p.StartDate).HasColumnType("date");
-                e.Property(p => p.EndDate).HasColumnType("date");
+                e.Property(x => x.ReferenceNo)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                e.HasIndex(x => x.ReferenceNo)
+                    .IsUnique();
+
+                e.Property(x => x.DispatchDate)
+                    .HasColumnName("dispatch_date")
+                    .IsRequired();
+
+                e.Property(x => x.Note)
+                    .HasMaxLength(500);
+
+                e.Property(x => x.Status)
+                    .HasColumnName("status")
+                    .HasConversion<int>()
+                    .IsRequired();
+
+                e.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasDefaultValueSql("NOW()")
+                    .IsRequired();
+
+                e.Property(x => x.ConfirmedAt)
+                    .HasColumnName("confirmed_at");
+
+                e.HasMany(x => x.Items)
+                    .WithOne(i => i.Dispatch)
+                    .HasForeignKey(i => i.DispatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ===== TaskItem =====
+
+            modelBuilder.Entity<RetailDispatch>(e =>
+            {
+                e.ToTable("dispatch_retail_list");
+
+                e.Property(x => x.CustomerName)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                e.Property(x => x.CustomerId)
+                    .HasColumnName("customer_id");
+            });
+
+
+            modelBuilder.Entity<ProjectDispatch>(e =>
+            {
+                e.ToTable("dispatch_project_list");
+
+                e.Property(x => x.ProjectName)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                e.Property(x => x.ProjectId)
+                    .HasColumnName("project_id");
+            });
+
+            modelBuilder.Entity<DispatchItem>(e =>
+            {
+                e.ToTable("dispatch_item");
+
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.DispatchId)
+                    .HasColumnName("dispatch_id")
+                    .IsRequired();
+
+                e.Property(x => x.ProductName)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                e.Property(x => x.Uom)
+                    .HasMaxLength(50)
+                    .HasDefaultValue("pcs");
+
+                e.Property(x => x.Quantity)
+                    .HasPrecision(18, 3)
+                    .IsRequired();
+
+                e.Property(x => x.UnitPrice)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                e.Property(x => x.Total)
+                    .HasColumnType("numeric(18,2)")
+                    .IsRequired();
+
+                e.HasOne(x => x.Dispatch)
+                    .WithMany(x => x.Items)
+                    .HasForeignKey(x => x.DispatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Project>(e =>
+                {
+                    e.HasIndex(p => p.Code).IsUnique();
+
+                    e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
+                    e.Property(p => p.Status).HasDefaultValue("Draft");
+
+                    e.Property(p => p.StartDate).HasColumnType("date");
+                    e.Property(p => p.EndDate).HasColumnType("date");
+                });
+
             modelBuilder.Entity<TaskItem>(e =>
             {
                 e.ToTable("project_tasks");
@@ -111,7 +211,6 @@ namespace SaoKim_ecommerce_BE.Data
                 e.Property(t => t.Name).HasMaxLength(200).IsRequired();
                 e.Property(t => t.Assignee).HasMaxLength(150);
 
-                // Map StartDate sang DATE
                 e.Property(t => t.StartDate).HasColumnType("date");
 
                 e.HasOne(t => t.Project)
@@ -125,13 +224,11 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.NoAction);
             });
 
-            // ===== TaskDay =====
             modelBuilder.Entity<TaskDay>(e =>
             {
                 e.ToTable("project_task_days");
                 e.HasKey(d => d.Id);
 
-                // Map Date sang DATE
                 e.Property(d => d.Date).IsRequired().HasColumnType("date");
 
                 e.HasOne(d => d.TaskItem)
@@ -141,6 +238,22 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
+
+            modelBuilder.Entity<TraceIdentity>()
+        .HasIndex(x => x.IdentityCode)
+        .IsUnique();
+
+            modelBuilder.Entity<TraceIdentity>()
+                .HasOne(x => x.Product)
+                .WithMany() // không cần navigation ngược
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TraceEvent>()
+                .HasOne(e => e.TraceIdentity)
+                .WithMany(i => i.Events)
+                .HasForeignKey(e => e.TraceIdentityId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
