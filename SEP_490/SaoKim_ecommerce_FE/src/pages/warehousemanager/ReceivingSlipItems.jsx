@@ -559,7 +559,7 @@ const ReceivingSlipItems = () => {
                     options={uoms.map((u) => ({ value: u.name, label: u.name }))}
                     value={form.uom ? { value: form.uom, label: form.uom } : null}
                     onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
-                    placeholder="Chọn đơn vị tính á"
+                    placeholder="Chọn đơn vị tính"
                     isClearable
                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                     menuPortalTarget={document.body}

@@ -349,6 +349,98 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
 
+
+        [HttpPost("receiving-slips/{id:int}/items")]
+        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
+        {
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
+            if (slip is null)
+                return NotFound(new { message = "Receiving slip not found" });
+
+            if (slip.Status != ReceivingSlipStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be modified" });
+
+            if (string.IsNullOrWhiteSpace(dto.ProductName))
+                return BadRequest(new { message = "ProductName is required" });
+            if (dto.Quantity <= 0)
+                return BadRequest(new { message = "Quantity must be > 0" });
+            if (dto.UnitPrice < 0)
+                return BadRequest(new { message = "UnitPrice cannot be negative" });
+
+            var uom = await _db.UnitOfMeasures
+                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+
+            if (uom == null)
+                return BadRequest(new { message = "UOM not found" });
+
+            Product? product = null;
+
+            if (dto.ProductId.HasValue)
+            {
+                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                if (product == null)
+                {
+                    product = new Product
+                    {
+                        ProductName = dto.ProductName.Trim(),
+                        Unit = uom.Name,
+                        Price = dto.UnitPrice,
+                        Status = "Active"
+                    };
+                    _db.Products.Add(product);
+                    await _db.SaveChangesAsync();
+
+                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                    _db.Products.Update(product);
+                    await _db.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                product = new Product
+                {
+                    ProductName = dto.ProductName.Trim(),
+                    Unit = uom.Name,
+                    Price = dto.UnitPrice,
+                    Status = "Active"
+                };
+                _db.Products.Add(product);
+                await _db.SaveChangesAsync();
+
+                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+                _db.Products.Update(product);
+                await _db.SaveChangesAsync();
+            }
+
+            var newItem = new ReceivingSlipItem
+            {
+                ReceivingSlipId = id,
+                ProductId = product.ProductID,
+                ProductName = product.ProductName,
+                ProductCode = product.ProductCode,
+                Uom = product.Unit,
+                Quantity = dto.Quantity,
+                UnitPrice = dto.UnitPrice,
+                Total = dto.Quantity * dto.UnitPrice
+            };
+
+            _db.ReceivingSlipItems.Add(newItem);
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                newItem.Id,
+                newItem.ProductId,
+                newItem.ProductName,
+                newItem.ProductCode,
+                newItem.Uom,
+                newItem.Quantity,
+                newItem.UnitPrice,
+                newItem.Total
+            });
+        }
+
+
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
         {

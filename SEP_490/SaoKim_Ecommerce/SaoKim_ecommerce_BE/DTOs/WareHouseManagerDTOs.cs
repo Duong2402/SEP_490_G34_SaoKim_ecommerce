@@ -74,8 +74,8 @@ namespace SaoKim_ecommerce_BE.DTOs
     public class ProjectDispatchCreateDto
     {
         public DateTime DispatchDate { get; set; } = DateTime.UtcNow;
-        public string ProjectName { get; set; } = "";    // bắt buộc
-        public int? ProjectId { get; set; }              // tùy chọn
+        public string ProjectName { get; set; } = "";
+        public int? ProjectId { get; set; }
         public string? Note { get; set; }
     }
 
