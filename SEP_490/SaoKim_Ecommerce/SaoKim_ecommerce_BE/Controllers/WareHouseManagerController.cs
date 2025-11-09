@@ -1307,6 +1307,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { ev.Id });
         }
+<<<<<<< HEAD
 
         [HttpPost("receiving-slips/export-selected")]
         public async Task<IActionResult> ExportSelectedReceivingSlips([FromBody] ReceivingExportRequestDto req)
@@ -1399,5 +1400,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             return File(fileBytes, contentType, fileName);
         }
+=======
+>>>>>>> 7e8d78edbb8a6d4fa2a76b595799b5af8983f878
     }
 }
