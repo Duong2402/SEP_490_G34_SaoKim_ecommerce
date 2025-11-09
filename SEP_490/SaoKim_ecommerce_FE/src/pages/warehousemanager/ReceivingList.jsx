@@ -9,6 +9,7 @@ import {
   faFileImport,
   faPlus,
   faDownload,
+  faFileExport
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Breadcrumb,
@@ -45,6 +46,7 @@ export default function ReceivingList() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -81,6 +83,78 @@ export default function ReceivingList() {
       alert("Không thể xác nhận phiếu. Vui lòng thử lại.");
     }
   };
+
+  const toggleRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectPage = () => {
+    const pageIds = sortedRows.slice(0, pageSize).map(r => r.id);
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredRows.map(r => r.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  async function handleExportSelected(includeItems = true) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      const confirmAll = window.confirm(
+        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu đang hiển thị theo bộ lọc hiện tại?"
+      );
+      if (!confirmAll) return;
+      const allIds = filteredRows.map(r => r.id);
+      if (allIds.length === 0) {
+        alert("Không có dữ liệu để xuất.");
+        return;
+      }
+      await exportByIds(allIds, includeItems);
+      return;
+    }
+    await exportByIds(ids, includeItems);
+  }
+
+  async function exportByIds(ids, includeItems) {
+    try {
+      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/export-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, includeItems }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Export thất bại");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receiving-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e.message);
+    }
+  }
 
   const handleDeleteToTrash = async (id) => {
     if (!window.confirm("Bạn có chắc muốn đưa phiếu này vào thùng rác?")) return;
@@ -216,6 +290,21 @@ export default function ReceivingList() {
             <FontAwesomeIcon icon={faFileImport} /> Nhập từ phiếu
           </button>
 
+          <button type="button" className="wm-btn wm-btn--light" onClick={selectAllFiltered}>
+            Chọn tất cả kết quả
+          </button>
+          <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
+            Bỏ chọn
+          </button>
+
+          <button
+            type="button"
+            className="wm-btn"
+            onClick={() => handleExportSelected(true)}
+          >
+            <FontAwesomeIcon icon={faFileExport} /> Xuất phiếu
+          </button>
+
           <button
             type="button"
             className="wm-btn wm-btn--primary"
@@ -226,7 +315,6 @@ export default function ReceivingList() {
         </div>
       </div>
 
-      {/* === Modal Import === */}
       <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Nhập phiếu từ file Excel</Modal.Title>
@@ -292,6 +380,13 @@ export default function ReceivingList() {
         <table className="table align-middle mb-0">
           <thead>
             <tr>
+              <th>
+                <Form.Check
+                  type="checkbox"
+                  checked={sortedRows.slice(0, pageSize).every(r => selectedIds.has(r.id)) && sortedRows.slice(0, pageSize).length > 0}
+                  onChange={toggleSelectPage}
+                />
+              </th>
               <th>#</th>
               <th role="button" onClick={() => handleSort("referenceNo")}>
                 Mã phiếu
@@ -319,13 +414,13 @@ export default function ReceivingList() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : sortedRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Không tìm thấy phiếu phù hợp.
                 </td>
               </tr>
@@ -333,8 +428,16 @@ export default function ReceivingList() {
               sortedRows.slice(0, pageSize).map((r, idx) => {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
+                const checked = selectedIds.has(r.id);
                 return (
                   <tr key={r.id}>
+                    <td>
+                      <Form.Check
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRow(r.id)}
+                      />
+                    </td>
                     <td>{idx + 1}</td>
                     <td>{r.referenceNo}</td>
                     <td>{r.supplier}</td>

@@ -7,7 +7,6 @@ import {
   faCheck,
   faTrash,
   faPlus,
-  faArrowDownShortWide,
   faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -163,9 +162,13 @@ const DispatchList = () => {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
-            <FontAwesomeIcon icon={faArrowDownShortWide} />
-            Tải mẫu phiếu xuất kho
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={() => navigate("/warehouse-dashboard/dispatch-slips/create")}
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Tạo phiếu xuất kho
           </button>
           <button type="button" className="wm-btn wm-btn--primary">
             <FontAwesomeIcon icon={faFileExport} />

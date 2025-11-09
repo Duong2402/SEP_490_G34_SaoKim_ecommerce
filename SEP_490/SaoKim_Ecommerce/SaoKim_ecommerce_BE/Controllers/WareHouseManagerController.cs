@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.DTOs.WarehouseManagerDTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Services;
@@ -17,7 +18,6 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         public WarehouseManagerController(SaoKimDBContext db) => _db = db;
-
 
         // GET /api/warehousemanager/receiving-slips
         [HttpGet("receiving-slips")]
@@ -60,7 +60,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
         }
 
-
         // POST /api/warehousemanager/receiving-slips
         [HttpPost("receiving-slips")]
 
@@ -95,7 +94,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     var newProduct = new Product
                     {
                         ProductName = i.ProductName.Trim(),
-                        //Unit = i.Uom.Trim(),
                         Unit = uom.Name,
                         Price = i.UnitPrice,
                         Status = "Active"
@@ -109,6 +107,10 @@ namespace SaoKim_ecommerce_BE.Controllers
                 {
                     ProductId = productId.Value,
                     ProductName = i.ProductName.Trim(),
+                    ProductCode = productId.HasValue
+                        ? (await _db.Products.Where(p => p.ProductID == productId.Value)
+                            .Select(p => p.ProductCode).FirstOrDefaultAsync())
+                        : null,
                     Uom = uom.Name,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
@@ -211,7 +213,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 else
                 {
                     product.ProductName = dto.ProductName.Trim();
-                    //product.Unit = string.IsNullOrWhiteSpace(dto.Uom) ? "unit" : dto.Uom.Trim();
                     product.Unit = uom.Name;
                     product.Price = dto.UnitPrice;
 
@@ -259,8 +260,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 item.Total
             });
         }
-
-
 
         [HttpPost("receiving-slips/{id:int}/items")]
         public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
@@ -559,7 +558,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (insufficient.Count > 0)
                 return BadRequest(new { message = "Insufficient stock for some products", insufficient });
 
-            // Trừ số lượng kho
             foreach (var kv in qtyByProduct)
             {
                 products[kv.Key].Quantity -= kv.Value;
@@ -789,8 +787,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 lastWeek = lastWeekTotal
             });
         }
-        [HttpGet("dispatch-slips/weekly-summary")]
 
+        [HttpGet("dispatch-slips/weekly-summary")]
         public async Task<IActionResult> GetWeeklyOutboundSummary()
         {
             var today = DateTime.UtcNow.Date;
@@ -834,17 +832,75 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(uoms.Select(u => new { id = u.Id, name = u.Name }));
         }
 
+        // GET /api/warehousemanager/customers?search=abc
+        [HttpGet("customers")]
+        public async Task<IActionResult> GetCustomers([FromQuery] string? search)
+        {
+            var customerRoleId = await _db.Roles
+                .Where(r => EF.Functions.ILike(r.Name, "customer"))
+                .Select(r => r.RoleId)
+                .FirstOrDefaultAsync();
+
+            if (customerRoleId == 0)
+                return Ok(Array.Empty<object>());
+
+            var q = _db.Users
+                .AsNoTracking()
+                .Where(u => u.RoleId == customerRoleId);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var pattern = $"%{search.Trim()}%";
+                q = q.Where(u =>
+                    EF.Functions.ILike(u.Name, pattern) ||
+                    EF.Functions.ILike(u.Email, pattern));
+            }
+            var items = await q
+                .OrderBy(u => u.Name)
+                .Take(50)
+                .Select(u => new { id = u.UserID, name = u.Name })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        // GET /api/warehousemanager/projects?search=abc
+        [HttpGet("projects")]
+        public async Task<IActionResult> GetProjects([FromQuery] string? search)
+        {
+            var q = _db.Projects.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                q = q.Where(p => p.Name.ToLower().Contains(s));
+            }
+
+            var items = await q
+                .OrderBy(p => p.Name)
+                .Select(p => new { id = p.Id, name = p.Name })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
         [HttpPost("dispatch-slips/sales")]
         public async Task<IActionResult> CreateSales([FromBody] RetailDispatchCreateDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.CustomerName))
-                return BadRequest(new { message = "CustomerName is required" });
+            if (!(dto.CustomerId is > 0))
+                return BadRequest(new { message = "CustomerId is required > 0", received = dto.CustomerId });
+
+            var customer = await _db.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.Role!.Name == "Customer");
+            if (customer == null)
+                return NotFound(new { message = $"Customer {dto.CustomerId} not found or not a Customer role" });
 
             var slip = new RetailDispatch
             {
                 DispatchDate = dto.DispatchDate,
-                CustomerName = dto.CustomerName.Trim(),
-                CustomerId = dto.CustomerId,
+                CustomerId = customer.UserID,
+                CustomerName = customer.Name,
                 Note = dto.Note?.Trim(),
                 Status = DispatchStatus.Draft
             };
@@ -860,21 +916,26 @@ namespace SaoKim_ecommerce_BE.Controllers
                 slip.Id,
                 slip.ReferenceNo,
                 slip.Type,
-                slip.Status
+                slip.Status,
+                receivedCustomerId = dto.CustomerId
             });
         }
 
         [HttpPost("dispatch-slips/projects")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectDispatchCreateDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.ProjectName))
-                return BadRequest(new { message = "ProjectName is required" });
+            if (!(dto.ProjectId is > 0))
+                return BadRequest(new { message = "ProjectId is required > 0", received = dto.ProjectId });
+
+            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
+            if (project == null)
+                return NotFound(new { message = $"Project {dto.ProjectId} not found" });
 
             var slip = new ProjectDispatch
             {
                 DispatchDate = dto.DispatchDate,
-                ProjectName = dto.ProjectName.Trim(),
-                ProjectId = dto.ProjectId,
+                ProjectId = project.Id,
+                ProjectName = project.Name,
                 Note = dto.Note?.Trim(),
                 Status = DispatchStatus.Draft
             };
@@ -890,10 +951,10 @@ namespace SaoKim_ecommerce_BE.Controllers
                 slip.Id,
                 slip.ReferenceNo,
                 slip.Type,
-                slip.Status
+                slip.Status,
+                receivedProjectId = dto.ProjectId
             });
         }
-
         // GET /api/warehousemanager/dispatch-slips/{id}
         [HttpGet("dispatch-slips/{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
@@ -999,6 +1060,344 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
+        [HttpGet("inventory")]
+        public async Task<IActionResult> GetInventory([FromQuery] InventoryListQuery q)
+        {
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
+            var query = _db.Products.AsNoTracking().Where(p => p.Status == "Active");
+
+            if (!string.IsNullOrWhiteSpace(q.Search))
+            {
+                var s = q.Search.Trim().ToLower();
+                query = query.Where(p =>
+                    (p.ProductCode ?? "").ToLower().Contains(s) ||
+                    p.ProductName.ToLower().Contains(s));
+            }
+
+            var baseQuery =
+                from p in query
+                join th in _db.InventoryThresholds.AsNoTracking()
+                    on p.ProductID equals th.ProductId into thg
+                from th in thg.DefaultIfEmpty()
+                select new
+                {
+                    p.ProductID,
+                    p.ProductCode,
+                    p.ProductName,
+                    p.Quantity,
+                    p.Unit,
+                    MinStock = (int?)th.MinStock ?? 0
+                };
+
+            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
+            {
+                switch (q.Status)
+                {
+                    case "critical":
+                        baseQuery = baseQuery.Where(x => x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
+                        break;
+                    case "alert":
+                        baseQuery = baseQuery.Where(x => x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
+                        break;
+                    case "stock":
+                        baseQuery = baseQuery.Where(x => x.MinStock == 0 || x.Quantity >= x.MinStock);
+                        break;
+                }
+            }
+
+            var total = await baseQuery.CountAsync();
+
+            var items = await baseQuery
+                .OrderBy(x => x.ProductName)
+                .ThenBy(x => x.ProductCode)
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
+                .Select(x => new
+                {
+                    productId = x.ProductID,
+                    productCode = x.ProductCode,
+                    productName = x.ProductName,
+                    onHand = x.Quantity,
+                    uomName = x.Unit,
+                    minStock = x.MinStock,
+                    status = (string?)null,
+                    note = (string?)null
+                })
+                .ToListAsync();
+
+            return Ok(new { total, items });
+        }
+
+        [HttpPatch("inventory/{productId:int}/min-stock")]
+        public async Task<IActionResult> UpdateMinStock([FromRoute] int productId, [FromBody] UpdateMinStockDto dto)
+        {
+            if (dto.MinStock < 0)
+                return BadRequest(new { message = "MinStock must be >= 0" });
+
+            var productExists = await _db.Products.AnyAsync(p => p.ProductID == productId);
+            if (!productExists)
+                return NotFound(new { message = "Product not found" });
+
+            var threshold = await _db.InventoryThresholds
+                .FirstOrDefaultAsync(t => t.ProductId == productId);
+
+            if (threshold == null)
+            {
+                threshold = new InventoryThreshold
+                {
+                    ProductId = productId,
+                    MinStock = dto.MinStock,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.InventoryThresholds.Add(threshold);
+            }
+            else
+            {
+                threshold.MinStock = dto.MinStock;
+                threshold.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { productId, minStock = threshold.MinStock });
+        }
+
+
+        [HttpGet("trace")]
+        public async Task<IActionResult> SearchTrace([FromQuery] TraceSearchQuery q)
+        {
+            IQueryable<TraceIdentity> query = _db.TraceIdentities.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(q.Query))
+            {
+                var s = q.Query.Trim().ToLower();
+
+                query = query.Where(i =>
+                    i.IdentityCode.ToLower().Contains(s) ||
+                    ((i.Product!.ProductCode ?? "").ToLower().Contains(s)) ||
+                    i.Product!.ProductName.ToLower().Contains(s) ||
+                    ((i.ProjectName ?? "").ToLower().Contains(s))
+                );
+            }
+
+            query = query
+                .Include(i => i.Product)
+                .Include(i => i.Events);
+
+            var items = await query
+                .OrderByDescending(i => i.UpdatedAt)
+                .Take(100)
+                .Select(i => new
+                {
+                    id = i.Id,
+                    serial = i.IdentityCode,
+                    sku = i.Product != null ? i.Product.ProductCode : null,
+                    productName = i.Product != null ? i.Product.ProductName : null,
+                    status = i.Status,
+                    project = i.ProjectName,
+                    currentLocation = i.CurrentLocation,
+                    timeline = i.Events
+                        .OrderBy(e => e.OccurredAt)
+                        .Select(e => new
+                        {
+                            time = e.OccurredAt,
+                            type = e.EventType,
+                            @ref = e.RefCode,
+                            actor = e.Actor,
+                            note = e.Note
+                        })
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
+        // GET /api/warehousemanager/trace/{id}
+        [HttpGet("trace/{id:int}")]
+        public async Task<IActionResult> GetTraceById([FromRoute] int id)
+        {
+            var i = await _db.TraceIdentities
+                .AsNoTracking()
+                .Include(x => x.Product)
+                .Include(x => x.Events)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (i == null) return NotFound();
+
+            var payload = new
+            {
+                id = i.Id,
+                serial = i.IdentityCode,
+                sku = i.Product!.ProductCode,
+                productName = i.Product!.ProductName,
+                status = i.Status,
+                project = i.ProjectName,
+                currentLocation = i.CurrentLocation,
+                timeline = i.Events
+                    .OrderBy(e => e.OccurredAt)
+                    .Select(e => new
+                    {
+                        time = e.OccurredAt,
+                        type = e.EventType,
+                        @ref = e.RefCode,
+                        actor = e.Actor,
+                        note = e.Note
+                    })
+                    .ToList()
+            };
+
+            return Ok(payload);
+        }
+
+        // POST /api/warehousemanager/trace/identities
+        [HttpPost("trace/identities")]
+        public async Task<IActionResult> CreateTraceIdentity([FromBody] CreateTraceIdentityDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdentityCode))
+                return BadRequest(new { message = "IdentityCode is required" });
+
+            var exists = await _db.TraceIdentities.AnyAsync(x => x.IdentityCode == dto.IdentityCode);
+            if (exists) return Conflict(new { message = "IdentityCode already exists" });
+
+            var product = await _db.Products.FindAsync(dto.ProductId);
+            if (product == null) return BadRequest(new { message = "Product not found" });
+
+            var identity = new TraceIdentity
+            {
+                IdentityCode = dto.IdentityCode.Trim(),
+                IdentityType = string.IsNullOrWhiteSpace(dto.IdentityType) ? "serial" : dto.IdentityType.Trim(),
+                ProductId = dto.ProductId,
+                ProjectName = dto.ProjectName,
+                CurrentLocation = dto.CurrentLocation,
+                Status = string.IsNullOrWhiteSpace(dto.Status) ? "Unknown" : dto.Status.Trim(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _db.TraceIdentities.Add(identity);
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetTraceById), new { id = identity.Id }, new { identity.Id });
+        }
+
+        // POST /api/warehousemanager/trace/{id}/events
+        [HttpPost("trace/{id:int}/events")]
+        public async Task<IActionResult> AppendTraceEvent([FromRoute] int id, [FromBody] AppendTraceEventDto dto)
+        {
+            var identity = await _db.TraceIdentities.FirstOrDefaultAsync(x => x.Id == id);
+            if (identity == null) return NotFound(new { message = "Trace identity not found" });
+
+            var ev = new TraceEvent
+            {
+                TraceIdentityId = id,
+                EventType = string.IsNullOrWhiteSpace(dto.EventType) ? "import" : dto.EventType.Trim(),
+                OccurredAt = dto.OccurredAt ?? DateTime.UtcNow,
+                RefCode = dto.RefCode,
+                Actor = dto.Actor,
+                Note = dto.Note
+            };
+
+            _db.TraceEvents.Add(ev);
+
+            identity.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return Ok(new { ev.Id });
+        }
+
+        [HttpPost("receiving-slips/export-selected")]
+        public async Task<IActionResult> ExportSelectedReceivingSlips([FromBody] ReceivingExportRequestDto req)
+        {
+            if (req.Ids == null || req.Ids.Count == 0)
+                return BadRequest(new { message = "Chưa có phiếu nào được chọn." });
+
+            var slips = await _db.ReceivingSlips
+                .Include(s => s.Items)
+                .Where(s => req.Ids.Contains(s.Id))
+                .OrderByDescending(s => s.ReceiptDate)
+                .ThenByDescending(s => s.Id)
+                .ToListAsync();
+
+            using var wb = new ClosedXML.Excel.XLWorkbook();
+
+            var ws1 = wb.Worksheets.Add("Slips");
+            int r = 1;
+            ws1.Cell(r, 1).Value = "Id";
+            ws1.Cell(r, 2).Value = "ReferenceNo";
+            ws1.Cell(r, 3).Value = "Supplier";
+            ws1.Cell(r, 4).Value = "ReceiptDate";
+            ws1.Cell(r, 5).Value = "Status";
+            ws1.Cell(r, 6).Value = "Note";
+            ws1.Cell(r, 7).Value = "TotalItems";
+            ws1.Cell(r, 8).Value = "TotalAmount";
+            ws1.Range(r, 1, r, 8).Style.Font.SetBold();
+            r++;
+
+            foreach (var s in slips)
+            {
+                var totalItems = s.Items?.Sum(i => i.Quantity) ?? 0;
+                var totalAmount = s.Items?.Sum(i => i.Total) ?? 0m;
+
+                ws1.Cell(r, 1).Value = s.Id;
+                ws1.Cell(r, 2).Value = s.ReferenceNo;
+                ws1.Cell(r, 3).Value = s.Supplier;
+                ws1.Cell(r, 4).Value = s.ReceiptDate; ws1.Cell(r, 4).Style.DateFormat.Format = "yyyy-mm-dd";
+                ws1.Cell(r, 5).Value = s.Status.ToString();
+                ws1.Cell(r, 6).Value = s.Note;
+                ws1.Cell(r, 7).Value = totalItems;
+                ws1.Cell(r, 8).Value = totalAmount; ws1.Cell(r, 8).Style.NumberFormat.Format = "#,##0.00";
+                r++;
+            }
+            ws1.Columns().AdjustToContents();
+
+            if (req.IncludeItems)
+            {
+                var ws2 = wb.Worksheets.Add("Items");
+                int r2 = 1;
+                ws2.Cell(r2, 1).Value = "SlipId";
+                ws2.Cell(r2, 2).Value = "ReferenceNo";
+                ws2.Cell(r2, 3).Value = "Supplier";
+                ws2.Cell(r2, 4).Value = "ReceiptDate";
+                ws2.Cell(r2, 5).Value = "ProductId";
+                ws2.Cell(r2, 6).Value = "ProductCode";
+                ws2.Cell(r2, 7).Value = "ProductName";
+                ws2.Cell(r2, 8).Value = "Uom";
+                ws2.Cell(r2, 9).Value = "Quantity";
+                ws2.Cell(r2, 10).Value = "UnitPrice";
+                ws2.Cell(r2, 11).Value = "Total";
+                ws2.Range(r2, 1, r2, 11).Style.Font.SetBold(); r2++;
+
+                foreach (var s in slips)
+                {
+                    foreach (var it in s.Items ?? new List<ReceivingSlipItem>())
+                    {
+                        ws2.Cell(r2, 1).Value = s.Id;
+                        ws2.Cell(r2, 2).Value = s.ReferenceNo;
+                        ws2.Cell(r2, 3).Value = s.Supplier;
+                        ws2.Cell(r2, 4).Value = s.ReceiptDate; ws2.Cell(r2, 4).Style.DateFormat.Format = "yyyy-mm-dd";
+                        ws2.Cell(r2, 5).Value = it.ProductId;
+                        ws2.Cell(r2, 6).Value = it.ProductCode;
+                        ws2.Cell(r2, 7).Value = it.ProductName;
+                        ws2.Cell(r2, 8).Value = it.Uom;
+                        ws2.Cell(r2, 9).Value = it.Quantity;
+                        ws2.Cell(r2, 10).Value = it.UnitPrice; ws2.Cell(r2, 10).Style.NumberFormat.Format = "#,##0.00";
+                        ws2.Cell(r2, 11).Value = it.Total; ws2.Cell(r2, 11).Style.NumberFormat.Format = "#,##0.00";
+                        r2++;
+                    }
+                }
+                ws2.Columns().AdjustToContents();
+            }
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var fileBytes = ms.ToArray();
+
+            var fileName = $"receiving-slips-selected-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
+            const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            return File(fileBytes, contentType, fileName);
+        }
     }
 }

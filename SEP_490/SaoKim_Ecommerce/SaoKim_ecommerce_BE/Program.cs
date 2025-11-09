@@ -114,7 +114,8 @@ else
     app.UseHsts();
 }
 
-
+app.MapGet("/__routes", (EndpointDataSource eds) =>
+    Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();
