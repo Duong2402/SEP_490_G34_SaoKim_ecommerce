@@ -1,13 +1,15 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Services;
-using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,10 +94,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
             }
         };
+        options.TokenValidationParameters.NameClaimType = ClaimTypes.Name;
+        options.TokenValidationParameters.RoleClaimType = ClaimTypes.Role;
     });
 
-builder.Services.AddAuthorization();
-
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 var app = builder.Build();
 
@@ -116,7 +124,8 @@ else
     app.UseHsts();
 }
 
-
+app.MapGet("/__routes", (EndpointDataSource eds) =>
+    Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();

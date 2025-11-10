@@ -18,10 +18,10 @@ import {
   faSave,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiFetch } from "../../api/lib/apiClient";
 import Select from "react-select";
 
-const API_BASE = "https://localhost:7278";
-
+export const API_BASE = "https://localhost:7278";
 const emptyItem = () => ({
   productId: "",
   uom: "",
@@ -39,11 +39,12 @@ export default function DispatchCreate() {
       .toISOString()
       .slice(0, 10);
   });
-  const [customerName, setCustomerName] = useState("");
-  const [customerId, setCustomerId] = useState("");
-  const [projectName, setProjectName] = useState("");
-  const [projectId, setProjectId] = useState("");
   const [note, setNote] = useState("");
+
+  const [customers, setCustomers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   const [items, setItems] = useState([emptyItem()]);
   const [saving, setSaving] = useState(false);
@@ -55,8 +56,8 @@ export default function DispatchCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
-        if (!res.ok) return;
+        const res = await apiFetch(`/api/products`);
+        if (!res.ok) throw new Error(`Products HTTP ${res.status}`);
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data.items || [];
         const normalized = raw
@@ -68,10 +69,36 @@ export default function DispatchCreate() {
           }))
           .filter((p) => p.id != null && p.name);
         setProducts(normalized);
-      } catch (_) {}
+      } catch (err) {
+        console.error("[Load products] failed:", err);
+      }
     };
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    const loadForType = async () => {
+      try {
+        if (type === "Sales") {
+          const res = await apiFetch(`/api/warehousemanager/customers`);
+          if (!res.ok) throw new Error(`Customers HTTP ${res.status}`);
+          const data = await res.json();
+          setCustomers((data || []).map(c => ({ value: Number(c.id), label: `${c.id} - ${c.name}` })));
+        } else {
+          const res = await apiFetch(`/api/warehousemanager/projects`);
+          if (!res.ok) throw new Error(`Projects HTTP ${res.status}`);
+          const data = await res.json();
+          setProjects((data || []).map(p => ({ value: Number(p.id), label: `${p.id} - ${p.name}` })));
+        }
+      } catch (err) {
+        console.error("[Load list for type] failed:", err);
+        setCustomers([]); setProjects([]);
+      }
+    };
+    loadForType();
+    setSelectedCustomer(null);
+    setSelectedProject(null);
+  }, [type]);
 
   const totals = useMemo(() => {
     const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
@@ -98,9 +125,9 @@ export default function DispatchCreate() {
     const errs = {};
     if (!dispatchDate) errs.dispatchDate = "Ngày xuất bắt buộc.";
     if (type === "Sales") {
-      if (!customerName.trim()) errs.customerName = "Tên khách hàng bắt buộc.";
+      if (!selectedCustomer?.value) errs.customerName = "Chọn khách hàng.";
     } else {
-      if (!projectName.trim()) errs.projectName = "Tên dự án bắt buộc.";
+      if (!selectedProject?.value) errs.projectName = "Chọn dự án.";
     }
     setFieldErrs(errs);
 
@@ -123,32 +150,32 @@ export default function DispatchCreate() {
     return Object.keys(errs).length === 0 && Object.keys(iErrs).length === 0 && items.length > 0;
   };
 
-  const buildCreatePayloadAndUrl = ({ type, dispatchDate, note, customerName, customerId, projectName, projectId }) => {
+  const buildCreatePayloadAndUrl = ({ type, dispatchDate, note, selectedCustomer, selectedProject }) => {
     const urlBase = `${API_BASE}/api/warehousemanager/dispatch-slips`;
     if (type === "Sales") {
       return {
         url: `${urlBase}/sales`,
         body: {
           dispatchDate: new Date(dispatchDate).toISOString(),
-          customerName: customerName?.trim() || "",
-          customerId: customerId ? Number(customerId) : null,
-          note: note?.trim() || null
-        }
+          customerId: Number(selectedCustomer?.value),
+          note: note?.trim() || null,
+        },
       };
     }
     return {
       url: `${urlBase}/projects`,
       body: {
         dispatchDate: new Date(dispatchDate).toISOString(),
-        projectName: projectName?.trim() || "",
-        projectId: projectId ? Number(projectId) : null,
-        note: note?.trim() || null
-      }
+        projectId: Number(selectedProject?.value),
+        note: note?.trim() || null,
+      },
     };
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    const ok = validate();
+    console.log("[Validate result]", ok, { type, selectedCustomer, selectedProject });
+    if (!ok) return;
 
     setSaving(true);
     setError("");
@@ -158,13 +185,17 @@ export default function DispatchCreate() {
         type,
         dispatchDate,
         note,
-        customerName,
-        customerId,
-        projectName,
-        projectId
+        selectedCustomer,
+        selectedProject,
       });
 
-      const resSlip = await fetch(url, {
+      console.log("[Create Dispatch] URL:", url);
+      console.log("[Create Dispatch] BODY:", body, {
+        typeofCustomerId: typeof body.customerId,
+        typeofProjectId: typeof body.projectId
+      });
+
+      const resSlip = await apiFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -187,8 +218,8 @@ export default function DispatchCreate() {
           unitPrice: Number(it.unitPrice || 0),
         };
 
-        const resItem = await fetch(
-          `${API_BASE}/api/warehousemanager/dispatch-slips/${newId}/items`,
+        const resItem = await apiFetch(
+          `/api/warehousemanager/dispatch-slips/${newId}/items`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -273,7 +304,9 @@ export default function DispatchCreate() {
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Trạng thái</span>
-          <span className="wm-summary__value"><Badge bg="warning" text="dark">Nháp</Badge></span>
+          <span className="wm-summary__value">
+            <Badge bg="warning" text="dark">Nháp</Badge>
+          </span>
           <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
         </div>
       </div>
@@ -305,53 +338,45 @@ export default function DispatchCreate() {
           </div>
 
           {type === "Sales" ? (
-            <>
-              <div className="col-md-3 mb-3">
-                <Form.Label>Tên khách hàng <span className="text-danger">*</span></Form.Label>
-                <Form.Control
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  isInvalid={!!fieldErrs.customerName}
-                  placeholder="VD: Cty ABC"
-                />
-                <Form.Control.Feedback type="invalid">
-                  {fieldErrs.customerName}
-                </Form.Control.Feedback>
-              </div>
-              <div className="col-md-3 mb-3">
-                <Form.Label>Mã KH (tuỳ chọn)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  placeholder="ID khách hàng"
-                />
-              </div>
-            </>
+            <div className="col-md-6 mb-3">
+              <Form.Label>Khách hàng <span className="text-danger">*</span></Form.Label>
+              <Select
+                options={customers}
+                value={selectedCustomer}
+                onChange={setSelectedCustomer}
+                placeholder="Chọn khách hàng (User role = Customer)"
+                styles={{
+                  control: (base) => ({ ...base, minHeight: 45 }),
+                  menu: (base) => ({ ...base, fontSize: 14 }),
+                  option: (base) => ({ ...base, padding: 10 }),
+                }}
+                menuPortalTarget={document.body}
+                menuPlacement="auto"
+              />
+              {fieldErrs.customerName && (
+                <div className="invalid-feedback d-block">{fieldErrs.customerName}</div>
+              )}
+            </div>
           ) : (
-            <>
-              <div className="col-md-3 mb-3">
-                <Form.Label>Tên dự án <span className="text-danger">*</span></Form.Label>
-                <Form.Control
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  isInvalid={!!fieldErrs.projectName}
-                  placeholder="VD: Dự án Chung cư XYZ"
-                />
-                <Form.Control.Feedback type="invalid">
-                  {fieldErrs.projectName}
-                </Form.Control.Feedback>
-              </div>
-              <div className="col-md-3 mb-3">
-                <Form.Label>Mã dự án (tuỳ chọn)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  placeholder="ID dự án"
-                />
-              </div>
-            </>
+            <div className="col-md-6 mb-3">
+              <Form.Label>Dự án <span className="text-danger">*</span></Form.Label>
+              <Select
+                options={projects}
+                value={selectedProject}
+                onChange={setSelectedProject}
+                placeholder="Chọn dự án"
+                styles={{
+                  control: (base) => ({ ...base, minHeight: 45 }),
+                  menu: (base) => ({ ...base, fontSize: 14 }),
+                  option: (base) => ({ ...base, padding: 10 }),
+                }}
+                menuPortalTarget={document.body}
+                menuPlacement="auto"
+              />
+              {fieldErrs.projectName && (
+                <div className="invalid-feedback d-block">{fieldErrs.projectName}</div>
+              )}
+            </div>
           )}
         </div>
 
@@ -403,13 +428,22 @@ export default function DispatchCreate() {
                     <td>{idx + 1}</td>
                     <td>
                       <Select
-                        options={products.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
-                        value={products.find(p => p.id === it.productId) ? { value: it.productId, label: `${it.productId} - ${findProductById(it.productId)?.name}` } : null}
-                        onChange={(option) => patchItem(idx, {
-                          productId: option?.value || "",
-                          uom: findProductById(option?.value)?.unit || "",
-                          unitPrice: findProductById(option?.value)?.price || 0
-                        })}
+                        options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                        value={
+                          products.find((p) => p.id === it.productId)
+                            ? {
+                              value: it.productId,
+                              label: `${it.productId} - ${findProductById(it.productId)?.name}`,
+                            }
+                            : null
+                        }
+                        onChange={(option) =>
+                          patchItem(idx, {
+                            productId: option?.value || "",
+                            uom: findProductById(option?.value)?.unit || "",
+                            unitPrice: findProductById(option?.value)?.price || 0,
+                          })
+                        }
                         maxMenuHeight={200}
                         styles={{
                           control: (base) => ({ ...base, minHeight: 45 }),
@@ -434,9 +468,7 @@ export default function DispatchCreate() {
                           type="number"
                           min={1}
                           value={it.quantity}
-                          onChange={(e) =>
-                            patchItem(idx, { quantity: e.target.value })
-                          }
+                          onChange={(e) => patchItem(idx, { quantity: e.target.value })}
                           isInvalid={!!errs.quantity}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -450,9 +482,7 @@ export default function DispatchCreate() {
                         type="number"
                         min={0}
                         value={it.unitPrice}
-                        onChange={(e) =>
-                          patchItem(idx, { unitPrice: e.target.value })
-                        }
+                        onChange={(e) => patchItem(idx, { unitPrice: e.target.value })}
                         isInvalid={!!errs.unitPrice}
                       />
                       <Form.Control.Feedback type="invalid">

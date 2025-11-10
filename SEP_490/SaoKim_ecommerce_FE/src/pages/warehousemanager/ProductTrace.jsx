@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Breadcrumb,
@@ -18,6 +17,7 @@ import {
   faLocationDot,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -37,7 +37,7 @@ export default function ProductTrace() {
     setLoading(true);
     try {
       const qs = keyword ? `?query=${encodeURIComponent(keyword)}` : "";
-      const res = await fetch(`${API_BASE}/api/warehousemanager/trace${qs}`);
+      const res = await apiFetch(`/api/warehousemanager/trace${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import "./App.css";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useLanguage } from "./i18n/LanguageProvider.jsx";
@@ -9,12 +9,13 @@ import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomeProductsBody from "./pages/homepage/HomeProductsBody";
+import AccessDenied from "./pages/auth/AccessDenied";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
 import ReceivingCreate from "./pages/warehousemanager/ReceivingCreate.jsx";
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
-
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
 import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
@@ -30,10 +31,9 @@ import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 
-//Products
+// Products
 import ProductDetail from "./pages/products/ProductDetail";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
-
 
 export default function App() {
   const { t } = useLanguage();
@@ -43,27 +43,33 @@ export default function App() {
       <LanguageSwitcher />
       <BrowserRouter>
         <Routes>
-          {/* Commons */}
+          {/* Public */}
           <Route path="/" element={<HomeProductsBody />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/forbidden" element={<AccessDenied />} />
+          
 
-          {/* Warehouse */}
-          <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
-          <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
-          <Route path="/warehouse-dashboard/receiving-slips/create" element={<ReceivingCreate />} />
-          <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
-          <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
-          <Route path="/warehouse-dashboard/dispatch-slips/create" element={<DispatchCreate />} />
-          <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
-          <Route path="/warehouse-dashboard/inventory" element={<WarehouseInventory />} />
-          <Route path="/warehouse-dashboard/trace" element={<ProductTrace />} />
-          <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
-          <Route path="/warehouse-dashboard/warehouse-report/inbound-report" element={<InboundReport />} />
+          {/* Warehouse protected group */}
+          <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
+            <Route path="/warehouse-dashboard" element={<Outlet />}>
+              <Route index element={<WarehouseDashboard />} />
+              <Route path="receiving-slips" element={<ReceivingList />} />
+              <Route path="receiving-slips/create" element={<ReceivingCreate />} />
+              <Route path="receiving-slips/:id/items" element={<ReceivingSlipItems />} />
+              <Route path="dispatch-slips" element={<DispatchList />} />
+              <Route path="dispatch-slips/create" element={<DispatchCreate />} />
+              <Route path="dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+              <Route path="inventory" element={<WarehouseInventory />} />
+              <Route path="trace" element={<ProductTrace />} />
+              <Route path="warehouse-report" element={<WarehouseReport />} />
+              <Route path="warehouse-report/inbound-report" element={<InboundReport />} />
+            </Route>
+          </Route>
 
-          {/* Projects */}
+          {/* Projects - public hoặc bạn tự bảo vệ thêm nếu cần */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />

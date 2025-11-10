@@ -7,7 +7,6 @@ import {
   faCheck,
   faTrash,
   faPlus,
-  faArrowDownShortWide,
   faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -20,6 +19,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Dropdown from "react-bootstrap/Dropdown";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 const TYPE_FILTERS = ["All", "Sales", "Project"];
@@ -49,7 +49,7 @@ const DispatchList = () => {
       setLoading(true);
       try {
         const typeQuery = typeFilter === "All" ? "" : `?type=${typeFilter}`;
-        const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips${typeQuery}`);
+        const res = await apiFetch(`/api/warehousemanager/dispatch-slips${typeQuery}`);
         const data = await res.json();
         if (active) {
           setRows(data.items || []);
@@ -81,7 +81,7 @@ const DispatchList = () => {
   const handleConfirm = async (id) => {
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}/confirm`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/confirm`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Confirm failed");
@@ -99,7 +99,7 @@ const DispatchList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
@@ -163,9 +163,13 @@ const DispatchList = () => {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
-            <FontAwesomeIcon icon={faArrowDownShortWide} />
-            Tải mẫu phiếu xuất kho
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={() => navigate("/warehouse-dashboard/dispatch-slips/create")}
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Tạo phiếu xuất kho
           </button>
           <button type="button" className="wm-btn wm-btn--primary">
             <FontAwesomeIcon icon={faFileExport} />

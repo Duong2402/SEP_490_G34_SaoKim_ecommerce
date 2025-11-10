@@ -20,6 +20,7 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -55,7 +56,7 @@ export default function ReceivingCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        const res = await apiFetch(`/api/products`);
         if (!res.ok) return;
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data.items || [];
@@ -72,7 +73,7 @@ export default function ReceivingCreate() {
 
     const loadUoms = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+        const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
         if (!res.ok) return;
         const data = await res.json();
         setUoms(data.map(u => u.name));
@@ -152,7 +153,7 @@ export default function ReceivingCreate() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

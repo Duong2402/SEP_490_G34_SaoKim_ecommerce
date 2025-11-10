@@ -90,4 +90,9 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? Note { get; set; }
     }
 
+    public class ReceivingExportRequestDto
+    {
+        public List<int> Ids { get; set; } = new();
+        public bool IncludeItems { get; set; } = true;
+    }
 }
