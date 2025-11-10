@@ -45,8 +45,11 @@ import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate"
 import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
 
-// *** NEW: Promotions ***
+// Promotions 
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
+
+// Coupons
+import ManagerCouponList from "./pages/manager/coupons/ManagerCouponList";
 
 export default function App() {
   const { t } = useLanguage();
@@ -103,6 +106,9 @@ export default function App() {
 
             {/* *** Promotions cho Manager *** */}
             <Route path="promotions" element={<ManagerPromotionList />} />
+            
+            {/* Coupons cho Manager */}
+            <Route path="coupons" element={<ManagerCouponList />} />
           </Route>
 
           {/* 404 */}

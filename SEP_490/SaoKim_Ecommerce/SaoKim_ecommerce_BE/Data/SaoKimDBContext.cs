@@ -24,6 +24,8 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<TraceEvent> TraceEvents { get; set; }
         public DbSet<Promotion> Promotions => Set<Promotion>();
         public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
+        public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -302,6 +304,20 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(x => new { x.PromotionId, x.ProductId }).IsUnique();
             });
+
+            modelBuilder.Entity<Entities.Coupon>(b =>
+            {
+                b.ToTable("Coupons");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Code).IsRequired().HasMaxLength(64);
+                b.HasIndex(x => x.Code).IsUnique();
+                b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                b.Property(x => x.DiscountType).IsRequired().HasMaxLength(32);
+                b.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+                b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
+                b.Property(x => x.Status).IsRequired().HasMaxLength(32);
+            });
+
         }
     }
 }
