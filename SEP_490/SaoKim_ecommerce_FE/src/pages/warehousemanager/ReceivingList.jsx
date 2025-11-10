@@ -21,6 +21,7 @@ import {
 import { Modal, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -52,7 +53,7 @@ export default function ReceivingList() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`);
+        const res = await apiFetch(`/api/warehousemanager/receiving-slips`);
         const data = await res.json();
         setRows(data.items || []);
       } catch (error) {
@@ -66,7 +67,7 @@ export default function ReceivingList() {
 
   const handleConfirm = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/confirm`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/confirm`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Confirm failed");
@@ -132,7 +133,7 @@ export default function ReceivingList() {
 
   async function exportByIds(ids, includeItems) {
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/export-selected`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/export-selected`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, includeItems }),
@@ -160,7 +161,7 @@ export default function ReceivingList() {
     if (!window.confirm("Bạn có chắc muốn đưa phiếu này vào thùng rác?")) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
         method: "DELETE",
       });
 
@@ -189,7 +190,7 @@ export default function ReceivingList() {
       const formData = new FormData();
       formData.append("file", importFile);
 
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/import`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/import`, {
         method: "POST",
         body: formData,
       });
@@ -200,7 +201,7 @@ export default function ReceivingList() {
         setShowImportModal(false);
         setImportFile(null);
 
-        const reload = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`);
+        const reload = await apiFetch(`/api/warehousemanager/receiving-slips`);
         const reloadData = await reload.json();
         setRows(reloadData.items || []);
       } else {

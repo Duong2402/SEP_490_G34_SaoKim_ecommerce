@@ -1,4 +1,5 @@
 ﻿
+using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,7 @@ using System.Text;
 
 [ApiController]
 [Route("api/[controller]")]
-[AllowAnonymous]
+[Authorize]
 
 public class AuthController : ControllerBase
 {
@@ -97,6 +98,7 @@ public class AuthController : ControllerBase
 
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Email) && string.IsNullOrWhiteSpace(req.Password))
@@ -120,6 +122,8 @@ public class AuthController : ControllerBase
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]);
+        var issuer = _config["Jwt:Issuer"];
+        var audience = _config["Jwt:Audience"];
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -130,6 +134,8 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
         }),
             Expires = DateTime.UtcNow.AddHours(2),
+            Issuer = issuer,
+            Audience = audience,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(key),
                 SecurityAlgorithms.HmacSha256Signature)
@@ -146,7 +152,7 @@ public class AuthController : ControllerBase
         });
     }
 
-
+    [AllowAnonymous]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
         [FromServices] IPasswordResetService resetService,
@@ -176,6 +182,7 @@ public class AuthController : ControllerBase
 
 
     [HttpPost("reset-password")]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req,
         [FromServices] IPasswordResetService resetService)
     {
@@ -196,7 +203,6 @@ public class AuthController : ControllerBase
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
-        // Lấy email từ token (ClaimTypes.Name) hoặc fallback sang req.Email
         var emailFromToken = User?.Identity?.Name;
         var email = string.IsNullOrWhiteSpace(emailFromToken) ? req.Email : emailFromToken;
 
@@ -206,7 +212,6 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
             return BadRequest(new { message = "CurrentPassword and NewPassword are required" });
 
-        // Không cho đổi sang đúng mật khẩu cũ
         if (req.CurrentPassword == req.NewPassword)
             return BadRequest(new { message = "New password must be different from current password" });
 
@@ -214,17 +219,13 @@ public class AuthController : ControllerBase
         if (user == null)
             return NotFound(new { message = "User not found" });
 
-        // Kiểm tra mật khẩu hiện tại
         var ok = BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.Password);
         if (!ok)
             return BadRequest(new { message = "Current password is incorrect" });
 
-        // (Tuỳ chọn) Kiểm tra policy mật khẩu mới
-        // Ví dụ: tối thiểu 6 ký tự
         if (req.NewPassword.Length < 6)
             return BadRequest(new { message = "New password must be at least 6 characters" });
 
-        // Cập nhật mật khẩu mới
         user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         await _context.SaveChangesAsync();
 

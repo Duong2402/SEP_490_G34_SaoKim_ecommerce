@@ -21,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -88,7 +89,7 @@ const ReceivingSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`);
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -110,7 +111,7 @@ const ReceivingSlipItems = () => {
 
   async function loadUOMs() {
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+      const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setUoms(data);
@@ -125,7 +126,7 @@ const ReceivingSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await fetch(`${API_BASE}/api/products`);
+      const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.items || [];
@@ -150,7 +151,7 @@ const ReceivingSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-items/${itemId}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
@@ -223,7 +224,7 @@ const ReceivingSlipItems = () => {
         mode === "create"
           ? `${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`
           : `${API_BASE}/api/warehousemanager/receiving-items/${editId}`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -247,7 +248,7 @@ const ReceivingSlipItems = () => {
     setSupplierErr("");
     setSavingSupplier(true);
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ supplier: sup }),

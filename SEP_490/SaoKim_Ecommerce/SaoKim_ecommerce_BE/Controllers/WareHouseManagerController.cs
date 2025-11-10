@@ -13,7 +13,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/warehousemanager")]
-    //[Authorize(Roles = "warehouse_manager")]
+    [Authorize(Roles = "warehouse_manager")]
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
@@ -963,7 +963,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 receivedProjectId = dto.ProjectId
             });
         }
-
         // GET /api/warehousemanager/dispatch-slips/{id}
         [HttpGet("dispatch-slips/{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)

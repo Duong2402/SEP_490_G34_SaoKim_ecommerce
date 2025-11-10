@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Breadcrumb,
-  Badge,
   Table,
   Button,
   Form,
@@ -22,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -72,7 +72,7 @@ const DispatchSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}/items`);
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : data.items || []);
@@ -85,7 +85,7 @@ const DispatchSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await fetch(`${API_BASE}/api/products`);
+      const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.items || [];
@@ -111,7 +111,7 @@ const DispatchSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa dòng hàng này khỏi phiếu xuất?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-items/${itemId}`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
@@ -178,7 +178,7 @@ const DispatchSlipItems = () => {
         mode === "create"
           ? `${API_BASE}/api/warehousemanager/dispatch-slips/${id}/items`
           : `${API_BASE}/api/warehousemanager/dispatch-items/${editId}`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

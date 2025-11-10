@@ -18,10 +18,10 @@ import {
   faSave,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import { apiFetch } from "../../api/lib/apiClient";
 import Select from "react-select";
 
-const API_BASE = "https://localhost:7278";
-
+export const API_BASE = "https://localhost:7278";
 const emptyItem = () => ({
   productId: "",
   uom: "",
@@ -56,7 +56,7 @@ export default function DispatchCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        const res = await apiFetch(`/api/products`);
         if (!res.ok) throw new Error(`Products HTTP ${res.status}`);
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data.items || [];
@@ -76,17 +76,16 @@ export default function DispatchCreate() {
     loadProducts();
   }, []);
 
-  // Load customers or projects by type
   useEffect(() => {
     const loadForType = async () => {
       try {
         if (type === "Sales") {
-          const res = await fetch(`${API_BASE}/api/warehousemanager/customers`);
+          const res = await apiFetch(`/api/warehousemanager/customers`);
           if (!res.ok) throw new Error(`Customers HTTP ${res.status}`);
           const data = await res.json();
           setCustomers((data || []).map(c => ({ value: Number(c.id), label: `${c.id} - ${c.name}` })));
         } else {
-          const res = await fetch(`${API_BASE}/api/warehousemanager/projects`);
+          const res = await apiFetch(`/api/warehousemanager/projects`);
           if (!res.ok) throw new Error(`Projects HTTP ${res.status}`);
           const data = await res.json();
           setProjects((data || []).map(p => ({ value: Number(p.id), label: `${p.id} - ${p.name}` })));
@@ -196,7 +195,13 @@ export default function DispatchCreate() {
         typeofProjectId: typeof body.projectId
       });
 
-      const resSlip = await fetch(url, {
+      console.log("[Create Dispatch] URL:", url);
+      console.log("[Create Dispatch] BODY:", body, {
+        typeofCustomerId: typeof body.customerId,
+        typeofProjectId: typeof body.projectId
+      });
+
+      const resSlip = await apiFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -222,8 +227,8 @@ export default function DispatchCreate() {
           unitPrice: Number(it.unitPrice || 0),
         };
 
-        const resItem = await fetch(
-          `${API_BASE}/api/warehousemanager/dispatch-slips/${newId}/items`,
+        const resItem = await apiFetch(
+          `/api/warehousemanager/dispatch-slips/${newId}/items`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
