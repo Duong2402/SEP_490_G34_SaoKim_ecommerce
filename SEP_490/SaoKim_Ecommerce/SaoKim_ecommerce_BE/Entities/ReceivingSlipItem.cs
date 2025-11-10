@@ -17,6 +17,8 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Required, MaxLength(200)]
         public string ProductName { get; set; } = "";
+        [MaxLength(64)]
+        public string? ProductCode { get; set; }
 
         [Required, MaxLength(50)]
         public string Uom { get; set; } = "unit";

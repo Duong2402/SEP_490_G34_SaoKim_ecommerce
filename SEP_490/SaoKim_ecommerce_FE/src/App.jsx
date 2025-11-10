@@ -13,9 +13,10 @@ import HomeProductsBody from "./pages/homepage/HomeProductsBody";
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
 import ReceivingCreate from "./pages/warehousemanager/ReceivingCreate.jsx";
-
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
+
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
+import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/warehouse-dashboard/receiving-slips/create" element={<ReceivingCreate />} />
           <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
           <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
+          <Route path="/warehouse-dashboard/dispatch-slips/create" element={<DispatchCreate />} />
           <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
           <Route path="/warehouse-dashboard/inventory" element={<WarehouseInventory />} />
           <Route path="/warehouse-dashboard/trace" element={<ProductTrace />} />

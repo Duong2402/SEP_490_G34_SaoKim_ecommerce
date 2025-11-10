@@ -8,7 +8,6 @@ import {
   faBoxesStacked,
   faTriangleExclamation,
   faArrowTrendUp,
-  faCircleCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   ResponsiveContainer,
@@ -19,6 +18,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 
 const ALERTS = [
@@ -50,12 +50,17 @@ const SUMMARY = [
 ];
 
 const WarehouseDashboard = () => {
-  const [stats] = useState({
-    totalInbound: 120,
+  const [stats, setStats] = useState({
+    totalInbound: 0,
     totalOutbound: 95,
     totalStock: 540,
     lowStockItems: 12,
   });
+
+  const navigate = useNavigate();
+  const [weeklyInbound, setWeeklyInbound] = useState({ thisWeek: 0, lastWeek: 0 });
+  const [weeklyOutbound, setWeeklyOutbound] = useState({ thisWeek: 0, lastWeek: 0 });
+
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
@@ -68,6 +73,53 @@ const WarehouseDashboard = () => {
       { name: "Th 7", inbound: 35, outbound: 27 },
     ];
     setChartData(data);
+    const fetchWeeklyInbound = async () => {
+      try {
+        const res = await fetch("https://localhost:7278/api/warehousemanager/receiving-slips/weekly-summary");
+        const data = await res.json();
+        setWeeklyInbound(data);
+        setStats(prev => ({
+          ...prev,
+          totalInbound: data.thisWeek,
+        }));
+      } catch (err) {
+        console.error("Failed to fetch weekly inbound:", err);
+      }
+    };
+
+    fetchWeeklyInbound();
+
+    const fetchWeeklyOutbound = async () => {
+      try {
+        const res = await fetch("https://localhost:7278/api/warehousemanager/dispatch-slips/weekly-summary");
+        const data = await res.json();
+        setWeeklyInbound(data);
+        setStats(prev => ({
+          ...prev,
+          totalInbound: data.thisWeek,
+        }));
+      } catch (err) {
+        console.error("Failed to fetch weekly inbound:", err);
+      }
+    };
+
+    fetchWeeklyOutbound();
+
+    const fetchStats = async () => {
+      try {
+        const resStock = await fetch("https://localhost:7278/api/warehousemanager/total-stock");
+        const dataStock = await resStock.json();
+
+        setStats(prev => ({
+          ...prev,
+          totalStock: dataStock.totalStock
+        }));
+      } catch (err) {
+        console.error("Failed to fetch total stock:", err);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   const statCards = [
@@ -75,15 +127,31 @@ const WarehouseDashboard = () => {
       key: "inbound",
       icon: faArrowDown,
       label: "Phiếu nhập tuần",
-      value: stats.totalInbound,
-      meta: "+8% so với tuần trước",
+      value: weeklyInbound.thisWeek,
+      meta: (() => {
+        const { thisWeek, lastWeek } = weeklyInbound;
+        if (lastWeek === 0) return "N/A";
+        const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
+        return diffPercent >= 0
+          ? `+${diffPercent.toFixed(1)}% so với tuần trước`
+          : `${diffPercent.toFixed(1)}% so với tuần trước`;
+      })(),
+      onClick: () => navigate("/warehouse-dashboard/receiving-slips"),
     },
     {
       key: "outbound",
       icon: faArrowUp,
       label: "Phiếu xuất tuần",
-      value: stats.totalOutbound,
-      meta: "+4% so với tuần trước",
+      value: weeklyOutbound.thisWeek,
+      meta: (() => {
+        const { thisWeek, lastWeek } = weeklyOutbound;
+        if (lastWeek === 0) return "N/A";
+        const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
+        return diffPercent >= 0
+          ? `+${diffPercent.toFixed(1)}% so với tuần trước`
+          : `${diffPercent.toFixed(1)}% so với tuần trước`;
+      })(),
+      onClick: () => navigate("/warehouse-dashboard/dispatch-slips"),
     },
     {
       key: "stock",
@@ -119,10 +187,6 @@ const WarehouseDashboard = () => {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
-            <FontAwesomeIcon icon={faCircleCheck} />
-            Tạo phiếu mới
-          </button>
           <button type="button" className="wm-btn wm-btn--primary">
             <FontAwesomeIcon icon={faArrowTrendUp} />
             Tải báo cáo tuần
@@ -132,7 +196,12 @@ const WarehouseDashboard = () => {
 
       <div className="wm-stat-grid">
         {statCards.map((stat) => (
-          <div key={stat.key} className="wm-stat-card">
+          <div
+            key={stat.key}
+            className="wm-stat-card"
+            style={{ cursor: stat.onClick ? "pointer" : "default" }}
+            onClick={stat.onClick}
+          >
             <div className="wm-stat-card__icon">
               <FontAwesomeIcon icon={stat.icon} />
             </div>

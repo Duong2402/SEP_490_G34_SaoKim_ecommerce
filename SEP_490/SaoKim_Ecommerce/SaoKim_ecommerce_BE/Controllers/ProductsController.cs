@@ -65,6 +65,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     name = p.ProductName,
                     category = p.Category,
                     price = p.Price,
+                    unit = p.Unit,
                     stock = p.Stock,
                     status = p.Status,
                     created = p.Created
@@ -263,7 +264,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { featured, newArrivals, all });
         }
-        
+
         // GET: api/products/123
         //[HttpGet("{id:int}")]
         //public async Task<IActionResult> GetProductById([FromRoute] int id)

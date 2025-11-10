@@ -3,22 +3,22 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faSearch,
-  faCog,
   faEye,
   faCheck,
   faTrash,
-  faCloudArrowDown,
   faFileImport,
-  faFileExport,
+  faPlus,
+  faDownload,
+  faFileExport
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Breadcrumb,
   Form,
   InputGroup,
-  Dropdown,
   Badge,
   Button,
 } from "@themesberg/react-bootstrap";
+import { Modal, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 
@@ -40,7 +40,13 @@ export default function ReceivingList() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
+  const [sortBy, setSortBy] = useState("receiptDate");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,7 +61,6 @@ export default function ReceivingList() {
         setLoading(false);
       }
     };
-
     loadData();
   }, []);
 
@@ -64,24 +69,156 @@ export default function ReceivingList() {
       const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/confirm`, {
         method: "POST",
       });
-      if (!res.ok) {
-        throw new Error("Confirm failed");
-      }
+      if (!res.ok) throw new Error("Confirm failed");
 
       setRows((prev) =>
         prev.map((r) =>
           r.id === id
-            ? {
-              ...r,
-              status: 1, // sau confirm, chuẩn về code 1
-              confirmedAt: new Date().toISOString(),
-            }
+            ? { ...r, status: 1, confirmedAt: new Date().toISOString() }
             : r
         )
       );
     } catch (error) {
       console.error("Confirm failed:", error);
       alert("Không thể xác nhận phiếu. Vui lòng thử lại.");
+    }
+  };
+
+  const toggleRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectPage = () => {
+    const pageIds = sortedRows.slice(0, pageSize).map(r => r.id);
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filteredRows.map(r => r.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  async function handleExportSelected(includeItems = true) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) {
+      const confirmAll = window.confirm(
+        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu đang hiển thị theo bộ lọc hiện tại?"
+      );
+      if (!confirmAll) return;
+      const allIds = filteredRows.map(r => r.id);
+      if (allIds.length === 0) {
+        alert("Không có dữ liệu để xuất.");
+        return;
+      }
+      await exportByIds(allIds, includeItems);
+      return;
+    }
+    await exportByIds(ids, includeItems);
+  }
+
+  async function exportByIds(ids, includeItems) {
+    try {
+      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/export-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, includeItems }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Export thất bại");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receiving-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e.message);
+    }
+  }
+
+  const handleDeleteToTrash = async (id) => {
+    if (!window.confirm("Bạn có chắc muốn đưa phiếu này vào thùng rác?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Xóa thất bại");
+      }
+
+      setRows(prev => prev.filter(r => r.id !== id));
+
+      alert("Phiếu đã bị xóa!");
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      alert("Vui lòng chọn file Excel trước!");
+      return;
+    }
+
+    setImportLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/import`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || "Import thành công!");
+        setShowImportModal(false);
+        setImportFile(null);
+
+        const reload = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`);
+        const reloadData = await reload.json();
+        setRows(reloadData.items || []);
+      } else {
+        alert(data.message || "Import thất bại!");
+      }
+    } catch (error) {
+      console.error("Import failed:", error);
+      alert("Có lỗi khi import file.");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortBy === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(field);
+      setSortOrder("asc");
     }
   };
 
@@ -95,7 +232,26 @@ export default function ReceivingList() {
     );
   }, [rows, search]);
 
-  const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
+  const sortedRows = useMemo(() => {
+    const sorted = [...filteredRows];
+    sorted.sort((a, b) => {
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+      if (sortBy.includes("Date")) {
+        valA = new Date(valA);
+        valB = new Date(valB);
+      }
+      if (typeof valA === "string") valA = valA.toLowerCase();
+      if (typeof valB === "string") valB = valB.toLowerCase();
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredRows, sortBy, sortOrder]);
+
+  const formatDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "-");
 
   return (
     <WarehouseLayout>
@@ -104,7 +260,7 @@ export default function ReceivingList() {
           <div className="wm-breadcrumb">
             <Breadcrumb listProps={{ className: "breadcrumb-transparent" }}>
               <Breadcrumb.Item href="/warehouse-dashboard">
-                <FontAwesomeIcon icon={faHome} /> Bảng điều phối
+                <FontAwesomeIcon icon={faHome} /> Quản lý kho
               </Breadcrumb.Item>
               <Breadcrumb.Item active>Phiếu nhập kho</Breadcrumb.Item>
             </Breadcrumb>
@@ -123,19 +279,86 @@ export default function ReceivingList() {
               window.open(`${API_BASE}/api/warehousemanager/download-template`, "_blank");
             }}
           >
-            <FontAwesomeIcon icon={faCloudArrowDown} />
-            Tải mẫu Excel
+            <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
           </button>
-          <button type="button" className="wm-btn">
-            <FontAwesomeIcon icon={faFileImport} />
-            Nhập danh sách
+
+          <button
+            type="button"
+            className="wm-btn"
+            onClick={() => setShowImportModal(true)}
+          >
+            <FontAwesomeIcon icon={faFileImport} /> Nhập từ phiếu
           </button>
-          <button type="button" className="wm-btn wm-btn--primary">
-            <FontAwesomeIcon icon={faFileExport} />
-            Xuất báo cáo
+
+          <button type="button" className="wm-btn wm-btn--light" onClick={selectAllFiltered}>
+            Chọn tất cả kết quả
+          </button>
+          <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
+            Bỏ chọn
+          </button>
+
+          <button
+            type="button"
+            className="wm-btn"
+            onClick={() => handleExportSelected(true)}
+          >
+            <FontAwesomeIcon icon={faFileExport} /> Xuất phiếu
+          </button>
+
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={() => navigate("/warehouse-dashboard/receiving-slips/create")}
+          >
+            <FontAwesomeIcon icon={faPlus} /> Tạo phiếu mới
           </button>
         </div>
       </div>
+
+      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Nhập phiếu từ file Excel</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Button
+            variant="link"
+            className="mb-3 p-0"
+            onClick={() =>
+              window.open(`${API_BASE}/api/warehousemanager/download-template`, "_blank")
+            }
+          >
+            <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
+          </Button>
+
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            className="form-control"
+            onChange={(e) => setImportFile(e.target.files[0])}
+          />
+          <small className="text-muted d-block mt-2">
+            File cần gồm: Supplier, ReceiptDate, Note, ProductName, Uom, Quantity, UnitPrice
+          </small>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowImportModal(false)}>
+            Hủy
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleImport}
+            disabled={importLoading}
+          >
+            {importLoading ? (
+              <>
+                <Spinner animation="border" size="sm" /> Đang nhập...
+              </>
+            ) : (
+              "Xác nhận import"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <div className="wm-surface wm-toolbar">
         <div className="wm-toolbar__search">
@@ -157,42 +380,68 @@ export default function ReceivingList() {
         <table className="table align-middle mb-0">
           <thead>
             <tr>
+              <th>
+                <Form.Check
+                  type="checkbox"
+                  checked={sortedRows.slice(0, pageSize).every(r => selectedIds.has(r.id)) && sortedRows.slice(0, pageSize).length > 0}
+                  onChange={toggleSelectPage}
+                />
+              </th>
               <th>#</th>
-              <th>Mã phiếu</th>
-              <th>Nhà cung cấp</th>
-              <th>Ngày nhận</th>
-              <th>Trạng thái</th>
-              <th>Ngày tạo</th>
-              <th>Ngày xác nhận</th>
-              <th>Ghi chú</th>
+              <th role="button" onClick={() => handleSort("referenceNo")}>
+                Mã phiếu
+              </th>
+              <th role="button" onClick={() => handleSort("supplier")}>
+                Nhà cung cấp
+              </th>
+              <th role="button" onClick={() => handleSort("receiptDate")}>
+                Ngày nhận
+              </th>
+              <th role="button" onClick={() => handleSort("status")}>
+                Trạng thái
+              </th>
+              <th role="button" onClick={() => handleSort("createdAt")}>
+                Ngày tạo
+              </th>
+              <th role="button" onClick={() => handleSort("confirmedAt")}>
+                Ngày xác nhận
+              </th>
+              <th role="button" onClick={() => handleSort("note")}>
+                Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Đang tải dữ liệu...
                 </td>
               </tr>
-            ) : filteredRows.length === 0 ? (
+            ) : sortedRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Không tìm thấy phiếu phù hợp.
                 </td>
               </tr>
             ) : (
-              filteredRows.slice(0, pageSize).map((r) => {
+              sortedRows.slice(0, pageSize).map((r, idx) => {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
-
+                const checked = selectedIds.has(r.id);
                 return (
                   <tr key={r.id}>
-                    <td>{r.id}</td>
+                    <td>
+                      <Form.Check
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRow(r.id)}
+                      />
+                    </td>
+                    <td>{idx + 1}</td>
                     <td>{r.referenceNo}</td>
                     <td>{r.supplier}</td>
                     <td>{formatDate(r.receiptDate)}</td>
-
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
@@ -202,11 +451,9 @@ export default function ReceivingList() {
                         </Badge>
                       )}
                     </td>
-
                     <td>{formatDate(r.createdAt)}</td>
-                    <td>{formatDate(r.confirmedAt)}</td>
-                    <td>{r.note || "-"}</td>
-
+                    <td>{r.confirmedAt ? formatDate(r.confirmedAt) : "Chưa xác nhận"}</td>
+                    <td>{r.note || "N/A"}</td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"
@@ -218,7 +465,6 @@ export default function ReceivingList() {
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
-
                       {!isConfirmed && (
                         <>
                           <Button
@@ -229,7 +475,11 @@ export default function ReceivingList() {
                           >
                             <FontAwesomeIcon icon={faCheck} />
                           </Button>
-                          <Button variant="outline-danger" size="sm">
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDeleteToTrash(r.id)}
+                          >
                             <FontAwesomeIcon icon={faTrash} />
                           </Button>
                         </>

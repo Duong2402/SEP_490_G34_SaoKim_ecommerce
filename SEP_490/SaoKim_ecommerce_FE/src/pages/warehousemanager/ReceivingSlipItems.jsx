@@ -20,6 +20,7 @@ import {
   faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import Select from "react-select";
 
 const API_BASE = "https://localhost:7278";
 
@@ -31,7 +32,6 @@ const initialForm = {
   unitPrice: 0,
 };
 
-// chuẩn hoá status về 0/1 giống ReceivingList
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
   if (v === 0 || v === "0") return 0;
@@ -63,7 +63,8 @@ const ReceivingSlipItems = () => {
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
-  const [status, setStatus] = useState(0); // đã chuẩn hoá 0/1
+  const [status, setStatus] = useState(0);
+  const [uoms, setUoms] = useState([]);
 
   useEffect(() => {
     load();
@@ -83,7 +84,6 @@ const ReceivingSlipItems = () => {
     };
   }, [items]);
 
-  // giống ReceivingList: chuẩn hoá status -> setStatus(0/1)
   async function load() {
     setLoading(true);
     setError("");
@@ -99,15 +99,29 @@ const ReceivingSlipItems = () => {
       setSupplier(String(sup));
 
       const rawStatus = (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
-      setStatus(toStatusCode(rawStatus)); // <= chuẩn hoá giống ReceivingList
+      setStatus(toStatusCode(rawStatus));
 
-      // console.log("Receiving slip data:", data);
     } catch (e) {
       setError(e.message || "Không thể tải danh sách hàng hóa.");
     } finally {
       setLoading(false);
     }
   }
+
+  async function loadUOMs() {
+    try {
+      const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setUoms(data);
+    } catch (e) {
+      console.error("Không thể tải đơn vị tính:", e);
+    }
+  }
+
+  useEffect(() => {
+    loadUOMs();
+  }, []);
 
   async function loadProducts() {
     try {
@@ -170,6 +184,7 @@ const ReceivingSlipItems = () => {
 
   const validate = () => {
     const errs = {};
+
     if (!form.productId && !form.productName) {
       errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
     }
@@ -182,9 +197,16 @@ const ReceivingSlipItems = () => {
     if (!form.quantity || Number(form.quantity) <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
     }
+
+    const price = Number(form.unitPrice);
+    if (!form.unitPrice || isNaN(price) || price < 1000) {
+      errs.unitPrice = "Đơn giá phải lớn hơn 1.000.";
+    }
+
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
   };
+
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -239,7 +261,6 @@ const ReceivingSlipItems = () => {
     }
   };
 
-  // giống ReceivingList
   const isConfirmed = status === 1;
 
   return (
@@ -257,7 +278,7 @@ const ReceivingSlipItems = () => {
               <Breadcrumb.Item active>Chi tiết phiếu</Breadcrumb.Item>
             </Breadcrumb>
           </div>
-          <h1 className="wm-page-title">Chi tiết phiếu nhập #{id}</h1>
+          <h1 className="wm-page-title">Chi tiết phiếu nhập RC{id}</h1>
           <p className="wm-page-subtitle">
             Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp nhận thực tế.
           </p>
@@ -273,7 +294,6 @@ const ReceivingSlipItems = () => {
             Quay lại danh sách
           </button>
 
-          {/* Ẩn nút “Tạo mới” khi đã Confirm (giống ReceivingList ẩn Confirm/Delete) */}
           {!isConfirmed && (
             <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
               <FontAwesomeIcon icon={faPlus} />
@@ -283,42 +303,43 @@ const ReceivingSlipItems = () => {
         </div>
       </div>
 
-      {/* Supplier: vẫn giữ logic bấm bút chì mới cho sửa */}
       <div className="wm-surface mb-3">
         <div className="d-flex align-items-center justify-content-between mb-1">
           <Form.Label className="mb-0">Nhà cung cấp</Form.Label>
-          {!isEditingSupplier ? (
-            <FontAwesomeIcon
-              icon={faEdit}
-              role="button"
-              className="text-primary fs-5 ms-2"
-              title="Chỉnh sửa"
-              onClick={() => setIsEditingSupplier(true)}
-              style={{ cursor: "pointer" }}
-            />
-          ) : (
-            <div className="d-flex gap-2">
-              <Button
-                variant="success"
-                size="sm"
-                onClick={saveSupplier}
-                disabled={savingSupplier}
-              >
-                <FontAwesomeIcon icon={faSave} />
-              </Button>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => {
-                  setIsEditingSupplier(false);
-                  setSupplierErr("");
-                  load();
-                }}
-                disabled={savingSupplier}
-              >
-                Hủy
-              </Button>
-            </div>
+          {!isConfirmed && (
+            !isEditingSupplier ? (
+              <FontAwesomeIcon
+                icon={faEdit}
+                role="button"
+                className="text-primary fs-5 ms-2"
+                title="Chỉnh sửa"
+                onClick={() => setIsEditingSupplier(true)}
+                style={{ cursor: "pointer" }}
+              />
+            ) : (
+              <div className="d-flex gap-2">
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={saveSupplier}
+                  disabled={savingSupplier}
+                >
+                  <FontAwesomeIcon icon={faSave} />
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditingSupplier(false);
+                    setSupplierErr("");
+                    load();
+                  }}
+                  disabled={savingSupplier}
+                >
+                  Hủy
+                </Button>
+              </div>
+            )
           )}
         </div>
         <Form.Control
@@ -369,7 +390,6 @@ const ReceivingSlipItems = () => {
               <th>Số lượng</th>
               <th>Đơn giá</th>
               <th>Thành tiền</th>
-              {/* Ẩn cột thao tác khi đã Confirm (giống ReceivingList) */}
               {!isConfirmed && <th className="text-end">Thao tác</th>}
             </tr>
           </thead>
@@ -391,7 +411,7 @@ const ReceivingSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productId || "N/A"}</span>
+                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
@@ -404,7 +424,6 @@ const ReceivingSlipItems = () => {
                     đ
                   </td>
 
-                  {/* Ẩn icon khi đã Confirm */}
                   {!isConfirmed && (
                     <td className="text-end">
                       <Button
@@ -466,33 +485,34 @@ const ReceivingSlipItems = () => {
             <Form.Group className="mb-3">
               <Form.Label>Mã sản phẩm</Form.Label>
               {productInputMode === "select" ? (
-                <Form.Select
-                  value={form.productId === "" ? "" : String(form.productId)}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
+                <Select
+                  options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                  value={
+                    form.productId
+                      ? { value: form.productId, label: `${form.productId} - ${form.productName}` }
+                      : null
+                  }
+                  onChange={(option) => {
+                    if (!option) {
                       setForm({ ...form, productId: "", productName: "" });
                       return;
                     }
-                    const selected = findProductById(val);
+                    const selected = findProductById(option.value);
                     setForm({
                       ...form,
-                      productId: val,
+                      productId: option.value,
                       productName: selected?.name || "",
                     });
                   }}
-                  isInvalid={!!formErrs.productId}
-                >
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} - {p.name}
-                    </option>
-                  ))}
-                </Form.Select>
+                  placeholder="Chọn sản phẩm"
+                  isClearable
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                  menuPortalTarget={document.body}
+                />
               ) : (
                 <Form.Control
                   type="number"
+                  min={1}
                   placeholder="Nhập mã sản phẩm"
                   value={form.productId}
                   onChange={(e) => {
@@ -501,7 +521,7 @@ const ReceivingSlipItems = () => {
                     if (found) {
                       setForm({ ...form, productId: val, productName: found.name });
                     } else {
-                      setForm({ ...form, productId: val });
+                      setForm({ ...form, productId: val, productName: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -533,16 +553,19 @@ const ReceivingSlipItems = () => {
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <Form.Label>Đơn vị tính</Form.Label>
-                <Form.Control
-                  value={form.uom}
-                  onChange={(e) => setForm({ ...form, uom: e.target.value })}
-                  placeholder="pcs / box / carton"
-                  isInvalid={!!formErrs.uom}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.uom}
-                </Form.Control.Feedback>
+                <Form.Group className="mb-3">
+                  <Form.Label>Đơn vị tính</Form.Label>
+                  <Select
+                    options={uoms.map((u) => ({ value: u.name, label: u.name }))}
+                    value={form.uom ? { value: form.uom, label: form.uom } : null}
+                    onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
+                    placeholder="Chọn đơn vị tính á"
+                    isClearable
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    menuPortalTarget={document.body}
+                  />
+                  {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
+                </Form.Group>
               </div>
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng</Form.Label>
@@ -554,7 +577,6 @@ const ReceivingSlipItems = () => {
                     onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     isInvalid={!!formErrs.quantity}
                   />
-                  <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
                   <Form.Control.Feedback type="invalid">
                     {formErrs.quantity}
                   </Form.Control.Feedback>
@@ -562,15 +584,25 @@ const ReceivingSlipItems = () => {
               </div>
             </div>
 
-            <Form.Group className="mb-1">
+            <Form.Group className="mb-3">
               <Form.Label>Đơn giá</Form.Label>
-              <Form.Control
-                type="number"
-                min={0}
-                value={form.unitPrice}
-                onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-              />
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  value={form.unitPrice}
+                  onChange={(e) =>
+                    setForm({ ...form, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })
+                  }
+                  isInvalid={!!formErrs.unitPrice}
+                />
+                <InputGroup.Text>VNĐ</InputGroup.Text>
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.unitPrice}
+                </Form.Control.Feedback>
+              </InputGroup>
             </Form.Group>
+
           </Form>
         </Modal.Body>
         <Modal.Footer>
