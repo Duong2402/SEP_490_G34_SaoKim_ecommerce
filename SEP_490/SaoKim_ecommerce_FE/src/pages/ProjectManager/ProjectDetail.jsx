@@ -445,6 +445,10 @@ function ProjectDetail() {
               <Link to={`/projects/${id}/edit`} className="btn btn-outline">
                 {t("common.actions.edit")}
               </Link>
+              {/* NEW: nút đi tới trang Báo cáo */}
+              <Link to={`/projects/${id}/report`} className="btn btn-outline">
+                Xem báo cáo
+              </Link>
               <button type="button" className="btn btn-primary" onClick={openCreateTask}>
                 {t("projects.detail.actions.addTask")}
               </button>
