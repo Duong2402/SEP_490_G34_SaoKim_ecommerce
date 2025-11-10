@@ -1,134 +1,212 @@
-import React, { useMemo, useState } from "react";
-import { Breadcrumb, Badge, Form, InputGroup, Dropdown } from "@themesberg/react-bootstrap";
+import React, { useEffect, useMemo, useState } from "react";
+import { Breadcrumb, Badge, Form, InputGroup, Dropdown, Button, Table, Spinner } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faSearch,
   faSliders,
   faLayerGroup,
-  faPlus,
   faBell,
   faBoxesStacked,
+  faArrowLeft,
+  faSave,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import { useNavigate } from "react-router-dom";
+import { Modal } from "react-bootstrap";
+import { apiFetch } from "../../api/lib/apiClient";
 
-const MOCK_STOCK = [
-  {
-    id: 1,
-    sku: "SKU-LGT-001",
-    name: "Đèn LED Panel 600x600",
-    category: "Đèn trần",
-    quantity: 420,
-    uom: "pcs",
-    location: "Khu A - Kệ 03",
-    status: "stock",
-    warning: "Ổn định",
-    minStock: 200,
-  },
-  {
-    id: 2,
-    sku: "SKU-LGT-018",
-    name: "Bộ điều khiển thông minh",
-    category: "Thiết bị điều khiển",
-    quantity: 48,
-    uom: "pcs",
-    location: "Khu B - Kệ 07",
-    status: "alert",
-    warning: "Dưới định mức",
-    minStock: 80,
-  },
-  {
-    id: 3,
-    sku: "SKU-LGT-112",
-    name: "Đèn đường năng lượng mặt trời",
-    category: "Đèn ngoài trời",
-    quantity: 132,
-    uom: "pcs",
-    location: "Sân sau - Pallet 12",
-    status: "stock",
-    warning: "Cần kiểm đếm",
-    minStock: 100,
-  },
-  {
-    id: 4,
-    sku: "SKU-LGT-201",
-    name: "Đèn spotlight cao cấp",
-    category: "Đèn trang trí",
-    quantity: 18,
-    uom: "pcs",
-    location: "Khu C - Tủ 02",
-    status: "critical",
-    warning: "Chờ nhập bổ sung",
-    minStock: 60,
-  },
-  {
-    id: 5,
-    sku: "SKU-LGT-320",
-    name: "Bộ phụ kiện thi công",
-    category: "Phụ kiện",
-    quantity: 295,
-    uom: "bộ",
-    location: "Khu A - Kệ 01",
-    status: "stock",
-    warning: "Ổn định",
-    minStock: 120,
-  },
-];
+const PAGE_SIZE = 10;
 
-const LOCATIONS = ["Tất cả vị trí", "Khu A", "Khu B", "Khu C", "Sân sau"];
-const STATUSES = [
-  { key: "all", label: "Tất cả trạng thái" },
-  { key: "stock", label: "Đủ hàng" },
-  { key: "alert", label: "Cần theo dõi" },
-  { key: "critical", label: "Thiếu hàng" },
-];
+const statusLabel = (s) => {
+  switch (s) {
+    case "stock": return <Badge bg="success">Đủ hàng</Badge>;
+    case "alert": return <Badge bg="warning" text="dark">Cần theo dõi</Badge>;
+    case "critical": return <Badge bg="danger">Thiếu hàng</Badge>;
+    default: return <Badge bg="secondary">Không xác định</Badge>;
+  }
+};
 
-const WarehouseInventory = () => {
+export default function WarehouseInventory() {
+  const navigate = useNavigate();
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [showMinModal, setShowMinModal] = useState(false);
+  const [bulkMin, setBulkMin] = useState("");
+  const [applyingBulk, setApplyingBulk] = useState(false);
+
   const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("Tất cả vị trí");
+  const [locationFilter, setLocationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const filteredStock = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return MOCK_STOCK.filter((item) => {
-      const matchKeyword =
-        !keyword ||
-        item.sku.toLowerCase().includes(keyword) ||
-        item.name.toLowerCase().includes(keyword) ||
-        item.category.toLowerCase().includes(keyword);
+  const locations = useMemo(() => {
+    const set = new Set(rows.map(r => r.locationName).filter(Boolean));
+    return ["all", ...Array.from(set)];
+  }, [rows]);
 
-      const matchLocation =
-        locationFilter === "Tất cả vị trí" || item.location.toLowerCase().includes(locationFilter.toLowerCase());
-
-      const matchStatus = statusFilter === "all" || item.status === statusFilter;
-
-      return matchKeyword && matchLocation && matchStatus;
-    });
-  }, [locationFilter, search, statusFilter]);
+  const getStatus = (item) => {
+    const q = Number(item.onHand || 0);
+    const m = Number(item.minStock || 0);
+    if (m <= 0) return "stock";
+    if (q <= 0) return "critical";
+    if (q < m) return "alert";
+    return "stock";
+  };
 
   const summary = useMemo(() => {
-    const totalSku = MOCK_STOCK.length;
-    const totalStock = MOCK_STOCK.reduce((acc, item) => acc + item.quantity, 0);
-    const lowStock = MOCK_STOCK.filter((item) => item.quantity < item.minStock).length;
-    const critical = MOCK_STOCK.filter((item) => item.status === "critical").length;
+    const totalSku = total;
+    const totalStock = rows.reduce((acc, x) => acc + Number(x.onHand || 0), 0);
+    const lowStock = rows.filter(x => Number(x.onHand || 0) < Number(x.minStock || 0)).length;
+    const critical = rows.filter(x => (x.status ?? getStatus(x)) === "critical").length;
     return { totalSku, totalStock, lowStock, critical };
-  }, []);
+  }, [rows, total]);
 
-  const renderStatus = (status) => {
-    switch (status) {
-      case "stock":
-        return <Badge bg="success">Đủ hàng</Badge>;
-      case "alert":
-        return <Badge bg="warning" text="dark">Cần theo dõi</Badge>;
-      case "critical":
-        return <Badge bg="danger">Thiếu hàng</Badge>;
-      default:
-        return <Badge bg="secondary">Không xác định</Badge>;
+  const applyBulkMinStock = async () => {
+    const val = Number(bulkMin);
+    if (isNaN(val) || val < 0) return;
+
+    setApplyingBulk(true);
+    try {
+      await Promise.all(
+        rows.map(r =>
+          apiFetch(`/api/warehousemanager/inventory/${r.productId}/min-stock`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ minStock: val }),
+          })
+        )
+      );
+      setRows(prev => prev.map(r => ({ ...r, minStock: val })));
+      setShowMinModal(false);
+      setBulkMin("");
+    } catch (e) {
+      alert("Áp dụng định mức thất bại");
+    } finally {
+      setApplyingBulk(false);
     }
   };
 
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        ...(search ? { search } : {}),
+        ...(locationFilter !== "all" ? { location: locationFilter } : {}),
+        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+      });
+      const res = await apiFetch(`/api/warehousemanager/inventory?` + params.toString());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const items = (data.items || []).map(x => ({
+        productId: x.productId ?? x.id ?? x.ProductId ?? x.ProductID,
+        productCode: x.productCode ?? x.ProductCode ?? "-",
+        productName: x.productName ?? x.ProductName ?? "",
+        categoryName: x.categoryName ?? x.CategoryName ?? "",
+        onHand: x.onHand ?? x.quantity ?? x.QtyOnHand ?? 0,
+        uomName: x.uomName ?? x.Uom ?? x.Unit ?? "",
+        locationName: x.locationName ?? x.LocationName ?? "",
+        minStock: x.minStock ?? x.MinStock ?? 0,
+        status: x.status ?? x.Status ?? null,
+        note: x.note ?? x.Note ?? "",
+      }));
+      setRows(items);
+      setTotal(data.total ?? items.length);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [page, search, locationFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+
+  const [editingMin, setEditingMin] = useState({});
+  const [savingMin, setSavingMin] = useState({});
+
+  const startEditMin = (pid, value) => {
+    setEditingMin(prev => ({ ...prev, [pid]: value }));
+  };
+
+  const saveMinStock = async (pid) => {
+    const raw = editingMin[pid];
+    const value = Number(raw);
+    if (Number.isNaN(value) || value < 0) return;
+
+    setSavingMin(prev => ({ ...prev, [pid]: true }));
+    try {
+      const res = await apiFetch(`/api/warehousemanager/inventory/${pid}/min-stock`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ minStock: value }),
+      });
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const t = await res.text();
+          if (t) msg += ` - ${t}`;
+        } catch { }
+        throw new Error(msg);
+      }
+
+      setRows(prev => prev.map(r => r.productId === pid ? { ...r, minStock: value } : r));
+
+      setEditingMin(prev => {
+        const { [pid]: _, ...rest } = prev;
+        return rest;
+      });
+    } catch (e) {
+      console.error(e);
+      alert("Lưu định mức thất bại");
+    } finally {
+      setSavingMin(prev => ({ ...prev, [pid]: false }));
+    }
+  };
+
+
   return (
     <WarehouseLayout>
+      <Modal show={showMinModal} onHide={() => setShowMinModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Thiết lập định mức tối thiểu</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Label>Áp dụng cho tất cả sản phẩm trong trang hiện tại</Form.Label>
+          <InputGroup>
+            <Form.Control
+              type="number"
+              min={0}
+              value={bulkMin}
+              onChange={(e) => setBulkMin(e.target.value)}
+              placeholder="Nhập số lượng tối thiểu…"
+            />
+          </InputGroup>
+          <div className="text-muted small mt-2">
+            Gợi ý: lọc danh sách trước khi áp dụng để giới hạn phạm vi.
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowMinModal(false)} disabled={applyingBulk}>
+            Hủy
+          </Button>
+          <Button
+            variant="primary"
+            onClick={applyBulkMinStock}
+            disabled={applyingBulk || bulkMin === "" || Number(bulkMin) < 0}
+          >
+            {applyingBulk ? <Spinner animation="border" size="sm" /> : <FontAwesomeIcon icon={faSave} />} Áp dụng
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <div className="wm-page-header">
         <div>
           <div className="wm-breadcrumb">
@@ -141,72 +219,60 @@ const WarehouseInventory = () => {
           </div>
           <h1 className="wm-page-title">Quản lý tồn kho</h1>
           <p className="wm-page-subtitle">
-            Theo dõi lượng tồn theo vị trí lưu trữ, cảnh báo định mức và lập kế hoạch bổ sung hàng hóa.
+            Theo dõi lượng tồn, cảnh báo định mức và lập kế hoạch bổ sung.
           </p>
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
-            <FontAwesomeIcon icon={faSliders} />
-            Thiết lập định mức
+          <button type="button" className="wm-btn wm-btn--light" onClick={() => navigate(-1)}>
+            <FontAwesomeIcon icon={faArrowLeft} /> Quay lại
           </button>
-          <button type="button" className="wm-btn">
-            <FontAwesomeIcon icon={faLayerGroup} />
-            Sơ đồ kho
-          </button>
-          <button type="button" className="wm-btn wm-btn--primary">
-            <FontAwesomeIcon icon={faPlus} />
-            Tạo phiếu kiểm kê
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={() => setShowMinModal(true)}
+            disabled={rows.length === 0}
+          >
+            <FontAwesomeIcon icon={faSliders} /> Thiết lập định mức
           </button>
         </div>
       </div>
-
       <div className="wm-stat-grid">
         <div className="wm-stat-card">
-          <div className="wm-stat-card__icon">
-            <FontAwesomeIcon icon={faBoxesStacked} />
-          </div>
-          <span className="wm-stat-card__label">SKU đang quản lý</span>
+          <div className="wm-stat-card__icon"><FontAwesomeIcon icon={faBoxesStacked} /></div>
+          <span className="wm-stat-card__label">Số sản phẩm đang theo dõi</span>
           <span className="wm-stat-card__value">{summary.totalSku}</span>
-          <span className="wm-stat-card__meta">Theo danh mục thành phẩm</span>
+          <span className="wm-stat-card__meta">Theo trang lọc hiện tại</span>
         </div>
         <div className="wm-stat-card">
-          <div className="wm-stat-card__icon">
-            <FontAwesomeIcon icon={faLayerGroup} />
-          </div>
-          <span className="wm-stat-card__label">Tồn kho hiện tại</span>
+          <div className="wm-stat-card__icon"><FontAwesomeIcon icon={faLayerGroup} /></div>
+          <span className="wm-stat-card__label">Tồn kho trang hiện tại</span>
           <span className="wm-stat-card__value">{summary.totalStock}</span>
-          <span className="wm-stat-card__meta">Tính theo đơn vị lưu kho</span>
+          <span className="wm-stat-card__meta">Đơn vị lưu kho</span>
         </div>
         <div className="wm-stat-card">
-          <div className="wm-stat-card__icon">
-            <FontAwesomeIcon icon={faBell} />
-          </div>
-          <span className="wm-stat-card__label">SKU dưới định mức</span>
+          <div className="wm-stat-card__icon"><FontAwesomeIcon icon={faBell} /></div>
+          <span className="wm-stat-card__label">Dưới định mức</span>
           <span className="wm-stat-card__value">{summary.lowStock}</span>
           <span className="wm-stat-card__meta">Cần nhập bổ sung</span>
         </div>
         <div className="wm-stat-card">
-          <div className="wm-stat-card__icon">
-            <FontAwesomeIcon icon={faSearch} />
-          </div>
-          <span className="wm-stat-card__label">Cảnh báo ưu tiên</span>
+          <div className="wm-stat-card__icon"><FontAwesomeIcon icon={faSearch} /></div>
+          <span className="wm-stat-card__label">Cảnh báo nghiêm trọng</span>
           <span className="wm-stat-card__value">{summary.critical}</span>
-          <span className="wm-stat-card__meta">Mức thiếu hàng nghiêm trọng</span>
+          <span className="wm-stat-card__meta">Thiếu hàng nghiêm trọng</span>
         </div>
       </div>
 
       <div className="wm-surface wm-toolbar">
         <div className="wm-toolbar__search">
           <InputGroup>
-            <InputGroup.Text>
-              <FontAwesomeIcon icon={faSearch} />
-            </InputGroup.Text>
+            <InputGroup.Text><FontAwesomeIcon icon={faSearch} /></InputGroup.Text>
             <Form.Control
               type="text"
-              placeholder="Tìm theo SKU, tên sản phẩm hoặc danh mục..."
+              placeholder="Tìm theo mã, tên sản phẩm hoặc danh mục..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(e) => { setPage(1); setSearch(e.target.value); }}
             />
           </InputGroup>
         </div>
@@ -214,36 +280,26 @@ const WarehouseInventory = () => {
         <div className="wm-toolbar__actions">
           <Dropdown>
             <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {locationFilter}
+              {{
+                all: "Tất cả trạng thái",
+                stock: "Đủ hàng",
+                alert: "Cần theo dõi",
+                critical: "Thiếu hàng",
+              }[statusFilter]}
             </Dropdown.Toggle>
             <Dropdown.Menu align="end">
-              {LOCATIONS.map((location) => (
+              {["all", "stock", "alert", "critical"].map(st => (
                 <Dropdown.Item
-                  key={location}
-                  active={locationFilter === location}
-                  onClick={() => setLocationFilter(location)}
+                  key={st}
+                  active={statusFilter === st}
+                  onClick={() => { setPage(1); setStatusFilter(st); }}
                 >
-                  {location}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
-
-          <Dropdown>
-            <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {
-                STATUSES.find((status) => status.key === statusFilter)?.label ??
-                STATUSES[0].label
-              }
-            </Dropdown.Toggle>
-            <Dropdown.Menu align="end">
-              {STATUSES.map((status) => (
-                <Dropdown.Item
-                  key={status.key}
-                  active={statusFilter === status.key}
-                  onClick={() => setStatusFilter(status.key)}
-                >
-                  {status.label}
+                  {{
+                    all: "Tất cả trạng thái",
+                    stock: "Đủ hàng",
+                    alert: "Cần theo dõi",
+                    critical: "Thiếu hàng",
+                  }[st]}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
@@ -252,113 +308,96 @@ const WarehouseInventory = () => {
       </div>
 
       <div className="wm-surface wm-table wm-scroll">
-        <table className="table align-middle mb-0">
+        <Table responsive hover className="mb-0">
           <thead>
             <tr>
-              <th>SKU</th>
+              <th>#</th>
+              <th>Mã sản phẩm</th>
               <th>Tên sản phẩm</th>
-              <th>Danh mục</th>
               <th>Tồn kho</th>
-              <th>Vị trí lưu trữ</th>
               <th>Định mức tối thiểu</th>
               <th>Trạng thái</th>
               <th>Ghi chú</th>
             </tr>
           </thead>
           <tbody>
-            {filteredStock.length > 0 ? (
-              filteredStock.map((item) => (
-                <tr key={item.id}>
-                  <td className="fw-semibold">{item.sku}</td>
-                  <td>{item.name}</td>
-                  <td>{item.category}</td>
-                  <td>
-                    {item.quantity} {item.uom}
-                  </td>
-                  <td>{item.location}</td>
-                  <td>{item.minStock}</td>
-                  <td>{renderStatus(item.status)}</td>
-                  <td>{item.warning}</td>
-                </tr>
-              ))
+            {loading ? (
+              <tr><td colSpan={7} className="wm-empty"><Spinner animation="border" size="sm" /> Đang tải...</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={7} className="wm-empty">Không có dữ liệu phù hợp.</td></tr>
             ) : (
-              <tr>
-                <td colSpan={8} className="wm-empty">
-                  Không có sản phẩm phù hợp với bộ lọc hiện tại.
-                </td>
-              </tr>
+              rows.map((r, idx) => {
+                const st = r.status ?? getStatus(r);
+                const pid = r.productId;
+                const editing = Object.prototype.hasOwnProperty.call(editingMin, pid);
+                return (
+                  <tr key={pid}>
+                    <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td className="fw-semibold">{r.productCode || "-"}</td>
+                    <td>{r.productName}</td>
+                    <td>{r.onHand} {r.uomName}</td>
+                    <td style={{ minWidth: 140 }}>
+                      {editing ? (
+                        <div className="d-flex gap-2">
+                          <Form.Control
+                            size="sm"
+                            type="number"
+                            min={0}
+                            value={editingMin[pid]}
+                            onChange={(e) => startEditMin(pid, e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveMinStock(pid); }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={!!savingMin[pid]}
+                            onClick={() => saveMinStock(pid)}
+                          >
+                            <FontAwesomeIcon icon={faSave} />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span
+                          role="button"
+                          className="text-primary"
+                          onClick={() => startEditMin(pid, r.minStock)}
+                          title="Nhấp để chỉnh sửa"
+                        >
+                          {r.minStock}
+                        </span>
+                      )}
+                    </td>
+                    <td>{statusLabel(st)}</td>
+                    <td>{r.note || ""}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
-        </table>
+        </Table>
       </div>
 
-      <div className="wm-grid-two">
-        <section className="wm-surface">
-          <h2 className="wm-section-title mb-3">Tình trạng khu vực kho</h2>
-          <div className="wm-location-grid">
-            {[
-              { name: "Khu A", capacity: "84%", free: "16%", status: "Hoạt động ổn định" },
-              { name: "Khu B", capacity: "62%", free: "38%", status: "Có thể bổ sung" },
-              { name: "Khu C", capacity: "45%", free: "55%", status: "Sẵn sàng tiếp nhận" },
-            ].map((location) => (
-              <div key={location.name} className="wm-location-card">
-                <header>
-                  <strong>{location.name}</strong>
-                  <span>{location.status}</span>
-                </header>
-                <div className="wm-location-card__metrics">
-                  <div>
-                    <span>Đã sử dụng</span>
-                    <strong>{location.capacity}</strong>
-                  </div>
-                  <div>
-                    <span>Còn trống</span>
-                    <strong>{location.free}</strong>
-                  </div>
-                </div>
-                <div className="wm-location-card__bar">
-                  <div style={{ width: location.capacity }} />
-                </div>
-              </div>
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div>Tổng: {total} sản phẩm • Trang {page}/{totalPages}</div>
+        <div className="btn-group">
+          <button className="btn btn-outline-secondary" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+            Trước
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(p => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .reduce((acc, p, idx, arr) => { if (idx && p - arr[idx - 1] > 1) acc.push("..."); acc.push(p); return acc; }, [])
+            .map((p, i) => p === "..." ? (
+              <button key={`gap-${i}`} className="btn btn-outline-light" disabled>...</button>
+            ) : (
+              <button key={p} className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`} onClick={() => setPage(p)}>
+                {p}
+              </button>
             ))}
-          </div>
-        </section>
-
-        <section className="wm-surface">
-          <h2 className="wm-section-title mb-3">Cảnh báo cần xử lý</h2>
-          <ul className="wm-alert-list">
-            {[
-              {
-                badge: "SKU-LGT-201",
-                title: "Thiếu hàng Spotlight",
-                detail: "Lập kế hoạch nhập 50 pcs trước 20/11 để kịp dự án Sao Kim Tower.",
-              },
-              {
-                badge: "Kệ B07",
-                title: "Bố trí lại phụ kiện",
-                detail: "Đề xuất chuyển sang Khu C để giảm áp lực tồn kho khu B.",
-              },
-              {
-                badge: "Kiểm kê",
-                title: "Đến hạn kiểm kê định kỳ",
-                detail: "Lên kế hoạch kiểm kê toàn bộ Khu A tuần thứ 3 của tháng.",
-              },
-            ].map((alert, index) => (
-              <li key={alert.title} className="wm-alert-item">
-                <span className="wm-alert-item__badge">{index + 1}</span>
-                <div className="wm-alert-item__content">
-                  <h6>{alert.title}</h6>
-                  <p>{alert.detail}</p>
-                  <span className="wm-tag">{alert.badge}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <button className="btn btn-outline-secondary" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+            Sau
+          </button>
+        </div>
       </div>
     </WarehouseLayout>
   );
-};
-
-export default WarehouseInventory;
-
+}

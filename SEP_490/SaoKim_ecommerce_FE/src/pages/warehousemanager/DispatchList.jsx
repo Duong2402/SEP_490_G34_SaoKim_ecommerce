@@ -3,28 +3,36 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faSearch,
-  faCog,
   faEye,
   faCheck,
   faTrash,
   faPlus,
-  faArrowDownShortWide,
-  faArrowUpShortWide,
   faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Breadcrumb,
   Form,
   InputGroup,
-  Dropdown,
   Badge,
   Button,
 } from "@themesberg/react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import Dropdown from "react-bootstrap/Dropdown";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 const TYPE_FILTERS = ["All", "Sales", "Project"];
+const toStatusCode = (v) => {
+  if (v === 1 || v === "1") return 1;
+  if (v === 0 || v === "0") return 0;
+  if (typeof v === "string") {
+    const s = v.toLowerCase();
+    if (s.includes("confirm")) return 1;
+    if (s.includes("draft")) return 0;
+  }
+  return 0;
+};
 
 const DispatchList = () => {
   const navigate = useNavigate();
@@ -41,7 +49,7 @@ const DispatchList = () => {
       setLoading(true);
       try {
         const typeQuery = typeFilter === "All" ? "" : `?type=${typeFilter}`;
-        const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips${typeQuery}`);
+        const res = await apiFetch(`/api/warehousemanager/dispatch-slips${typeQuery}`);
         const data = await res.json();
         if (active) {
           setRows(data.items || []);
@@ -73,7 +81,7 @@ const DispatchList = () => {
   const handleConfirm = async (id) => {
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}/confirm`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/confirm`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Confirm failed");
@@ -91,7 +99,7 @@ const DispatchList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
@@ -155,13 +163,13 @@ const DispatchList = () => {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light">
-            <FontAwesomeIcon icon={faArrowDownShortWide} />
-            Tải mẫu phiếu
-          </button>
-          <button type="button" className="wm-btn">
-            <FontAwesomeIcon icon={faArrowUpShortWide} />
-            Lên kế hoạch giao
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={() => navigate("/warehouse-dashboard/dispatch-slips/create")}
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Tạo phiếu xuất kho
           </button>
           <button type="button" className="wm-btn wm-btn--primary">
             <FontAwesomeIcon icon={faFileExport} />
@@ -202,24 +210,6 @@ const DispatchList = () => {
               ))}
             </Dropdown.Menu>
           </Dropdown>
-
-          <Dropdown>
-            <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              <FontAwesomeIcon icon={faCog} />
-              Hiển thị {pageSize}
-            </Dropdown.Toggle>
-            <Dropdown.Menu align="end">
-              {[10, 20, 30, 50].map((size) => (
-                <Dropdown.Item
-                  key={size}
-                  active={pageSize === size}
-                  onClick={() => setPageSize(size)}
-                >
-                  {size} bản ghi
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
         </div>
       </div>
 
@@ -227,15 +217,14 @@ const DispatchList = () => {
         <table className="table align-middle mb-0">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>#</th>
               <th>Loại phiếu</th>
-              <th>Mã liên quan</th>
-              <th>Khách hàng / Dự án</th>
-              <th>Điểm đến</th>
+              <th>Mã</th>
+              <th>Phân Loại</th>
               <th>Ngày xuất</th>
-              <th>Trạng thái</th>
               <th>Ngày tạo</th>
               <th>Ngày xác nhận</th>
+              <th>Trạng thái</th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
@@ -254,22 +243,36 @@ const DispatchList = () => {
                 </td>
               </tr>
             ) : (
-              pagedRows.map((r) => {
+              pagedRows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
+                const code = toStatusCode(r.status);      // 0 = Draft, 1 = Confirmed
+                const isConfirmed = code === 1;
+
                 return (
                   <tr key={r.id}>
-                    <td>{r.id}</td>
+                    <td>{(currentPage - 1) * pageSize + index + 1}</td>
                     <td>
                       <Badge bg={isSales ? "info" : "secondary"}>{normalizedType}</Badge>
                     </td>
                     <td>{isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo}</td>
                     <td>{isSales ? r.customerName || "-" : r.projectName || "-"}</td>
-                    <td>{isSales ? r.shipTo || "-" : r.siteName || "-"}</td>
-                    <td>{formatDate(r.slipDate)}</td>
-                    <td>{renderStatus(r.status)}</td>
+
+                    {/* Nếu API trả dispatchDate, nên dùng r.dispatchDate thay cho r.slipDate */}
+                    <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
+
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
+
+                    {/* Trạng thái giống ReceivingList */}
+                    <td>
+                      {isConfirmed ? (
+                        <Badge bg="success">Đã xác nhận</Badge>
+                      ) : (
+                        <Badge bg="warning" text="dark">Nháp</Badge>
+                      )}
+                    </td>
+
                     <td>{r.note || "-"}</td>
                     <td className="text-end">
                       <Button
@@ -280,7 +283,8 @@ const DispatchList = () => {
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
-                      {r.status === 0 && (
+
+                      {!isConfirmed && (
                         <>
                           <Button
                             variant="outline-success"

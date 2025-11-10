@@ -2,12 +2,12 @@
 
 namespace SaoKim_ecommerce_BE.Entities
 {
-    [JsonConverter(typeof(JsonStringEnumConverter))] // giữ enum dạng chữ
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum TaskStatus
     {
-        New = 0,         // FE có thể hiển thị nhãn "Pending"
-        InProgress = 1,  // FE có thể hiển thị nhãn "Doing"
+        New = 0,
+        InProgress = 1,
         Done = 2,
-        Delayed = 3      // NEW: cho phép set/lưu trực tiếp trên chart
+        Delayed = 3
     }
 }

@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom";
 
 const menuItems = [
   {
-    title: "Bảng điều phối",
+    title: "Quản lý kho",
     icon: faGaugeHigh,
     link: "/warehouse-dashboard",
   },

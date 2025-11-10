@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SaoKim_ecommerce_BE.Entities
 {
+    [Table("products")]
     public class Product
     {
         [Key]
@@ -20,9 +21,30 @@ namespace SaoKim_ecommerce_BE.Entities
         [Required, MaxLength(50)]
         public string ProductCode { get; set; } = string.Empty;
 
+        [Column("category")]
+        [MaxLength(100)]
+        public string? Category { get; set; }
+
         [Column("unit")]
         [MaxLength(50)]
         public string? Unit { get; set; }
+
+        [Column("price", TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; }
+
+        [Column("quantity")]
+        public int Quantity { get; set; }
+
+        [Column("stock")]
+        public int Stock { get; set; }
+
+        [Column("status")]
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+        [MaxLength(300)]
+        [Column("image")]
+        public string? Image { get; set; }
 
         [Column("description")]
         [MaxLength(500)]
@@ -32,31 +54,15 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(200)]
         public string? Supplier { get; set; }
 
-        [Column("quantity")]
-        public int Quantity { get; set; }
-
-        [MaxLength(300)]
-        [Column("image")]
-        public string? Image { get; set; }
-
-
-        [Column("price", TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }
-
-        [Column("date")]
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-
         [Column("note")]
         [MaxLength(500)]
         public string? Note { get; set; }
 
-        [Column("category")]
-        [MaxLength(100)]
-        public string? Category { get; set; }
+        [Column("created")]
+        public DateTime? Created { get; set; } = DateTime.UtcNow;
 
-        [Column("status")]
-        [MaxLength(50)]
-        public string? Status { get; set; }
+        [Column("date")]
+        public DateTime Date { get; set; } = DateTime.UtcNow;
 
         [Column("create_at")]
         public DateTime? CreateAt { get; set; } = DateTime.UtcNow;
