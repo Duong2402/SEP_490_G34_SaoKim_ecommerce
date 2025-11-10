@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
@@ -24,7 +23,7 @@ import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
 import WarehouseInventory from "./pages/warehousemanager/WarehouseInventory";
 import ProductTrace from "./pages/warehousemanager/ProductTrace";
 
-// Projects module (cũ, giữ nguyên nếu bạn còn dùng ngoài khu Manager)
+// Projects module (cũ)
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
@@ -35,16 +34,19 @@ import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
 import ProductDetail from "./pages/products/ProductDetail";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
-// Manager area (đã có)
+// Manager area
 import ManagerLayout from "./layouts/ManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
 import ManagerProductList from "./pages/manager/products/ManagerProductList";
 
-// Manager Projects (mới tạo)
+// Manager Projects
 import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
 import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate";
 import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
+
+// *** NEW: Promotions ***
+import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
 
 export default function App() {
   const { t } = useLanguage();
@@ -74,7 +76,7 @@ export default function App() {
           <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
           <Route path="/warehouse-dashboard/warehouse-report/inbound-report" element={<InboundReport />} />
 
-          {/* Projects (đường dẫn cũ – dùng ngoài khu Manager nếu cần) */}
+          {/* Projects (ngoài khu Manager) */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
@@ -93,15 +95,21 @@ export default function App() {
             {/* Products cho Manager */}
             <Route path="products" element={<ManagerProductList />} />
 
-            {/* Projects cho Manager (trang mới) */}
+            {/* Projects cho Manager */}
             <Route path="projects" element={<ManagerProjectList />} />
             <Route path="projects/create" element={<ManagerProjectCreate />} />
             <Route path="projects/:id" element={<ManagerProjectDetail />} />
             <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+
+            {/* *** Promotions cho Manager *** */}
+            <Route path="promotions" element={<ManagerPromotionList />} />
           </Route>
 
           {/* 404 */}
-          <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
+          <Route
+            path="*"
+            element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>}
+          />
         </Routes>
       </BrowserRouter>
     </div>

@@ -29,6 +29,10 @@ export default function ManagerSidebar() {
       <NavLink to="/manager/projects" style={navLinkStyle}>
         Projects
       </NavLink>
+      {/* NEW */}
+      <NavLink to="/manager/promotions" style={navLinkStyle}>
+        Promotions
+      </NavLink>
       {/* bạn có thể mở thêm khi cần:
       <NavLink to="/manager/orders" style={navLinkStyle}>Orders</NavLink>
       <NavLink to="/manager/reports" style={navLinkStyle}>Reports</NavLink>
