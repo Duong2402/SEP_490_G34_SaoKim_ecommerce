@@ -1,81 +1,106 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import "../styles/home.css";
 
-export default function ProductSidebar({ categories = [], selectedCategory, onCategoryChange, onPriceFilter }) {
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(93000000);
+export default function ProductSidebar({
+  categories = [],
+  selectedCategory,
+  onCategoryChange,
+  onPriceFilter,
+}) {
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
-  const handleFilter = () => {
+  const toggleCategory = (category) => {
+    if (!onCategoryChange) return;
+    if (selectedCategory === category) {
+      onCategoryChange("");
+    } else {
+      onCategoryChange(category);
+    }
+  };
+
+  const applyPriceFilter = () => {
+    if (!onPriceFilter) return;
+    const min = minPrice === "" ? null : Number(minPrice);
+    const max = maxPrice === "" ? null : Number(maxPrice);
+    onPriceFilter({ min, max });
+  };
+
+  const resetPriceFilter = () => {
+    setMinPrice("");
+    setMaxPrice("");
     if (onPriceFilter) {
-      onPriceFilter({ min: minPrice, max: maxPrice });
+      onPriceFilter({ min: null, max: null });
     }
   };
 
   return (
-    <aside className="col-md-3">
-      {/* DANH MỤC SẢN PHẨM */}
-      <div className="bg-white p-3 mb-3 border rounded">
-        <h5 className="text-success fw-bold mb-3">DANH MỤC SẢN PHẨM</h5>
-        <div className="d-flex flex-column gap-2">
-          {categories.map((cat) => (
-            <label key={cat} className="d-flex align-items-center gap-2">
-              <input
-                type="checkbox"
-                checked={selectedCategory === cat}
-                onChange={() => onCategoryChange && onCategoryChange(cat)}
-                className="form-check-input"
-              />
-              <span>{cat}</span>
-            </label>
-          ))}
-        </div>
+    <aside className="home-sidebar">
+      <div className="home-sidebar__card">
+        <h5>Categories</h5>
+        {categories.length ? (
+          <div className="home-sidebar__filters">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={`home-filter-pill${selectedCategory === category ? " is-active" : ""}`}
+                onClick={() => toggleCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+            {selectedCategory && (
+              <button
+                type="button"
+                className="home-filter-pill"
+                onClick={() => toggleCategory(selectedCategory)}
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-secondary small"></div>
+        )}
       </div>
 
-      {/* LỌC THEO GIÁ */}
-      <div className="bg-white p-3 mb-3 border rounded">
-        <h5 className="text-success fw-bold mb-3">LỌC THEO GIÁ</h5>
-        <div className="mb-2">
-          <label className="form-label">Giá: {new Intl.NumberFormat("vi-VN").format(minPrice)} VND – {new Intl.NumberFormat("vi-VN").format(maxPrice)} VND</label>
-          <div className="d-flex gap-2">
+      <div className="home-sidebar__card">
+        <h5>Price range</h5>
+        <div className="home-price-range">
+          <div className="home-price-inputs">
             <input
               type="number"
-              className="form-control form-control-sm"
-              value={minPrice}
-              onChange={(e) => setMinPrice(Number(e.target.value))}
+              min="0"
               placeholder="Min"
+              value={minPrice}
+              onChange={(event) => setMinPrice(event.target.value)}
             />
             <input
               type="number"
-              className="form-control form-control-sm"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              min="0"
               placeholder="Max"
+              value={maxPrice}
+              onChange={(event) => setMaxPrice(event.target.value)}
             />
           </div>
-        </div>
-        <button onClick={handleFilter} className="btn btn-secondary w-100 btn-sm">
-          LỌC
-        </button>
-      </div>
-
-      {/* SẢN PHẨM ĐÃ XEM GẦN ĐÂY */}
-      <div className="bg-white p-3 mb-3 border rounded">
-        <h5 className="text-success fw-bold mb-3">SẢN PHẨM ĐÃ XEM GẦN ĐÂY</h5>
-        <div className="text-muted text-sm">
-          <p>Chưa có sản phẩm nào</p>
+          <div className="d-flex align-items-center gap-2">
+            <button type="button" className="home-price-apply" onClick={applyPriceFilter}>
+              Apply
+            </button>
+            <button type="button" className="btn btn-link p-0 text-secondary" onClick={resetPriceFilter}>
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Social icons */}
-      <div className="d-flex gap-2">
-        <a href="#" className="btn btn-primary btn-sm rounded-circle" style={{ width: 40, height: 40 }}>
-          💬
-        </a>
-        <a href="#" className="btn btn-info btn-sm rounded-circle" style={{ width: 40, height: 40 }}>
-          💬
-        </a>
+      <div className="home-sidebar__card">
+        <h5>Recently viewed</h5>
+        <div className="text-secondary small">
+          Products you explore will appear here for quick access.
+        </div>
       </div>
     </aside>
   );
 }
-

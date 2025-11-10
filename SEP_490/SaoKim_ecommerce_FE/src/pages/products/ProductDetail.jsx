@@ -1,58 +1,163 @@
-import { useEffect, useState, useCallback, useMemo, memo } from "react";
-import { useParams, Link } from "react-router-dom";
+﻿import { useEffect, useMemo, useState, memo } from "react";
+import { Link, useParams } from "react-router-dom";
+import EcommerceHeader from "../../components/EcommerceHeader";
+import "../../styles/product-detail.css";
 
 let API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
 if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
+const FALLBACK_IMAGE = "https://via.placeholder.com/800x600?text=No+Image";
+
 async function fetchJson(url, opts = {}) {
-  const res = await fetch(url, opts);
-  const text = await res.text();
-  if (!res.ok) throw new Error(text || res.statusText);
+  const response = await fetch(url, opts);
+  const text = await response.text();
+  if (!response.ok) throw new Error(text || response.statusText);
   return text ? JSON.parse(text) : null;
 }
 
-function imgUrl(pathOrFile) {
-  if (!pathOrFile) return "https://via.placeholder.com/800x600?text=No+Image";
-  // BE đã trả dạng "/images/xxx.jpg" nên nối API_BASE (nếu có)
-  if (pathOrFile.startsWith("http")) return pathOrFile;
-  return `${API_BASE}${pathOrFile.startsWith("/") ? "" : "/"}${pathOrFile}`;
+function buildImageUrl(pathOrFile) {
+  if (!pathOrFile) return FALLBACK_IMAGE;
+  if (pathOrFile.startsWith("http://") || pathOrFile.startsWith("https://")) return pathOrFile;
+  const relative = pathOrFile.startsWith("/") ? pathOrFile : `/${pathOrFile}`;
+  return `${API_BASE}${relative}`;
 }
 
-// Component riêng cho sản phẩm liên quan để tránh re-render
-const RelatedProductCard = memo(({ product }) => {
+function formatCurrency(value) {
+  const numeric = Number(value || 0);
+  if (!numeric) return "Contact for pricing";
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(numeric);
+}
+
+function adaptProductResponse(payload) {
+  if (!payload) {
+    return { product: null, related: [] };
+  }
+  if (payload.product || payload.related || payload.relatedProducts) {
+    return {
+      product: payload.product ?? null,
+      related: payload.related ?? payload.relatedProducts ?? [],
+    };
+  }
+  if (payload.data?.product || payload.data?.related) {
+    return {
+      product: payload.data.product ?? null,
+      related: payload.data.related ?? [],
+    };
+  }
+  if (payload.id || payload.name) {
+    return { product: payload, related: payload.related ?? payload.relatedProducts ?? [] };
+  }
+  return { product: null, related: [] };
+}
+
+function buildGallery(product) {
+  if (!product) return [FALLBACK_IMAGE];
+  const collected = [];
+  const push = (value) => {
+    if (!value) return;
+    const url = buildImageUrl(value);
+    if (!collected.includes(url)) collected.push(url);
+  };
+
+  push(product.image);
+  push(product.thumbnailUrl);
+
+  if (Array.isArray(product.images)) {
+    product.images.forEach((item) => {
+      if (typeof item === "string") push(item);
+      else if (item?.url) push(item.url);
+      else if (item?.path) push(item.path);
+    });
+  }
+
+  if (Array.isArray(product.gallery)) {
+    product.gallery.forEach((item) => {
+      if (typeof item === "string") push(item);
+      else if (item?.url) push(item.url);
+    });
+  }
+
+  return collected.length ? collected : [FALLBACK_IMAGE];
+}
+
+function normalizeSpecifications(product) {
+  if (!product) return [];
+  const source =
+    product.specifications ||
+    product.attributes ||
+    product.details ||
+    product.technicalSpecifications;
+  if (!source) return [];
+
+  if (Array.isArray(source)) {
+    return source
+      .map((item) => ({
+        label: item?.label ?? item?.name ?? item?.key ?? "",
+        value: item?.value ?? item?.content ?? item?.detail ?? "",
+      }))
+      .filter((item) => item.label && item.value);
+  }
+
+  if (typeof source === "object") {
+    return Object.entries(source)
+      .map(([label, value]) => ({
+        label,
+        value: Array.isArray(value) ? value.join(", ") : value,
+      }))
+      .filter(
+        (item) =>
+          item.label &&
+          item.value !== undefined &&
+          item.value !== null &&
+          String(item.value).trim().length
+      );
+  }
+
+  return [];
+}
+
+function pickHighlights(product) {
+  if (!product) return [];
+  const source = product.highlights || product.features || product.tags;
+  if (!source) return [];
+  if (Array.isArray(source)) {
+    return source.map((item) => (typeof item === "string" ? item : item?.label ?? item?.name));
+  }
+  if (typeof source === "string") {
+    return source
+      .split(/\n|\u2022|-/u)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+const RelatedProductCard = memo(function RelatedProductCard({ product }) {
+  const [imageError, setImageError] = useState(false);
+
   if (!product) return null;
-  
-  const imageUrl = useMemo(() => imgUrl(product.image), [product.image]);
-  const formattedPrice = useMemo(
-    () => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(product.price || 0)),
-    [product.price]
-  );
-  const [imgError, setImgError] = useState(false);
+
+  const imageUrl = buildImageUrl(product.image || product.thumbnailUrl);
 
   return (
-    <Link
-      to={`/products/${product.id}`}
-      className="rounded-2xl border p-3 hover:shadow transition block"
-    >
-      <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-gray-100">
+    <Link to={`/products/${product.id}`} className="product-related-card">
+      <div className="product-related-card__media">
         <img
-          src={imgError ? "https://via.placeholder.com/400x300?text=No+Image" : imageUrl}
-          alt={product.name || 'Product'}
-          className="w-full h-full object-cover"
+          src={imageError ? FALLBACK_IMAGE : imageUrl}
+          alt={product.name || "San pham"}
           loading="lazy"
-          onError={() => setImgError(true)}
+          onError={() => setImageError(true)}
         />
       </div>
-      <div className="mt-2 line-clamp-2 text-sm">{product.name || ''}</div>
-      <div className="text-sm font-semibold">{formattedPrice}</div>
+      <div className="product-related-card__body">
+        <div className="product-related-card__title">{product.name || "San pham"}</div>
+        <div className="product-related-card__price">{formatCurrency(product.price)}</div>
+      </div>
     </Link>
   );
 }, (prevProps, nextProps) => {
-  // Return true nếu KHÔNG cần re-render (tất cả giá trị giống nhau)
-  // Return false nếu CẦN re-render (có giá trị thay đổi)
   if (!prevProps.product || !nextProps.product) return false;
-  
   return (
     prevProps.product.id === nextProps.product.id &&
     prevProps.product.name === nextProps.product.name &&
@@ -67,181 +172,469 @@ export default function ProductDetail() {
   const { id } = useParams();
   const [data, setData] = useState({ product: null, related: [] });
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [userName, setUserName] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [error, setError] = useState("");
+  const [authState, setAuthState] = useState({ isLoggedIn: false, name: "" });
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [mainImageError, setMainImageError] = useState(false);
+  const [reviews, setReviews] = useState({ items: [], averageRating: 0, count: 0 });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
-  // Fetch product data
   useEffect(() => {
-    const url = `${API_BASE}/api/products/${id}`;
+    let cancelled = false;
     setLoading(true);
-    setErr("");
+    setError("");
+
+    const url = `${API_BASE}/api/products/${id}`;
+
     fetchJson(url)
-      .then((json) => setData(json || { product: null, related: [] }))
-      .catch((e) => setErr(e.message || "Fetch error"))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  // Kiểm tra authentication - chỉ update state khi giá trị thay đổi
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName");
-      
-      // Chỉ update state nếu giá trị thực sự thay đổi
-      setIsLoggedIn((prev) => {
-        const newValue = !!(token && name);
-        return prev !== newValue ? newValue : prev;
+      .then((payload) => {
+        if (cancelled) return;
+        setData(adaptProductResponse(payload));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Unable to load product information");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      
-      setUserName((prev) => {
-        const newValue = name || null;
-        return prev !== newValue ? newValue : prev;
-      });
-    };
-
-    // Check ngay khi mount
-    checkAuth();
-
-    const handleStorageChange = (e) => {
-      if (e.key === "token" || e.key === "userName" || !e.key) {
-        checkAuth();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("localStorageChange", checkAuth);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("localStorageChange", checkAuth);
+      cancelled = true;
+    };
+  }, [id]);
+
+  // Load product reviews
+  useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    setReviewError("");
+    setReviews({ items: [], averageRating: 0, count: 0 });
+
+    const url = `${API_BASE}/api/products/${id}/reviews`;
+    fetchJson(url)
+      .then((payload) => {
+        if (cancelled) return;
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        setReviews({
+          items,
+          averageRating: Number(payload?.averageRating || 0),
+          count: Number(payload?.count || items.length || 0),
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setReviewError(err.message || "Unable to load reviews");
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const syncAuth = () => {
+      const token = localStorage.getItem("token");
+      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail") || "";
+      const isLoggedIn = Boolean(token && name);
+      setAuthState((prev) => {
+        if (prev.isLoggedIn === isLoggedIn && prev.name === name) return prev;
+        return { isLoggedIn, name };
+      });
+    };
+
+    syncAuth();
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("localStorageChange", syncAuth);
+
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("localStorageChange", syncAuth);
     };
   }, []);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("role");
-    setIsLoggedIn(false);
-    setUserName(null);
-    window.dispatchEvent(new Event("localStorageChange"));
-  }, []);
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [data?.product?.id]);
 
-  // Memoize header component để tránh re-render
-  const renderHeader = useMemo(() => (
-    <header className="py-3 border-bottom bg-white shadow-sm">
-      <div className="container-fluid px-4 d-flex align-items-center justify-content-between">
-        <Link to="/" className="navbar-brand d-flex align-items-center gap-2 text-dark text-decoration-none">
-          <img src="/images/logo.png" alt="Logo" style={{ height: 40 }} />
-          <span className="fw-bold fs-5">SaoKim E-commerce</span>
-        </Link>
-        <nav className="d-flex gap-4 align-items-center">
-          <a href="/#new-arrivals" className="nav-link text-dark fw-medium">Hàng mới</a>
-          <a href="/#all-products" className="nav-link text-dark fw-medium">Sản phẩm</a>
-          {isLoggedIn ? (
-            <div className="d-flex align-items-center gap-3">
-              <span className="text-dark fw-medium">Xin chào, {userName}</span>
-              <button 
-                onClick={handleLogout}
-                className="btn btn-outline-secondary btn-sm text-dark fw-medium"
-              >
-                Đăng xuất
-              </button>
-            </div>
-          ) : (
-            <Link to="/login" className="btn btn-warning btn-sm text-dark fw-medium">Đăng nhập</Link>
-          )}
-        </nav>
-      </div>
-    </header>
-  ), [isLoggedIn, userName, handleLogout]);
+  useEffect(() => {
+    setMainImageError(false);
+  }, [activeImageIndex, data?.product?.id]);
 
-  if (loading) return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "#fff", color: "#222" }}>
-      {renderHeader}
-      <div className="p-6">Đang tải...</div>
+  const product = data.product;
+  const gallery = useMemo(() => buildGallery(product), [product]);
+  const specifications = useMemo(() => normalizeSpecifications(product), [product]);
+  const highlights = useMemo(() => pickHighlights(product), [product]);
+  const relatedProducts = Array.isArray(data.related) ? data.related : [];
+
+  const quickFacts = useMemo(() => {
+    if (!product) return [];
+    return [
+      {
+        label: "Product code",
+        value: product.code || product.sku || product.productCode || "-",
+      },
+      {
+        label: "Category",
+        value: product.category || product.categoryName || "Updating",
+      },
+      {
+        label: "Inventory",
+        value:
+          typeof product.quantity === "number"
+            ? `${product.quantity} items`
+            : product.stockStatus || "Contact us",
+      },
+      {
+        label: "Warranty",
+        value: product.warranty || "12 months standard",
+      },
+    ].filter((item) => item.value);
+  }, [product]);
+
+  const descriptionParagraphs = useMemo(() => {
+    if (!product?.description) return [];
+    return String(product.description)
+      .split(/\n{2,}|\r\n\r\n/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean);
+  }, [product]);
+
+  const heroSummary = useMemo(() => {
+    if (!product) return "";
+    if (product.summary) return product.summary;
+    if (product.shortDescription) return product.shortDescription;
+    if (product.description) {
+      const firstSentence = product.description.split(".")[0];
+      return firstSentence.length > 160
+        ? `${firstSentence.slice(0, 157)}...`
+        : firstSentence;
+    }
+    return "Lighting solutions tailored for modern spaces.";
+  }, [product]);
+
+  const activeImage =
+    !mainImageError && gallery[activeImageIndex] ? gallery[activeImageIndex] : FALLBACK_IMAGE;
+
+  const renderStatus = (message) => (
+    <div className="product-detail-page">
+      <EcommerceHeader />
+      <main className="product-detail-main">
+        <div className="product-detail-container">
+          <div className="product-detail-status">{message}</div>
+        </div>
+      </main>
     </div>
   );
-  if (err) return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "#fff", color: "#222" }}>
-      {renderHeader}
-      <div className="p-6 text-red-700">Lỗi: {err}</div>
-    </div>
-  );
-  if (!data?.product) return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "#fff", color: "#222" }}>
-      {renderHeader}
-      <div className="p-6">Không tìm thấy sản phẩm.</div>
-    </div>
-  );
 
-  const p = data.product;
+  if (loading) return renderStatus("Loading product details...");
+  if (error) return renderStatus(`Something went wrong: ${error}`);
+  if (!product) return renderStatus("Product not found.");
 
   return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "#fff", color: "#222" }}>
-      {/* HEADER */}
-      {renderHeader}
-
-      {/* CONTENT */}
-      <div className="mx-auto max-w-6xl p-4 md:p-6">
-      <nav className="mb-4 text-sm">
-        <Link to="/" className="text-blue-600 hover:underline">Trang chủ</Link>
-        <span className="mx-2">/</span>
-        <span className="text-gray-600">Chi tiết sản phẩm</span>
-      </nav>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Hình */}
-        <div className="rounded-2xl border overflow-hidden bg-gray-50">
-          <img
-            src={imgUrl(p.image)}
-            alt={p.name}
-            className="w-full h-full object-contain"
-            style={{ maxHeight: 520 }}
-            onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/800x600?text=No+Image")}
-          />
-        </div>
-
-        {/* Thông tin */}
-        <div className="space-y-4">
-          <h1 className="text-2xl font-bold">{p.name}</h1>
-          <div className="text-xl font-semibold">
-            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(p.price || 0))}
-          </div>
-          <div className="text-sm text-gray-600">
-            Mã: <span className="font-mono">{p.code || "-"}</span>
-          </div>
-          <div className="text-sm text-gray-600">
-            Danh mục: <span>{p.category || "-"}</span>
-          </div>
-          <div className="text-sm text-gray-600">
-            Tồn kho: <span>{typeof p.quantity === "number" ? p.quantity : "-"}</span>
-          </div>
-          {p.description && (
-            <div className="prose max-w-none">
-              <h3 className="font-semibold">Mô tả</h3>
-              <p className="whitespace-pre-line">{p.description}</p>
+    <div className="product-detail-page">
+      <EcommerceHeader />
+      <main className="product-detail-main">
+        <div className="product-detail-container">
+          <section className="product-detail-hero">
+            <div className="product-detail-breadcrumbs">
+              <Link to="/">Home</Link>
+              <span>/</span>
+              <Link to="/#catalog">Product catalogue</Link>
+              <span>/</span>
+              <span>{product.name || "San pham"}</span>
             </div>
-          )}
-          <div className="pt-2">
-            <button className="rounded-xl bg-black text-white px-5 py-3">Thêm vào giỏ</button>
-          </div>
-        </div>
-      </div>
+            <div className="product-detail-hero__content">
+              <h1>{product.name || "San pham"}</h1>
+              <p>{heroSummary}</p>
+              <div className="product-detail-hero__meta">
+                <span className="product-detail-hero__badge">Authentic product</span>
+                {product.brand && <span className="product-detail-hero__badge">Brand: {product.brand}</span>}
+                {product.category && (
+                  <span className="product-detail-hero__badge">Category: {product.category}</span>
+                )}
+              </div>
+            </div>
+          </section>
 
-      {/* Sản phẩm liên quan */}
-      {data.related && Array.isArray(data.related) && data.related.length > 0 && (
-        <section className="mt-10">
-          <div className="mb-3 text-lg font-semibold">Sản phẩm liên quan</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {data.related.map((r) => (
-              <RelatedProductCard key={r.id} product={r} />
-            ))}
+          <div className="product-detail-grid">
+            <div className="product-gallery">
+              <div className="product-gallery__main">
+                <img
+                  src={activeImage}
+                  alt={product.name || "San pham"}
+                  onError={() => setMainImageError(true)}
+                />
+              </div>
+              {gallery.length > 1 && (
+                <div className="product-gallery__thumbs">
+                  {gallery.map((image, index) => (
+                    <button
+                      type="button"
+                      key={image}
+                      className={`product-gallery__thumb${index === activeImageIndex ? " is-active" : ""}`}
+                      onClick={() => setActiveImageIndex(index)}
+                    >
+                      <img src={image} alt={`View image ${index + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="product-info">
+              <div>
+                <div className="product-info__price">{formatCurrency(product.price)}</div>
+                <div className="product-info__stock">
+                  {typeof product.quantity === "number" && product.quantity > 0 ? (
+                    <>
+                      <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                      <span>In stock</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                      <span>Contact us for stock availability</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {!!quickFacts.length && (
+                <dl className="product-info__facts">
+                  {quickFacts.map((item) => (
+                    <div className="product-info__fact" key={`${item.label}-${item.value}`}>
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              {highlights.length > 0 && (
+                <ul className="product-info__highlights">
+                  {highlights.slice(0, 4).map((highlight, index) => (
+                    <li key={index}>{highlight}</li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="product-info__cta">
+                {authState.isLoggedIn ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary product-info__cta-primary"
+                      onClick={() => {
+                        if (!product) return;
+                        const readCart = () => {
+                          try {
+                            const raw = localStorage.getItem("cartItems");
+                            const parsed = raw ? JSON.parse(raw) : [];
+                            return Array.isArray(parsed) ? parsed : [];
+                          } catch {
+                            return [];
+                          }
+                        };
+                        const writeCart = (items) => {
+                          const normalized = Array.isArray(items) ? items : [];
+                          localStorage.setItem("cartItems", JSON.stringify(normalized));
+                          const count = normalized.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+                          localStorage.setItem("cartCount", String(count));
+                          window.dispatchEvent(new Event("localStorageChange"));
+                        };
+                        const current = readCart();
+                        const existing = current.find((it) => it.id === product.id);
+                        if (existing) {
+                          existing.quantity = (Number(existing.quantity) || 0) + 1;
+                          writeCart([...current]);
+                        } else {
+                          const newItem = {
+                            id: product.id,
+                            name: product.name || "San pham",
+                            price: Number(product.price) || 0,
+                            image: (product.image || product.thumbnailUrl) ?? "",
+                            code: product.code || product.sku || product.productCode,
+                            quantity: 1,
+                          };
+                          writeCart([...(current || []), newItem]);
+                        }
+                      }}
+                    >
+                      Add to cart
+                    </button>
+                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
+                      Lighting consultation
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" className="btn btn-primary product-info__cta-primary">
+                      Sign in to purchase
+                    </Link>
+                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
+                      Call 0918 113 559
+                    </a>
+                  </>
+                )}
+              </div>
+
+              <div className="product-info__service">
+                <span>
+                  <i className="fa-solid fa-truck-fast" aria-hidden="true" />
+                  Nationwide delivery within 2-4 days
+                </span>
+                <span>
+                  <i className="fa-solid fa-shield-halved" aria-hidden="true" />
+                  7-day return policy for manufacturing faults
+                </span>
+                <span>
+                  <i className="fa-solid fa-lightbulb" aria-hidden="true" />
+                  Complimentary lighting design consultation
+                </span>
+              </div>
+            </div>
           </div>
-        </section>
-      )}
-      </div>
+
+          {descriptionParagraphs.length > 0 && (
+            <section className="product-description">
+              <h3>Product details</h3>
+              {descriptionParagraphs.map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </section>
+          )}
+
+          {!!specifications.length && (
+            <section className="product-specs">
+              <h3>Specifications</h3>
+              <dl className="product-specs__list">
+                {specifications.map((spec) => (
+                  <div className="product-specs__row" key={`${spec.label}-${spec.value}`}>
+                    <dt>{spec.label}</dt>
+                    <dd>{spec.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          {relatedProducts.length > 0 && (
+            <section className="product-related">
+              <div className="product-related__header">
+                <h3>Related products</h3>
+                <Link to="/#catalog">Browse catalogue</Link>
+              </div>
+              <div className="product-related__grid">
+                {relatedProducts.slice(0, 6).map((related) => (
+                  <RelatedProductCard key={related.id} product={related} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="product-reviews">
+            <h3>Customer reviews</h3>
+            {reviewsLoading ? (
+              <div>Loading reviews...</div>
+            ) : reviewError ? (
+              <div className="text-danger">{reviewError}</div>
+            ) : (
+              <>
+                <div className="product-reviews__summary">
+                  <strong>Average rating:</strong> {reviews.averageRating} / 5 ({reviews.count} {reviews.count === 1 ? "review" : "reviews"})
+                </div>
+                <ul className="product-reviews__list">
+                  {reviews.items.length === 0 && <li>No reviews yet.</li>}
+                  {reviews.items.map((r) => (
+                    <li key={r.id} className="product-reviews__item">
+                      <div className="product-reviews__item-head">
+                        <span className="product-reviews__user">{r.userName || "Customer"}</span>
+                        <span className="product-reviews__rating">{`★`.repeat(r.rating)}{`☆`.repeat(5 - r.rating)}</span>
+                      </div>
+                      {r.comment && <div className="product-reviews__comment">{r.comment}</div>}
+                      <div className="product-reviews__date">{new Date(r.createdAt).toLocaleString()}</div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {authState.isLoggedIn ? (
+              <form
+                className="product-reviews__form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (submittingReview) return;
+                  setSubmittingReview(true);
+                  const token = localStorage.getItem("token");
+                  try {
+                    const res = await fetch(`${API_BASE}/api/products/${id}/reviews`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ rating: Number(reviewForm.rating), comment: reviewForm.comment }),
+                    });
+                    const text = await res.text();
+                    if (!res.ok) throw new Error(text || res.statusText);
+                    const payload = text ? JSON.parse(text) : { items: [] };
+                    const items = Array.isArray(payload?.items) ? payload.items : [];
+                    setReviews({
+                      items,
+                      averageRating: Number(payload?.averageRating || 0),
+                      count: Number(payload?.count || items.length || 0),
+                    });
+                    setReviewForm({ rating: 5, comment: "" });
+                  } catch (err) {
+                    alert(err.message || "Unable to submit review");
+                  } finally {
+                    setSubmittingReview(false);
+                  }
+                }}
+              >
+                <div className="form-group">
+                  <label htmlFor="rating">Your rating</label>
+                  <select
+                    id="rating"
+                    className="form-control"
+                    value={reviewForm.rating}
+                    onChange={(e) => setReviewForm((s) => ({ ...s, rating: e.target.value }))}
+                  >
+                    {[5, 4, 3, 2, 1].map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="comment">Comment (optional)</label>
+                  <textarea
+                    id="comment"
+                    className="form-control"
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Share your experience with this product"
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm((s) => ({ ...s, comment: e.target.value }))}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={submittingReview}>
+                  {submittingReview ? "Submitting..." : "Submit review"}
+                </button>
+              </form>
+            ) : (
+              <div className="product-reviews__signin">
+                <Link to="/login">Sign in</Link> to write a review.
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
-using System.Linq;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -16,27 +15,14 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db = db;
         }
 
-        // GET: api/products  danh sách đơn giản – vẫn giữ
         [HttpGet]
-        public async Task<IActionResult> GetProducts()
+        public IActionResult GetProducts()
         {
-            var products = await _db.Products
-                .OrderByDescending(p => p.CreateAt ?? p.Date)
-                .Select(p => new {
-                    id = p.ProductID,
-                    name = p.ProductName,
-                    price = p.Price,
-                    image = p.Image != null ? $"/images/{p.Image}" : null,
-                    description = p.Description,
-                    category = p.Category,
-                    createAt = p.CreateAt ?? p.Date,
-                    quantity = p.Quantity
-                })
-                .ToListAsync();
-
+            var products = _db.Products
+                .Select(p => new { id = p.ProductID, name = p.ProductName })
+                .ToList();
             return Ok(products);
         }
-
         // GET: api/products/home
         [HttpGet("home")]
         public async Task<IActionResult> GetHomeProducts(
@@ -45,7 +31,7 @@ namespace SaoKim_ecommerce_BE.Controllers
     [FromQuery] string? SortBy = "new",
     [FromQuery] string? Keyword = null,
     [FromQuery] string? Category = null,
-    [FromQuery] int NewWithinDays = 14 
+    [FromQuery] int NewWithinDays = 14
 )
         {
             Page = Math.Max(1, Page);
@@ -60,7 +46,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
                 .OrderByDescending(p => p.CreateAt ?? p.Date)
                 .Take(8)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.ProductID,
                     name = p.ProductName,
                     price = p.Price,
@@ -76,10 +63,11 @@ namespace SaoKim_ecommerce_BE.Controllers
             var newArrivals = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null))
-                .Where(p => (p.CreateAt ?? p.Date) >= cutoff) 
+                .Where(p => (p.CreateAt ?? p.Date) >= cutoff)
                 .OrderByDescending(p => p.CreateAt ?? p.Date)
                 .Take(12)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.ProductID,
                     name = p.ProductName,
                     price = p.Price,
@@ -119,7 +107,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             var items = await q
                 .Skip((Page - 1) * PageSize)
                 .Take(PageSize)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.ProductID,
                     name = p.ProductName,
                     price = p.Price,
@@ -184,3 +173,4 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
     }
 }
+

@@ -7,11 +7,10 @@ namespace SaoKim_ecommerce_BE.Data
     {
         public static async Task SeedAsync(SaoKimDBContext db)
         {
-            // ---- ROLES (như bạn đã làm) ----
             var roleSeeds = new List<Role> {
         new Role { RoleId = 1, Name = "admin" },
         new Role { RoleId = 2, Name = "warehouse_manager" },
-        new Role { RoleId = 3, Name = "sales" },
+        new Role { RoleId = 3, Name = "staff" },
         new Role { RoleId = 4, Name = "customer" },
         new Role { RoleId = 5, Name = "manager" },
         new Role { RoleId = 6, Name = "project_manager" }
@@ -20,12 +19,11 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
-            // ---- PRODUCTS: upsert theo ProductCode ----
             var seeds = new List<Product>
     {
         new() {
             ProductName = "Đèn Rạng Đông",
-            ProductCode = "RD-01",              // ĐỔI để tránh unicode lạ trong code
+            ProductCode = "RD-01",
             Supplier    = "Rạng Đông",
             Quantity    = 120,
             Unit        = "Cái",
@@ -51,7 +49,7 @@ namespace SaoKim_ecommerce_BE.Data
         },
         new() {
             ProductName = "Đèn Sáng",
-            ProductCode = "HS-02",              // KHÔNG trùng với HS-01 nữa
+            ProductCode = "HS-02",
             Supplier    = "Sáng",
             Quantity    = 60,
             Unit        = "Cái",
@@ -73,7 +71,6 @@ namespace SaoKim_ecommerce_BE.Data
                 }
                 else
                 {
-                    // cập nhật nếu đã tồn tại
                     exist.ProductName = s.ProductName;
                     exist.Supplier = s.Supplier;
                     exist.Quantity = s.Quantity;
@@ -88,7 +85,6 @@ namespace SaoKim_ecommerce_BE.Data
             }
             await db.SaveChangesAsync();
 
-            // Lấy lại theo code để có ID chính xác cho phiếu nhập
             var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");
             var hs1 = await db.Products.SingleAsync(p => p.ProductCode == "HS-01");
 
