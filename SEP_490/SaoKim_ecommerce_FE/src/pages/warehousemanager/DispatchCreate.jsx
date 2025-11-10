@@ -53,7 +53,6 @@ export default function DispatchCreate() {
   const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
 
-  // Load products
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -214,8 +213,11 @@ export default function DispatchCreate() {
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
       for (const it of items) {
+        const p = findProductById(it.productId);
         const itemPayload = {
           productId: Number(it.productId),
+          productName: p?.name ?? "",
+          uom: p?.unit ?? "pcs",
           quantity: Number(it.quantity || 0),
           unitPrice: Number(it.unitPrice || 0),
         };
