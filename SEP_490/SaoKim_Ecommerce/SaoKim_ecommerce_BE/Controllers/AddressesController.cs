@@ -9,7 +9,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class AddressesController : ControllerBase
     {
         private readonly SaoKimDBContext _db;

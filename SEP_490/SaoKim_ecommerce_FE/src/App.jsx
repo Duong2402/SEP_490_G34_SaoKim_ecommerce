@@ -30,6 +30,7 @@ import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
+import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 //Products
 import ProductDetail from "./pages/products/ProductDetail";

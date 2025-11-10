@@ -56,6 +56,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnName("line2");
 
                     b.Property<string>("PhoneNumber")
+                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("phone_number");
@@ -66,8 +67,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnName("province");
 
                     b.Property<string>("RecipientName")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("recipient_name");
 
                     b.Property<DateTime?>("UpdateAt")
@@ -88,6 +90,8 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("UserId", "IsDefault");
 
                     b.ToTable("user_addresses", (string)null);
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchBase", b =>
                 {
                     b.Property<int>("Id")
@@ -546,6 +550,48 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("receiving_slip_items", (string)null);
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Review", b =>
+                {
+                    b.Property<int>("ReviewID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("review_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ReviewID"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ProductID")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("ReviewID");
+
+                    b.HasIndex("ProductID");
+
+                    b.HasIndex("UserID");
+
+                    b.HasIndex("ProductID", "UserID")
+                        .IsUnique();
+
+                    b.ToTable("product_reviews", (string)null);
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Role", b =>
                 {
                     b.Property<int>("RoleId")
@@ -813,15 +859,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("users");
                 });
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
-                {
-                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectDispatch", b =>
                 {
                     b.HasBaseType("SaoKim_ecommerce_BE.Entities.DispatchBase");
@@ -852,6 +889,17 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.ToTable("dispatch_retail_list", (string)null);
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchItem", b =>
@@ -911,6 +959,25 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ReceivingSlip");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Review", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.TaskDay", b =>

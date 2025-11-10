@@ -36,8 +36,6 @@ namespace SaoKim_ecommerce_BE.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            base.OnModelCreating(modelBuilder);
-
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
