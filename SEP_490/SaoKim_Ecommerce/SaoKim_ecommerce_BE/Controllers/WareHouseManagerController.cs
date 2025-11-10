@@ -890,9 +890,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!(dto.CustomerId is > 0))
                 return BadRequest(new { message = "CustomerId is required > 0", received = dto.CustomerId });
 
+            var customerRoleId = await _db.Roles
+                .Where(r => EF.Functions.ILike(r.Name, "customer"))
+                .Select(r => r.RoleId)
+                .FirstOrDefaultAsync();
+
+            if (customerRoleId == 0)
+                return NotFound(new { message = "Role 'Customer' not found" });
+
             var customer = await _db.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.Role!.Name == "Customer");
+                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.RoleId == customerRoleId);
+
             if (customer == null)
                 return NotFound(new { message = $"Customer {dto.CustomerId} not found or not a Customer role" });
 

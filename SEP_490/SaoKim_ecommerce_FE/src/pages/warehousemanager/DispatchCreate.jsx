@@ -195,6 +195,12 @@ export default function DispatchCreate() {
         typeofProjectId: typeof body.projectId
       });
 
+      console.log("[Create Dispatch] URL:", url);
+      console.log("[Create Dispatch] BODY:", body, {
+        typeofCustomerId: typeof body.customerId,
+        typeofProjectId: typeof body.projectId
+      });
+
       const resSlip = await apiFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -212,8 +218,11 @@ export default function DispatchCreate() {
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
       for (const it of items) {
+        const p = findProductById(it.productId);
         const itemPayload = {
           productId: Number(it.productId),
+          productName: p?.name ?? "",
+          uom: p?.unit ?? "pcs",
           quantity: Number(it.quantity || 0),
           unitPrice: Number(it.unitPrice || 0),
         };

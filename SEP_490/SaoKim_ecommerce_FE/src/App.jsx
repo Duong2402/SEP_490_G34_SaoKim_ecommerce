@@ -35,6 +35,9 @@ import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 import ProductDetail from "./pages/products/ProductDetail";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
+//Import Page
+import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
+
 export default function App() {
   const { t } = useLanguage();
 
@@ -78,6 +81,9 @@ export default function App() {
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/products" element={<ManageProduct />} />
+
+          {/* Project Reports */}
+          <Route path="/projects/:id/report" element={<ProjectReport />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
