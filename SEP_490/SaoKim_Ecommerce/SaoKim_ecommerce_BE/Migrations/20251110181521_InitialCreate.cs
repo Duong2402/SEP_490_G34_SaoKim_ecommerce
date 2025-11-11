@@ -1,0 +1,507 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace SaoKim_ecommerce_BE.Migrations
+{
+    /// <inheritdoc />
+    public partial class InitialCreate : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.CreateTable(
+                name: "categories",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    slug = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: true),
+                    created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_categories", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "dispatch_list",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReferenceNo = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    dispatch_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    status = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    confirmed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_dispatch_list", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "invoices",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Code = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    CustomerId = table.Column<int>(type: "integer", nullable: true),
+                    CustomerName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Phone = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    ProjectId = table.Column<int>(type: "integer", nullable: true),
+                    ProjectName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    Subtotal = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
+                    Tax = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    Total = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    DispatchId = table.Column<int>(type: "integer", nullable: true),
+                    PdfFileName = table.Column<string>(type: "character varying(260)", maxLength: 260, nullable: true),
+                    PdfOriginalName = table.Column<string>(type: "character varying(260)", maxLength: 260, nullable: true),
+                    PdfSize = table.Column<long>(type: "bigint", nullable: true),
+                    PdfUploadedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_invoices", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Projects",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    CustomerName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    CustomerContact = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, defaultValue: "Draft"),
+                    StartDate = table.Column<DateTime>(type: "date", nullable: true),
+                    EndDate = table.Column<DateTime>(type: "date", nullable: true),
+                    Budget = table.Column<decimal>(type: "numeric(18,2)", nullable: true),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Projects", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "receiving_slips",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReferenceNo = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Supplier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ReceiptDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ConfirmedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_receiving_slips", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "role",
+                columns: table => new
+                {
+                    role_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    role_name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_role", x => x.role_id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "products",
+                columns: table => new
+                {
+                    product_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    product_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    product_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    category_id = table.Column<int>(type: "integer", nullable: true),
+                    unit = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    price = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    quantity = table.Column<int>(type: "integer", nullable: false),
+                    stock = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    supplier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_products", x => x.product_id);
+                    table.ForeignKey(
+                        name: "FK_products_categories_category_id",
+                        column: x => x.category_id,
+                        principalTable: "categories",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "dispatch_item",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    dispatch_id = table.Column<int>(type: "integer", nullable: false),
+                    ProductName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Uom = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "pcs"),
+                    Quantity = table.Column<int>(type: "integer", precision: 18, scale: 3, nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    Total = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_dispatch_item", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_dispatch_item_dispatch_list_dispatch_id",
+                        column: x => x.dispatch_id,
+                        principalTable: "dispatch_list",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "dispatch_project_list",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false),
+                    ProjectName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    project_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_dispatch_project_list", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_dispatch_project_list_dispatch_list_Id",
+                        column: x => x.Id,
+                        principalTable: "dispatch_list",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "dispatch_retail_list",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false),
+                    CustomerName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    customer_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_dispatch_retail_list", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_dispatch_retail_list_dispatch_list_Id",
+                        column: x => x.Id,
+                        principalTable: "dispatch_list",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "invoice_items",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    InvoiceId = table.Column<int>(type: "integer", nullable: false),
+                    ProductId = table.Column<int>(type: "integer", nullable: true),
+                    ProductName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Uom = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Quantity = table.Column<decimal>(type: "numeric(18,3)", precision: 18, scale: 3, nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    LineTotal = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    OrderCode = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_invoice_items", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_invoice_items_invoices_InvoiceId",
+                        column: x => x.InvoiceId,
+                        principalTable: "invoices",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "project_tasks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Assignee = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
+                    StartDate = table.Column<DateTime>(type: "date", nullable: false),
+                    DurationDays = table.Column<int>(type: "integer", nullable: false),
+                    ProjectId = table.Column<int>(type: "integer", nullable: false),
+                    DependsOnTaskId = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_project_tasks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_project_tasks_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_project_tasks_project_tasks_DependsOnTaskId",
+                        column: x => x.DependsOnTaskId,
+                        principalTable: "project_tasks",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "users",
+                columns: table => new
+                {
+                    user_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    password = table.Column<string>(type: "text", nullable: false),
+                    role_id = table.Column<int>(type: "integer", nullable: false),
+                    phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    address = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    dob = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_users", x => x.user_id);
+                    table.ForeignKey(
+                        name: "FK_users_role_role_id",
+                        column: x => x.role_id,
+                        principalTable: "role",
+                        principalColumn: "role_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "receiving_slip_items",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReceivingSlipId = table.Column<int>(type: "integer", nullable: false),
+                    ProductId = table.Column<int>(type: "integer", nullable: true),
+                    ProductName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProductCode = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
+                    Uom = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    Total = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_receiving_slip_items", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_receiving_slip_items_products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "products",
+                        principalColumn: "product_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_receiving_slip_items_receiving_slips_ReceivingSlipId",
+                        column: x => x.ReceivingSlipId,
+                        principalTable: "receiving_slips",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "project_task_days",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TaskItemId = table.Column<int>(type: "integer", nullable: false),
+                    Date = table.Column<DateTime>(type: "date", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_project_task_days", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_project_task_days_project_tasks_TaskItemId",
+                        column: x => x.TaskItemId,
+                        principalTable: "project_tasks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_categories_name",
+                table: "categories",
+                column: "name");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_categories_slug",
+                table: "categories",
+                column: "slug");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_dispatch_item_dispatch_id",
+                table: "dispatch_item",
+                column: "dispatch_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_dispatch_list_ReferenceNo",
+                table: "dispatch_list",
+                column: "ReferenceNo",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_invoice_items_InvoiceId",
+                table: "invoice_items",
+                column: "InvoiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_invoices_Code",
+                table: "invoices",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_products_category_id",
+                table: "products",
+                column: "category_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_products_product_code",
+                table: "products",
+                column: "product_code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_task_days_TaskItemId_Date",
+                table: "project_task_days",
+                columns: new[] { "TaskItemId", "Date" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_tasks_DependsOnTaskId",
+                table: "project_tasks",
+                column: "DependsOnTaskId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_tasks_ProjectId",
+                table: "project_tasks",
+                column: "ProjectId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Projects_Code",
+                table: "Projects",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_receiving_slip_items_ProductId",
+                table: "receiving_slip_items",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_receiving_slip_items_ReceivingSlipId",
+                table: "receiving_slip_items",
+                column: "ReceivingSlipId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_receiving_slips_ReferenceNo",
+                table: "receiving_slips",
+                column: "ReferenceNo",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_role_id",
+                table: "users",
+                column: "role_id");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "dispatch_item");
+
+            migrationBuilder.DropTable(
+                name: "dispatch_project_list");
+
+            migrationBuilder.DropTable(
+                name: "dispatch_retail_list");
+
+            migrationBuilder.DropTable(
+                name: "invoice_items");
+
+            migrationBuilder.DropTable(
+                name: "project_task_days");
+
+            migrationBuilder.DropTable(
+                name: "receiving_slip_items");
+
+            migrationBuilder.DropTable(
+                name: "users");
+
+            migrationBuilder.DropTable(
+                name: "dispatch_list");
+
+            migrationBuilder.DropTable(
+                name: "invoices");
+
+            migrationBuilder.DropTable(
+                name: "project_tasks");
+
+            migrationBuilder.DropTable(
+                name: "products");
+
+            migrationBuilder.DropTable(
+                name: "receiving_slips");
+
+            migrationBuilder.DropTable(
+                name: "role");
+
+            migrationBuilder.DropTable(
+                name: "Projects");
+
+            migrationBuilder.DropTable(
+                name: "categories");
+        }
+    }
+}

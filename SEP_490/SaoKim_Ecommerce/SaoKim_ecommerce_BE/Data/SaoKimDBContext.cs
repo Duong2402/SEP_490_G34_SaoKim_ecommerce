@@ -9,6 +9,7 @@ namespace SaoKim_ecommerce_BE.Data
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
         public DbSet<Product> Products => Set<Product>();
+        public DbSet<Category> Categories => Set<Category>();              // 🆕
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
@@ -22,38 +23,85 @@ namespace SaoKim_ecommerce_BE.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // =========================
+            // Category (NEW)
+            // =========================
+            modelBuilder.Entity<Category>(e =>
+            {
+                e.ToTable("categories");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                e.Property(x => x.Slug)
+                    .HasMaxLength(120);
+
+                e.Property(x => x.Created)
+                    .HasColumnName("created");
+
+                e.HasIndex(x => x.Name).HasDatabaseName("IX_categories_name");
+                e.HasIndex(x => x.Slug).HasDatabaseName("IX_categories_slug");
+            });
+
+            // =========================
+            // Product (UPDATED: dùng CategoryId thay string Category)
+            // =========================
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
                 e.HasKey(x => x.ProductID);
+
                 e.Property(x => x.ProductName)
                     .HasMaxLength(200)
                     .IsRequired();
+
                 e.Property(x => x.ProductCode)
                     .HasMaxLength(50)
                     .IsRequired();
+
                 e.HasIndex(x => x.ProductCode)
                     .IsUnique();
+
                 e.Property(x => x.Unit)
                     .HasMaxLength(50);
+
                 e.Property(x => x.Description)
                     .HasMaxLength(500);
+
                 e.Property(x => x.Supplier)
                     .HasMaxLength(200);
+
                 e.Property(x => x.Image)
                     .HasMaxLength(300);
+
                 e.Property(x => x.Price)
                     .HasColumnType("decimal(18,2)");
+
                 e.Property(x => x.Note)
                     .HasMaxLength(500);
-                e.Property(x => x.Category)
-                    .HasMaxLength(100);
+
+
                 e.Property(x => x.Status)
                     .HasMaxLength(50);
+
                 e.Property(x => x.CreateAt)
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                 e.Property(x => x.UpdateAt)
                     .IsRequired(false);
+
+                e.Property(x => x.CategoryId)
+                    .HasColumnName("category_id");
+
+                e.HasIndex(x => x.CategoryId)
+                    .HasDatabaseName("IX_products_category_id");
+
+                e.HasOne(x => x.Category)
+                    .WithMany(c => c.Products)
+                    .HasForeignKey(x => x.CategoryId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<ReceivingSlip>(e =>
@@ -233,6 +281,64 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
+            //Invoices
+            modelBuilder.Entity<Invoice>(e =>
+            {
+                e.ToTable("invoices");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+                e.HasIndex(x => x.Code).IsUnique();
+
+                e.Property(x => x.CustomerName).HasMaxLength(200);
+                e.Property(x => x.ProjectName).HasMaxLength(200);
+
+                e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Total).HasColumnType("numeric(18,2)");
+
+                e.Property(x => x.Status).HasConversion<int>();
+                e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
+            });
+
+            // Invoices
+            modelBuilder.Entity<Invoice>(e =>
+            {
+                e.ToTable("invoices");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+                e.HasIndex(x => x.Code).IsUnique();
+
+                e.Property(x => x.Email).HasMaxLength(200);
+                e.Property(x => x.Phone).HasMaxLength(50);
+                e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
+
+                e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Total).HasColumnType("numeric(18,2)");
+
+                // PDF columns
+                e.Property(x => x.PdfFileName).HasMaxLength(260);
+                e.Property(x => x.PdfOriginalName).HasMaxLength(260);
+            });
+
+
+            modelBuilder.Entity<InvoiceItem>(e =>
+            {
+                e.ToTable("invoice_items");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
+                e.Property(x => x.Uom).HasMaxLength(50);
+                e.Property(x => x.Quantity).HasPrecision(18, 3);
+                e.Property(x => x.UnitPrice).HasPrecision(18, 2);
+                e.Property(x => x.LineTotal).HasColumnType("numeric(18,2)");
+
+                e.HasOne(x => x.Invoice)
+                 .WithMany(i => i.Items)
+                 .HasForeignKey(x => x.InvoiceId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
         }
     }
 }

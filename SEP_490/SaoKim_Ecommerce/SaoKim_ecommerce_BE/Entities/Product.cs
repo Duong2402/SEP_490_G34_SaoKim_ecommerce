@@ -21,9 +21,9 @@ namespace SaoKim_ecommerce_BE.Entities
         [Required, MaxLength(50)]
         public string ProductCode { get; set; } = string.Empty;
 
-        [Column("category")]
-        [MaxLength(100)]
-        public string? Category { get; set; }
+        [Column("category_id")]
+        public int? CategoryId { get; set; }
+        public Category? Category { get; set; }
 
         [Column("unit")]
         [MaxLength(50)]

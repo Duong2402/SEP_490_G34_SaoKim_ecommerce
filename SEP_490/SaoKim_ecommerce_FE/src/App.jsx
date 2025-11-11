@@ -33,6 +33,12 @@ import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 import ProductDetail from "./pages/products/ProductDetail";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
+//Customers
+import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
+import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard";
+
+//Invoices
+import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 
 export default function App() {
   const { t } = useLanguage();
@@ -70,6 +76,12 @@ export default function App() {
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/staff/manager-products" element={<ManageProduct />} />
+
+          {/* Customers */}
+          <Route path="/staff/manager-customers" element={<ManageCustomers />} />
+          <Route path="/staff/dashboard" element={<StaffDashboard />} />
+          {/* Invoices */}
+          <Route path="/staff/invoices" element={<ManageInvoices />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
