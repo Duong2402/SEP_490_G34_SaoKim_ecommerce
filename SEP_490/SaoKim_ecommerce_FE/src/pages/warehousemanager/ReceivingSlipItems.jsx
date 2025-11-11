@@ -70,6 +70,7 @@ const ReceivingSlipItems = () => {
   useEffect(() => {
     load();
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const totals = useMemo(() => {
@@ -185,7 +186,6 @@ const ReceivingSlipItems = () => {
 
   const validate = () => {
     const errs = {};
-
     if (!form.productId && !form.productName) {
       errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
     }

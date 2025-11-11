@@ -30,10 +30,21 @@ import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
-
-// Products
-import ProductDetail from "./pages/products/ProductDetail";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
+
+//Products
+import ProductDetail from "./pages/products/ProductDetail";
+import Cart from "./pages/cart/Cart";
+import Checkout from "./pages/cart/Checkout";
+import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
+import Profile from "./pages/account/Profile";
+import Addresses from "./pages/account/Addresses";
+
+// Users
+import UserList from "./pages/users/UserList";
+import UserCreate from "./pages/users/UserCreate";
+import UserEdit from "./pages/users/UserEdit";
+
 
 //Import Page
 import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
@@ -81,6 +92,18 @@ export default function App() {
           {/* Products */}
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/products" element={<ManageProduct />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+
+          {/* Account */}
+          <Route path="/account" element={<Profile />} />
+          <Route path="/account/addresses" element={<Addresses />} />
+
+          {/* Users Management */}
+          <Route path="/users" element={<UserList />} />
+          <Route path="/users/create" element={<UserCreate />} />
+          <Route path="/users/:id/edit" element={<UserEdit />} />
 
           {/* Project Reports */}
           <Route path="/projects/:id/report" element={<ProjectReport />} />

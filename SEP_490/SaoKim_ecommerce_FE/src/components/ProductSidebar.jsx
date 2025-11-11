@@ -61,7 +61,7 @@ export default function ProductSidebar({
             )}
           </div>
         ) : (
-          <div className="text-secondary small">Categories will appear here soon.</div>
+          <div className="text-secondary small"></div>
         )}
       </div>
 

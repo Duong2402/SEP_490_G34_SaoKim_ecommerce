@@ -307,7 +307,6 @@ const DispatchList = () => {
                   </tr>
                 );
               })
-
             )}
           </tbody>
         </table>

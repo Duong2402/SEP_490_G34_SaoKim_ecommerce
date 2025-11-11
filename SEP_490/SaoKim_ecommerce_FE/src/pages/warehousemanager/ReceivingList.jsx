@@ -62,6 +62,7 @@ export default function ReceivingList() {
         setLoading(false);
       }
     };
+
     loadData();
   }, []);
 
@@ -496,3 +497,4 @@ export default function ReceivingList() {
     </WarehouseLayout>
   );
 }
+

@@ -7,8 +7,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Services;
-using System.Security.Claims;
 using System.Text;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
