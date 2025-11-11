@@ -19,6 +19,8 @@ import {
   faSave,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
+import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -48,11 +50,13 @@ export default function ReceivingCreate() {
   const [fieldErrs, setFieldErrs] = useState({});
   const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
+  const [uoms, setUoms] = useState([]);
+
 
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        const res = await apiFetch(`/api/products`);
         if (!res.ok) return;
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data.items || [];
@@ -66,7 +70,20 @@ export default function ReceivingCreate() {
       } catch (_) { }
     };
     loadProducts();
+
+    const loadUoms = async () => {
+      try {
+        const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setUoms(data.map(u => u.name));
+      } catch (e) {
+        console.error("Không thể tải đơn vị tính:", e);
+      }
+    };
+    loadUoms();
   }, []);
+
 
   const totals = useMemo(() => {
     const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
@@ -136,7 +153,7 @@ export default function ReceivingCreate() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -315,39 +332,27 @@ export default function ReceivingCreate() {
                   <tr key={idx}>
                     <td>{idx + 1}</td>
                     <td>
-                      {products.length > 0 ? (
-                        <Form.Select
-                          value={it.productId === "" ? "" : String(it.productId)}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "") {
-                              patchItem(idx, { productId: "", productName: "" });
-                              return;
-                            }
-                            const found = findProductById(val);
-                            patchItem(idx, {
-                              productId: val,
-                              productName: found?.name || it.productName,
-                            });
-                          }}
-                        >
-                          <option value="">-- (Tự nhập) --</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.id} - {p.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      ) : (
-                        <Form.Control
-                          type="number"
-                          value={it.productId}
-                          onChange={(e) =>
-                            patchItem(idx, { productId: e.target.value })
-                          }
-                          placeholder="ID"
-                        />
-                      )}
+                      <Select
+                        options={products.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                        value={products.find(p => p.id === it.productId) ? { value: it.productId, label: `${it.productId} - ${findProductById(it.productId)?.name}` } : null}
+                        onChange={(option) => patchItem(idx, {
+                          productId: option?.value || "",
+                          productName: findProductById(option?.value)?.name || "",
+                          uom: findProductById(option?.value)?.unit || "",
+                          unitPrice: findProductById(option?.value)?.price || 0
+                        })}
+                        placeholder="Chọn"
+                        styles={{
+                          control: (base) => ({ ...base, minHeight: 45 }),
+                          menu: (base) => ({ ...base, fontSize: 14 }),
+                          option: (base) => ({ ...base, padding: 10 }),
+                        }}
+                        menuPortalTarget={document.body}
+                        menuPlacement="auto"
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errs.productName}
+                      </Form.Control.Feedback>
                     </td>
                     <td>
                       <Form.Control
@@ -363,15 +368,24 @@ export default function ReceivingCreate() {
                       </Form.Control.Feedback>
                     </td>
                     <td>
-                      <Form.Control
-                        value={it.uom}
-                        onChange={(e) => patchItem(idx, { uom: e.target.value })}
-                        isInvalid={!!errs.uom}
-                        placeholder="pcs/box/..."
+                      <Select
+                        options={uoms.map(u => ({ value: u, label: u }))}
+                        value={it.uom ? { value: it.uom, label: it.uom } : null}
+                        onChange={(option) => patchItem(idx, { uom: option?.value || "" })}
+                        placeholder="Chọn ĐVT"
+                        styles={{
+                          control: (base) => ({ ...base, minHeight: 40 }),
+                          menu: (base) => ({ ...base, fontSize: 14 }),
+                          option: (base) => ({ ...base, padding: 8 }),
+                        }}
+                        menuPortalTarget={document.body}
+                        menuPlacement="auto"
                       />
-                      <Form.Control.Feedback type="invalid">
-                        {errs.uom}
-                      </Form.Control.Feedback>
+                      {errs.uom && (
+                        <div className="invalid-feedback d-block">
+                          {errs.uom}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <InputGroup>
@@ -384,7 +398,6 @@ export default function ReceivingCreate() {
                           }
                           isInvalid={!!errs.quantity}
                         />
-                        <InputGroup.Text>{it.uom || "unit"}</InputGroup.Text>
                         <Form.Control.Feedback type="invalid">
                           {errs.quantity}
                         </Form.Control.Feedback>
@@ -405,7 +418,7 @@ export default function ReceivingCreate() {
                       </Form.Control.Feedback>
                     </td>
                     <td className="fw-semibold">
-                      {lineTotal.toLocaleString("vi-VN")} đ
+                      {lineTotal.toLocaleString("vi-VN")} VNĐ
                     </td>
                     <td className="text-end">
                       <Button

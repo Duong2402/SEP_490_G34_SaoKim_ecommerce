@@ -4,7 +4,7 @@ using System.Data;
 
 namespace SaoKim_ecommerce_BE.Data
 {
-    public class SaoKimDBContext : DbContext
+    public partial class SaoKimDBContext : DbContext
     {
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
@@ -15,9 +15,23 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
+        public DbSet<Address> Addresses { get; set; }
+		public DbSet<Review> Reviews { get; set; }
+        // protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        // {
+        //     optionsBuilder.ConfigureWarnings(warnings =>
+        //         warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        // }
+
+        // NEW:
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<TaskDay> TaskDays { get; set; }
         public DbSet<DispatchBase> Dispatches { get; set; }
+        public DbSet<DispatchItem> DispatchItems { get; set; }
+        public DbSet<UnitOfMeasure> UnitOfMeasures { get; set; }
+        public DbSet<InventoryThreshold> InventoryThresholds { get; set; } = default!;
+        public DbSet<TraceIdentity> TraceIdentities { get; set; }
+        public DbSet<TraceEvent> TraceEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -339,6 +353,64 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+
+            // ===== Address =====
+            modelBuilder.Entity<Address>(e =>
+            {
+                e.ToTable("user_addresses");
+                e.HasKey(a => a.AddressId);
+
+                e.HasOne(a => a.User)
+                 .WithMany()
+                 .HasForeignKey(a => a.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.Property(a => a.Line1).HasMaxLength(200).IsRequired();
+                e.Property(a => a.Line2).HasMaxLength(200);
+                e.Property(a => a.Ward).HasMaxLength(100);
+                e.Property(a => a.District).HasMaxLength(100);
+                e.Property(a => a.Province).HasMaxLength(100);
+
+                e.HasIndex(a => new { a.UserId, a.IsDefault });
+            });
+
+			// ===== Review =====
+			modelBuilder.Entity<Review>(e =>
+			{
+				e.ToTable("product_reviews");
+				e.HasKey(r => r.ReviewID);
+				e.Property(r => r.Comment).HasMaxLength(1000);
+				e.Property(r => r.Rating).IsRequired();
+				e.Property(r => r.CreatedAt).HasColumnName("created_at");
+
+				e.HasOne(r => r.Product)
+					.WithMany()
+					.HasForeignKey(r => r.ProductID)
+					.OnDelete(DeleteBehavior.Cascade);
+
+				e.HasOne(r => r.User)
+					.WithMany()
+					.HasForeignKey(r => r.UserID)
+					.OnDelete(DeleteBehavior.Cascade);
+
+				e.HasIndex(r => r.ProductID);
+				e.HasIndex(r => new { r.ProductID, r.UserID }).IsUnique();
+			});
+            modelBuilder.Entity<TraceIdentity>()
+        .HasIndex(x => x.IdentityCode)
+        .IsUnique();
+
+            modelBuilder.Entity<TraceIdentity>()
+                .HasOne(x => x.Product)
+                .WithMany() // không cần navigation ngược
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TraceEvent>()
+                .HasOne(e => e.TraceIdentity)
+                .WithMany(i => i.Events)
+                .HasForeignKey(e => e.TraceIdentityId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

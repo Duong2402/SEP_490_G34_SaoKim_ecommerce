@@ -176,6 +176,11 @@ export default function ProductDetail() {
   const [authState, setAuthState] = useState({ isLoggedIn: false, name: "" });
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mainImageError, setMainImageError] = useState(false);
+  const [reviews, setReviews] = useState({ items: [], averageRating: 0, count: 0 });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,10 +206,40 @@ export default function ProductDetail() {
     };
   }, [id]);
 
+  // Load product reviews
+  useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    setReviewError("");
+    setReviews({ items: [], averageRating: 0, count: 0 });
+
+    const url = `${API_BASE}/api/products/${id}/reviews`;
+    fetchJson(url)
+      .then((payload) => {
+        if (cancelled) return;
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        setReviews({
+          items,
+          averageRating: Number(payload?.averageRating || 0),
+          count: Number(payload?.count || items.length || 0),
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setReviewError(err.message || "Unable to load reviews");
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName") || "";
+      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail") || "";
       const isLoggedIn = Boolean(token && name);
       setAuthState((prev) => {
         if (prev.isLoggedIn === isLoggedIn && prev.name === name) return prev;
@@ -391,7 +426,45 @@ export default function ProductDetail() {
               <div className="product-info__cta">
                 {authState.isLoggedIn ? (
                   <>
-                    <button type="button" className="btn btn-primary product-info__cta-primary">
+                    <button
+                      type="button"
+                      className="btn btn-primary product-info__cta-primary"
+                      onClick={() => {
+                        if (!product) return;
+                        const readCart = () => {
+                          try {
+                            const raw = localStorage.getItem("cartItems");
+                            const parsed = raw ? JSON.parse(raw) : [];
+                            return Array.isArray(parsed) ? parsed : [];
+                          } catch {
+                            return [];
+                          }
+                        };
+                        const writeCart = (items) => {
+                          const normalized = Array.isArray(items) ? items : [];
+                          localStorage.setItem("cartItems", JSON.stringify(normalized));
+                          const count = normalized.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+                          localStorage.setItem("cartCount", String(count));
+                          window.dispatchEvent(new Event("localStorageChange"));
+                        };
+                        const current = readCart();
+                        const existing = current.find((it) => it.id === product.id);
+                        if (existing) {
+                          existing.quantity = (Number(existing.quantity) || 0) + 1;
+                          writeCart([...current]);
+                        } else {
+                          const newItem = {
+                            id: product.id,
+                            name: product.name || "San pham",
+                            price: Number(product.price) || 0,
+                            image: (product.image || product.thumbnailUrl) ?? "",
+                            code: product.code || product.sku || product.productCode,
+                            quantity: 1,
+                          };
+                          writeCart([...(current || []), newItem]);
+                        }
+                      }}
+                    >
                       Add to cart
                     </button>
                     <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
@@ -463,6 +536,103 @@ export default function ProductDetail() {
               </div>
             </section>
           )}
+
+          <section className="product-reviews">
+            <h3>Customer reviews</h3>
+            {reviewsLoading ? (
+              <div>Loading reviews...</div>
+            ) : reviewError ? (
+              <div className="text-danger">{reviewError}</div>
+            ) : (
+              <>
+                <div className="product-reviews__summary">
+                  <strong>Average rating:</strong> {reviews.averageRating} / 5 ({reviews.count} {reviews.count === 1 ? "review" : "reviews"})
+                </div>
+                <ul className="product-reviews__list">
+                  {reviews.items.length === 0 && <li>No reviews yet.</li>}
+                  {reviews.items.map((r) => (
+                    <li key={r.id} className="product-reviews__item">
+                      <div className="product-reviews__item-head">
+                        <span className="product-reviews__user">{r.userName || "Customer"}</span>
+                        <span className="product-reviews__rating">{`★`.repeat(r.rating)}{`☆`.repeat(5 - r.rating)}</span>
+                      </div>
+                      {r.comment && <div className="product-reviews__comment">{r.comment}</div>}
+                      <div className="product-reviews__date">{new Date(r.createdAt).toLocaleString()}</div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {authState.isLoggedIn ? (
+              <form
+                className="product-reviews__form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (submittingReview) return;
+                  setSubmittingReview(true);
+                  const token = localStorage.getItem("token");
+                  try {
+                    const res = await fetch(`${API_BASE}/api/products/${id}/reviews`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ rating: Number(reviewForm.rating), comment: reviewForm.comment }),
+                    });
+                    const text = await res.text();
+                    if (!res.ok) throw new Error(text || res.statusText);
+                    const payload = text ? JSON.parse(text) : { items: [] };
+                    const items = Array.isArray(payload?.items) ? payload.items : [];
+                    setReviews({
+                      items,
+                      averageRating: Number(payload?.averageRating || 0),
+                      count: Number(payload?.count || items.length || 0),
+                    });
+                    setReviewForm({ rating: 5, comment: "" });
+                  } catch (err) {
+                    alert(err.message || "Unable to submit review");
+                  } finally {
+                    setSubmittingReview(false);
+                  }
+                }}
+              >
+                <div className="form-group">
+                  <label htmlFor="rating">Your rating</label>
+                  <select
+                    id="rating"
+                    className="form-control"
+                    value={reviewForm.rating}
+                    onChange={(e) => setReviewForm((s) => ({ ...s, rating: e.target.value }))}
+                  >
+                    {[5, 4, 3, 2, 1].map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="comment">Comment (optional)</label>
+                  <textarea
+                    id="comment"
+                    className="form-control"
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Share your experience with this product"
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm((s) => ({ ...s, comment: e.target.value }))}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={submittingReview}>
+                  {submittingReview ? "Submitting..." : "Submit review"}
+                </button>
+              </form>
+            ) : (
+              <div className="product-reviews__signin">
+                <Link to="/login">Sign in</Link> to write a review.
+              </div>
+            )}
+          </section>
         </div>
       </main>
     </div>

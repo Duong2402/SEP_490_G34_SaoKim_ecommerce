@@ -190,6 +190,10 @@ export default function ProjectList() {
                         <Link to={`/projects/${project.id}/edit`} className="btn btn-outline">
                           {t("common.actions.edit")}
                         </Link>
+                        {/* NEW: nút xem báo cáo */}
+                        <Link to={`/projects/${project.id}/report`} className="btn btn-outline">
+                          Báo cáo
+                        </Link>
                         <button
                           type="button"
                           className="btn btn-ghost btn-danger"

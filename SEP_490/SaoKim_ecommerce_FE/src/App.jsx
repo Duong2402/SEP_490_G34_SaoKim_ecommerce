@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import "./App.css";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useLanguage } from "./i18n/LanguageProvider.jsx";
@@ -9,13 +9,15 @@ import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomeProductsBody from "./pages/homepage/HomeProductsBody";
+import AccessDenied from "./pages/auth/AccessDenied";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
 import ReceivingCreate from "./pages/warehousemanager/ReceivingCreate.jsx";
-
 import ReceivingSlipItems from "./pages/warehousemanager/ReceivingSlipItems";
 import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
+import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
@@ -28,10 +30,15 @@ import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
+import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 //Products
 import ProductDetail from "./pages/products/ProductDetail";
-import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
+import Cart from "./pages/cart/Cart";
+import Checkout from "./pages/cart/Checkout";
+import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
+import Profile from "./pages/account/Profile";
+import Addresses from "./pages/account/Addresses";
 
 //Customers
 import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
@@ -39,6 +46,14 @@ import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard
 
 //Invoices
 import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
+// Users
+import UserList from "./pages/users/UserList";
+import UserCreate from "./pages/users/UserCreate";
+import UserEdit from "./pages/users/UserEdit";
+
+
+//Import Page
+import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
 
 export default function App() {
   const { t } = useLanguage();
@@ -48,26 +63,33 @@ export default function App() {
       <LanguageSwitcher />
       <BrowserRouter>
         <Routes>
-          {/* Commons */}
+          {/* Public */}
           <Route path="/" element={<HomeProductsBody />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/forbidden" element={<AccessDenied />} />
+          
 
-          {/* Warehouse */}
-          <Route path="/warehouse-dashboard" element={<WarehouseDashboard />} />
-          <Route path="/warehouse-dashboard/receiving-slips" element={<ReceivingList />} />
-          <Route path="/warehouse-dashboard/receiving-slips/create" element={<ReceivingCreate />} />
-          <Route path="/warehouse-dashboard/receiving-slips/:id/items" element={<ReceivingSlipItems />} />
-          <Route path="/warehouse-dashboard/dispatch-slips" element={<DispatchList />} />
-          <Route path="/warehouse-dashboard/dispatch-slips/:id/items" element={<DispatchSlipItems />} />
-          <Route path="/warehouse-dashboard/inventory" element={<WarehouseInventory />} />
-          <Route path="/warehouse-dashboard/trace" element={<ProductTrace />} />
-          <Route path="/warehouse-dashboard/warehouse-report" element={<WarehouseReport />} />
-          <Route path="/warehouse-dashboard/warehouse-report/inbound-report" element={<InboundReport />} />
+          {/* Warehouse protected group */}
+          <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
+            <Route path="/warehouse-dashboard" element={<Outlet />}>
+              <Route index element={<WarehouseDashboard />} />
+              <Route path="receiving-slips" element={<ReceivingList />} />
+              <Route path="receiving-slips/create" element={<ReceivingCreate />} />
+              <Route path="receiving-slips/:id/items" element={<ReceivingSlipItems />} />
+              <Route path="dispatch-slips" element={<DispatchList />} />
+              <Route path="dispatch-slips/create" element={<DispatchCreate />} />
+              <Route path="dispatch-slips/:id/items" element={<DispatchSlipItems />} />
+              <Route path="inventory" element={<WarehouseInventory />} />
+              <Route path="trace" element={<ProductTrace />} />
+              <Route path="warehouse-report" element={<WarehouseReport />} />
+              <Route path="warehouse-report/inbound-report" element={<InboundReport />} />
+            </Route>
+          </Route>
 
-          {/* Projects */}
+          {/* Projects - public hoặc bạn tự bảo vệ thêm nếu cần */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
@@ -82,6 +104,22 @@ export default function App() {
           <Route path="/staff/dashboard" element={<StaffDashboard />} />
           {/* Invoices */}
           <Route path="/staff/invoices" element={<ManageInvoices />} />
+          <Route path="/products" element={<ManageProduct />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+
+          {/* Account */}
+          <Route path="/account" element={<Profile />} />
+          <Route path="/account/addresses" element={<Addresses />} />
+
+          {/* Users Management */}
+          <Route path="/users" element={<UserList />} />
+          <Route path="/users/create" element={<UserCreate />} />
+          <Route path="/users/:id/edit" element={<UserEdit />} />
+
+          {/* Project Reports */}
+          <Route path="/projects/:id/report" element={<ProjectReport />} />
 
           {/* 404 */}
           <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />

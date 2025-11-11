@@ -20,6 +20,8 @@ import {
   faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -63,10 +65,12 @@ const ReceivingSlipItems = () => {
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
   const [status, setStatus] = useState(0);
+  const [uoms, setUoms] = useState([]);
 
   useEffect(() => {
     load();
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const totals = useMemo(() => {
@@ -86,7 +90,7 @@ const ReceivingSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`);
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -106,9 +110,24 @@ const ReceivingSlipItems = () => {
     }
   }
 
+  async function loadUOMs() {
+    try {
+      const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setUoms(data);
+    } catch (e) {
+      console.error("Không thể tải đơn vị tính:", e);
+    }
+  }
+
+  useEffect(() => {
+    loadUOMs();
+  }, []);
+
   async function loadProducts() {
     try {
-      const res = await fetch(`${API_BASE}/api/products`);
+      const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.items || [];
@@ -133,7 +152,7 @@ const ReceivingSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-items/${itemId}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
@@ -179,9 +198,16 @@ const ReceivingSlipItems = () => {
     if (!form.quantity || Number(form.quantity) <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
     }
+
+    const price = Number(form.unitPrice);
+    if (!form.unitPrice || isNaN(price) || price < 1000) {
+      errs.unitPrice = "Đơn giá phải lớn hơn 1.000.";
+    }
+
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
   };
+
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -198,7 +224,7 @@ const ReceivingSlipItems = () => {
         mode === "create"
           ? `${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`
           : `${API_BASE}/api/warehousemanager/receiving-items/${editId}`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -222,7 +248,7 @@ const ReceivingSlipItems = () => {
     setSupplierErr("");
     setSavingSupplier(true);
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ supplier: sup }),
@@ -236,7 +262,6 @@ const ReceivingSlipItems = () => {
     }
   };
 
-  // giống ReceivingList
   const isConfirmed = status === 1;
 
   return (
@@ -461,33 +486,34 @@ const ReceivingSlipItems = () => {
             <Form.Group className="mb-3">
               <Form.Label>Mã sản phẩm</Form.Label>
               {productInputMode === "select" ? (
-                <Form.Select
-                  value={form.productId === "" ? "" : String(form.productId)}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
+                <Select
+                  options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                  value={
+                    form.productId
+                      ? { value: form.productId, label: `${form.productId} - ${form.productName}` }
+                      : null
+                  }
+                  onChange={(option) => {
+                    if (!option) {
                       setForm({ ...form, productId: "", productName: "" });
                       return;
                     }
-                    const selected = findProductById(val);
+                    const selected = findProductById(option.value);
                     setForm({
                       ...form,
-                      productId: val,
+                      productId: option.value,
                       productName: selected?.name || "",
                     });
                   }}
-                  isInvalid={!!formErrs.productId}
-                >
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} - {p.name}
-                    </option>
-                  ))}
-                </Form.Select>
+                  placeholder="Chọn sản phẩm"
+                  isClearable
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                  menuPortalTarget={document.body}
+                />
               ) : (
                 <Form.Control
                   type="number"
+                  min={1}
                   placeholder="Nhập mã sản phẩm"
                   value={form.productId}
                   onChange={(e) => {
@@ -496,7 +522,7 @@ const ReceivingSlipItems = () => {
                     if (found) {
                       setForm({ ...form, productId: val, productName: found.name });
                     } else {
-                      setForm({ ...form, productId: val });
+                      setForm({ ...form, productId: val, productName: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -528,16 +554,19 @@ const ReceivingSlipItems = () => {
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <Form.Label>Đơn vị tính</Form.Label>
-                <Form.Control
-                  value={form.uom}
-                  onChange={(e) => setForm({ ...form, uom: e.target.value })}
-                  placeholder="pcs / box / carton"
-                  isInvalid={!!formErrs.uom}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.uom}
-                </Form.Control.Feedback>
+                <Form.Group className="mb-3">
+                  <Form.Label>Đơn vị tính</Form.Label>
+                  <Select
+                    options={uoms.map((u) => ({ value: u.name, label: u.name }))}
+                    value={form.uom ? { value: form.uom, label: form.uom } : null}
+                    onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
+                    placeholder="Chọn đơn vị tính á"
+                    isClearable
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    menuPortalTarget={document.body}
+                  />
+                  {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
+                </Form.Group>
               </div>
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng</Form.Label>
@@ -549,7 +578,6 @@ const ReceivingSlipItems = () => {
                     onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     isInvalid={!!formErrs.quantity}
                   />
-                  <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
                   <Form.Control.Feedback type="invalid">
                     {formErrs.quantity}
                   </Form.Control.Feedback>
@@ -557,15 +585,25 @@ const ReceivingSlipItems = () => {
               </div>
             </div>
 
-            <Form.Group className="mb-1">
+            <Form.Group className="mb-3">
               <Form.Label>Đơn giá</Form.Label>
-              <Form.Control
-                type="number"
-                min={0}
-                value={form.unitPrice}
-                onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-              />
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  value={form.unitPrice}
+                  onChange={(e) =>
+                    setForm({ ...form, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })
+                  }
+                  isInvalid={!!formErrs.unitPrice}
+                />
+                <InputGroup.Text>VNĐ</InputGroup.Text>
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.unitPrice}
+                </Form.Control.Feedback>
+              </InputGroup>
             </Form.Group>
+
           </Form>
         </Modal.Body>
         <Modal.Footer>

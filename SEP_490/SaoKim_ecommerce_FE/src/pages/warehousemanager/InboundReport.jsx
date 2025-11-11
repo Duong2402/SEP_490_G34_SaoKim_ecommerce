@@ -3,6 +3,7 @@ import { Breadcrumb, Form, InputGroup, Badge } from "@themesberg/react-bootstrap
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome, faSearch, faTruckLoading } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const InboundReport = () => {
   const [inboundData, setInboundData] = useState([]);
