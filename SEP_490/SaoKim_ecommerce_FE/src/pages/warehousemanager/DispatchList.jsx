@@ -246,7 +246,7 @@ const DispatchList = () => {
               pagedRows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
-                const code = toStatusCode(r.status);      // 0 = Draft, 1 = Confirmed
+                const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
 
                 return (
@@ -258,13 +258,11 @@ const DispatchList = () => {
                     <td>{isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo}</td>
                     <td>{isSales ? r.customerName || "-" : r.projectName || "-"}</td>
 
-                    {/* Nếu API trả dispatchDate, nên dùng r.dispatchDate thay cho r.slipDate */}
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
 
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
 
-                    {/* Trạng thái giống ReceivingList */}
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>

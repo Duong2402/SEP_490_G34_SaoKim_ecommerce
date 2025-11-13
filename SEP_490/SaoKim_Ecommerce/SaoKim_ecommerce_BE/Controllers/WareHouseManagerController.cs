@@ -627,6 +627,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(data);
         }
 
+        [AllowAnonymous]
         [HttpGet("download-template")]
         public IActionResult DownloadTemplate()
         {
@@ -990,8 +991,28 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> GetDispatchItems(int id)
         {
+            var exists = await _db.Dispatches.AnyAsync(d => d.Id == id);
+            if (!exists)
+                return NotFound($"Dispatch {id} không tồn tại");
+
             var items = await _db.DispatchItems
                 .Where(i => i.DispatchId == id)
+                .Join(_db.Products,
+                      i => i.ProductId,
+                      p => p.ProductID,
+                      (i, p) => new
+                      {
+                          i.Id,
+                          i.DispatchId,
+                          i.ProductId,
+                          i.ProductName,
+                          ProductCode = p.ProductCode,
+                          i.Uom,
+                          i.Quantity,
+                          i.UnitPrice,
+                          i.Total
+                      })
+                .OrderBy(x => x.Id)
                 .ToListAsync();
 
             return Ok(items);
@@ -1010,6 +1031,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.ProductId == null)
                 return BadRequest("ProductId không được để trống");
 
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
             var item = new DispatchItem
             {
                 DispatchId = id,
@@ -1031,6 +1056,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 item.DispatchId,
                 item.ProductId,
                 item.ProductName,
+                ProductCode = product?.ProductCode ?? "",
                 item.Uom,
                 item.Quantity,
                 item.UnitPrice,
@@ -1052,8 +1078,25 @@ namespace SaoKim_ecommerce_BE.Controllers
             item.UnitPrice = dto.UnitPrice;
             item.Total = dto.Quantity * dto.UnitPrice;
 
+            string productCode = "";
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
+
             await _db.SaveChangesAsync();
-            return Ok(item);
+            return Ok(new
+            {
+                item.Id,
+                item.DispatchId,
+                item.ProductId,
+                item.ProductName,
+                ProductCode = productCode,
+                item.Uom,
+                item.Quantity,
+                item.UnitPrice,
+                item.Total
+            });
         }
 
         // DELETE: /api/warehousemanager/dispatch-items/{itemId}

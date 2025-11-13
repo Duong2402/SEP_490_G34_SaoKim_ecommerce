@@ -278,7 +278,7 @@ export default function ReceivingList() {
             type="button"
             className="wm-btn wm-btn--light"
             onClick={() => {
-              window.open(`${API_BASE}/api/warehousemanager/download-template`, "_blank");
+              window.open(`/api/warehousemanager/download-template`, "_blank");
             }}
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
@@ -326,7 +326,7 @@ export default function ReceivingList() {
             variant="link"
             className="mb-3 p-0"
             onClick={() =>
-              window.open(`${API_BASE}/api/warehousemanager/download-template`, "_blank")
+              window.open(`/api/warehousemanager/download-template`, "_blank")
             }
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập

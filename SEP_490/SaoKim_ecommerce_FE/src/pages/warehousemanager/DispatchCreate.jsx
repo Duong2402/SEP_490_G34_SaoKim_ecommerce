@@ -151,7 +151,7 @@ export default function DispatchCreate() {
   };
 
   const buildCreatePayloadAndUrl = ({ type, dispatchDate, note, selectedCustomer, selectedProject }) => {
-    const urlBase = `${API_BASE}/api/warehousemanager/dispatch-slips`;
+    const urlBase = `/api/warehousemanager/dispatch-slips`;
     if (type === "Sales") {
       return {
         url: `${urlBase}/sales`,

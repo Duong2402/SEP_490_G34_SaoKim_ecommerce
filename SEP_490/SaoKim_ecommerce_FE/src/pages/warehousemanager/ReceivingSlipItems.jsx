@@ -70,7 +70,6 @@ const ReceivingSlipItems = () => {
   useEffect(() => {
     load();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const totals = useMemo(() => {
@@ -135,6 +134,9 @@ const ReceivingSlipItems = () => {
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          uom: p.uom ?? p.Uom ?? p.unit ?? p.Unit
+            ?? p.unitOfMeasure ?? p.UnitOfMeasure
+            ?? p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
         }))
         .filter((p) => p.id != null && p.name);
       setProducts(normalized);
@@ -222,8 +224,8 @@ const ReceivingSlipItems = () => {
     try {
       const endpoint =
         mode === "create"
-          ? `${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`
-          : `${API_BASE}/api/warehousemanager/receiving-items/${editId}`;
+          ? `/api/warehousemanager/receiving-slips/${id}/items`
+          : `/api/warehousemanager/receiving-items/${editId}`;
       const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
@@ -495,7 +497,7 @@ const ReceivingSlipItems = () => {
                   }
                   onChange={(option) => {
                     if (!option) {
-                      setForm({ ...form, productId: "", productName: "" });
+                      setForm({ ...form, productId: "", productName: "", uom: "" });
                       return;
                     }
                     const selected = findProductById(option.value);
@@ -503,6 +505,7 @@ const ReceivingSlipItems = () => {
                       ...form,
                       productId: option.value,
                       productName: selected?.name || "",
+                      uom: selected?.uom || "",
                     });
                   }}
                   placeholder="Chọn sản phẩm"
@@ -520,9 +523,9 @@ const ReceivingSlipItems = () => {
                     const val = e.target.value;
                     const found = findProductById(val);
                     if (found) {
-                      setForm({ ...form, productId: val, productName: found.name });
+                      setForm({ ...form, productId: val, productName: found.name, uom: found.uom || "" });
                     } else {
-                      setForm({ ...form, productId: val, productName: "" });
+                      setForm({ ...form, productId: val, productName: "", uom: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -544,7 +547,8 @@ const ReceivingSlipItems = () => {
                     : "Tên sẽ tự điền theo mã sản phẩm"
                 }
                 onChange={(e) => setForm({ ...form, productName: e.target.value })}
-                disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                // disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                disabled={!!form.productName}
                 isInvalid={!!formErrs.productName}
               />
               <Form.Control.Feedback type="invalid">
@@ -564,6 +568,7 @@ const ReceivingSlipItems = () => {
                     isClearable
                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                     menuPortalTarget={document.body}
+                    isDisabled={!!form.uom}
                   />
                   {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
                 </Form.Group>
