@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// Controllers/ProductsController.cs
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Models;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -17,13 +20,16 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // GET: /api/products
+        //[Authorize] // Cho phép mọi user đã đăng nhập
         [HttpGet]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
-    [FromQuery] string? q,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] string? sortBy = "id",
-    [FromQuery] string? sortDir = "asc")
+            [FromQuery] string? q,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? sortBy = "id",
+            [FromQuery] string? sortDir = "asc")
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -37,29 +43,30 @@ namespace SaoKim_ecommerce_BE.Controllers
                 baseQuery = baseQuery.Where(p =>
                     EF.Functions.ILike(p.ProductName, term) ||
                     EF.Functions.ILike(p.ProductCode, term) ||
-                    EF.Functions.ILike(p.Category ?? "", term)
+                    EF.Functions.ILike(p.Category ?? string.Empty, term)
                 );
             }
 
             var total = await baseQuery.CountAsync();
 
             bool desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-            IQueryable<Product> ordered = (sortBy ?? "").ToLower() switch
+            IQueryable<Product> ordered = (sortBy ?? string.Empty).ToLower() switch
             {
-                "name" => (desc ? baseQuery.OrderByDescending(p => p.ProductName) : baseQuery.OrderBy(p => p.ProductName)),
-                "sku" => (desc ? baseQuery.OrderByDescending(p => p.ProductCode) : baseQuery.OrderBy(p => p.ProductCode)),
-                "category" => (desc ? baseQuery.OrderByDescending(p => p.Category) : baseQuery.OrderBy(p => p.Category)),
-                "price" => (desc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price)),
-                "stock" => (desc ? baseQuery.OrderByDescending(p => p.Stock) : baseQuery.OrderBy(p => p.Stock)),
-                "status" => (desc ? baseQuery.OrderByDescending(p => p.Status) : baseQuery.OrderBy(p => p.Status)),
-                "created" => (desc ? baseQuery.OrderByDescending(p => p.Created) : baseQuery.OrderBy(p => p.Created)),
-                _ => (desc ? baseQuery.OrderByDescending(p => p.ProductID) : baseQuery.OrderBy(p => p.ProductID)),
+                "name" => desc ? baseQuery.OrderByDescending(p => p.ProductName) : baseQuery.OrderBy(p => p.ProductName),
+                "sku" => desc ? baseQuery.OrderByDescending(p => p.ProductCode) : baseQuery.OrderBy(p => p.ProductCode),
+                "category" => desc ? baseQuery.OrderByDescending(p => p.Category) : baseQuery.OrderBy(p => p.Category),
+                "price" => desc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price),
+                "stock" => desc ? baseQuery.OrderByDescending(p => p.Stock) : baseQuery.OrderBy(p => p.Stock),
+                "status" => desc ? baseQuery.OrderByDescending(p => p.Status) : baseQuery.OrderBy(p => p.Status),
+                "created" => desc ? baseQuery.OrderByDescending(p => p.Created) : baseQuery.OrderBy(p => p.Created),
+                _ => desc ? baseQuery.OrderByDescending(p => p.ProductID) : baseQuery.OrderBy(p => p.ProductID),
             };
 
             var items = await ordered
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.ProductID,
                     sku = p.ProductCode,
                     name = p.ProductName,
@@ -72,14 +79,16 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(new
+            var payload = new
             {
                 items,
                 page,
                 pageSize,
                 total,
                 totalPages = (int)Math.Ceiling(total / (double)pageSize)
-            });
+            };
+
+            return Ok(ApiResponse<object>.Ok(payload));
         }
 
         // GET: /api/products/5
@@ -156,16 +165,16 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { message = "Product deleted successfully" });
         }
-        // GET: api/products/home
+
+        // GET: api/products/home (giữ nguyên để FE homepage dùng)
         [HttpGet("home")]
         public async Task<IActionResult> GetHomeProducts(
-    [FromQuery] int Page = 1,
-    [FromQuery] int PageSize = 12,
-    [FromQuery] string? SortBy = "new",
-    [FromQuery] string? Keyword = null,
-    [FromQuery] string? Category = null,
-    [FromQuery] int NewWithinDays = 14
-)
+            [FromQuery] int Page = 1,
+            [FromQuery] int PageSize = 12,
+            [FromQuery] string? SortBy = "new",
+            [FromQuery] string? Keyword = null,
+            [FromQuery] string? Category = null,
+            [FromQuery] int NewWithinDays = 14)
         {
             Page = Math.Max(1, Page);
             PageSize = Math.Clamp(PageSize, 1, 100);
@@ -173,7 +182,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             var now = DateTime.UtcNow;
             var cutoff = now.AddDays(-NewWithinDays);
 
-            // Featured (giữ nguyên)
             var featured = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
@@ -192,7 +200,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            // New Arrivals: chỉ lấy trong X ngày gần đây
             var newArrivals = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null))
@@ -212,7 +219,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            // All: bộ lọc/sort/phân trang 
             var q = _db.Products.AsNoTracking()
                 .Where(p => p.Status == "Active" || p.Status == null);
 
@@ -225,7 +231,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!string.IsNullOrWhiteSpace(Category))
             {
                 var cat = Category.Trim().ToLower();
-                q = q.Where(p => (p.Category ?? "").ToLower() == cat);
+                q = q.Where(p => (p.Category ?? string.Empty).ToLower() == cat);
             }
 
             q = SortBy switch
@@ -264,47 +270,5 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { featured, newArrivals, all });
         }
-
-        // GET: api/products/123
-        //[HttpGet("{id:int}")]
-        //public async Task<IActionResult> GetProductById([FromRoute] int id)
-        //{
-        //    var p = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.ProductID == id)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            code = x.ProductCode,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null,
-        //            quantity = x.Quantity,
-        //            category = x.Category,
-        //            description = x.Description,
-        //            createdAt = x.CreateAt ?? x.Date
-        //        })
-        //        .FirstOrDefaultAsync();
-
-        //    if (p == null) return NotFound();
-
-        //    // gợi ý sản phẩm liên quan
-        //    var related = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.Category == p.category && x.ProductID != id)
-        //        .OrderByDescending(x => x.CreateAt ?? x.Date)
-        //        .Take(8)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null
-        //        })
-        //        .ToListAsync();
-
-        //    return Ok(new { product = p, related });
-        //}
     }
 }
-

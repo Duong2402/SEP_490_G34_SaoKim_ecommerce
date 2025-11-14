@@ -1,3 +1,4 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import "./App.css";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
@@ -25,14 +26,15 @@ import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
 import WarehouseInventory from "./pages/warehousemanager/WarehouseInventory";
 import ProductTrace from "./pages/warehousemanager/ProductTrace";
 
-// Projects
+// Projects module (cũ)
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
+import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
-//Products
+// Products (staff manager)
 import ProductDetail from "./pages/products/ProductDetail";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/cart/Checkout";
@@ -46,8 +48,22 @@ import UserCreate from "./pages/users/UserCreate";
 import UserEdit from "./pages/users/UserEdit";
 
 
-//Import Page
-import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
+// Manager area
+import ManagerLayout from "./layouts/ManagerLayout";
+import ManagerDashboard from "./pages/manager/Dashboard";
+import ManagerProductList from "./pages/manager/products/ManagerProductList";
+
+// Manager Projects
+import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
+import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate";
+import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
+import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
+
+// Promotions 
+import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
+
+// Coupons
+import ManagerCouponList from "./pages/manager/coupons/ManagerCouponList";
 
 export default function App() {
   const { t } = useLanguage();
@@ -83,13 +99,15 @@ export default function App() {
             </Route>
           </Route>
 
+          {/* Projects (ngoài khu Manager) */}
           {/* Projects - public hoặc bạn tự bảo vệ thêm nếu cần */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:id/edit" element={<ProjectEdit />} />
+          <Route path="/projects/:id/report" element={<ProjectReport />} />
 
-          {/* Products */}
+          {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/products" element={<ManageProduct />} />
           <Route path="/cart" element={<Cart />} />
@@ -105,11 +123,32 @@ export default function App() {
           <Route path="/users/create" element={<UserCreate />} />
           <Route path="/users/:id/edit" element={<UserEdit />} />
 
-          {/* Project Reports */}
-          <Route path="/projects/:id/report" element={<ProjectReport />} />
+          {/* Manager area */}
+          <Route path="/manager" element={<ManagerLayout />}>
+            <Route index element={<ManagerDashboard />} />
+            <Route path="dashboard" element={<ManagerDashboard />} />
+
+            {/* Products cho Manager */}
+            <Route path="products" element={<ManagerProductList />} />
+
+            {/* Projects cho Manager */}
+            <Route path="projects" element={<ManagerProjectList />} />
+            <Route path="projects/create" element={<ManagerProjectCreate />} />
+            <Route path="projects/:id" element={<ManagerProjectDetail />} />
+            <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+
+            {/* *** Promotions cho Manager *** */}
+            <Route path="promotions" element={<ManagerPromotionList />} />
+            
+            {/* Coupons cho Manager */}
+            <Route path="coupons" element={<ManagerCouponList />} />
+          </Route>
 
           {/* 404 */}
-          <Route path="*" element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>} />
+          <Route
+            path="*"
+            element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>}
+          />
         </Routes>
       </BrowserRouter>
     </div>

@@ -31,11 +31,16 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<InventoryThreshold> InventoryThresholds { get; set; } = default!;
         public DbSet<TraceIdentity> TraceIdentities { get; set; }
         public DbSet<TraceEvent> TraceEvents { get; set; }
+        public DbSet<Promotion> Promotions => Set<Promotion>();
+        public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
+        public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // products
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
@@ -70,6 +75,7 @@ namespace SaoKim_ecommerce_BE.Data
                     .IsRequired(false);
             });
 
+            // receiving_slips
             modelBuilder.Entity<ReceivingSlip>(e =>
             {
                 e.ToTable("receiving_slips");
@@ -101,6 +107,7 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // dispatch (TPT)
             modelBuilder.Entity<DispatchBase>(e =>
             {
                 e.ToTable("dispatch_list");
@@ -140,7 +147,6 @@ namespace SaoKim_ecommerce_BE.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-
             modelBuilder.Entity<RetailDispatch>(e =>
             {
                 e.ToTable("dispatch_retail_list");
@@ -152,7 +158,6 @@ namespace SaoKim_ecommerce_BE.Data
                 e.Property(x => x.CustomerId)
                     .HasColumnName("customer_id");
             });
-
 
             modelBuilder.Entity<ProjectDispatch>(e =>
             {
@@ -202,16 +207,17 @@ namespace SaoKim_ecommerce_BE.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // projects + tasks
             modelBuilder.Entity<Project>(e =>
-                {
-                    e.HasIndex(p => p.Code).IsUnique();
+            {
+                e.HasIndex(p => p.Code).IsUnique();
 
-                    e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
-                    e.Property(p => p.Status).HasDefaultValue("Draft");
+                e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
+                e.Property(p => p.Status).HasDefaultValue("Draft");
 
-                    e.Property(p => p.StartDate).HasColumnType("date");
-                    e.Property(p => p.EndDate).HasColumnType("date");
-                });
+                e.Property(p => p.StartDate).HasColumnType("date");
+                e.Property(p => p.EndDate).HasColumnType("date");
+            });
 
             modelBuilder.Entity<TaskItem>(e =>
             {
@@ -248,6 +254,7 @@ namespace SaoKim_ecommerce_BE.Data
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
 
+            // traceability
             // ===== Address =====
             modelBuilder.Entity<Address>(e =>
             {
@@ -291,12 +298,12 @@ namespace SaoKim_ecommerce_BE.Data
 				e.HasIndex(r => new { r.ProductID, r.UserID }).IsUnique();
 			});
             modelBuilder.Entity<TraceIdentity>()
-        .HasIndex(x => x.IdentityCode)
-        .IsUnique();
+                .HasIndex(x => x.IdentityCode)
+                .IsUnique();
 
             modelBuilder.Entity<TraceIdentity>()
                 .HasOne(x => x.Product)
-                .WithMany() // không cần navigation ngược
+                .WithMany()
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -305,6 +312,63 @@ namespace SaoKim_ecommerce_BE.Data
                 .WithMany(i => i.Events)
                 .HasForeignKey(e => e.TraceIdentityId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Promotion>(e =>
+            {
+                e.ToTable("promotions");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                e.Property(x => x.Description).HasMaxLength(500);
+
+                e.Property(x => x.DiscountType).HasConversion<string>().HasMaxLength(20);
+                e.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+
+                e.Property(x => x.StartDate).HasColumnType("timestamp with time zone");
+                e.Property(x => x.EndDate).HasColumnType("timestamp with time zone");
+
+                e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+
+                e.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+                e.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => new { x.StartDate, x.EndDate });
+            });
+
+            modelBuilder.Entity<PromotionProduct>(e =>
+            {
+                e.ToTable("promotion_products");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Note).HasMaxLength(500);
+
+                e.HasOne(x => x.Promotion)
+                    .WithMany(p => p.PromotionProducts)
+                    .HasForeignKey(x => x.PromotionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(x => x.Product)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => new { x.PromotionId, x.ProductId }).IsUnique();
+            });
+
+            modelBuilder.Entity<Entities.Coupon>(b =>
+            {
+                b.ToTable("Coupons");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Code).IsRequired().HasMaxLength(64);
+                b.HasIndex(x => x.Code).IsUnique();
+                b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                b.Property(x => x.DiscountType).IsRequired().HasMaxLength(32);
+                b.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+                b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
+                b.Property(x => x.Status).IsRequired().HasMaxLength(32);
+            });
+
         }
     }
 }
