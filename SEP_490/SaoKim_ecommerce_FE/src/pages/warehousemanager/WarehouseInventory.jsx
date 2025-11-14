@@ -14,8 +14,7 @@ import {
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
-
-const API_BASE = "https://localhost:7278";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const PAGE_SIZE = 10;
 
@@ -72,7 +71,7 @@ export default function WarehouseInventory() {
     try {
       await Promise.all(
         rows.map(r =>
-          fetch(`${API_BASE}/api/warehousemanager/inventory/${r.productId}/min-stock`, {
+          apiFetch(`/api/warehousemanager/inventory/${r.productId}/min-stock`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ minStock: val }),
@@ -100,7 +99,7 @@ export default function WarehouseInventory() {
         ...(locationFilter !== "all" ? { location: locationFilter } : {}),
         ...(statusFilter !== "all" ? { status: statusFilter } : {}),
       });
-      const res = await fetch(`${API_BASE}/api/warehousemanager/inventory?` + params.toString());
+      const res = await apiFetch(`/api/warehousemanager/inventory?` + params.toString());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const items = (data.items || []).map(x => ({
@@ -143,7 +142,7 @@ export default function WarehouseInventory() {
 
     setSavingMin(prev => ({ ...prev, [pid]: true }));
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/inventory/${pid}/min-stock`, {
+      const res = await apiFetch(`/api/warehousemanager/inventory/${pid}/min-stock`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ minStock: value }),

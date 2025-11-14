@@ -13,7 +13,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/warehousemanager")]
-    //[Authorize(Roles = "warehouse_manager")]
+    [Authorize(Roles = "warehouse_manager")]
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
@@ -627,6 +627,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(data);
         }
 
+        [AllowAnonymous]
         [HttpGet("download-template")]
         public IActionResult DownloadTemplate()
         {
@@ -890,9 +891,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!(dto.CustomerId is > 0))
                 return BadRequest(new { message = "CustomerId is required > 0", received = dto.CustomerId });
 
+            var customerRoleId = await _db.Roles
+                .Where(r => EF.Functions.ILike(r.Name, "customer"))
+                .Select(r => r.RoleId)
+                .FirstOrDefaultAsync();
+
+            if (customerRoleId == 0)
+                return NotFound(new { message = "Role 'Customer' not found" });
+
             var customer = await _db.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.Role!.Name == "Customer");
+                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.RoleId == customerRoleId);
+
             if (customer == null)
                 return NotFound(new { message = $"Customer {dto.CustomerId} not found or not a Customer role" });
 
@@ -982,8 +991,28 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> GetDispatchItems(int id)
         {
+            var exists = await _db.Dispatches.AnyAsync(d => d.Id == id);
+            if (!exists)
+                return NotFound($"Dispatch {id} không tồn tại");
+
             var items = await _db.DispatchItems
                 .Where(i => i.DispatchId == id)
+                .Join(_db.Products,
+                      i => i.ProductId,
+                      p => p.ProductID,
+                      (i, p) => new
+                      {
+                          i.Id,
+                          i.DispatchId,
+                          i.ProductId,
+                          i.ProductName,
+                          ProductCode = p.ProductCode,
+                          i.Uom,
+                          i.Quantity,
+                          i.UnitPrice,
+                          i.Total
+                      })
+                .OrderBy(x => x.Id)
                 .ToListAsync();
 
             return Ok(items);
@@ -1002,6 +1031,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.ProductId == null)
                 return BadRequest("ProductId không được để trống");
 
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
             var item = new DispatchItem
             {
                 DispatchId = id,
@@ -1023,6 +1056,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 item.DispatchId,
                 item.ProductId,
                 item.ProductName,
+                ProductCode = product?.ProductCode ?? "",
                 item.Uom,
                 item.Quantity,
                 item.UnitPrice,
@@ -1044,8 +1078,25 @@ namespace SaoKim_ecommerce_BE.Controllers
             item.UnitPrice = dto.UnitPrice;
             item.Total = dto.Quantity * dto.UnitPrice;
 
+            string productCode = "";
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
+
             await _db.SaveChangesAsync();
-            return Ok(item);
+            return Ok(new
+            {
+                item.Id,
+                item.DispatchId,
+                item.ProductId,
+                item.ProductName,
+                ProductCode = productCode,
+                item.Uom,
+                item.Quantity,
+                item.UnitPrice,
+                item.Total
+            });
         }
 
         // DELETE: /api/warehousemanager/dispatch-items/{itemId}

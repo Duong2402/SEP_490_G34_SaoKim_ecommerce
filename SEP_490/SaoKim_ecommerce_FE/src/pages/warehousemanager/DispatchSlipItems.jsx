@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Breadcrumb,
-  Badge,
   Table,
   Button,
   Form,
@@ -22,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -32,6 +32,7 @@ const initialForm = {
   quantity: 1,
   deliveredQuantity: 0,
   note: "",
+  unitPrice: 0,
 };
 
 const DispatchSlipItems = () => {
@@ -52,7 +53,6 @@ const DispatchSlipItems = () => {
   useEffect(() => {
     load();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const totals = useMemo(() => {
@@ -72,7 +72,7 @@ const DispatchSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-slips/${id}/items`);
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : data.items || []);
@@ -85,7 +85,7 @@ const DispatchSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await fetch(`${API_BASE}/api/products`);
+      const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.items || [];
@@ -93,7 +93,12 @@ const DispatchSlipItems = () => {
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          productCode: p.productCode ?? p.ProductCode ?? p.code ?? p.Code,
           uom: p.uom ?? p.UOM ?? p.unit ?? p.Unit,
+          price:
+            p.price ?? p.Price ??
+            p.unitPrice ?? p.UnitPrice ??
+            p.defaultPrice ?? p.DefaultPrice ?? 0,
         }))
         .filter((p) => p.id != null && p.name);
       setProducts(normalized);
@@ -111,7 +116,7 @@ const DispatchSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa dòng hàng này khỏi phiếu xuất?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/dispatch-items/${itemId}`, {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
@@ -140,6 +145,7 @@ const DispatchSlipItems = () => {
       quantity: item.quantity ?? 1,
       deliveredQuantity: item.deliveredQuantity ?? 0,
       note: item.note ?? "",
+      unitPrice: item.unitPrice ?? 0,
     });
     setShowModal(true);
   };
@@ -158,6 +164,9 @@ const DispatchSlipItems = () => {
     if (!form.quantity || Number(form.quantity) <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
     }
+    if (form.unitPrice == null || Number(form.unitPrice) < 0) {
+      errs.unitPrice = "Đơn giá không được âm.";
+    }
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
   };
@@ -168,17 +177,19 @@ const DispatchSlipItems = () => {
     const payload = {
       productId: form.productId || null,
       productName: form.productName,
+      productCode: form.productCode || null,
       uom: form.uom,
       quantity: Number(form.quantity),
       deliveredQuantity: Number(form.deliveredQuantity),
       note: form.note,
+      unitPrice: Number(form.unitPrice || 0),
     };
     try {
       const endpoint =
         mode === "create"
-          ? `${API_BASE}/api/warehousemanager/dispatch-slips/${id}/items`
-          : `${API_BASE}/api/warehousemanager/dispatch-items/${editId}`;
-      const res = await fetch(endpoint, {
+          ? `/api/warehousemanager/dispatch-slips/${id}/items`
+          : `/api/warehousemanager/dispatch-items/${editId}`;
+      const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -258,6 +269,8 @@ const DispatchSlipItems = () => {
               <th>Tên sản phẩm</th>
               <th>Đơn vị</th>
               <th>Số lượng xuất</th>
+              <th>Đơn giá</th>
+              <th>Thành tiền</th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
@@ -265,13 +278,13 @@ const DispatchSlipItems = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="wm-empty">
+                <td colSpan={9} className="wm-empty">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="wm-empty">
+                <td colSpan={9} className="wm-empty">
                   Chưa có dòng hàng nào trong phiếu này.
                 </td>
               </tr>
@@ -280,11 +293,13 @@ const DispatchSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productId || "N/A"}</span>
+                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
+                  <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ</td>
+                  <td>{(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString("vi-VN")} VNĐ</td>
                   <td>{item.note || "-"}</td>
                   <td className="text-end">
                     <Button variant="outline-primary" size="sm" className="me-2" onClick={() => openEdit(item)}>
@@ -299,20 +314,6 @@ const DispatchSlipItems = () => {
             )}
           </tbody>
         </Table>
-      </div>
-
-      <div className="wm-surface">
-        <h2 className="wm-section-title mb-2">Lưu ý giao hàng</h2>
-        <Alert variant="info" className="mb-0 d-flex align-items-start gap-3">
-          <FontAwesomeIcon icon={faTruckPlane} className="mt-1" />
-          <div>
-            <strong>Nhắc nhở vận hành:</strong>
-            <ul className="mb-0">
-              <li>Kiểm tra lại thông tin xe giao và thời gian nhận hàng của khách hàng.</li>
-              <li>Hoàn tất cập nhật số liệu đã giao ngay sau khi nhận ký nhận.</li>
-            </ul>
-          </div>
-        </Alert>
       </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
@@ -337,6 +338,8 @@ const DispatchSlipItems = () => {
                     productId: p.id,
                     productName: p.name,
                     uom: p.uom,
+                    productCode: p.productCode,
+                    unitPrice: Number(p.price || 0),
                   });
                 }}
                 placeholder="Chọn sản phẩm"
@@ -386,6 +389,22 @@ const DispatchSlipItems = () => {
                 </InputGroup>
               </div>
             </div>
+            <Form.Group className="mb-3">
+              <Form.Label>Đơn giá</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  value={form.unitPrice}
+                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                  isInvalid={!!formErrs.unitPrice}
+                />
+                <InputGroup.Text>VNĐ</InputGroup.Text>
+                <Form.Control.Feedback type="invalid">
+                  {formErrs.unitPrice}
+                </Form.Control.Feedback>
+              </InputGroup>
+            </Form.Group>
 
             <Form.Group className="mb-1">
               <Form.Label>Ghi chú</Form.Label>

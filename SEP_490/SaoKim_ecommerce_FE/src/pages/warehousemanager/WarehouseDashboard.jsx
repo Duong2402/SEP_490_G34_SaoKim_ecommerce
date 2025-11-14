@@ -20,7 +20,7 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
-
+import { apiFetch } from "../../api/lib/apiClient";
 const ALERTS = [
   {
     id: 1,
@@ -45,8 +45,6 @@ const ALERTS = [
 const SUMMARY = [
   { label: "Phiếu chờ duyệt", value: "07", note: "3 phiếu nhập • 4 phiếu xuất" },
   { label: "SKU dưới định mức", value: "12", note: "Đạt 6% tổng danh mục" },
-  { label: "Tỷ lệ đúng hạn", value: "96%", note: "Hiệu suất 4 tuần gần nhất" },
-  { label: "Giá trị tồn kho", value: "≈ 4.2B", note: "Theo giá trung bình" },
 ];
 
 const WarehouseDashboard = () => {
@@ -75,7 +73,7 @@ const WarehouseDashboard = () => {
     setChartData(data);
     const fetchWeeklyInbound = async () => {
       try {
-        const res = await fetch("https://localhost:7278/api/warehousemanager/receiving-slips/weekly-summary");
+        const res = await apiFetch("/api/warehousemanager/receiving-slips/weekly-summary");
         const data = await res.json();
         setWeeklyInbound(data);
         setStats(prev => ({
@@ -91,15 +89,15 @@ const WarehouseDashboard = () => {
 
     const fetchWeeklyOutbound = async () => {
       try {
-        const res = await fetch("https://localhost:7278/api/warehousemanager/dispatch-slips/weekly-summary");
+        const res = await apiFetch("/api/warehousemanager/dispatch-slips/weekly-summary");
         const data = await res.json();
-        setWeeklyInbound(data);
+        setWeeklyOutbound(data);
         setStats(prev => ({
           ...prev,
-          totalInbound: data.thisWeek,
+          totalOutbound: data.thisWeek,
         }));
       } catch (err) {
-        console.error("Failed to fetch weekly inbound:", err);
+        console.error("Failed to fetch weekly outbound:", err);
       }
     };
 
@@ -107,7 +105,7 @@ const WarehouseDashboard = () => {
 
     const fetchStats = async () => {
       try {
-        const resStock = await fetch("https://localhost:7278/api/warehousemanager/total-stock");
+        const resStock = await apiFetch("/api/warehousemanager/total-stock");
         const dataStock = await resStock.json();
 
         setStats(prev => ({

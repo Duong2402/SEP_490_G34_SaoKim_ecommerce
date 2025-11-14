@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEnvelope,
@@ -25,7 +25,6 @@ export default function Login() {
   };
 
   const extractErrorMessage = (res, data) => {
-    // data có thể là object (JSON) hoặc string (HTML/text) hoặc null
     if (data && typeof data === "object") {
       const msg = data.message ?? data.Message ?? data.error ?? data.title ?? null;
       if (msg) return String(msg);
@@ -36,15 +35,13 @@ export default function Login() {
           return String(data.errors[k][0]);
         }
       }
-      try { return JSON.stringify(data); } catch { /* ignore */ }
+      try { return JSON.stringify(data); } catch { }
     }
 
     if (typeof data === "string" && data.trim()) {
-      // nếu BE trả text/HTML
       return data.slice(0, 200);
     }
 
-    // fallback cuối
     return res?.status ? `Lỗi ${res.status}` : "Đã xảy ra lỗi";
   };
 
@@ -60,7 +57,6 @@ export default function Login() {
         body: JSON.stringify({ email: form.email.trim(), password: form.password }),
       });
 
-      // đọc text trước rồi cố parse
       let text = "";
       try { text = await res.text(); } catch { }
       let data = null;
@@ -73,11 +69,9 @@ export default function Login() {
         return;
       }
 
-      // hỗ trợ camelCase/PascalCase
       const token = (data?.token ?? data?.Token) || "";
       const email = data?.email ?? data?.Email ?? "";
       const role = data?.role ?? data?.Role ?? "";
-
       if (!token) {
         setError("Phản hồi không hợp lệ từ máy chủ.");
         return;
@@ -86,8 +80,18 @@ export default function Login() {
       localStorage.setItem("token", token);
       if (email) localStorage.setItem("userEmail", email);
       if (role) localStorage.setItem("role", role);
+      const roleNorm = String(role || "").trim().toLowerCase();
+      let to = "/";
 
-      navigate("/warehouse-dashboard");
+      if (roleNorm === "warehouse_manager") {
+        to = "/warehouse-dashboard";
+      } else if (roleNorm === "admin" || roleNorm === "administrator") {
+        to = "/admin-dashboard";
+      } else if (roleNorm === "customer") {
+        to = "/";
+      }
+
+      navigate(to, { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError("Không thể kết nối tới máy chủ. Vui lòng thử lại sau.");

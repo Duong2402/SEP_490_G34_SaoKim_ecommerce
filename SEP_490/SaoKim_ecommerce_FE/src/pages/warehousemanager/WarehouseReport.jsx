@@ -10,6 +10,7 @@ import {
   faBoxesStacked,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const REPORT_CARDS = [
   {

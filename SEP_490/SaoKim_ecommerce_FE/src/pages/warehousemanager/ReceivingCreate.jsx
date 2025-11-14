@@ -20,6 +20,7 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -55,7 +56,7 @@ export default function ReceivingCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        const res = await apiFetch(`/api/products`);
         if (!res.ok) return;
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data.items || [];
@@ -63,6 +64,10 @@ export default function ReceivingCreate() {
           .map((p) => ({
             id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
             name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+            uom:
+              p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
+              p.unitOfMeasure ?? p.UnitOfMeasure ??
+              p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
           }))
           .filter((p) => p.id != null && p.name);
         setProducts(normalized);
@@ -72,7 +77,7 @@ export default function ReceivingCreate() {
 
     const loadUoms = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+        const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
         if (!res.ok) return;
         const data = await res.json();
         setUoms(data.map(u => u.name));
@@ -152,7 +157,7 @@ export default function ReceivingCreate() {
     };
 
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -334,12 +339,23 @@ export default function ReceivingCreate() {
                       <Select
                         options={products.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
                         value={products.find(p => p.id === it.productId) ? { value: it.productId, label: `${it.productId} - ${findProductById(it.productId)?.name}` } : null}
-                        onChange={(option) => patchItem(idx, {
-                          productId: option?.value || "",
-                          productName: findProductById(option?.value)?.name || "",
-                          uom: findProductById(option?.value)?.unit || "",
-                          unitPrice: findProductById(option?.value)?.price || 0
-                        })}
+                        onChange={(option) => {
+                          if (!option) {
+                            patchItem(idx, {
+                              productId: "",
+                              productName: "",
+                              uom: "",
+                              unitPrice: 0,
+                            });
+                            return;
+                          }
+                          const p = findProductById(option.value);
+                          patchItem(idx, {
+                            productId: option.value,
+                            productName: p?.name || "",
+                            uom: p?.uom || "",
+                          });
+                        }}
                         placeholder="Chọn"
                         styles={{
                           control: (base) => ({ ...base, minHeight: 45 }),
@@ -360,7 +376,8 @@ export default function ReceivingCreate() {
                           patchItem(idx, { productName: e.target.value })
                         }
                         isInvalid={!!errs.productName}
-                        placeholder="Nhập tên sản phẩm"
+                        placeholder={it.productId ? "Tên tự điền từ sản phẩm" : "Nhập tên sản phẩm"}
+                        disabled={!!it.productId}
                       />
                       <Form.Control.Feedback type="invalid">
                         {errs.productName}
@@ -372,6 +389,7 @@ export default function ReceivingCreate() {
                         value={it.uom ? { value: it.uom, label: it.uom } : null}
                         onChange={(option) => patchItem(idx, { uom: option?.value || "" })}
                         placeholder="Chọn ĐVT"
+                        isDisabled={!!it.uom}
                         styles={{
                           control: (base) => ({ ...base, minHeight: 40 }),
                           menu: (base) => ({ ...base, fontSize: 14 }),

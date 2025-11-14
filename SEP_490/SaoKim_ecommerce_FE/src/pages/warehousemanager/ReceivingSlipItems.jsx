@@ -21,6 +21,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
+import { apiFetch } from "../../api/lib/apiClient";
 
 const API_BASE = "https://localhost:7278";
 
@@ -88,7 +89,7 @@ const ReceivingSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`);
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -110,7 +111,7 @@ const ReceivingSlipItems = () => {
 
   async function loadUOMs() {
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/unit-of-measures`);
+      const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setUoms(data);
@@ -125,7 +126,7 @@ const ReceivingSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await fetch(`${API_BASE}/api/products`);
+      const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const raw = Array.isArray(data) ? data : data.items || [];
@@ -133,6 +134,9 @@ const ReceivingSlipItems = () => {
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          uom: p.uom ?? p.Uom ?? p.unit ?? p.Unit
+            ?? p.unitOfMeasure ?? p.UnitOfMeasure
+            ?? p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
         }))
         .filter((p) => p.id != null && p.name);
       setProducts(normalized);
@@ -150,7 +154,7 @@ const ReceivingSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-items/${itemId}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-items/${itemId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
@@ -184,7 +188,6 @@ const ReceivingSlipItems = () => {
 
   const validate = () => {
     const errs = {};
-
     if (!form.productId && !form.productName) {
       errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
     }
@@ -221,9 +224,9 @@ const ReceivingSlipItems = () => {
     try {
       const endpoint =
         mode === "create"
-          ? `${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`
-          : `${API_BASE}/api/warehousemanager/receiving-items/${editId}`;
-      const res = await fetch(endpoint, {
+          ? `/api/warehousemanager/receiving-slips/${id}/items`
+          : `/api/warehousemanager/receiving-items/${editId}`;
+      const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -247,7 +250,7 @@ const ReceivingSlipItems = () => {
     setSupplierErr("");
     setSavingSupplier(true);
     try {
-      const res = await fetch(`${API_BASE}/api/warehousemanager/receiving-slips/${id}`, {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ supplier: sup }),
@@ -494,7 +497,7 @@ const ReceivingSlipItems = () => {
                   }
                   onChange={(option) => {
                     if (!option) {
-                      setForm({ ...form, productId: "", productName: "" });
+                      setForm({ ...form, productId: "", productName: "", uom: "" });
                       return;
                     }
                     const selected = findProductById(option.value);
@@ -502,6 +505,7 @@ const ReceivingSlipItems = () => {
                       ...form,
                       productId: option.value,
                       productName: selected?.name || "",
+                      uom: selected?.uom || "",
                     });
                   }}
                   placeholder="Chọn sản phẩm"
@@ -519,9 +523,9 @@ const ReceivingSlipItems = () => {
                     const val = e.target.value;
                     const found = findProductById(val);
                     if (found) {
-                      setForm({ ...form, productId: val, productName: found.name });
+                      setForm({ ...form, productId: val, productName: found.name, uom: found.uom || "" });
                     } else {
-                      setForm({ ...form, productId: val, productName: "" });
+                      setForm({ ...form, productId: val, productName: "", uom: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -543,7 +547,8 @@ const ReceivingSlipItems = () => {
                     : "Tên sẽ tự điền theo mã sản phẩm"
                 }
                 onChange={(e) => setForm({ ...form, productName: e.target.value })}
-                disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                // disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                disabled={!!form.productName}
                 isInvalid={!!formErrs.productName}
               />
               <Form.Control.Feedback type="invalid">
@@ -563,6 +568,7 @@ const ReceivingSlipItems = () => {
                     isClearable
                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                     menuPortalTarget={document.body}
+                    isDisabled={!!form.uom}
                   />
                   {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
                 </Form.Group>

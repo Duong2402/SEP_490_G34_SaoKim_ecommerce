@@ -2,7 +2,7 @@
 
 namespace SaoKim_ecommerce_BE.Entities
 {
-    [JsonConverter(typeof(JsonStringEnumConverter))] // giữ enum dạng chữ
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum TaskStatus
     {
         New = 0,
