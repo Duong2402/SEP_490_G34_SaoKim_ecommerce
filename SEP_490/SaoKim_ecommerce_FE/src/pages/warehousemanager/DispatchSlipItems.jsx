@@ -22,6 +22,8 @@ import {
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
+import { getDispatchHubConnection } from "../../signalr/dispatchHub";
+import * as signalR from "@microsoft/signalr";
 
 const API_BASE = "https://localhost:7278";
 
@@ -55,6 +57,52 @@ const DispatchSlipItems = () => {
     loadProducts();
   }, [id]);
 
+  useEffect(() => {
+    const connection = getDispatchHubConnection();
+
+    connection.off("DispatchItemsUpdated");
+
+    connection.on("DispatchItemsUpdated", (payload) => {
+      console.log("DispatchItemsUpdated:", payload);
+
+      const { action, dispatchId, item, itemId } = payload || {};
+      if (!action) return;
+
+      if (Number(dispatchId) !== Number(id)) return;
+
+      setItems((prev) => {
+        switch (action) {
+          case "created":
+            if (item && !prev.some((x) => x.id === item.id)) {
+              return [...prev, item];
+            }
+            return prev;
+
+          case "deleted":
+            return prev.filter((x) => x.id !== itemId);
+
+          case "updated":
+            if (!item) return prev;
+            return prev.map((x) => (x.id === item.id ? { ...x, ...item } : x));
+
+          default:
+            return prev;
+        }
+      });
+    });
+
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      connection
+        .start()
+        .then(() => console.log("SignalR connected in DispatchSlipItems"))
+        .catch((err) => console.error("SignalR connection error:", err));
+    }
+
+    return () => {
+      connection.off("DispatchItemsUpdated");
+    };
+  }, [id]);
+
   const totals = useMemo(() => {
     const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
     const deliveredQty = items.reduce(
@@ -86,21 +134,29 @@ const DispatchSlipItems = () => {
   async function loadProducts() {
     try {
       const res = await apiFetch(`/api/products`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const raw = Array.isArray(data) ? data : data.items || [];
+
+      const json = await res.json();
+      console.log("GET /api/products:", json);
+
+      const payload = json.data ?? json;
+      const raw = Array.isArray(payload)
+        ? payload
+        : payload.items || [];
+
       const normalized = raw
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
           productCode: p.productCode ?? p.ProductCode ?? p.code ?? p.Code,
-          uom: p.uom ?? p.UOM ?? p.unit ?? p.Unit,
+          uom: p.uom ?? p.Uom ?? p.unit ?? p.Unit,
           price:
             p.price ?? p.Price ??
             p.unitPrice ?? p.UnitPrice ??
             p.defaultPrice ?? p.DefaultPrice ?? 0,
         }))
         .filter((p) => p.id != null && p.name);
+
+      console.log("Products normalized:", normalized);
       setProducts(normalized);
     } catch (e) {
       console.error("Error loading products:", e);
@@ -194,7 +250,6 @@ const DispatchSlipItems = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
       await load();
       setShowModal(false);
     } catch (err) {

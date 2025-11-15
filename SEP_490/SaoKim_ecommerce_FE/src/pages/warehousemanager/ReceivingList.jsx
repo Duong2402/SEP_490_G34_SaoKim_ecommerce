@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -22,6 +22,8 @@ import { Modal, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
+import * as signalR from "@microsoft/signalr";
+import { getReceivingHubConnection } from "../../signalr/receivingHub";
 
 const API_BASE = "https://localhost:7278";
 
@@ -49,22 +51,69 @@ export default function ReceivingList() {
   const [importLoading, setImportLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const res = await apiFetch(`/api/warehousemanager/receiving-slips`);
-        const data = await res.json();
-        setRows(data.items || []);
-      } catch (error) {
-        console.error("Error loading receiving slips:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips`);
+      const data = await res.json();
+      setRows(data.items || []);
+    } catch (error) {
+      console.error("Error loading receiving slips:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+
+    const connection = getReceivingHubConnection();
+
+    connection.off("ReceivingSlipsUpdated");
+
+    connection.on("ReceivingSlipsUpdated", (payload) => {
+      console.log("ReceivingSlipsUpdated payload:", payload);
+
+      const { action } = payload || {};
+      if (!action) {
+        console.warn("ReceivingSlipsUpdated không có action:", payload);
+        return;
+      }
+
+      if (action === "created") {
+        setRows((prev) => [payload, ...prev]);
+      } else if (action === "deleted") {
+        setRows((prev) => prev.filter(r => r.id !== payload.id));
+      } else if (action === "updated") {
+        setRows((prev) =>
+          prev.map(r => r.id === payload.id ? { ...r, ...payload } : r)
+        );
+      }
+      else if (action === "imported") {
+        // Import có thể tạo nhiều phiếu, reload toàn bộ là dễ nhất
+        loadData();
+      } else if (action === "confirmed") {
+        setRows((prev) =>
+          prev.map(r => r.id === payload.id ? { ...r, ...payload } : r)
+        );
+      }
+    });
+
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      connection
+        .start()
+        .then(() => {
+          console.log("SignalR connected");
+        })
+        .catch((err) => {
+          console.error("SignalR connection error:", err);
+        });
+    }
+
+    return () => {
+      connection.off("ReceivingSlipsUpdated");
+    };
+  }, [loadData]);
 
   const handleConfirm = async (id) => {
     try {
@@ -193,24 +242,17 @@ export default function ReceivingList() {
 
       const res = await apiFetch(`/api/warehousemanager/receiving-slips/import`, {
         method: "POST",
-        body: formData,
+        body: formData, // KHÔNG headers Content-Type ở đây
       });
 
       const data = await res.json();
-      if (res.ok) {
-        alert(data.message || "Import thành công!");
-        setShowImportModal(false);
-        setImportFile(null);
-
-        const reload = await apiFetch(`/api/warehousemanager/receiving-slips`);
-        const reloadData = await reload.json();
-        setRows(reloadData.items || []);
-      } else {
-        alert(data.message || "Import thất bại!");
-      }
-    } catch (error) {
-      console.error("Import failed:", error);
-      alert("Có lỗi khi import file.");
+      alert(data.message || "Import thành công!");
+      setShowImportModal(false);
+      setImportFile(null);
+      // reload list nếu cần
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Import thất bại");
     } finally {
       setImportLoading(false);
     }

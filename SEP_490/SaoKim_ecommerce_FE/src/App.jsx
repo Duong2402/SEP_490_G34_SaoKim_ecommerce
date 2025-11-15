@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useLanguage } from "./i18n/LanguageProvider.jsx";

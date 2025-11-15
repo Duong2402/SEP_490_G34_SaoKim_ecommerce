@@ -53,40 +53,61 @@ export default function ReceivingCreate() {
   const [uoms, setUoms] = useState([]);
 
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const res = await apiFetch(`/api/products`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const raw = Array.isArray(data) ? data : data.items || [];
-        const normalized = raw
-          .map((p) => ({
-            id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
-            name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
-            uom:
-              p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
-              p.unitOfMeasure ?? p.UnitOfMeasure ??
-              p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
-          }))
-          .filter((p) => p.id != null && p.name);
-        setProducts(normalized);
-      } catch (_) { }
-    };
-    loadProducts();
+  floadproect(() => {
+  const loadProducts = async () => {
+    try {
+      const res = await apiFetch(`/api/products`);
 
-    const loadUoms = async () => {
-      try {
-        const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setUoms(data.map(u => u.name));
-      } catch (e) {
-        console.error("Không thể tải đơn vị tính:", e);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("GET /api/products failed:", res.status, text);
+        return;
       }
-    };
-    loadUoms();
-  }, []);
+
+      const json = await res.json();
+      // json = { success, message, data: { items, page, ... } }
+      const payload = json.data ?? json;
+      const raw = Array.isArray(payload)
+        ? payload
+        : payload.items || [];
+
+      console.log("Products raw:", raw);
+
+      const normalized = raw
+        .map((p) => ({
+          id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
+          name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          uom:
+            p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
+            p.unitOfMeasure ?? p.UnitOfMeasure ??
+            p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
+        }))
+        .filter((p) => p.id != null && p.name);
+
+      console.log("Products normalized:", normalized);
+      setProducts(normalized);
+    } catch (e) {
+      console.error("Không thể tải products:", e);
+    }
+  };
+
+  const loadUoms = async () => {
+    try {
+      const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
+      if (!res.ok) {
+        console.error("GET /unit-of-measures status:", res.status);
+        return;
+      }
+      const data = await res.json();
+      setUoms(data.map(u => u.name));
+    } catch (e) {
+      console.error("Không thể tải đơn vị tính:", e);
+    }
+  };
+
+  loadProducts();
+  loadUoms();
+}, []);
 
 
   const totals = useMemo(() => {
