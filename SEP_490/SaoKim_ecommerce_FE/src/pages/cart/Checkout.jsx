@@ -273,18 +273,20 @@ export default function Checkout() {
                       </label>
                     </fieldset>
 
-
+                    
                     {/* Thanh toán */}
+                    
                     <fieldset style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
                       <legend style={{ padding: "0 6px" }}>Phương thức thanh toán</legend>
                       <label><input type="radio" checked={paymentMethod === "COD"} onChange={() => setPaymentMethod("COD")} /> Thanh toán khi nhận hàng (COD)</label>
                       <label><input type="radio" checked={paymentMethod === "QR"} onChange={() => setPaymentMethod("QR")} /> Chuyển khoản qua QR</label>
+                      
                       {paymentMethod === "QR" && (
                         <div style={{ marginTop: 12 }}>
                           <img
                             alt="QR thanh toán"
                             width={160}
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`PAYMENT|${form.fullName}|${total}`)}`}
+                          src={`https://img.vietqr.io/image/BIDV-4270797287-qr_only.png?amount=${total}&addInfo=Thanh%20toan%20don%20123}`}
                           />
                         </div>
                       )}

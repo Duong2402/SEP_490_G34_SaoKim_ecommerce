@@ -13,7 +13,6 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
-
         public ProductsController(SaoKimDBContext db)
         {
             _db = db;
@@ -22,6 +21,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         // GET: /api/products
         //[Authorize] // Cho phép mọi user đã đăng nhập
         [HttpGet]
+        [AllowAnonymous]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
@@ -76,7 +76,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     unit = p.Unit,
                     stock = p.Stock,
                     status = p.Status,
-                    created = p.Created
+                    created = p.CreateAt ?? p.Date
                 })
                 .ToListAsync();
 
@@ -92,8 +92,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
-        // GET: /api/products/5
+        // DETAIL (PUBLIC) — trả về { product, related }
         [HttpGet("{id:int}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var product = await _db.Products.AsNoTracking()
@@ -103,7 +104,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     id = p.ProductID,
                     sku = p.ProductCode,
                     name = p.ProductName,
-                    category = p.Category != null ? p.Category.Name : null,  // 
+                    category = p.Category != null ? p.Category.Name : null,  
                     price = p.Price,
                     stock = p.Stock,
                     status = p.Status,
@@ -112,19 +113,34 @@ namespace SaoKim_ecommerce_BE.Controllers
                     quantity = p.Quantity,
                     description = p.Description,
                     supplier = p.Supplier,
-                    image = p.Image,
+                    image = p.Image != null ? $"/images/{p.Image}" : null,
                     note = p.Note
                 })
                 .FirstOrDefaultAsync();
 
-            if (product == null)
-                return NotFound(new { message = "Product not found" });
+            if (product == null) return NotFound(new { message = "Product not found" });
 
-            return Ok(product);
+            var related = await _db.Products
+                .AsNoTracking()
+                .Where(x => x.Category!.Name == product.category && x.ProductID != id)
+                .OrderByDescending(x => x.CreateAt ?? x.Date)
+                .Take(8)
+                .Select(x => new
+                {
+                    id = x.ProductID,
+                    name = x.ProductName,
+                    price = x.Price,
+                    image = x.Image != null ? $"/images/{x.Image}" : null
+                })
+                .ToListAsync();
+
+            return Ok(new { product = product, related });
         }
 
-        // POST: /api/products
+        // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
+        [AllowAnonymous]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] Product model)
         {
             if (!ModelState.IsValid)
@@ -146,8 +162,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return CreatedAtAction(nameof(GetById), new { id = model.ProductID }, model);
         }
 
-        // PUT: /api/products/5
+        // UPDATE (YÊU CẦU QUYỀN)
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] Product update)
         {
             var existing = await _db.Products.FindAsync(id);
@@ -173,8 +190,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product updated successfully" });
         }
 
-        // DELETE: /api/products/5
+        // DELETE (YÊU CẦU QUYỀN)
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var existing = await _db.Products.FindAsync(id);
@@ -188,6 +206,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET: api/products/home
         [HttpGet("home")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHomeProducts(
             [FromQuery] int Page = 1,
             [FromQuery] int PageSize = 12,
@@ -265,10 +284,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             };
 
             var totalItems = await q.CountAsync();
-
-            var items = await q
-                .Skip((Page - 1) * PageSize)
-                .Take(PageSize)
+            var items = await q.Skip((Page - 1) * PageSize).Take(PageSize)
                 .Select(p => new
                 {
                     id = p.ProductID,
@@ -282,16 +298,19 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            var all = new
+            return Ok(new
             {
-                page = Page,
-                pageSize = PageSize,
-                totalItems,
-                totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
-                items
-            };
-
-            return Ok(new { featured, newArrivals, all });
+                featured,
+                newArrivals,
+                all = new
+                {
+                    page = Page,
+                    pageSize = PageSize,
+                    totalItems,
+                    totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
+                    items
+                }
+            });
         }
     }
 }

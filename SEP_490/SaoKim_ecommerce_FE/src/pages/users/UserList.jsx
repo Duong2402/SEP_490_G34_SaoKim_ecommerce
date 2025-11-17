@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserAPI } from "../../api/users";
 
@@ -7,8 +7,8 @@ export default function UserList() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [roles, setRoles] = useState([]);
+  const [roleFilter, setRoleFilter] = useState("all"); // lưu tên role (vd: "admin")
+  const [roles, setRoles] = useState([]);              // [{id, name}]
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [totalItems, setTotalItems] = useState(0);
@@ -20,13 +20,13 @@ export default function UserList() {
       const params = {
         page,
         pageSize,
-        search: search.trim() || undefined,
+        q: search.trim() || undefined,
         status: statusFilter !== "all" ? statusFilter : undefined,
-        roleId: roleFilter !== "all" ? parseInt(roleFilter, 10) : undefined,
+        role: roleFilter !== "all" ? roleFilter : undefined, // BE nhận role theo tên
       };
       const res = await UserAPI.getAll(params);
       setUsers(res?.data?.items ?? []);
-      setTotalItems(res?.data?.totalItems ?? 0);
+      setTotalItems(res?.data?.total ?? 0);
       setTotalPages(res?.data?.totalPages ?? 0);
     } catch (err) {
       console.error(err);
@@ -45,8 +45,8 @@ export default function UserList() {
   useEffect(() => {
     const loadRoles = async () => {
       try {
-        const res = await UserAPI.getRoles();
-        setRoles(res?.data || []);
+        const res = await UserAPI.getRoles(); // [{ id, name }]
+        setRoles(Array.isArray(res?.data) ? res.data : []);
       } catch (err) {
         console.error("Failed to load roles:", err);
       }
@@ -54,38 +54,18 @@ export default function UserList() {
     loadRoles();
   }, []);
 
-  const handleDelete = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this user?");
-    if (!confirmed) return;
-
-    try {
-      await UserAPI.remove(id);
-      await load();
-    } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.message || "Failed to delete user");
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch {
-      return "-";
-    }
+  const formatDate = (v) => {
+    if (!v) return "-";
+    const d = new Date(v);
+    return Number.isNaN(d.valueOf()) ? "-" : d.toLocaleDateString();
   };
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
-      case "Active":
-        return "badge badge-success";
-      case "Inactive":
-        return "badge badge-warning";
-      case "Suspended":
-        return "badge badge-danger";
-      default:
-        return "badge";
+      case "Active": return "badge badge-success";
+      case "Inactive": return "badge badge-warning";
+      case "Suspended": return "badge badge-danger";
+      default: return "badge";
     }
   };
 
@@ -97,14 +77,11 @@ export default function UserList() {
             <h1 className="page-title">User Management</h1>
             <p className="page-subtitle">Manage user accounts and permissions</p>
           </div>
-
           <div className="actions">
             <button type="button" className="btn btn-outline" onClick={load} disabled={loading}>
               Refresh
             </button>
-            <Link to="/users/create" className="btn btn-primary">
-              Add User
-            </Link>
+            <Link to="/users/create" className="btn btn-primary">Add User</Link>
           </div>
         </header>
 
@@ -114,40 +91,31 @@ export default function UserList() {
             type="search"
             placeholder="Search by name, email, or phone..."
             value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             aria-label="Search users"
           />
+
           <select
             className="select"
             value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             aria-label="Filter by status"
           >
-            <option value="all">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
+            <option key="status-all" value="all">All Statuses</option>
+            <option key="status-active" value="Active">Active</option>
+            <option key="status-inactive" value="Inactive">Inactive</option>
+            <option key="status-suspended" value="Suspended">Suspended</option>
           </select>
+
           <select
             className="select"
             value={roleFilter}
-            onChange={(event) => {
-              setRoleFilter(event.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
             aria-label="Filter by role"
           >
-            <option value="all">All Roles</option>
-            {roles.map((role) => (
-              <option key={role.roleId} value={role.roleId}>
-                {role.name}
-              </option>
+            <option key="role-all" value="all">All Roles</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.name}>{r.name}</option>
             ))}
           </select>
         </div>
@@ -171,35 +139,26 @@ export default function UserList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.userId}>
-                      <td>{user.userId}</td>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td>{u.id}</td>
                       <td>
-                        <Link className="link" to={`/users/${user.userId}`}>
-                          {user.name}
+                        <Link className="link" to={`/users/${u.id}`}>
+                          {u.name}
                         </Link>
                       </td>
-                      <td>{user.email}</td>
-                      <td>{user.roleName || "-"}</td>
+                      <td>{u.email || "-"}</td>
+                      <td>{u.role || "-"}</td>
                       <td>
-                        <span className={getStatusBadgeClass(user.status)}>
-                          {user.status || "Active"}
+                        <span className={getStatusBadgeClass(u.status)}>
+                          {u.status || "Active"}
                         </span>
                       </td>
-                      <td>{user.phoneNumber || "-"}</td>
-                      <td>{formatDate(user.createAt)}</td>
+                      <td>{u.phone || "-"}</td>
+                      <td>{formatDate(u.createdAt)}</td>
                       <td>
                         <div className="table-actions">
-                          <Link to={`/users/${user.userId}/edit`} className="btn btn-outline">
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-danger"
-                            onClick={() => handleDelete(user.userId)}
-                          >
-                            Delete
-                          </button>
+                          <Link to={`/users/${u.id}/edit`} className="btn btn-outline">Edit</Link>
                         </div>
                       </td>
                     </tr>
@@ -207,6 +166,7 @@ export default function UserList() {
                 </tbody>
               </table>
             </div>
+
             {totalPages > 1 && (
               <div className="pagination">
                 <button
@@ -239,19 +199,10 @@ export default function UserList() {
                 ? "Try adjusting your filters"
                 : "Get started by creating a new user"}
             </div>
-            <Link to="/users/create" className="btn btn-primary">
-              Add User
-            </Link>
+            <Link to="/users/create" className="btn btn-primary">Add User</Link>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-

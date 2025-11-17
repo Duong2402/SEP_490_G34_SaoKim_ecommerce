@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -25,6 +25,31 @@ namespace SaoKim_ecommerce_BE.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_categories", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Coupons",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    DiscountType = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    DiscountValue = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    MinOrderAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: true),
+                    MaxUsage = table.Column<int>(type: "integer", nullable: true),
+                    PerUserLimit = table.Column<int>(type: "integer", nullable: true),
+                    StartDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    EndDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    Status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    TotalRedeemed = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Coupons", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -69,11 +94,11 @@ namespace SaoKim_ecommerce_BE.Migrations
                     Code = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
                     CustomerId = table.Column<int>(type: "integer", nullable: true),
-                    CustomerName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    CustomerName = table.Column<string>(type: "text", nullable: true),
                     Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Phone = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     ProjectId = table.Column<int>(type: "integer", nullable: true),
-                    ProjectName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    ProjectName = table.Column<string>(type: "text", nullable: true),
                     Subtotal = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     Discount = table.Column<decimal>(type: "numeric", nullable: false),
                     Tax = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
@@ -111,6 +136,27 @@ namespace SaoKim_ecommerce_BE.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Projects", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "promotions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    DiscountType = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    DiscountValue = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    StartDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    EndDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_promotions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -358,7 +404,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                     create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    is_banned = table.Column<bool>(type: "boolean", nullable: false),
+                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -368,7 +416,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         column: x => x.role_id,
                         principalTable: "role",
                         principalColumn: "role_id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -401,6 +449,33 @@ namespace SaoKim_ecommerce_BE.Migrations
                         column: x => x.ProductId,
                         principalTable: "products",
                         principalColumn: "product_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "promotion_products",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PromotionId = table.Column<int>(type: "integer", nullable: false),
+                    ProductId = table.Column<int>(type: "integer", nullable: false),
+                    Note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_promotion_products", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_promotion_products_products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "products",
+                        principalColumn: "product_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_promotion_products_promotions_PromotionId",
+                        column: x => x.PromotionId,
+                        principalTable: "promotions",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -484,6 +559,56 @@ namespace SaoKim_ecommerce_BE.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "customer_notes",
+                columns: table => new
+                {
+                    note_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    customer_id = table.Column<int>(type: "integer", nullable: false),
+                    staff_id = table.Column<int>(type: "integer", nullable: false),
+                    content = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_customer_notes", x => x.note_id);
+                    table.ForeignKey(
+                        name: "FK_customer_notes_users_customer_id",
+                        column: x => x.customer_id,
+                        principalTable: "users",
+                        principalColumn: "user_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_customer_notes_users_staff_id",
+                        column: x => x.staff_id,
+                        principalTable: "users",
+                        principalColumn: "user_id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "orders",
+                columns: table => new
+                {
+                    order_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    user_id = table.Column<int>(type: "integer", nullable: false),
+                    total = table.Column<decimal>(type: "numeric", nullable: false),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_orders", x => x.order_id);
+                    table.ForeignKey(
+                        name: "FK_orders_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "users",
+                        principalColumn: "user_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "product_reviews",
                 columns: table => new
                 {
@@ -510,6 +635,28 @@ namespace SaoKim_ecommerce_BE.Migrations
                         principalTable: "users",
                         principalColumn: "user_id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "staff_action_logs",
+                columns: table => new
+                {
+                    log_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    staff_id = table.Column<int>(type: "integer", nullable: false),
+                    action = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    payload_json = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_staff_action_logs", x => x.log_id);
+                    table.ForeignKey(
+                        name: "FK_staff_action_logs_users_staff_id",
+                        column: x => x.staff_id,
+                        principalTable: "users",
+                        principalColumn: "user_id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -576,6 +723,22 @@ namespace SaoKim_ecommerce_BE.Migrations
                 column: "slug");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Coupons_Code",
+                table: "Coupons",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_customer_notes_customer_id",
+                table: "customer_notes",
+                column: "customer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_customer_notes_staff_id",
+                table: "customer_notes",
+                column: "staff_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_dispatch_item_dispatch_id",
                 table: "dispatch_item",
                 column: "dispatch_id");
@@ -596,6 +759,11 @@ namespace SaoKim_ecommerce_BE.Migrations
                 table: "invoices",
                 column: "Code",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_orders_user_id",
+                table: "orders",
+                column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_product_reviews_product_id",
@@ -662,6 +830,27 @@ namespace SaoKim_ecommerce_BE.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_promotion_products_ProductId",
+                table: "promotion_products",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_promotion_products_PromotionId_ProductId",
+                table: "promotion_products",
+                columns: new[] { "PromotionId", "ProductId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_promotions_StartDate_EndDate",
+                table: "promotions",
+                columns: new[] { "StartDate", "EndDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_promotions_Status",
+                table: "promotions",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_receiving_slip_items_ProductId",
                 table: "receiving_slip_items",
                 column: "ProductId");
@@ -676,6 +865,11 @@ namespace SaoKim_ecommerce_BE.Migrations
                 table: "receiving_slips",
                 column: "ReferenceNo",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_staff_action_logs_staff_id",
+                table: "staff_action_logs",
+                column: "staff_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TraceEvents_TraceIdentityId",
@@ -708,6 +902,12 @@ namespace SaoKim_ecommerce_BE.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "Coupons");
+
+            migrationBuilder.DropTable(
+                name: "customer_notes");
+
+            migrationBuilder.DropTable(
                 name: "dispatch_item");
 
             migrationBuilder.DropTable(
@@ -723,6 +923,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                 name: "invoice_items");
 
             migrationBuilder.DropTable(
+                name: "orders");
+
+            migrationBuilder.DropTable(
                 name: "product_reviews");
 
             migrationBuilder.DropTable(
@@ -735,7 +938,13 @@ namespace SaoKim_ecommerce_BE.Migrations
                 name: "project_task_days");
 
             migrationBuilder.DropTable(
+                name: "promotion_products");
+
+            migrationBuilder.DropTable(
                 name: "receiving_slip_items");
+
+            migrationBuilder.DropTable(
+                name: "staff_action_logs");
 
             migrationBuilder.DropTable(
                 name: "TraceEvents");
@@ -754,6 +963,9 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             migrationBuilder.DropTable(
                 name: "project_tasks");
+
+            migrationBuilder.DropTable(
+                name: "promotions");
 
             migrationBuilder.DropTable(
                 name: "receiving_slips");
