@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Models;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -19,7 +20,10 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // GET: /api/products
+        //[Authorize] // Cho phép mọi user đã đăng nhập
         [HttpGet]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q,
             [FromQuery] int page = 1,
@@ -47,7 +51,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var total = await baseQuery.CountAsync();
 
             bool desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-            IQueryable<Product> ordered = (sortBy ?? "").ToLower() switch
+            IQueryable<Product> ordered = (sortBy ?? string.Empty).ToLower() switch
             {
                 "name" => desc ? baseQuery.OrderByDescending(p => p.ProductName) : baseQuery.OrderBy(p => p.ProductName),
                 "sku" => desc ? baseQuery.OrderByDescending(p => p.ProductCode) : baseQuery.OrderBy(p => p.ProductCode),
@@ -62,7 +66,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             var items = await ordered
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new {
+                .Select(p => new
+                {
                     id = p.ProductID,
                     sku = p.ProductCode,
                     name = p.ProductName,
@@ -75,14 +80,16 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(new
+            var payload = new
             {
                 items,
                 page,
                 pageSize,
                 total,
                 totalPages = (int)Math.Ceiling(total / (double)pageSize)
-            });
+            };
+
+            return Ok(ApiResponse<object>.Ok(payload));
         }
 
         // GET: /api/products/5
@@ -286,45 +293,5 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { featured, newArrivals, all });
         }
-        // GET: api/products/123
-        //[HttpGet("{id:int}")]
-        //public async Task<IActionResult> GetProductById([FromRoute] int id)
-        //{
-        //    var p = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.ProductID == id)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            code = x.ProductCode,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null,
-        //            quantity = x.Quantity,
-        //            category = x.Category,
-        //            description = x.Description,
-        //            createdAt = x.CreateAt ?? x.Date
-        //        })
-        //        .FirstOrDefaultAsync();
-
-        //    if (p == null) return NotFound();
-
-        //    // gợi ý sản phẩm liên quan
-        //    var related = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.Category == p.category && x.ProductID != id)
-        //        .OrderByDescending(x => x.CreateAt ?? x.Date)
-        //        .Take(8)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null
-        //        })
-        //        .ToListAsync();
-
-        //    return Ok(new { product = p, related });
-        //}
     }
 }

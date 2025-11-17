@@ -57,9 +57,15 @@ export default function DispatchCreate() {
     const loadProducts = async () => {
       try {
         const res = await apiFetch(`/api/products`);
-        if (!res.ok) throw new Error(`Products HTTP ${res.status}`);
-        const data = await res.json();
-        const raw = Array.isArray(data) ? data : data.items || [];
+
+        const json = await res.json();
+        console.log("GET /api/products:", json);
+
+        const payload = json.data ?? json;
+        const raw = Array.isArray(payload)
+          ? payload
+          : payload.items || [];
+
         const normalized = raw
           .map((p) => ({
             id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
@@ -68,11 +74,15 @@ export default function DispatchCreate() {
             price: p.price ?? p.Price ?? p.unitPrice ?? p.UnitPrice ?? 0,
           }))
           .filter((p) => p.id != null && p.name);
+
+        console.log("Products normalized:", normalized);
         setProducts(normalized);
       } catch (err) {
         console.error("[Load products] failed:", err);
+        setProducts([]);
       }
     };
+
     loadProducts();
   }, []);
 
@@ -151,7 +161,7 @@ export default function DispatchCreate() {
   };
 
   const buildCreatePayloadAndUrl = ({ type, dispatchDate, note, selectedCustomer, selectedProject }) => {
-    const urlBase = `${API_BASE}/api/warehousemanager/dispatch-slips`;
+    const urlBase = `/api/warehousemanager/dispatch-slips`;
     if (type === "Sales") {
       return {
         url: `${urlBase}/sales`,
