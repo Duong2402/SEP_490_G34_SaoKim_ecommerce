@@ -54,6 +54,7 @@ import UserEdit from "./pages/users/UserEdit";
 
 //Import Page
 import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
+import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
 
 export default function App() {
   const { t } = useLanguage();
@@ -101,7 +102,9 @@ export default function App() {
 
           {/* Customers */}
           <Route path="/staff/manager-customers" element={<ManageCustomers />} />
-          <Route path="/staff/dashboard" element={<StaffDashboard />} />
+          <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
+
+          <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
           {/* Invoices */}
           <Route path="/staff/invoices" element={<ManageInvoices />} />
           <Route path="/products" element={<ManageProduct />} />

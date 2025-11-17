@@ -16,7 +16,7 @@ const StaffSidebar = () => {
   const location = useLocation();
 
   const menuItems = [
-    { title: "Dashboard",      icon: faChartBar,     link: "/staff/dashboard" },
+    { title: "Dashboard",      icon: faChartBar,     link: "/staff/manager-dashboard" },
     { title: "Manage Product", icon: faTruckLoading, link: "/staff/manager-products" },
     //{ title: "Orders",         icon: faTruckMoving,  link: "/staff/orders" },
     //{ title: "Invoices",       icon: faBoxes,        link: "/staff/invoices" },

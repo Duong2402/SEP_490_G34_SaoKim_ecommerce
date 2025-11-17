@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
@@ -6,6 +7,7 @@ using SaoKim_ecommerce_BE.Entities;
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
+    [AllowAnonymous]
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {

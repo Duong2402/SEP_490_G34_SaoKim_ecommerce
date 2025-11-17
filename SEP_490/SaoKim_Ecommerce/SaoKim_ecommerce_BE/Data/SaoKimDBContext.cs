@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SaoKim_ecommerce_BE.Entities;
 using System.Data;
 
@@ -17,6 +18,12 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Project> Projects { get; set; }
         public DbSet<Address> Addresses { get; set; }
 		public DbSet<Review> Reviews { get; set; }
+
+        //Customer
+        public DbSet<CustomerNote> CustomerNotes { get; set; }
+        public DbSet<StaffActionLog> StaffActionLogs { get; set; }
+        public DbSet<Order> Orders { get; set; }
+
         // protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         // {
         //     optionsBuilder.ConfigureWarnings(warnings =>
@@ -37,9 +44,7 @@ namespace SaoKim_ecommerce_BE.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // =========================
             // Category (NEW)
-            // =========================
             modelBuilder.Entity<Category>(e =>
             {
                 e.ToTable("categories");
@@ -59,9 +64,7 @@ namespace SaoKim_ecommerce_BE.Data
                 e.HasIndex(x => x.Slug).HasDatabaseName("IX_categories_slug");
             });
 
-            // =========================
             // Product (UPDATED: dùng CategoryId thay string Category)
-            // =========================
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
@@ -295,24 +298,7 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
-            //Invoices
-            modelBuilder.Entity<Invoice>(e =>
-            {
-                e.ToTable("invoices");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Code).HasMaxLength(40).IsRequired();
-                e.HasIndex(x => x.Code).IsUnique();
-
-                e.Property(x => x.CustomerName).HasMaxLength(200);
-                e.Property(x => x.ProjectName).HasMaxLength(200);
-
-                e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
-                e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
-                e.Property(x => x.Total).HasColumnType("numeric(18,2)");
-
-                e.Property(x => x.Status).HasConversion<int>();
-                e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
-            });
+            
 
             // Invoices
             modelBuilder.Entity<Invoice>(e =>
@@ -353,6 +339,27 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Cascade);
             });
 
+            //(Customer) Soft delete filter cho User 
+            /*modelBuilder.Entity<User>()
+                .HasQueryFilter(u => u.DeletedAt == null);*/
+
+            modelBuilder.Entity<CustomerNote>()
+                .HasOne(n => n.Customer)
+                .WithMany(u => u.Notes)
+                .HasForeignKey(n => n.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerNote>()
+                .HasOne(n => n.Staff)
+                .WithMany()
+                .HasForeignKey(n => n.StaffId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StaffActionLog>()
+                .HasOne(l => l.Staff)
+                .WithMany()
+                .HasForeignKey(l => l.StaffId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // ===== Address =====
             modelBuilder.Entity<Address>(e =>

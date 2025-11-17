@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
+    [AllowAnonymous]
     [Route("api/[controller]")]
     public class CategoriesController : ControllerBase
     {

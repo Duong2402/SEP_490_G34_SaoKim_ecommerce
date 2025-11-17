@@ -12,13 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-    [Migration("20251110181521_InitialCreate")]
+    [Migration("20251111173339_InitialCreate")]
     partial class InitialCreate
-========
-    [Migration("20251110152351_SomethingNew")]
-    partial class SomethingNew
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -30,41 +25,6 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("Created")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Slug")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("slug");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_categories_name");
-
-                    b.HasIndex("Slug")
-                        .HasDatabaseName("IX_categories_slug");
-
-                    b.ToTable("categories", (string)null);
-========
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
                 {
                     b.Property<int>("AddressId")
@@ -133,7 +93,41 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("UserId", "IsDefault");
 
                     b.ToTable("user_addresses", (string)null);
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("Created")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("IX_categories_name");
+
+                    b.HasIndex("Slug")
+                        .HasDatabaseName("IX_categories_slug");
+
+                    b.ToTable("categories", (string)null);
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchBase", b =>
@@ -226,11 +220,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("dispatch_item", (string)null);
                 });
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
-========
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.InventoryThreshold", b =>
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -238,7 +228,28 @@ namespace SaoKim_ecommerce_BE.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
+                    b.Property<int>("MinStock")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("InventoryThresholds");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -354,20 +365,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.ToTable("invoice_items", (string)null);
-========
-                    b.Property<int>("MinStock")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("InventoryThresholds");
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
@@ -1081,7 +1078,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Dispatch");
                 });
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.InvoiceItem", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Invoice", "Invoice")
@@ -1101,7 +1097,8 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Category");
-========
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectExpense", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Project", "Project")
@@ -1130,7 +1127,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Project");
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ReceivingSlipItem", b =>

@@ -1,6 +1,7 @@
 import {
   faCheck,
   faCog,
+  faDownload,
   faHome,
   faSearch,
 } from "@fortawesome/free-solid-svg-icons";
@@ -21,44 +22,57 @@ import {
   Spinner,
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import StaffLayout from "../../../layouts/StaffLayout"; 
+import { Link, useNavigate } from "react-router-dom";
+import DatePicker from "react-datepicker";
+import StaffLayout from "../../../layouts/StaffLayout";
 import useCustomersApi from "../api/useCustomers";
 
 export default function ManageCustomers() {
-  // filter/sort/paging
+  const navigate = useNavigate();
+  const { fetchCustomers, updateCustomerStatus, exportCustomers } =
+    useCustomersApi();
+
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [createdFrom, setCreatedFrom] = useState(null);
+  const [createdTo, setCreatedTo] = useState(null);
+  const [minSpend, setMinSpend] = useState("");
+  const [minOrders, setMinOrders] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortBy, setSortBy] = useState("id");
-  const [sortDir, setSortDir] = useState("asc");
+  const [sortBy, setSortBy] = useState("created");
+  const [sortDir, setSortDir] = useState("desc");
 
-  // data
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const { fetchCustomers } = useCustomersApi();
   const debouncedSearch = useDebounce(search, 400);
 
-  const load = async (opts = {}) => {
+  const load = async () => {
     setLoading(true);
     try {
       const res = await fetchCustomers({
-        q: opts.q ?? debouncedSearch,
-        page: opts.page ?? page,
-        pageSize: opts.pageSize ?? pageSize,
-        sortBy: opts.sortBy ?? sortBy,
-        sortDir: opts.sortDir ?? sortDir,
+        q: debouncedSearch,
+        status,
+        createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
+        createdTo: createdTo ? createdTo.toISOString() : undefined,
+        minSpend: minSpend || undefined,
+        minOrders: minOrders || undefined,
+        sortBy,
+        sortDir,
+        page,
+        pageSize,
       });
-      setRows(res?.items ?? []);
-      setTotal(res?.total ?? 0);
-      setTotalPages(res?.totalPages ?? 1);
-      if (res?.page && res.page !== page) setPage(res.page);
-      if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
-    } catch (e) {
-      console.error(e);
+
+      setRows(res.items ?? []);
+      setTotal(res.total ?? 0);
+      setTotalPages(Math.max(1, Math.ceil(res.total / res.pageSize)));
+    } catch (error) {
+      console.error(error);
+      alert("Không tải được danh sách khách hàng");
     } finally {
       setLoading(false);
     }
@@ -67,25 +81,75 @@ export default function ManageCustomers() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, page, pageSize, sortBy, sortDir]);
+  }, [
+    debouncedSearch,
+    status,
+    createdFrom,
+    createdTo,
+    minSpend,
+    minOrders,
+    page,
+    pageSize,
+    sortBy,
+    sortDir,
+  ]);
 
-  const onChangeSearch = (e) => {
-    setSearch(e.target.value);
-    setPage(1);
+  const renderStatus = (isBanned) =>
+    isBanned ? (
+      <Badge bg="secondary">Banned</Badge>
+    ) : (
+      <Badge bg="success">Active</Badge>
+    );
+
+  const handleToggleBan = async (row) => {
+    if (
+      !window.confirm(
+        `Bạn có chắc muốn ${row.isBanned ? "mở khóa" : "khóa"} khách hàng này?`
+      )
+    )
+      return;
+
+    try {
+      await updateCustomerStatus(row.id, !row.isBanned);
+      await load();
+    } catch (error) {
+      console.error(error);
+      alert("Cập nhật trạng thái thất bại");
+    }
   };
 
-  const renderStatus = (s) =>
-    (s ?? "").toLowerCase() === "active" ? (
-      <Badge bg="success">Active</Badge>
-    ) : (
-      <Badge bg="secondary">Inactive</Badge>
-    );
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await exportCustomers({
+        q: debouncedSearch,
+        status,
+        createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
+        createdTo: createdTo ? createdTo.toISOString() : undefined,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Đổi sang .xlsx
+      a.download = `customers_${new Date()
+        .toISOString()
+        .replace(/[-:T.]/g, "")
+        .slice(0, 14)}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Export thất bại");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <StaffLayout>
-      {/* Header */}
       <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-        <div className="d-block mb-4 mb-md-0">
+        <div>
           <Breadcrumb
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
@@ -96,93 +160,190 @@ export default function ManageCustomers() {
             <Breadcrumb.Item>Customers</Breadcrumb.Item>
             <Breadcrumb.Item active>Manage Customers</Breadcrumb.Item>
           </Breadcrumb>
+
           <h4>Manage Customers</h4>
-          <p className="mb-0">View registered accounts and purchase counts</p>
         </div>
 
-        <div className="btn-toolbar mb-2 mb-md-0">{/* no create button */}</div>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          <FontAwesomeIcon icon={faDownload} className="me-2" />
+          {exporting ? "Exporting..." : "Export Excel"}
+        </Button>
       </div>
 
-      {/* Search & Controls */}
-      <div className="table-settings mb-4">
-        <Row className="justify-content-between align-items-center">
-          <Col xs={12} md={6} lg={5} xl={4}>
-            <InputGroup>
-              <InputGroup.Text>
-                <FontAwesomeIcon icon={faSearch} />
-              </InputGroup.Text>
-              <Form.Control
-                type="text"
-                placeholder="Search by name, email or phone"
-                value={search}
-                onChange={onChangeSearch}
-              />
-            </InputGroup>
-          </Col>
+      {/* Search + Filters */}
+      <Card className="mb-4 shadow-sm">
+        <Card.Body>
+          <Row className="g-3 align-items-end">
+            <Col md={4}>
+              <Form.Label>Search</Form.Label>
+              <InputGroup>
+                <InputGroup.Text>
+                  <FontAwesomeIcon icon={faSearch} />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Name, email, phone"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </InputGroup>
+            </Col>
 
-          <Col xs="auto" className="ps-md-0 text-end">
-            <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle
-                split
-                as={Button}
-                variant="link"
-                className="text-dark m-0 p-0"
+            <Col md={2}>
+              <Form.Label>Status</Form.Label>
+              <Form.Select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
               >
-                <span className="icon icon-sm icon-gray">
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="banned">Banned</option>
+              </Form.Select>
+            </Col>
+
+            <Col md={2}>
+              <Form.Label>Created from</Form.Label>
+              <DatePicker
+                selected={createdFrom}
+                onChange={(date) => {
+                  setCreatedFrom(date);
+                  setPage(1);
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/MM/yyyy"
+                className="form-control"
+                isClearable
+              />
+            </Col>
+
+            <Col md={2}>
+              <Form.Label>Created to</Form.Label>
+              <DatePicker
+                selected={createdTo}
+                onChange={(date) => {
+                  setCreatedTo(date);
+                  setPage(1);
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/MM/yyyy"
+                className="form-control"
+                isClearable
+              />
+            </Col>
+
+            <Col md={2}>
+              <Form.Label>Min spend</Form.Label>
+              <Form.Control
+                type="number"
+                value={minSpend}
+                onChange={(e) => {
+                  setMinSpend(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </Col>
+
+            <Col md={2}>
+              <Form.Label>Min orders</Form.Label>
+              <Form.Control
+                type="number"
+                value={minOrders}
+                onChange={(e) => {
+                  setMinOrders(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </Col>
+
+            <Col md="auto" className="ms-auto">
+              <Dropdown as={ButtonGroup}>
+                <Dropdown.Toggle
+                  split
+                  as={Button}
+                  variant="link"
+                  className="text-dark m-0 p-0"
+                >
                   <FontAwesomeIcon icon={faCog} />
-                </span>
-              </Dropdown.Toggle>
-              <Dropdown.Menu className="dropdown-menu-xs dropdown-menu-right">
-                <Dropdown.Header>Show</Dropdown.Header>
-                {[10, 20, 30, 50].map((n) => (
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  <Dropdown.Header>Show</Dropdown.Header>
+                  {[10, 20, 30, 50].map((n) => (
+                    <Dropdown.Item
+                      key={n}
+                      active={pageSize === n}
+                      onClick={() => {
+                        setPageSize(n);
+                        setPage(1);
+                      }}
+                    >
+                      {n}
+                      {pageSize === n && (
+                        <FontAwesomeIcon icon={faCheck} className="ms-2" />
+                      )}
+                    </Dropdown.Item>
+                  ))}
+
+                  <Dropdown.Divider />
+                  <Dropdown.Header>Sort by</Dropdown.Header>
+
                   <Dropdown.Item
-                    key={n}
-                    className="d-flex fw-bold"
-                    active={pageSize === n}
                     onClick={() => {
-                      setPageSize(n);
+                      setSortBy("created");
+                      setSortDir("desc");
                       setPage(1);
                     }}
                   >
-                    {n}
-                    {pageSize === n && (
-                      <span className="icon icon-small ms-auto">
-                        <FontAwesomeIcon icon={faCheck} />
-                      </span>
-                    )}
+                    Created ↓
                   </Dropdown.Item>
-                ))}
-
-                <Dropdown.Divider />
-                <Dropdown.Header>Sort by</Dropdown.Header>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("asc"); setPage(1); }}>
-                  ID ↑
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("desc"); setPage(1); }}>
-                  ID ↓
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("name"); setSortDir("asc"); setPage(1); }}>
-                  Name ↑
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("orders"); setSortDir("desc"); setPage(1); }}>
-                  Orders ↓
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("spent"); setSortDir("desc"); setPage(1); }}>
-                  Total Spent ↓
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("created"); setSortDir("desc"); setPage(1); }}>
-                  Created ↓
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </Col>
-        </Row>
-      </div>
+                  <Dropdown.Item
+                    onClick={() => {
+                      setSortBy("orders");
+                      setSortDir("desc");
+                      setPage(1);
+                    }}
+                  >
+                    Orders ↓
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    onClick={() => {
+                      setSortBy("totalSpend");
+                      setSortDir("desc");
+                      setPage(1);
+                    }}
+                  >
+                    Total spend ↓
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    onClick={() => {
+                      setSortBy("lastOrder");
+                      setSortDir("desc");
+                      setPage(1);
+                    }}
+                  >
+                    Last order ↓
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       {/* Table */}
-      <Card border="light" className="table-wrapper table-responsive shadow-sm">
+      <Card className="shadow-sm">
         <Card.Body className="pt-0">
-          <div className="d-flex justify-content-between align-items-center mb-2">
+          <div className="d-flex justify-content-between mb-2">
             <div>Total: {total}</div>
             {loading && (
               <div className="d-flex align-items-center gap-2">
@@ -192,37 +353,56 @@ export default function ManageCustomers() {
             )}
           </div>
 
-          <Table hover className="user-table align-items-center mb-0">
+          <Table hover className="user-table mb-0">
             <thead>
               <tr>
-                <th style={{ whiteSpace: "nowrap" }}>ID</th>
+                <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
                 <th className="text-end">Orders</th>
-                <th className="text-end">Total Spent</th>
+                <th className="text-end">Total Spend</th>
                 <th>Status</th>
                 <th>Created</th>
+                <th className="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {(rows || []).map((c) => (
+              {rows.map((c) => (
                 <tr key={c.id}>
                   <td>{c.id}</td>
-                  <td>{c.name}</td>
-                  <td>{c.email}</td>
-                  <td>{c.phone}</td>
-                  <td className="text-end">{c.ordersCount ?? c.orders ?? 0}</td>
-                  <td className="text-end">
-                    {(c.totalSpent ?? 0).toLocaleString("vi-VN")}đ
+                  <td>
+                    <Button
+                      variant="link"
+                      className="p-0"
+                      onClick={() => navigate(`/staff-view-customers/${c.id}`)}
+                    >
+                      {c.name}
+                    </Button>
                   </td>
-                  <td>{renderStatus(c.status)}</td>
-                  <td>{formatDate(c.created)}</td>
+                  <td>{c.email}</td>
+                  <td>{c.phoneNumber}</td>
+                  <td className="text-end">{c.ordersCount}</td>
+                  <td className="text-end">
+                    {(c.totalSpend ?? 0).toLocaleString("vi-VN")}đ
+                  </td>
+                  <td>{renderStatus(c.isBanned)}</td>
+                  <td>{formatDate(c.createAt)}</td>
+                  <td className="text-end">
+                    <Button
+                      size="sm"
+                      variant={c.isBanned ? "success" : "outline-danger"}
+                      onClick={() => handleToggleBan(c)}
+                    >
+                      {c.isBanned ? "Unban" : "Ban"}
+                    </Button>
+                  </td>
                 </tr>
               ))}
+
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={9} className="text-center text-muted py-4">
                     No data
                   </td>
                 </tr>
@@ -235,16 +415,23 @@ export default function ManageCustomers() {
             <div>
               Page {page} / {totalPages}
             </div>
-            <Pagination className="mb-0">
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
+            <Pagination>
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
               <Pagination.Prev
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               />
-              {renderPageItems(page, totalPages, (p) => setPage(p))}
+
+              {renderPageItems(page, totalPages, setPage)}
+
               <Pagination.Next
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setPage((p) => Math.min(totalPages, p + 1))
+                }
               />
               <Pagination.Last
                 disabled={page >= totalPages}
@@ -256,6 +443,15 @@ export default function ManageCustomers() {
       </Card>
     </StaffLayout>
   );
+}
+
+function formatDate(s) {
+  if (!s) return "";
+  try {
+    return new Date(s).toLocaleDateString("vi-VN");
+  } catch {
+    return s;
+  }
 }
 
 function useDebounce(value, delay = 400) {
@@ -270,6 +466,7 @@ function useDebounce(value, delay = 400) {
 function renderPageItems(current, total, onClick) {
   const items = [];
   const win = 2;
+
   const start = Math.max(1, current - win);
   const end = Math.min(total, current + win);
 
@@ -279,32 +476,31 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis key="s-ellipsis" disabled />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
+
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
+
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis key="e-ellipsis" disabled />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}
       </Pagination.Item>
     );
   }
-  return items;
-}
 
-function formatDate(s) {
-  if (!s) return "";
-  try {
-    const d = new Date(s);
-    return d.toLocaleDateString("vi-VN");
-  } catch {
-    return s;
-  }
+  return items;
 }

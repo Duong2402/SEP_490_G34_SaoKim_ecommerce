@@ -41,9 +41,9 @@ namespace SaoKim_ecommerce_BE.Data
                 var inv = new Invoice
                 {
                     Code = $"INV-{DateTime.UtcNow:yyyyMMdd}-001",
-                    CustomerName = "Công ty ABC",
-                    Email = "contact@abc.vn",
-                    Phone = "0901234567",
+                    CustomerName = "Tập đoàn FPT",
+                    Email = "contact@fpt.com",
+                    Phone = "024 7300 5588",
                     Subtotal = 1_000_000,
                     Discount = 0,
                     Tax = 100_000,

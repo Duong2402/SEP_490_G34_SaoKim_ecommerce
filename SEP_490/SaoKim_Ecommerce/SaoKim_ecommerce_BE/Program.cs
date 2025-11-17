@@ -8,7 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Services;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Security.Claims;
 using System.Text.Json.Serialization;

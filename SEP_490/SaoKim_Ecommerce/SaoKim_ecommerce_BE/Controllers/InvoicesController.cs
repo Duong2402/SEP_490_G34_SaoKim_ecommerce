@@ -1,20 +1,22 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.Entities;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Entities;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
+    [AllowAnonymous]
     [Route("api/[controller]")]
     public class InvoicesController : ControllerBase
     {

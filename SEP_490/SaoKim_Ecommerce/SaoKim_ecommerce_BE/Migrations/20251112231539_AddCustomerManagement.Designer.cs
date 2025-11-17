@@ -12,13 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-    [Migration("20251110181521_InitialCreate")]
-    partial class InitialCreate
-========
-    [Migration("20251110152351_SomethingNew")]
-    partial class SomethingNew
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
+    [Migration("20251112231539_AddCustomerManagement")]
+    partial class AddCustomerManagement
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -30,41 +25,6 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("Created")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Slug")
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("slug");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_categories_name");
-
-                    b.HasIndex("Slug")
-                        .HasDatabaseName("IX_categories_slug");
-
-                    b.ToTable("categories", (string)null);
-========
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
                 {
                     b.Property<int>("AddressId")
@@ -133,7 +93,77 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("UserId", "IsDefault");
 
                     b.ToTable("user_addresses", (string)null);
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("Created")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("IX_categories_name");
+
+                    b.HasIndex("Slug")
+                        .HasDatabaseName("IX_categories_slug");
+
+                    b.ToTable("categories", (string)null);
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.CustomerNote", b =>
+                {
+                    b.Property<int>("NoteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("note_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NoteId"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("staff_id");
+
+                    b.HasKey("NoteId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("customer_notes");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchBase", b =>
@@ -226,11 +256,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("dispatch_item", (string)null);
                 });
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
-========
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.InventoryThreshold", b =>
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -238,7 +264,28 @@ namespace SaoKim_ecommerce_BE.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
+                    b.Property<int>("MinStock")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("InventoryThresholds");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -253,8 +300,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("CustomerName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<decimal>("Discount")
                         .HasColumnType("numeric");
@@ -288,8 +334,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("ProjectName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -354,20 +399,40 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.ToTable("invoice_items", (string)null);
-========
-                    b.Property<int>("MinStock")
-                        .HasColumnType("integer");
+                });
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderId"));
 
-                    b.HasKey("Id");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
-                    b.ToTable("InventoryThresholds");
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("OrderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("orders");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
@@ -780,6 +845,40 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("role");
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.StaffActionLog", b =>
+                {
+                    b.Property<int>("LogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("log_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LogId"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("text")
+                        .HasColumnName("payload_json");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("staff_id");
+
+                    b.HasKey("LogId");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("staff_action_logs");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.TaskDay", b =>
                 {
                     b.Property<int>("Id")
@@ -975,6 +1074,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dob");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -985,6 +1088,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
                         .HasColumnName("image");
+
+                    b.Property<bool>("IsBanned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_banned");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1070,6 +1177,25 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.CustomerNote", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
+                        .WithMany("Notes")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Staff");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchItem", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.DispatchBase", "Dispatch")
@@ -1081,7 +1207,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Dispatch");
                 });
 
-<<<<<<<< HEAD:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110181521_InitialCreate.Designer.cs
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.InvoiceItem", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Invoice", "Invoice")
@@ -1093,6 +1218,17 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Invoice");
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
+                        .WithMany("Orders")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Category", "Category")
@@ -1101,7 +1237,8 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Category");
-========
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectExpense", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Project", "Project")
@@ -1130,7 +1267,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Project");
->>>>>>>> origin/main:SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Migrations/20251110152351_SomethingNew.Designer.cs
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ReceivingSlipItem", b =>
@@ -1168,6 +1304,17 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.StaffActionLog", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.TaskDay", b =>
@@ -1285,6 +1432,13 @@ namespace SaoKim_ecommerce_BE.Migrations
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.TraceIdentity", b =>
                 {
                     b.Navigation("Events");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.User", b =>
+                {
+                    b.Navigation("Notes");
+
+                    b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618
         }
