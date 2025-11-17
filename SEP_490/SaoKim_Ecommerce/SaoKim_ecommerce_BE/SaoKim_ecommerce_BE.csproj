@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Folder Include="Migrations\" />
+    <Folder Include="wwwroot\invoices\" />
     <Folder Include="wwwroot\uploads\users\" />
   </ItemGroup>
 

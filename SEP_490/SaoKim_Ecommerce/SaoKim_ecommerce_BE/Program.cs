@@ -5,11 +5,14 @@ using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
+using System.Text;
+using QuestPDF.Infrastructure;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 
 builder.Services.AddSignalR();
 builder.Services.AddControllers()
@@ -122,6 +125,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+var fontPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts", "NotoSans-Regular.ttf");
 
 using (var scope = app.Services.CreateScope())
 {

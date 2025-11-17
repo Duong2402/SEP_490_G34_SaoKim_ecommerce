@@ -8,3 +8,4 @@ namespace SaoKim_ecommerce_BE.Services
         Task<PagedResult<ProductListItemDto>> GetPagedAsync(ProductQueryParams query);
     }
 }
+

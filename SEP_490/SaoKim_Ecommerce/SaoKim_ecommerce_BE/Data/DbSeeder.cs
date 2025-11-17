@@ -22,6 +22,52 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
+            // ----- Seed Categories (nếu chưa có) -----
+            var catNames = new[] { "Đèn LED" };
+            foreach (var name in catNames)
+            {
+                if (!await db.Categories.AnyAsync(c => c.Name.ToLower() == name.ToLower()))
+                {
+                    db.Categories.Add(new Category
+                    {
+                        Name = name,
+                        Slug = Slugify(name),
+                        Created = DateTime.UtcNow
+                    });
+                }
+            }
+            await db.SaveChangesAsync();
+
+            if (!await db.Set<Invoice>().AnyAsync())
+            {
+                var inv = new Invoice
+                {
+                    Code = $"INV-{DateTime.UtcNow:yyyyMMdd}-001",
+                    CustomerName = "Tập đoàn FPT",
+                    Email = "contact@fpt.com",
+                    Phone = "024 7300 5588",
+                    Subtotal = 1_000_000,
+                    Discount = 0,
+                    Tax = 100_000,
+                    Total = 1_100_000,
+                    Status = InvoiceStatus.Paid,
+                    Items = new List<InvoiceItem>
+        {
+            new InvoiceItem { ProductName = "Đèn LED 10W", Quantity = 10, UnitPrice = 50_000, LineTotal = 500_000, Uom = "cái" },
+            new InvoiceItem { ProductName = "Đèn rọi 7W", Quantity =  5, UnitPrice =100_000, LineTotal = 500_000, Uom = "cái" }
+        }
+                };
+                db.Add(inv);
+                await db.SaveChangesAsync();
+            }
+
+
+
+
+            // Lấy id danh mục cần dùng
+            var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();
+
+ 
             // ----- Seed Users -----
             if (!await db.Users.AnyAsync())
             {
@@ -101,6 +147,7 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.UnitOfMeasures.AnyAsync(x => x.Name == u.Name)) db.UnitOfMeasures.Add(u);
             await db.SaveChangesAsync();
 
+           // ----- Seed Products -----
             var seeds = new List<Product>
             {
                 new() {
@@ -111,7 +158,7 @@ namespace SaoKim_ecommerce_BE.Data
                     Unit        = "Cái",
                     Price       = 120000m,
                     Status      = "Active",
-                    Category    = "Đèn LED",
+                    CategoryId  = catDenLed,                    //  dùng FK
                     Description = "Đèn LED Rạng Đông công suất 12W",
                     Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
                     CreateAt    = DateTime.UtcNow
@@ -124,7 +171,7 @@ namespace SaoKim_ecommerce_BE.Data
                     Unit        = "Cái",
                     Price       = 95000m,
                     Status      = "Active",
-                    Category    = "Đèn LED",
+                    CategoryId  = catDenLed,                    // 
                     Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
                     Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
                     CreateAt    = DateTime.UtcNow
@@ -137,7 +184,7 @@ namespace SaoKim_ecommerce_BE.Data
                     Unit        = "Cái",
                     Price       = 110000m,
                     Status      = "Active",
-                    Category    = "Đèn LED",
+                    CategoryId  = catDenLed,                    // 
                     Description = "Mẫu đèn khác để test",
                     Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
                     CreateAt    = DateTime.UtcNow
@@ -157,7 +204,7 @@ namespace SaoKim_ecommerce_BE.Data
                     exist.Unit = s.Unit;
                     exist.Price = s.Price;
                     exist.Status = s.Status;
-                    exist.Category = s.Category;
+                    exist.CategoryId = s.CategoryId;          //  cập nhật FK
                     exist.Description = s.Description;
                     exist.Image = s.Image;
                     exist.UpdateAt = DateTime.UtcNow;
@@ -209,6 +256,12 @@ namespace SaoKim_ecommerce_BE.Data
             await SeedDispatchesAsync(db);
         }
 
+        private static string Slugify(string input)
+        {
+            var s = input.Trim().ToLower();
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", "-");
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9\-]", "");
+            return s;
         private static string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);

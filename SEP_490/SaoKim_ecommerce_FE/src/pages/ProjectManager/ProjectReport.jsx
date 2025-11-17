@@ -88,7 +88,7 @@ export default function ProjectReport() {
     actualAllIn,
     variance,
     profitApprox,
-    taskCount,
+    //taskCount,
     taskCompleted,
     taskDelayed,
     taskActive,

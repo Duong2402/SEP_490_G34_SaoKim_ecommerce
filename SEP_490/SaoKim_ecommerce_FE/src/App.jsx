@@ -41,12 +41,20 @@ import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
 import Profile from "./pages/account/Profile";
 import Addresses from "./pages/account/Addresses";
 
+//Customers
+import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
+import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard";
+
+//Invoices
+import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 // Users
 import UserList from "./pages/users/UserList";
 import UserCreate from "./pages/users/UserCreate";
 import UserEdit from "./pages/users/UserEdit";
 
 
+//Import Page
+import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
 // Manager area
 import ManagerLayout from "./layouts/ManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
@@ -108,6 +116,15 @@ export default function App() {
 
           {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/staff/manager-products" element={<ManageProduct />} />
+
+          {/* Customers */}
+          <Route path="/staff/manager-customers" element={<ManageCustomers />} />
+          <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
+
+          <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
+          {/* Invoices */}
+          <Route path="/staff/invoices" element={<ManageInvoices />} />
           <Route path="/products" element={<ManageProduct />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />

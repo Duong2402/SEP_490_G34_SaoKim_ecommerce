@@ -1,20 +1,19 @@
 import useProductsApi from "../api/useProducts";
 import ProductForm from "./ProductForm";
 
-function AddProductForm({  onCancel, onSuccess }) {
-
-  const {createProduct}= useProductsApi();
+function AddProductForm({ onCancel, onSuccess }) {
+  const { createProduct } = useProductsApi();
 
   const handleCreate = async (values) => {
     const now = new Date().toISOString();
 
-    const payload = {        
+    const payload = {
       productName: values.name,
       productCode: values.sku,
-      category: values.category,
-      unit: "pcs",                           // hoặc lấy từ form nếu có
+      categoryId: values.categoryId ? Number(values.categoryId) : null, // ✅ dùng FK
+      unit: "pcs",
       price: values.price,
-      quantity: values.stock,                // quantity theo form stock
+      quantity: values.stock,
       stock: values.stock,
       status: values.active ? "Active" : "Inactive",
       image: "",
@@ -24,19 +23,18 @@ function AddProductForm({  onCancel, onSuccess }) {
       created: now,
       date: now,
       createAt: now,
-      createBy: "staff01",                   // tuỳ bạn set
+      createBy: "staff01",
       updateBy: "",
       updateAt: now,
     };
 
     await createProduct(payload);
-    onSuccess && onSuccess()
+    onSuccess && onSuccess();
   };
 
   return (
     <ProductForm submitLabel="Create" onSubmit={handleCreate} onCancel={onCancel} />
   );
 }
-
 
 export default AddProductForm;

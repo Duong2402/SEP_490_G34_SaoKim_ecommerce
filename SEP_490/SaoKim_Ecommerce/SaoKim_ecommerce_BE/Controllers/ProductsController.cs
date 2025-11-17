@@ -1,5 +1,4 @@
-﻿// Controllers/ProductsController.cs
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
@@ -9,6 +8,7 @@ using SaoKim_ecommerce_BE.Models;
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
+    [AllowAnonymous]
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
@@ -34,16 +34,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            IQueryable<Product> baseQuery = _db.Products.AsNoTracking();
+            IQueryable<Product> baseQuery = _db.Products
+                .AsNoTracking()
+                .Include(p => p.Category);
 
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = $"%{q.Trim()}%";
-                // ILIKE = so khớp không phân biệt hoa/thường trong Postgres
                 baseQuery = baseQuery.Where(p =>
                     EF.Functions.ILike(p.ProductName, term) ||
                     EF.Functions.ILike(p.ProductCode, term) ||
-                    EF.Functions.ILike(p.Category ?? string.Empty, term)
+                    (p.Category != null && EF.Functions.ILike(p.Category.Name, term))   // 
                 );
             }
 
@@ -54,7 +55,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 "name" => desc ? baseQuery.OrderByDescending(p => p.ProductName) : baseQuery.OrderBy(p => p.ProductName),
                 "sku" => desc ? baseQuery.OrderByDescending(p => p.ProductCode) : baseQuery.OrderBy(p => p.ProductCode),
-                "category" => desc ? baseQuery.OrderByDescending(p => p.Category) : baseQuery.OrderBy(p => p.Category),
+                "category" => desc ? baseQuery.OrderByDescending(p => p.Category!.Name) : baseQuery.OrderBy(p => p.Category!.Name), // ✅
                 "price" => desc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price),
                 "stock" => desc ? baseQuery.OrderByDescending(p => p.Stock) : baseQuery.OrderBy(p => p.Stock),
                 "status" => desc ? baseQuery.OrderByDescending(p => p.Status) : baseQuery.OrderBy(p => p.Status),
@@ -70,7 +71,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     id = p.ProductID,
                     sku = p.ProductCode,
                     name = p.ProductName,
-                    category = p.Category,
+                    category = p.Category != null ? p.Category.Name : null,  // 
                     price = p.Price,
                     unit = p.Unit,
                     stock = p.Stock,
@@ -96,7 +97,25 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var product = await _db.Products.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ProductID == id);
+                .Include(p => p.Category)
+                .Where(p => p.ProductID == id)
+                .Select(p => new {
+                    id = p.ProductID,
+                    sku = p.ProductCode,
+                    name = p.ProductName,
+                    category = p.Category != null ? p.Category.Name : null,  // 
+                    price = p.Price,
+                    stock = p.Stock,
+                    status = p.Status,
+                    created = p.Created,
+                    unit = p.Unit,
+                    quantity = p.Quantity,
+                    description = p.Description,
+                    supplier = p.Supplier,
+                    image = p.Image,
+                    note = p.Note
+                })
+                .FirstOrDefaultAsync();
 
             if (product == null)
                 return NotFound(new { message = "Product not found" });
@@ -111,13 +130,15 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Kiểm tra trùng ProductCode
             var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.ProductCode);
             if (exists)
                 return Conflict(new { message = "Product code already exists" });
 
             model.CreateAt = DateTime.UtcNow;
             model.Status ??= "Active";
+
+            //  giờ Product dùng CategoryId (nullable). Nếu front còn gửi "category" là chuỗi,
+            // hãy đổi front để gửi CategoryId, hoặc viết thêm logic map tên -> id ở đây.
 
             _db.Products.Add(model);
             await _db.SaveChangesAsync();
@@ -133,10 +154,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (existing == null)
                 return NotFound(new { message = "Product not found" });
 
-            // Cập nhật các trường
             existing.ProductCode = update.ProductCode;
             existing.ProductName = update.ProductName;
-            existing.Category = update.Category;
+            existing.CategoryId = update.CategoryId;      //  dùng FK
             existing.Unit = update.Unit;
             existing.Price = update.Price;
             existing.Quantity = update.Quantity;
@@ -166,7 +186,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product deleted successfully" });
         }
 
-        // GET: api/products/home (giữ nguyên để FE homepage dùng)
+        // GET: api/products/home
         [HttpGet("home")]
         public async Task<IActionResult> GetHomeProducts(
             [FromQuery] int Page = 1,
@@ -174,16 +194,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             [FromQuery] string? SortBy = "new",
             [FromQuery] string? Keyword = null,
             [FromQuery] string? Category = null,
-            [FromQuery] int NewWithinDays = 14)
+            [FromQuery] int NewWithinDays = 14
+        )
         {
             Page = Math.Max(1, Page);
             PageSize = Math.Clamp(PageSize, 1, 100);
 
-            var now = DateTime.UtcNow;
-            var cutoff = now.AddDays(-NewWithinDays);
+            var cutoff = DateTime.UtcNow.AddDays(-NewWithinDays);
 
             var featured = await _db.Products
                 .AsNoTracking()
+                .Include(p => p.Category)
                 .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
                 .OrderByDescending(p => p.CreateAt ?? p.Date)
                 .Take(8)
@@ -194,7 +215,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     price = p.Price,
                     image = p.Image != null ? $"/images/{p.Image}" : null,
                     description = p.Description,
-                    category = p.Category,
+                    category = p.Category != null ? p.Category.Name : null, // 
                     createAt = p.CreateAt ?? p.Date,
                     quantity = p.Quantity
                 })
@@ -202,6 +223,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var newArrivals = await _db.Products
                 .AsNoTracking()
+                .Include(p => p.Category)
                 .Where(p => (p.Status == "Active" || p.Status == null))
                 .Where(p => (p.CreateAt ?? p.Date) >= cutoff)
                 .OrderByDescending(p => p.CreateAt ?? p.Date)
@@ -213,25 +235,26 @@ namespace SaoKim_ecommerce_BE.Controllers
                     price = p.Price,
                     image = p.Image != null ? $"/images/{p.Image}" : null,
                     description = p.Description,
-                    category = p.Category,
+                    category = p.Category != null ? p.Category.Name : null, // 
                     createAt = p.CreateAt ?? p.Date,
                     quantity = p.Quantity
                 })
                 .ToListAsync();
 
             var q = _db.Products.AsNoTracking()
+                .Include(p => p.Category)
                 .Where(p => p.Status == "Active" || p.Status == null);
 
             if (!string.IsNullOrWhiteSpace(Keyword))
             {
-                var kw = Keyword.Trim();
-                q = q.Where(p => EF.Functions.ILike(p.ProductName, $"%{kw}%"));
+                var kw = $"%{Keyword.Trim()}%";
+                q = q.Where(p => EF.Functions.ILike(p.ProductName, kw));
             }
 
             if (!string.IsNullOrWhiteSpace(Category))
             {
-                var cat = Category.Trim().ToLower();
-                q = q.Where(p => (p.Category ?? string.Empty).ToLower() == cat);
+                var cat = Category.Trim();
+                q = q.Where(p => p.Category != null && p.Category.Name.ToLower() == cat.ToLower()); // ✅
             }
 
             q = SortBy switch
@@ -253,7 +276,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     price = p.Price,
                     image = p.Image != null ? $"/images/{p.Image}" : null,
                     description = p.Description,
-                    category = p.Category,
+                    category = p.Category != null ? p.Category.Name : null, // 
                     createAt = p.CreateAt ?? p.Date,
                     quantity = p.Quantity
                 })

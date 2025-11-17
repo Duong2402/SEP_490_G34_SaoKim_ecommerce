@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DocumentFormat.OpenXml.Drawing.Charts;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -62,5 +63,16 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("update_at")]
         public DateTime? UpdateAt { get; set; }
+
+        //customer
+        [Column("is_banned")]
+        public bool IsBanned { get; set; } = false;
+
+        [Column("deleted_at")]
+        public DateTime? DeletedAt { get; set; }
+
+        public ICollection<Order> Orders { get; set; } = new List<Order>();
+
+        public ICollection<CustomerNote> Notes { get; set; } = new List<CustomerNote>();
     }
 }
