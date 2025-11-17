@@ -1,427 +1,250 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { getProvinces, getDistricts, getWards } from "sub-vn";
-import { useJsApiLoader, Autocomplete } from "@react-google-maps/api";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import "../styles/EcommerceHeader.css";
 
-export default function Addresses() {
+const NAV_LINKS = [
+  { to: "/#catalog", label: "San pham" },
+  { to: "/#solutions", label: "Giai phap" },
+  { to: "/#projects", label: "Du an tieu bieu" },
+  { to: "/#contact", label: "Lien he" },
+];
+
+export default function EcommerceHeader() {
   const navigate = useNavigate();
-  const apiBase = "https://localhost:7278";
+  const location = useLocation();
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [userName, setUserName] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [query, setQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // form state (create/update)
-  const [editing, setEditing] = useState(null); // null=create, number=id for edit
-  const [form, setForm] = useState({
-    recipientName: "",
-    phoneNumber: "",
-    line1: "",
-    line2: "",
-    ward: "",
-    district: "",
-    province: "",
-    isDefault: false,
-  });
+  const userMenuRef = useRef(null);
 
-  // selection state (lưu code để đổ danh sách phụ thuộc)
-  const [provinceCode, setProvinceCode] = useState("");
-  const [districtCode, setDistrictCode] = useState("");
-  const [wardCode, setWardCode] = useState("");
-
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-  // Google Places loader (tùy chọn)
-  const { isLoaded: isGMapsLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
-  });
-  const enablePlaces = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
-
-  const provinces = useMemo(() => getProvinces(), []);
-  const districts = useMemo(
-    () => (provinceCode ? getDistricts(provinceCode) : []),
-    [provinceCode]
-  );
-  const wards = useMemo(
-    () => (districtCode ? getWards(districtCode) : []),
-    [districtCode]
-  );
-
-  const findProvinceByName = (name) =>
-    provinces.find((p) => p.name.toLowerCase() === (name || "").toLowerCase());
-  const findDistrictByName = (provCode, name) =>
-    getDistricts(provCode).find(
-      (d) => d.name.toLowerCase() === (name || "").toLowerCase()
-    );
-  const findWardByName = (distCode, name) =>
-    getWards(distCode).find(
-      (w) => w.name.toLowerCase() === (name || "").toLowerCase()
-    );
-
-  const fetchAll = async () => {
-    setLoading(true);
-    setError("");
+  const syncSession = () => {
     try {
-      const res = await fetch(`${apiBase}/api/addresses`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Không tải được danh sách địa chỉ");
-      const data = await res.json();
-      setItems(data);
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
-    } finally {
-      setLoading(false);
+      const token = localStorage.getItem("token");
+      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail");
+      const cart = Number(localStorage.getItem("cartCount") || 0);
+      setIsLoggedIn(Boolean(token && name));
+      setUserName(name || null);
+      setCartCount(Number.isFinite(cart) && cart > 0 ? cart : 0);
+    } catch {
+      setIsLoggedIn(false);
+      setUserName(null);
+      setCartCount(0);
     }
   };
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
+    syncSession();
+
+    const onStorage = (e) => {
+      if (!e || !e.key) {
+        syncSession();
+        return;
+      }
+      if (["token", "userName", "userEmail", "cartCount", "role"].includes(e.key)) {
+        syncSession();
+      }
+    };
+
+    const onAuthChanged = () => syncSession();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("auth:changed", onAuthChanged);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth:changed", onAuthChanged);
+    };
+  }, []);
+
+  // cuộn tới anchor khi route có hash
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.slice(1);
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
+  }, [location]);
 
-  // Khi người dùng đổi Tỉnh → reset Quận, Phường
-  const onProvinceChange = (code) => {
-    setProvinceCode(code);
-    setDistrictCode("");
-    setWardCode("");
+  // đóng menu khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    const p = provinces.find((x) => x.code === code);
-    setForm((prev) => ({
-      ...prev,
-      province: p ? p.name : "",
-      district: "",
-      ward: "",
-    }));
-  };
-
-  // Khi người dùng đổi Quận → reset Phường
-  const onDistrictChange = (code) => {
-    setDistrictCode(code);
-    setWardCode("");
-
-    const d = districts.find((x) => x.code === code);
-    setForm((prev) => ({
-      ...prev,
-      district: d ? d.name : "",
-      ward: "",
-    }));
-  };
-
-  const onWardChange = (code) => {
-    setWardCode(code);
-    const w = wards.find((x) => x.code === code);
-    setForm((prev) => ({
-      ...prev,
-      ward: w ? w.name : "",
-    }));
-  };
-
-  const resetForm = () => {
-    setEditing(null);
-    setForm({
-      recipientName: "",
-      phoneNumber: "",
-      line1: "",
-      line2: "",
-      ward: "",
-      district: "",
-      province: "",
-      isDefault: false,
-    });
-    setProvinceCode("");
-    setDistrictCode("");
-    setWardCode("");
-  };
-
-  const submitForm = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    // Validate cơ bản
-    if (!form.recipientName.trim() || !form.phoneNumber.trim() || !form.line1.trim()) {
-      setError("Vui lòng nhập đủ Người nhận, SĐT và Địa chỉ dòng 1");
-      return;
-    }
-    if (!form.province || !form.district || !form.ward) {
-      setError("Vui lòng chọn đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã");
-      return;
-    }
-
+  const handleLogout = () => {
     try {
-      const method = editing ? "PUT" : "POST";
-      const url = editing ? `${apiBase}/api/addresses/${editing}` : `${apiBase}/api/addresses`;
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error(editing ? "Cập nhật thất bại" : "Thêm mới thất bại");
-      await fetchAll();
-      resetForm();
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
-    }
+      ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    setIsLoggedIn(false);
+    setUserName(null);
+    setCartCount(0);
+    window.dispatchEvent(new Event("auth:changed"));
+    navigate("/login");
   };
 
-  const setDefault = async (id) => {
-    try {
-      const res = await fetch(`${apiBase}/api/addresses/${id}/default`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Không đặt mặc định được");
-      await fetchAll();
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
-    }
+  const startSearch = () => {
+    const q = (query || "").trim();
+    if (!q) return;
+    navigate(`/search?q=${encodeURIComponent(q)}`);
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("Xóa địa chỉ này?")) return;
-    try {
-      const res = await fetch(`${apiBase}/api/addresses/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Xóa thất bại");
-      await fetchAll();
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
+  const onSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      startSearch();
     }
-  };
-
-  const startEdit = (a) => {
-    setEditing(a.addressId);
-    setForm({
-      recipientName: a.recipientName || "",
-      phoneNumber: a.phoneNumber || "",
-      line1: a.line1 || "",
-      line2: a.line2 || "",
-      ward: a.ward || "",
-      district: a.district || "",
-      province: a.province || "",
-      isDefault: a.isDefault || false,
-    });
-
-    // map tên -> code để preselect
-    const p = findProvinceByName(a.province);
-    const pCode = p?.code || "";
-    setProvinceCode(pCode);
-
-    const d = pCode ? findDistrictByName(pCode, a.district) : null;
-    const dCode = d?.code || "";
-    setDistrictCode(dCode);
-
-    const w = dCode ? findWardByName(dCode, a.ward) : null;
-    setWardCode(w?.code || "");
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Render input Địa chỉ dòng 1: ưu tiên Autocomplete nếu có key
-  const Line1Input = () => {
-    if (!enablePlaces) {
-      return (
-        <input
-          value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
-          required
-        />
-      );
-    }
-    // Chỉ hiển thị Autocomplete khi isGMapsLoaded=true
-    if (!isGMapsLoaded) {
-      return (
-        <input
-          value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
-          placeholder="Đang tải gợi ý..."
-          required
-        />
-      );
-    }
-    return (
-      <Autocomplete
-        onPlaceChanged={(/* place auto trong đối tượng Autocomplete */) => {
-          // Lấy formatted_address
-          const place = window.google?.maps?.places?.PlacesServiceStatus ? null : null; // tránh lỗi TS khi biên dịch
-        }}
-        onLoad={(ac) => {
-          // hook sự kiện place_changed để lấy address
-          ac.addListener("place_changed", () => {
-            const place = ac.getPlace();
-            if (place && place.formatted_address) {
-              setForm((prev) => ({ ...prev, line1: place.formatted_address }));
-            } else if (place && place.name) {
-              setForm((prev) => ({ ...prev, line1: place.name }));
-            }
-          });
-        }}
-        options={{
-          // Giới hạn VN
-          componentRestrictions: { country: "vn" },
-          fields: ["formatted_address", "name", "address_components", "geometry"],
-          types: ["geocode"],
-        }}
-      >
-        <input
-          value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
-          placeholder="Nhập địa chỉ (có gợi ý)"
-          required
-        />
-      </Autocomplete>
-    );
   };
 
   return (
-    <div style={{ maxWidth: 960, margin: "24px auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Quản lý địa chỉ</h2>
-        <Link to="/account" style={{ textDecoration: "none" }}>&larr; Về thông tin tài khoản</Link>
+    <header className="site-header">
+      <div className="site-header__announcement">
+        <div className="site-header__announcement-inner">
+          <span className="site-header__announcement-badge">Sao Kim Lightning</span>
+          <p>
+            Thiet bi chieu sang chuyen nghiep cho showroom, khach san va nha o cao cap. Nhan tu van thiet ke mien phi
+            cung doi ngu ky su Sao Kim.
+          </p>
+          <a href="tel:0918113559" className="site-header__announcement-link">
+            0918 113 559
+          </a>
+        </div>
       </div>
 
-      {error && (
-        <div style={{ color: "#b00020", marginBottom: 12 }}>{error}</div>
-      )}
-
-      {/* Form tạo/sửa */}
-      <form onSubmit={submitForm} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>{editing ? "Sửa địa chỉ" : "Thêm địa chỉ mới"}</h3>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <label>
-            Người nhận
-            <input
-              value={form.recipientName}
-              onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
-              required
-            />
-          </label>
-
-          <label>
-            Số điện thoại
-            <input
-              value={form.phoneNumber}
-              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-              required
-            />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 1)
-            <Line1Input />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 2 - tuỳ chọn)
-            <input
-              value={form.line2}
-              onChange={(e) => setForm({ ...form, line2: e.target.value })}
-            />
-          </label>
-
-          <label>
-            Tỉnh/Thành
-            <select
-              value={provinceCode}
-              onChange={(e) => onProvinceChange(e.target.value)}
-              required
-            >
-              <option value="">Chọn Tỉnh/Thành</option>
-              {provinces.map((p) => (
-                <option key={p.code} value={p.code}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Quận/Huyện
-            <select
-              value={districtCode}
-              onChange={(e) => onDistrictChange(e.target.value)}
-              disabled={!provinceCode}
-              required
-            >
-              <option value="">{provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}</option>
-              {districts.map((d) => (
-                <option key={d.code} value={d.code}>{d.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Phường/Xã
-            <select
-              value={wardCode}
-              onChange={(e) => onWardChange(e.target.value)}
-              disabled={!districtCode}
-              required
-            >
-              <option value="">{districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}</option>
-              {wards.map((w) => (
-                <option key={w.code} value={w.code}>{w.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={form.isDefault}
-              onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-            />
-            Đặt làm địa chỉ mặc định
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button type="submit" className="btn btn-primary">
-            {editing ? "Lưu thay đổi" : "Thêm địa chỉ"}
-          </button>
-          {editing && (
-            <button type="button" className="btn" onClick={resetForm}>Hủy</button>
-          )}
-        </div>
-      </form>
-
-      {/* Danh sách địa chỉ */}
-      {loading ? (
-        <div>Đang tải...</div>
-      ) : items.length === 0 ? (
-        <div>Chưa có địa chỉ nào.</div>
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          {items.map((a) => (
-            <div key={a.addressId} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontWeight: 600 }}>
-                  {a.recipientName} • {a.phoneNumber} {a.isDefault && <span style={{ color: "#2563eb" }}>(Mặc định)</span>}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {!a.isDefault && (
-                    <button className="btn btn-outline" onClick={() => setDefault(a.addressId)}>Đặt mặc định</button>
-                  )}
-                  <button className="btn btn-outline" onClick={() => startEdit(a)}>Sửa</button>
-                  <button className="btn btn-danger" onClick={() => remove(a.addressId)}>Xóa</button>
-                </div>
-              </div>
-              <div style={{ color: "#667" }}>
-                {[a.line1, a.line2, a.ward, a.district, a.province].filter(Boolean).join(", ")}
-              </div>
+      <div className="site-header__shell">
+        <div className="site-header__brand-group">
+          <Link to="/" className="site-header__brand" aria-label="Trang chu">
+            <span className="site-header__brand-mark">
+              <span className="site-header__brand-glow" />
+              <img src="/images/saokim-logo.jpg" alt="Sao Kim Lightning logo" />
+            </span>
+            <div className="site-header__brand-copy">
+              <h1>Sao Kim Lightning</h1>
+              <span>Giai phap chieu sang dong bo cho moi khong gian</span>
             </div>
-          ))}
+          </Link>
+
+          <nav className="site-header__nav" aria-label="Main navigation">
+            {NAV_LINKS.map((item) => (
+              <Link key={item.to} to={item.to} className="site-header__nav-link">
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </div>
-      )}
-    </div>
+
+        <div className="site-header__utility">
+          <div className="site-header__search">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onSearchKeyDown}
+              placeholder="Tim kiem san pham, dong den, ma thiet bi..."
+              aria-label="Search products"
+            />
+            <button type="button" aria-label="Start search" onClick={startSearch}>
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="site-header__actions" ref={userMenuRef}>
+            {isLoggedIn ? (
+              <div className="site-header__user">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: 0,
+                    margin: 0,
+                    cursor: "pointer",
+                    color: "inherit",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen ? "true" : "false"}
+                >
+                  <span className="site-header__user-name">{userName}</span>
+                  <i className={`fa-solid fa-chevron-${menuOpen ? "up" : "down"}`} aria-hidden="true" />
+                </button>
+
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    style={{
+                      position: "absolute",
+                      marginTop: "0.5rem",
+                      right: 0,
+                      background: "#fff",
+                      border: "1px solid rgba(17,32,56,0.12)",
+                      borderRadius: 12,
+                      boxShadow: "0 10px 24px -12px rgba(18,49,87,0.28)",
+                      minWidth: 200,
+                      overflow: "hidden",
+                      zIndex: 50,
+                    }}
+                  >
+                    <Link
+                      to="/account"
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      style={{
+                        display: "block",
+                        padding: "10px 14px",
+                        textDecoration: "none",
+                        color: "var(--text-primary)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Thong tin tai khoan
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleLogout}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 14px",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-secondary)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Dang xuat
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/login" className="btn btn-outline btn-small">
+                Dang nhap
+              </Link>
+            )}
+
+            <Link to="/cart" className="site-header__cart" aria-label="Gio hang">
+              <span className="site-header__cart-icon">
+                <i className="fa-solid fa-bag-shopping" aria-hidden="true" />
+                {cartCount > 0 && <span className="site-header__cart-badge">{cartCount}</span>}
+              </span>
+              <span className="site-header__cart-label">Gio hang</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </header>
   );
 }

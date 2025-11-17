@@ -34,8 +34,18 @@ namespace SaoKim_ecommerce_BE.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<Role>(e =>
+            {
+                modelBuilder.Entity<User>()
+                    .HasOne(u => u.Role)
+                    .WithMany(r => r.Users)
+                    .HasForeignKey(u => u.RoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
+                base.OnModelCreating(modelBuilder);
+            });
+
+            base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");

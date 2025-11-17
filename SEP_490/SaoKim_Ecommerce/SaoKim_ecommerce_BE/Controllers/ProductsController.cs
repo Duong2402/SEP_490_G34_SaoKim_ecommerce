@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
@@ -10,20 +11,17 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
+        public ProductsController(SaoKimDBContext db) => _db = db;
 
-        public ProductsController(SaoKimDBContext db)
-        {
-            _db = db;
-        }
-
-        // GET: /api/products
+        // LIST (PUBLIC)
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll(
-    [FromQuery] string? q,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] string? sortBy = "id",
-    [FromQuery] string? sortDir = "asc")
+            [FromQuery] string? q,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? sortBy = "id",
+            [FromQuery] string? sortDir = "asc")
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -33,7 +31,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = $"%{q.Trim()}%";
-                // ILIKE = so khớp không phân biệt hoa/thường trong Postgres
                 baseQuery = baseQuery.Where(p =>
                     EF.Functions.ILike(p.ProductName, term) ||
                     EF.Functions.ILike(p.ProductCode, term) ||
@@ -52,7 +49,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 "price" => (desc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price)),
                 "stock" => (desc ? baseQuery.OrderByDescending(p => p.Stock) : baseQuery.OrderBy(p => p.Stock)),
                 "status" => (desc ? baseQuery.OrderByDescending(p => p.Status) : baseQuery.OrderBy(p => p.Status)),
-                "created" => (desc ? baseQuery.OrderByDescending(p => p.Created) : baseQuery.OrderBy(p => p.Created)),
+                "created" => (desc ? baseQuery.OrderByDescending(p => p.CreateAt ?? p.Date) : baseQuery.OrderBy(p => p.CreateAt ?? p.Date)),
                 _ => (desc ? baseQuery.OrderByDescending(p => p.ProductID) : baseQuery.OrderBy(p => p.ProductID)),
             };
 
@@ -68,7 +65,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     unit = p.Unit,
                     stock = p.Stock,
                     status = p.Status,
-                    created = p.Created
+                    created = p.CreateAt ?? p.Date
                 })
                 .ToListAsync();
 
@@ -82,27 +79,55 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // GET: /api/products/5
+        // DETAIL (PUBLIC) — trả về { product, related }
         [HttpGet("{id:int}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
-            var product = await _db.Products.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ProductID == id);
+            var p = await _db.Products
+                .AsNoTracking()
+                .Where(x => x.ProductID == id)
+                .Select(x => new
+                {
+                    id = x.ProductID,
+                    name = x.ProductName,
+                    code = x.ProductCode,
+                    price = x.Price,
+                    image = x.Image != null ? $"/images/{x.Image}" : null,
+                    quantity = x.Quantity,
+                    category = x.Category,
+                    description = x.Description,
+                    createdAt = x.CreateAt ?? x.Date
+                })
+                .FirstOrDefaultAsync();
 
-            if (product == null)
-                return NotFound(new { message = "Product not found" });
+            if (p == null) return NotFound(new { message = "Product not found" });
 
-            return Ok(product);
+            var related = await _db.Products
+                .AsNoTracking()
+                .Where(x => x.Category == p.category && x.ProductID != id)
+                .OrderByDescending(x => x.CreateAt ?? x.Date)
+                .Take(8)
+                .Select(x => new
+                {
+                    id = x.ProductID,
+                    name = x.ProductName,
+                    price = x.Price,
+                    image = x.Image != null ? $"/images/{x.Image}" : null
+                })
+                .ToListAsync();
+
+            return Ok(new { product = p, related });
         }
 
-        // POST: /api/products
+        // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] Product model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Kiểm tra trùng ProductCode
             var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.ProductCode);
             if (exists)
                 return Conflict(new { message = "Product code already exists" });
@@ -116,15 +141,15 @@ namespace SaoKim_ecommerce_BE.Controllers
             return CreatedAtAction(nameof(GetById), new { id = model.ProductID }, model);
         }
 
-        // PUT: /api/products/5
+        // UPDATE (YÊU CẦU QUYỀN)
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] Product update)
         {
             var existing = await _db.Products.FindAsync(id);
             if (existing == null)
                 return NotFound(new { message = "Product not found" });
 
-            // Cập nhật các trường
             existing.ProductCode = update.ProductCode;
             existing.ProductName = update.ProductName;
             existing.Category = update.Category;
@@ -144,8 +169,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product updated successfully" });
         }
 
-        // DELETE: /api/products/5
+        // DELETE (YÊU CẦU QUYỀN)
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var existing = await _db.Products.FindAsync(id);
@@ -156,24 +182,23 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { message = "Product deleted successfully" });
         }
-        // GET: api/products/home
+
+        // HOME BLOCKS (PUBLIC)
         [HttpGet("home")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHomeProducts(
-    [FromQuery] int Page = 1,
-    [FromQuery] int PageSize = 12,
-    [FromQuery] string? SortBy = "new",
-    [FromQuery] string? Keyword = null,
-    [FromQuery] string? Category = null,
-    [FromQuery] int NewWithinDays = 14
-)
+            [FromQuery] int Page = 1,
+            [FromQuery] int PageSize = 12,
+            [FromQuery] string? SortBy = "new",
+            [FromQuery] string? Keyword = null,
+            [FromQuery] string? Category = null,
+            [FromQuery] int NewWithinDays = 14)
         {
             Page = Math.Max(1, Page);
             PageSize = Math.Clamp(PageSize, 1, 100);
 
-            var now = DateTime.UtcNow;
-            var cutoff = now.AddDays(-NewWithinDays);
+            var cutoff = DateTime.UtcNow.AddDays(-NewWithinDays);
 
-            // Featured (giữ nguyên)
             var featured = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
@@ -192,7 +217,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            // New Arrivals: chỉ lấy trong X ngày gần đây
             var newArrivals = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null))
@@ -212,9 +236,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            // All: bộ lọc/sort/phân trang 
-            var q = _db.Products.AsNoTracking()
-                .Where(p => p.Status == "Active" || p.Status == null);
+            var q = _db.Products.AsNoTracking().Where(p => p.Status == "Active" || p.Status == null);
 
             if (!string.IsNullOrWhiteSpace(Keyword))
             {
@@ -236,10 +258,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             };
 
             var totalItems = await q.CountAsync();
-
-            var items = await q
-                .Skip((Page - 1) * PageSize)
-                .Take(PageSize)
+            var items = await q.Skip((Page - 1) * PageSize).Take(PageSize)
                 .Select(p => new
                 {
                     id = p.ProductID,
@@ -253,58 +272,19 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            var all = new
+            return Ok(new
             {
-                page = Page,
-                pageSize = PageSize,
-                totalItems,
-                totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
-                items
-            };
-
-            return Ok(new { featured, newArrivals, all });
+                featured,
+                newArrivals,
+                all = new
+                {
+                    page = Page,
+                    pageSize = PageSize,
+                    totalItems,
+                    totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
+                    items
+                }
+            });
         }
-
-        // GET: api/products/123
-        //[HttpGet("{id:int}")]
-        //public async Task<IActionResult> GetProductById([FromRoute] int id)
-        //{
-        //    var p = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.ProductID == id)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            code = x.ProductCode,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null,
-        //            quantity = x.Quantity,
-        //            category = x.Category,
-        //            description = x.Description,
-        //            createdAt = x.CreateAt ?? x.Date
-        //        })
-        //        .FirstOrDefaultAsync();
-
-        //    if (p == null) return NotFound();
-
-        //    // gợi ý sản phẩm liên quan
-        //    var related = await _db.Products
-        //        .AsNoTracking()
-        //        .Where(x => x.Category == p.category && x.ProductID != id)
-        //        .OrderByDescending(x => x.CreateAt ?? x.Date)
-        //        .Take(8)
-        //        .Select(x => new
-        //        {
-        //            id = x.ProductID,
-        //            name = x.ProductName,
-        //            price = x.Price,
-        //            image = x.Image != null ? $"/images/{x.Image}" : null
-        //        })
-        //        .ToListAsync();
-
-        //    return Ok(new { product = p, related });
-        //}
     }
 }
-

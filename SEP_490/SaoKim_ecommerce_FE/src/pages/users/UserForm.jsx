@@ -161,24 +161,30 @@ export default function UserForm({
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (Object.keys(errors).length) return;
+    // Validate roleId bắt buộc
+    if (!form.roleId || isNaN(parseInt(form.roleId, 10))) {
+      alert("Role is required!");
+      return;
+    }
 
     const payload = {
-      name: form.name.trim(),
-      email: form.email.trim(),
-      password: form.password.trim() || undefined,
-      roleId: parseInt(form.roleId, 10),
-      phoneNumber: form.phoneNumber.trim() || undefined,
-      address: form.address.trim() || undefined,
-      dob: form.dob ? new Date(form.dob) : undefined,
-      status: form.status || "Active",
-      image: form.image || undefined,
+      Name: form.name.trim(),
+      Email: form.email.trim(),
+      Password: form.password.trim() || undefined,
+      RoleId: parseInt(form.roleId, 10), // Đảm bảo là số
+      PhoneNumber: form.phoneNumber.trim() || undefined,
+      Address: form.address.trim() || undefined,
+      Dob: form.dob ? form.dob : undefined, // yyyy-MM-dd hoặc chuỗi parse được cho C#
+      Status: form.status || "Active",
+      Image: form.image || undefined,
     };
-
-    // Remove password if editing and not provided
-    if (isEdit && !payload.password) {
-      delete payload.password;
-    }
+    // Loại bỏ các key không hợp lệ (undefined, null, NaN, "") khỏi payload gửi API
+    Object.keys(payload).forEach(
+      (key) => (payload[key] === undefined || 
+               payload[key] === null || 
+               payload[key] === "" ||
+               (typeof payload[key] === "number" && isNaN(payload[key]))) && delete payload[key]
+    );
 
     onSubmit(payload);
   };
@@ -236,8 +242,8 @@ export default function UserForm({
             disabled={submitting || loadingRoles}
           >
             <option value="">Select a role</option>
-            {roles.map((role) => (
-              <option key={role.roleId} value={role.roleId}>
+            {roles.map((role, idx) => (
+              <option key={role.roleId || role.id || idx} value={role.roleId || role.id}>
                 {role.name}
               </option>
             ))}
@@ -255,7 +261,6 @@ export default function UserForm({
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
           </select>
         </Field>
       </div>

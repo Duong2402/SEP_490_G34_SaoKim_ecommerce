@@ -1,61 +1,39 @@
 import http from "./http";
-
-const API_BASE = typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL
-  ? import.meta.env.VITE_API_BASE_URL
-  : "";
-
-const getToken = () => {
-  if (typeof window !== "undefined" && window.localStorage) {
-    return window.localStorage.getItem("token");
-  }
-  return null;
-};
-
-// Helper để tạo FormData từ object
 const createFormData = (data) => {
-  const formData = new FormData();
-  Object.keys(data).forEach((key) => {
-    const value = data[key];
-    if (value !== null && value !== undefined) {
-      if (value instanceof File) {
-        formData.append(key, value);
-      } else if (value instanceof Date) {
-        formData.append(key, value.toISOString());
-      } else {
-        formData.append(key, value);
-      }
-    }
+  const fd = new FormData();
+  Object.keys(data || {}).forEach((k) => {
+    const v = data[k];
+    if (v === null || v === undefined) return;
+    if (v instanceof File) fd.append(k, v);
+    else if (v instanceof Date) fd.append(k, v.toISOString());
+    else fd.append(k, v);
   });
-  return formData;
+  return fd;
 };
 
 export const UserAPI = {
-  getAll: (params) => http.get("/api/users", { params }),
-  
-  getById: (id) => http.get(`/api/users/${id}`),
-  
+  // q, status, role, page, pageSize
+  getAll: (params) => http.get("/users", { params }),
+
+  getById: (id) => http.get(`/users/${id}`),
+
+  // Nếu có upload ảnh 
   create: (data) => {
     const formData = createFormData(data);
-    return http.post("/api/users", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
+    return http.post("/users", createFormData(data)); 
   },
-  
+
   update: (id, data) => {
     const formData = createFormData(data);
-    return http.put(`/api/users/${id}`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${getToken()}`,
-      },
-    });
+    return http.put(`/users/${id}`, createFormData(data));
   },
-  
-  remove: (id) => http.delete(`/api/users/${id}`),
-  
-  getRoles: () => http.get("/api/users/roles"),
-};
 
+  remove: (id) => http.delete(`/users/${id}`),
+
+  // Lấy danh sách role 
+  getRoles: () => http.get("/users/roles"),
+
+  // Tiện ích thêm nếu cần
+  getMe: () => http.get("/users/me"),
+  updateMe: (data) => http.put("/users/me", createFormData(data)),
+};
