@@ -35,7 +35,7 @@ http.interceptors.request.use(
 );
 
 http.interceptors.response.use(
-  (res) => res,
+  (res) => res.data,
   (err) => {
     const status = err?.response?.status;
     if (status === 401) {

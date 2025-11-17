@@ -20,6 +20,8 @@ import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Dropdown from "react-bootstrap/Dropdown";
 import { apiFetch } from "../../api/lib/apiClient";
+import { getDispatchHubConnection } from "../../signalr/dispatchHub";
+import * as signalR from "@microsoft/signalr";
 
 const API_BASE = "https://localhost:7278";
 const TYPE_FILTERS = ["All", "Sales", "Project"];
@@ -43,30 +45,77 @@ const DispatchList = () => {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    let active = true;
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const typeQuery = typeFilter === "All" ? "" : `?type=${typeFilter}`;
-        const res = await apiFetch(`/api/warehousemanager/dispatch-slips${typeQuery}`);
-        const data = await res.json();
-        if (active) {
-          setRows(data.items || []);
-          setCurrentPage(1);
-        }
-      } catch (error) {
-        console.error("Error loading dispatch slips:", error);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    loadData();
-    return () => {
-      active = false;
-    };
+  const loadData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const typeQuery = typeFilter === "All" ? "" : `?type=${typeFilter}`;
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips${typeQuery}`);
+      const data = await res.json();
+      setRows(data.items || []);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error loading dispatch slips:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [typeFilter]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const connection = getDispatchHubConnection();
+
+    connection.off("DispatchSlipsUpdated");
+
+    connection.on("DispatchSlipsUpdated", (payload) => {
+      console.log("DispatchSlipsUpdated:", payload);
+
+      const { action } = payload || {};
+      if (!action) return;
+
+      setRows((prev) => {
+        switch (action) {
+          case "created": {
+            const normalizedType = normType(payload.type, payload);
+            if (typeFilter !== "All" && normalizedType !== typeFilter) {
+              return prev;
+            }
+            return [payload, ...prev];
+          }
+
+          case "deleted":
+            return prev.filter((r) => r.id !== payload.id);
+
+          case "confirmed":
+          case "updated":
+            return prev.map((r) =>
+              r.id === payload.id ? { ...r, ...payload } : r
+            );
+
+          case "imported":
+            loadData();
+            return prev;
+
+          default:
+            return prev;
+        }
+      });
+    });
+
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      connection
+        .start()
+        .then(() => console.log("SignalR connected in DispatchList"))
+        .catch((err) => console.error("SignalR connection error:", err));
+    }
+
+    return () => {
+      connection.off("DispatchSlipsUpdated");
+    };
+  }, [typeFilter, loadData]);
+
 
   const formatDate = (value) =>
     value ? new Date(value).toLocaleDateString("vi-VN") : "-";
@@ -84,12 +133,6 @@ const DispatchList = () => {
       const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/confirm`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Confirm failed");
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, status: 1, confirmedAt: new Date().toISOString() } : r
-        )
-      );
     } catch (error) {
       console.error("Confirm failed:", error);
       alert("Không thể xác nhận phiếu.");
@@ -102,8 +145,6 @@ const DispatchList = () => {
       const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Delete failed");
-      setRows((prev) => prev.filter((r) => r.id !== id));
     } catch (error) {
       console.error("Delete failed:", error);
       alert("Không thể xóa phiếu.");
@@ -246,7 +287,7 @@ const DispatchList = () => {
               pagedRows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
-                const code = toStatusCode(r.status);      // 0 = Draft, 1 = Confirmed
+                const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
 
                 return (
@@ -258,13 +299,11 @@ const DispatchList = () => {
                     <td>{isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo}</td>
                     <td>{isSales ? r.customerName || "-" : r.projectName || "-"}</td>
 
-                    {/* Nếu API trả dispatchDate, nên dùng r.dispatchDate thay cho r.slipDate */}
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
 
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
 
-                    {/* Trạng thái giống ReceivingList */}
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>

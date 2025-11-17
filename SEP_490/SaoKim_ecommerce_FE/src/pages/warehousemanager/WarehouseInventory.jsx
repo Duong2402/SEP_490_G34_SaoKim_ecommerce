@@ -15,6 +15,8 @@ import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
+import { getInventoryHubConnection } from "../../signalr/inventoryHub";
+import * as signalR from "@microsoft/signalr";
 
 const PAGE_SIZE = 10;
 
@@ -122,6 +124,34 @@ export default function WarehouseInventory() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const connection = getInventoryHubConnection();
+
+    connection.off("InventoryUpdated");
+
+    connection.on("InventoryUpdated", (payload) => {
+      const { productId, minStock } = payload || {};
+      if (!productId) return;
+
+      setRows(prev =>
+        prev.map(r =>
+          r.productId === productId ? { ...r, minStock } : r
+        )
+      );
+    });
+
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      connection
+        .start()
+        .then(() => console.log("SignalR connected in WarehouseInventory"))
+        .catch(err => console.error("Inventory SignalR connection error:", err));
+    }
+
+    return () => {
+      connection.off("InventoryUpdated");
+    };
+  }, []);
 
   useEffect(() => { load(); }, [page, search, locationFilter, statusFilter]);
 

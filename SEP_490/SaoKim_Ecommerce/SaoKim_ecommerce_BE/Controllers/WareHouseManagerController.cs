@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.DTOs.WarehouseManagerDTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
+using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
-
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -17,7 +18,17 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
-        public WarehouseManagerController(SaoKimDBContext db) => _db = db;
+        private readonly IHubContext<ReceivingHub> _receivingHub;
+        private readonly IHubContext<DispatchHub> _dispatchHub;
+        private readonly IHubContext<InventoryHub> _inventoryHub;
+        public WarehouseManagerController(SaoKimDBContext db, IHubContext<ReceivingHub> receivingHub, 
+            IHubContext<DispatchHub> dispatchHub, IHubContext<InventoryHub> inventoryHub)
+        {
+            _db = db;
+            _receivingHub = receivingHub;
+            _dispatchHub = dispatchHub;
+            _inventoryHub = inventoryHub;
+        }
 
         // GET /api/warehousemanager/receiving-slips
         [HttpGet("receiving-slips")]
@@ -26,7 +37,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 20;
 
-            var query = _db.ReceivingSlips.AsQueryable();
+            var query = _db.ReceivingSlips
+                .Where(x => !x.IsDeleted)
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q.Search))
             {
@@ -123,6 +136,18 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             slip.ReferenceNo = $"RCV-{slip.Id:D3}";
             await _db.SaveChangesAsync();
+
+            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            {
+                action = "created",
+                slip.Id,
+                slip.ReferenceNo,
+                slip.Supplier,
+                slip.ReceiptDate,
+                slip.Status,
+                slip.CreatedAt,
+                slip.ConfirmedAt
+            });
 
             return CreatedAtAction(nameof(GetReceivingSlipItems),
                 new { id = slip.Id },
@@ -248,6 +273,23 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            {
+                action = "updated",
+                slipId = item.ReceivingSlipId,
+                item = new
+                {
+                    item.Id,
+                    item.ProductId,
+                    item.ProductName,
+                    item.ProductCode,
+                    item.Uom,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.Total
+                }
+            });
+
             return Ok(new
             {
                 item.Id,
@@ -338,6 +380,23 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db.ReceivingSlipItems.Add(newItem);
             await _db.SaveChangesAsync();
 
+            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            {
+                action = "created",
+                slipId = id,
+                item = new
+                {
+                    newItem.Id,
+                    newItem.ProductId,
+                    newItem.ProductName,
+                    newItem.ProductCode,
+                    newItem.Uom,
+                    newItem.Quantity,
+                    newItem.UnitPrice,
+                    newItem.Total
+                }
+            });
+
             return Ok(new
             {
                 newItem.Id,
@@ -351,7 +410,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
         {
@@ -363,10 +421,15 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
                 return Conflict(new { message = "Only Draft slips can be modified" });
-
+            var slipId = item.ReceivingSlipId;
             _db.ReceivingSlipItems.Remove(item);
             await _db.SaveChangesAsync();
-
+            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            {
+                action = "deleted",
+                slipId = slipId,
+                itemId = item.Id
+            });
             return NoContent();
         }
 
@@ -380,6 +443,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return Conflict(new { message = "Only Draft slips can be deleted" });
             slip.IsDeleted = true;
             await _db.SaveChangesAsync();
+            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            {
+                action = "deleted",
+                slip.Id
+            });
             return Ok(new { message = "Phiếu đã được đưa vào thùng rác." });
         }
 
@@ -463,6 +531,12 @@ namespace SaoKim_ecommerce_BE.Controllers
                 await _db.SaveChangesAsync();
             }
 
+            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            {
+                action = "imported",
+                count = grouped.Count
+            });
+
             return Ok(new { message = $"Đã nhập {grouped.Count} phiếu thành công!" });
         }
 
@@ -509,6 +583,18 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            {
+                action = "confirmed",
+                slip.Id,
+                slip.ReferenceNo,
+                slip.Supplier,
+                slip.ReceiptDate,
+                slip.Status,
+                slip.CreatedAt,
+                slip.ConfirmedAt
+            });
 
             return Ok(new
             {
@@ -569,6 +655,14 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
+            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            {
+                action = "confirmed",
+                slip.Id,
+                slip.Status,
+                slip.ConfirmedAt
+            });
+
             return Ok(new
             {
                 slip.Id,
@@ -627,6 +721,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(data);
         }
 
+        [AllowAnonymous]
         [HttpGet("download-template")]
         public IActionResult DownloadTemplate()
         {
@@ -661,6 +756,18 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             slip.Supplier = dto.Supplier.Trim();
             await _db.SaveChangesAsync();
+
+            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            {
+                action = "updated",
+                slip.Id,
+                slip.ReferenceNo,
+                slip.Supplier,
+                slip.ReceiptDate,
+                slip.Status,
+                slip.CreatedAt,
+                slip.ConfirmedAt
+            });
 
             return Ok(new { slip.Id, slip.Supplier });
         }
@@ -919,6 +1026,20 @@ namespace SaoKim_ecommerce_BE.Controllers
             slip.ReferenceNo = $"DSP-SLS-{slip.Id:D5}";
             await _db.SaveChangesAsync();
 
+            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            {
+                action = "created",
+                id = slip.Id,
+                referenceNo = slip.ReferenceNo,
+                type = slip.Type,
+                status = slip.Status,
+                customerName = slip.CustomerName,
+                dispatchDate = slip.DispatchDate,
+                createdAt = slip.CreatedAt,
+                confirmedAt = slip.ConfirmedAt,
+                note = slip.Note
+            });
+
             return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
             {
                 slip.Id,
@@ -954,6 +1075,20 @@ namespace SaoKim_ecommerce_BE.Controllers
             slip.ReferenceNo = $"DSP-PRJ-{slip.Id:D5}";
             await _db.SaveChangesAsync();
 
+            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            {
+                action = "created",
+                id = slip.Id,
+                referenceNo = slip.ReferenceNo,
+                type = slip.Type,
+                status = slip.Status,
+                projectName = slip.ProjectName,
+                dispatchDate = slip.DispatchDate,
+                createdAt = slip.CreatedAt,
+                confirmedAt = slip.ConfirmedAt,
+                note = slip.Note
+            });
+
             return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
             {
                 slip.Id,
@@ -963,6 +1098,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 receivedProjectId = dto.ProjectId
             });
         }
+
         // GET /api/warehousemanager/dispatch-slips/{id}
         [HttpGet("dispatch-slips/{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
@@ -990,8 +1126,28 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> GetDispatchItems(int id)
         {
+            var exists = await _db.Dispatches.AnyAsync(d => d.Id == id);
+            if (!exists)
+                return NotFound($"Dispatch {id} không tồn tại");
+
             var items = await _db.DispatchItems
                 .Where(i => i.DispatchId == id)
+                .Join(_db.Products,
+                      i => i.ProductId,
+                      p => p.ProductID,
+                      (i, p) => new
+                      {
+                          i.Id,
+                          i.DispatchId,
+                          i.ProductId,
+                          i.ProductName,
+                          ProductCode = p.ProductCode,
+                          i.Uom,
+                          i.Quantity,
+                          i.UnitPrice,
+                          i.Total
+                      })
+                .OrderBy(x => x.Id)
                 .ToListAsync();
 
             return Ok(items);
@@ -1010,6 +1166,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (dto.ProductId == null)
                 return BadRequest("ProductId không được để trống");
 
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
             var item = new DispatchItem
             {
                 DispatchId = id,
@@ -1025,17 +1185,27 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db.DispatchItems.Add(item);
             await _db.SaveChangesAsync();
 
-            return Ok(new
+            var responseItem = new
             {
                 item.Id,
                 item.DispatchId,
                 item.ProductId,
                 item.ProductName,
+                ProductCode = product?.ProductCode ?? "",
                 item.Uom,
                 item.Quantity,
                 item.UnitPrice,
                 item.Total
+            };
+
+            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+            {
+                action = "created",
+                dispatchId = id,
+                item = responseItem
             });
+
+            return Ok(responseItem);
         }
 
         // PUT: /api/warehousemanager/dispatch-items/{itemId}
@@ -1052,8 +1222,72 @@ namespace SaoKim_ecommerce_BE.Controllers
             item.UnitPrice = dto.UnitPrice;
             item.Total = dto.Quantity * dto.UnitPrice;
 
+            string productCode = "";
+            var product = await _db.Products
+        .Where(p => p.ProductID == dto.ProductId)
+        .Select(p => new { p.ProductCode })
+        .FirstOrDefaultAsync();
+
             await _db.SaveChangesAsync();
-            return Ok(item);
+
+            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+            {
+                action = "updated",
+                dispatchId = item.DispatchId,
+                item = new
+                {
+                    item.Id,
+                    item.DispatchId,
+                    item.ProductId,
+                    item.ProductName,
+                    ProductCode = productCode,
+                    item.Uom,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.Total
+                }
+            });
+
+            return Ok(new
+            {
+                item.Id,
+                item.DispatchId,
+                item.ProductId,
+                item.ProductName,
+                ProductCode = productCode,
+                item.Uom,
+                item.Quantity,
+                item.UnitPrice,
+                item.Total
+            });
+        }
+
+        [HttpDelete("dispatch-slips/{id:int}")]
+        public async Task<IActionResult> DeleteDispatchSlip(int id)
+        {
+            var slip = await _db.Dispatches
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (slip == null)
+                return NotFound(new { message = "Dispatch slip not found" });
+
+            if (slip.Status != DispatchStatus.Draft)
+                return Conflict(new { message = "Only Draft slips can be deleted" });
+
+            _db.DispatchItems.RemoveRange(slip.Items);
+
+            _db.Dispatches.Remove(slip);
+
+            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            {
+                action = "deleted",
+                id = slip.Id
+            });
+
+            await _db.SaveChangesAsync();
+
+            return NoContent();
         }
 
         // DELETE: /api/warehousemanager/dispatch-items/{itemId}
@@ -1063,8 +1297,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             var item = await _db.DispatchItems.FindAsync(itemId);
             if (item == null) return NotFound($"Item {itemId} không tồn tại");
 
+            var dispatchId = item.DispatchId;
+
             _db.DispatchItems.Remove(item);
             await _db.SaveChangesAsync();
+
+            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+            {
+                action = "deleted",
+                dispatchId,
+                itemId = itemId
+            });
             return NoContent();
         }
 
@@ -1166,6 +1409,12 @@ namespace SaoKim_ecommerce_BE.Controllers
                 threshold.MinStock = dto.MinStock;
                 threshold.UpdatedAt = DateTime.UtcNow;
             }
+
+            await _inventoryHub.Clients.All.SendAsync("InventoryUpdated", new
+            {
+                productId,
+                minStock = threshold.MinStock
+            });
 
             await _db.SaveChangesAsync();
 

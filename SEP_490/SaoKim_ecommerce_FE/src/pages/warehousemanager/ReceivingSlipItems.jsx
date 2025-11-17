@@ -22,6 +22,8 @@ import {
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
+import { getReceivingHubConnection } from "../../signalr/receivingHub";
+import * as signalR from "@microsoft/signalr";
 
 const API_BASE = "https://localhost:7278";
 
@@ -70,7 +72,6 @@ const ReceivingSlipItems = () => {
   useEffect(() => {
     load();
     loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const totals = useMemo(() => {
@@ -129,14 +130,28 @@ const ReceivingSlipItems = () => {
     try {
       const res = await apiFetch(`/api/products`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const raw = Array.isArray(data) ? data : data.items || [];
+
+      const json = await res.json();
+      console.log("GET /api/products:", json);
+
+      const payload = json.data ?? json;
+
+      const raw = Array.isArray(payload)
+        ? payload
+        : payload.items || [];
+
       const normalized = raw
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+          uom:
+            p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
+            p.unitOfMeasure ?? p.UnitOfMeasure ??
+            p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
         }))
         .filter((p) => p.id != null && p.name);
+
+      console.log("Products normalized:", normalized);
       setProducts(normalized);
     } catch (e) {
       console.error("Tải danh sách sản phẩm lỗi:", e);
@@ -149,6 +164,45 @@ const ReceivingSlipItems = () => {
     return products.find((p) => Number(p.id) === n) || null;
   }
 
+  useEffect(() => {
+    const connection = getReceivingHubConnection();
+
+    connection.off("ReceivingItemsUpdated");
+
+    connection.on("ReceivingItemsUpdated", (payload) => {
+      console.log("ReceivingItemsUpdated:", payload);
+
+      if (payload.slipId !== Number(id)) return;
+
+      setItems(prev => {
+        switch (payload.action) {
+          case "created":
+            return [...prev, payload.item];
+
+          case "deleted":
+            return prev.filter(i => i.id !== payload.itemId);
+
+          case "updated":
+            return prev.map(i => i.id === payload.item.id ? payload.item : i);
+
+          default:
+            return prev;
+        }
+      });
+    });
+
+    if (connection.state === signalR.HubConnectionState.Disconnected) {
+      connection
+        .start()
+        .then(() => console.log("SignalR connected in ReceivingSlipItems"))
+        .catch((err) => console.error("SignalR connection error:", err));
+    }
+
+    return () => {
+      connection.off("ReceivingItemsUpdated");
+    };
+  }, [id]);
+
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
     try {
@@ -156,7 +210,6 @@ const ReceivingSlipItems = () => {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
     } catch (err) {
       alert("Không thể xóa: " + err.message);
     }
@@ -222,8 +275,8 @@ const ReceivingSlipItems = () => {
     try {
       const endpoint =
         mode === "create"
-          ? `${API_BASE}/api/warehousemanager/receiving-slips/${id}/items`
-          : `${API_BASE}/api/warehousemanager/receiving-items/${editId}`;
+          ? `/api/warehousemanager/receiving-slips/${id}/items`
+          : `/api/warehousemanager/receiving-items/${editId}`;
       const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
@@ -495,7 +548,7 @@ const ReceivingSlipItems = () => {
                   }
                   onChange={(option) => {
                     if (!option) {
-                      setForm({ ...form, productId: "", productName: "" });
+                      setForm({ ...form, productId: "", productName: "", uom: "" });
                       return;
                     }
                     const selected = findProductById(option.value);
@@ -503,6 +556,7 @@ const ReceivingSlipItems = () => {
                       ...form,
                       productId: option.value,
                       productName: selected?.name || "",
+                      uom: selected?.uom || "",
                     });
                   }}
                   placeholder="Chọn sản phẩm"
@@ -520,9 +574,9 @@ const ReceivingSlipItems = () => {
                     const val = e.target.value;
                     const found = findProductById(val);
                     if (found) {
-                      setForm({ ...form, productId: val, productName: found.name });
+                      setForm({ ...form, productId: val, productName: found.name, uom: found.uom || "" });
                     } else {
-                      setForm({ ...form, productId: val, productName: "" });
+                      setForm({ ...form, productId: val, productName: "", uom: "" });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -545,6 +599,7 @@ const ReceivingSlipItems = () => {
                 }
                 onChange={(e) => setForm({ ...form, productName: e.target.value })}
                 disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                // disabled={!!form.productName}
                 isInvalid={!!formErrs.productName}
               />
               <Form.Control.Feedback type="invalid">
@@ -560,10 +615,11 @@ const ReceivingSlipItems = () => {
                     options={uoms.map((u) => ({ value: u.name, label: u.name }))}
                     value={form.uom ? { value: form.uom, label: form.uom } : null}
                     onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
-                    placeholder="Chọn đơn vị tính á"
+                    placeholder="Chọn đơn vị tính "
                     isClearable
                     styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
                     menuPortalTarget={document.body}
+                    isDisabled={!!form.uom}
                   />
                   {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
                 </Form.Group>

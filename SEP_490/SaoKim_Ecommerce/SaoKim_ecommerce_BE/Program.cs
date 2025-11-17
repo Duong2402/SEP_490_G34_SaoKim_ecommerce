@@ -1,18 +1,20 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
 using System.Text;
+using QuestPDF.Infrastructure;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 
+builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -33,6 +35,10 @@ builder.Services.AddScoped<IProductService, ProductService>(); // Duy
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectProductService, ProjectProductService>();
 builder.Services.AddScoped<IProjectExpenseService, ProjectExpenseService>();
+builder.Services.AddScoped<IPromotionService, PromotionService>();
+builder.Services.AddScoped<ICouponService, CouponService>();
+
+
 
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -54,7 +60,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -71,11 +76,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = audience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(2)
+            ClockSkew = TimeSpan.FromMinutes(2),
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
         };
 
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
+
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
@@ -94,8 +115,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
             }
         };
-        options.TokenValidationParameters.NameClaimType = ClaimTypes.Name;
-        options.TokenValidationParameters.RoleClaimType = ClaimTypes.Role;
     });
 
 builder.Services.AddAuthorization(options =>
@@ -106,6 +125,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+var fontPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts", "NotoSans-Regular.ttf");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -130,11 +150,18 @@ app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
+
+app.UseRouting();
+
 app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<DispatchHub>("/hubs/dispatch");
+app.MapHub<ReceivingHub>("/hubs/receiving");
+app.MapHub<InventoryHub>("/hubs/inventory");
 
 app.Run();

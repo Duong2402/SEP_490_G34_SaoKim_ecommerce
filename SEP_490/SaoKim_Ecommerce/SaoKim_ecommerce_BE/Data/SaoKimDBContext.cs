@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SaoKim_ecommerce_BE.Entities;
 using System.Data;
 
@@ -9,6 +10,7 @@ namespace SaoKim_ecommerce_BE.Data
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
         public DbSet<Product> Products => Set<Product>();
+        public DbSet<Category> Categories => Set<Category>();              // 🆕
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
@@ -16,11 +18,12 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Project> Projects { get; set; }
         public DbSet<Address> Addresses { get; set; }
 		public DbSet<Review> Reviews { get; set; }
-        // protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        // {
-        //     optionsBuilder.ConfigureWarnings(warnings =>
-        //         warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-        // }
+
+        //Customer
+        public DbSet<CustomerNote> CustomerNotes { get; set; }
+        public DbSet<StaffActionLog> StaffActionLogs { get; set; }
+        public DbSet<Order> Orders { get; set; }
+
 
         // NEW:
         public DbSet<TaskItem> TaskItems { get; set; }
@@ -31,6 +34,10 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<InventoryThreshold> InventoryThresholds { get; set; } = default!;
         public DbSet<TraceIdentity> TraceIdentities { get; set; }
         public DbSet<TraceEvent> TraceEvents { get; set; }
+        public DbSet<Promotion> Promotions => Set<Promotion>();
+        public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
+        public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -42,44 +49,85 @@ namespace SaoKim_ecommerce_BE.Data
                     .HasForeignKey(u => u.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                base.OnModelCreating(modelBuilder);
+            // Category (NEW)
+            modelBuilder.Entity<Category>(e =>
+            {
+                e.ToTable("categories");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                e.Property(x => x.Slug)
+                    .HasMaxLength(120);
+
+                e.Property(x => x.Created)
+                    .HasColumnName("created");
+
+                e.HasIndex(x => x.Name).HasDatabaseName("IX_categories_name");
+                e.HasIndex(x => x.Slug).HasDatabaseName("IX_categories_slug");
             });
 
-            base.OnModelCreating(modelBuilder);
+            // Product (UPDATED: dùng CategoryId thay string Category)
+            // products
             modelBuilder.Entity<Product>(e =>
             {
                 e.ToTable("products");
                 e.HasKey(x => x.ProductID);
+
                 e.Property(x => x.ProductName)
                     .HasMaxLength(200)
                     .IsRequired();
+
                 e.Property(x => x.ProductCode)
                     .HasMaxLength(50)
                     .IsRequired();
+
                 e.HasIndex(x => x.ProductCode)
                     .IsUnique();
+
                 e.Property(x => x.Unit)
                     .HasMaxLength(50);
+
                 e.Property(x => x.Description)
                     .HasMaxLength(500);
+
                 e.Property(x => x.Supplier)
                     .HasMaxLength(200);
+
                 e.Property(x => x.Image)
                     .HasMaxLength(300);
+
                 e.Property(x => x.Price)
                     .HasColumnType("decimal(18,2)");
+
                 e.Property(x => x.Note)
                     .HasMaxLength(500);
-                e.Property(x => x.Category)
-                    .HasMaxLength(100);
+
+
                 e.Property(x => x.Status)
                     .HasMaxLength(50);
+
                 e.Property(x => x.CreateAt)
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                 e.Property(x => x.UpdateAt)
                     .IsRequired(false);
+
+                e.Property(x => x.CategoryId)
+                    .HasColumnName("category_id");
+
+                e.HasIndex(x => x.CategoryId)
+                    .HasDatabaseName("IX_products_category_id");
+
+                e.HasOne(x => x.Category)
+                    .WithMany(c => c.Products)
+                    .HasForeignKey(x => x.CategoryId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
+            // receiving_slips
             modelBuilder.Entity<ReceivingSlip>(e =>
             {
                 e.ToTable("receiving_slips");
@@ -111,6 +159,7 @@ namespace SaoKim_ecommerce_BE.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // dispatch (TPT)
             modelBuilder.Entity<DispatchBase>(e =>
             {
                 e.ToTable("dispatch_list");
@@ -150,7 +199,6 @@ namespace SaoKim_ecommerce_BE.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-
             modelBuilder.Entity<RetailDispatch>(e =>
             {
                 e.ToTable("dispatch_retail_list");
@@ -162,7 +210,6 @@ namespace SaoKim_ecommerce_BE.Data
                 e.Property(x => x.CustomerId)
                     .HasColumnName("customer_id");
             });
-
 
             modelBuilder.Entity<ProjectDispatch>(e =>
             {
@@ -212,16 +259,17 @@ namespace SaoKim_ecommerce_BE.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // projects + tasks
             modelBuilder.Entity<Project>(e =>
-                {
-                    e.HasIndex(p => p.Code).IsUnique();
+            {
+                e.HasIndex(p => p.Code).IsUnique();
 
-                    e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
-                    e.Property(p => p.Status).HasDefaultValue("Draft");
+                e.Property(p => p.Budget).HasColumnType("decimal(18,2)");
+                e.Property(p => p.Status).HasDefaultValue("Draft");
 
-                    e.Property(p => p.StartDate).HasColumnType("date");
-                    e.Property(p => p.EndDate).HasColumnType("date");
-                });
+                e.Property(p => p.StartDate).HasColumnType("date");
+                e.Property(p => p.EndDate).HasColumnType("date");
+            });
 
             modelBuilder.Entity<TaskItem>(e =>
             {
@@ -257,7 +305,70 @@ namespace SaoKim_ecommerce_BE.Data
 
                 e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
             });
+            
 
+            // Invoices
+            modelBuilder.Entity<Invoice>(e =>
+            {
+                e.ToTable("invoices");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Code).HasMaxLength(40).IsRequired();
+                e.HasIndex(x => x.Code).IsUnique();
+
+                e.Property(x => x.Email).HasMaxLength(200);
+                e.Property(x => x.Phone).HasMaxLength(50);
+                e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
+
+                e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
+                e.Property(x => x.Total).HasColumnType("numeric(18,2)");
+
+                // PDF columns
+                e.Property(x => x.PdfFileName).HasMaxLength(260);
+                e.Property(x => x.PdfOriginalName).HasMaxLength(260);
+            });
+
+
+            modelBuilder.Entity<InvoiceItem>(e =>
+            {
+                e.ToTable("invoice_items");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
+                e.Property(x => x.Uom).HasMaxLength(50);
+                e.Property(x => x.Quantity).HasPrecision(18, 3);
+                e.Property(x => x.UnitPrice).HasPrecision(18, 2);
+                e.Property(x => x.LineTotal).HasColumnType("numeric(18,2)");
+
+                e.HasOne(x => x.Invoice)
+                 .WithMany(i => i.Items)
+                 .HasForeignKey(x => x.InvoiceId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            //(Customer) Soft delete filter cho User 
+            /*modelBuilder.Entity<User>()
+                .HasQueryFilter(u => u.DeletedAt == null);*/
+
+            modelBuilder.Entity<CustomerNote>()
+                .HasOne(n => n.Customer)
+                .WithMany(u => u.Notes)
+                .HasForeignKey(n => n.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerNote>()
+                .HasOne(n => n.Staff)
+                .WithMany()
+                .HasForeignKey(n => n.StaffId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StaffActionLog>()
+                .HasOne(l => l.Staff)
+                .WithMany()
+                .HasForeignKey(l => l.StaffId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // traceability
             // ===== Address =====
             modelBuilder.Entity<Address>(e =>
             {
@@ -301,12 +412,12 @@ namespace SaoKim_ecommerce_BE.Data
 				e.HasIndex(r => new { r.ProductID, r.UserID }).IsUnique();
 			});
             modelBuilder.Entity<TraceIdentity>()
-        .HasIndex(x => x.IdentityCode)
-        .IsUnique();
+                .HasIndex(x => x.IdentityCode)
+                .IsUnique();
 
             modelBuilder.Entity<TraceIdentity>()
                 .HasOne(x => x.Product)
-                .WithMany() // không cần navigation ngược
+                .WithMany()
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -315,6 +426,63 @@ namespace SaoKim_ecommerce_BE.Data
                 .WithMany(i => i.Events)
                 .HasForeignKey(e => e.TraceIdentityId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Promotion>(e =>
+            {
+                e.ToTable("promotions");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                e.Property(x => x.Description).HasMaxLength(500);
+
+                e.Property(x => x.DiscountType).HasConversion<string>().HasMaxLength(20);
+                e.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+
+                e.Property(x => x.StartDate).HasColumnType("timestamp with time zone");
+                e.Property(x => x.EndDate).HasColumnType("timestamp with time zone");
+
+                e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+
+                e.Property(x => x.CreatedAt).HasColumnType("timestamp with time zone");
+                e.Property(x => x.UpdatedAt).HasColumnType("timestamp with time zone");
+
+                e.HasIndex(x => x.Status);
+                e.HasIndex(x => new { x.StartDate, x.EndDate });
+            });
+
+            modelBuilder.Entity<PromotionProduct>(e =>
+            {
+                e.ToTable("promotion_products");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Note).HasMaxLength(500);
+
+                e.HasOne(x => x.Promotion)
+                    .WithMany(p => p.PromotionProducts)
+                    .HasForeignKey(x => x.PromotionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(x => x.Product)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => new { x.PromotionId, x.ProductId }).IsUnique();
+            });
+
+            modelBuilder.Entity<Entities.Coupon>(b =>
+            {
+                b.ToTable("Coupons");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Code).IsRequired().HasMaxLength(64);
+                b.HasIndex(x => x.Code).IsUnique();
+                b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                b.Property(x => x.DiscountType).IsRequired().HasMaxLength(32);
+                b.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+                b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
+                b.Property(x => x.Status).IsRequired().HasMaxLength(32);
+            });
+
         }
     }
 }
