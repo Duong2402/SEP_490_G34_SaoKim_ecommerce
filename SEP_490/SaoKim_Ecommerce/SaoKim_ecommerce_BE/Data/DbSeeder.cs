@@ -262,6 +262,7 @@ namespace SaoKim_ecommerce_BE.Data
             s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", "-");
             s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9\-]", "");
             return s;
+        }
         private static string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);

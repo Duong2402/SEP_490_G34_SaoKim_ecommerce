@@ -113,16 +113,16 @@ namespace SaoKim_ecommerce_BE.Controllers
                     quantity = p.Quantity,
                     description = p.Description,
                     supplier = p.Supplier,
-                    image = p.Image != null ? $"/images/{x.Image}" : null,
+                    image = p.Image != null ? $"/images/{p.Image}" : null,
                     note = p.Note
                 })
                 .FirstOrDefaultAsync();
 
-            if (p == null) return NotFound(new { message = "Product not found" });
+            if (product == null) return NotFound(new { message = "Product not found" });
 
             var related = await _db.Products
                 .AsNoTracking()
-                .Where(x => x.Category == p.category && x.ProductID != id)
+                .Where(x => x.Category!.Name == product.category && x.ProductID != id)
                 .OrderByDescending(x => x.CreateAt ?? x.Date)
                 .Take(8)
                 .Select(x => new
@@ -134,12 +134,13 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(new { product = p, related });
+            return Ok(new { product = product, related });
         }
 
         // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [AllowAnonymous]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] Product model)
         {
             if (!ModelState.IsValid)
