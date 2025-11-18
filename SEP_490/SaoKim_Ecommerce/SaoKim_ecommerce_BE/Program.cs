@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
-using System.Text;
-using QuestPDF.Infrastructure;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -14,36 +14,74 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 QuestPDF.Settings.License = LicenseType.Community;
 
+// SignalR
 builder.Services.AddSignalR();
+
+// Controllers + JSON
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
         o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
+// Swagger + JWT security
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SaoKim_ecommerce_BE",
+        Version = "v1"
+    });
+
+    // Định nghĩa Bearer dạng HTTP (Swagger sẽ tự thêm "Bearer " vào header)
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Bearer. Chỉ cần dán token (không cần chữ 'Bearer').",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
+
+    // Áp dụng security cho tất cả endpoint
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
 builder.Services.AddMemoryCache();
 
+// DI services
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IProductService, ProductService>(); // Duy
+builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectProductService, ProjectProductService>();
 builder.Services.AddScoped<IProjectExpenseService, ProjectExpenseService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 
-
-
+// DbContext
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
+// CORS
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? new[] { "http://localhost:5173" };
@@ -60,6 +98,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+// JWT Auth
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -88,6 +127,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
 
+                // Cho phép truyền token qua query cho SignalR
                 if (!string.IsNullOrEmpty(accessToken) &&
                     path.StartsWithSegments("/hubs"))
                 {
@@ -96,7 +136,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 return Task.CompletedTask;
             },
-
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
@@ -117,6 +156,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Authorization: mặc định yêu cầu đăng nhập
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -125,6 +165,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// Migrate + seed DB
 var fontPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts", "NotoSans-Regular.ttf");
 
 using (var scope = app.Services.CreateScope())
@@ -134,6 +176,7 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(db);
 }
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -146,10 +189,9 @@ else
 
 app.MapGet("/__routes", (EndpointDataSource eds) =>
     Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
+
 app.UseStaticFiles();
-
 app.UseHttpsRedirection();
-
 
 app.UseRouting();
 
