@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -23,8 +23,8 @@ import { apiFetch } from "../../api/lib/apiClient";
 import { getDispatchHubConnection } from "../../signalr/dispatchHub";
 import * as signalR from "@microsoft/signalr";
 
-const API_BASE = "https://localhost:7278";
 const TYPE_FILTERS = ["All", "Sales", "Project"];
+
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
   if (v === 0 || v === "0") return 0;
@@ -36,29 +36,66 @@ const toStatusCode = (v) => {
   return 0;
 };
 
+const normType = (type, row) => {
+  if (type === 1 || type === "1") return "Sales";
+  if (type === 2 || type === "2") return "Project";
+  if (typeof type === "string") return type;
+  return row?.customerId || row?.salesOrderNo ? "Sales" : "Project";
+};
+
 const DispatchList = () => {
   const navigate = useNavigate();
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const loadData = React.useCallback(async () => {
+  const [pageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [sortBy, setSortBy] = useState("dispatchDate");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const formatDate = (value) =>
+    value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const typeQuery = typeFilter === "All" ? "" : `?type=${typeFilter}`;
-      const res = await apiFetch(`/api/warehousemanager/dispatch-slips${typeQuery}`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("pageSize", pageSize);
+
+      if (typeFilter !== "All") {
+        params.append("type", typeFilter);
+      }
+      if (search) {
+        params.append("search", search);
+      }
+      if (sortBy) {
+        params.append("sortBy", sortBy);
+      }
+      if (sortOrder) {
+        params.append("sortOrder", sortOrder);
+      }
+
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips?${params.toString()}`
+      );
       const data = await res.json();
+
       setRows(data.items || []);
-      setCurrentPage(1);
+      setTotal(data.total || 0);
     } catch (error) {
       console.error("Error loading dispatch slips:", error);
     } finally {
       setLoading(false);
     }
-  }, [typeFilter]);
+  }, [page, pageSize, typeFilter, search, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -74,34 +111,17 @@ const DispatchList = () => {
 
       const { action } = payload || {};
       if (!action) return;
-
-      setRows((prev) => {
-        switch (action) {
-          case "created": {
-            const normalizedType = normType(payload.type, payload);
-            if (typeFilter !== "All" && normalizedType !== typeFilter) {
-              return prev;
-            }
-            return [payload, ...prev];
-          }
-
-          case "deleted":
-            return prev.filter((r) => r.id !== payload.id);
-
-          case "confirmed":
-          case "updated":
-            return prev.map((r) =>
-              r.id === payload.id ? { ...r, ...payload } : r
-            );
-
-          case "imported":
-            loadData();
-            return prev;
-
-          default:
-            return prev;
-        }
-      });
+      switch (action) {
+        case "created":
+        case "deleted":
+        case "confirmed":
+        case "updated":
+        case "imported":
+          loadData();
+          break;
+        default:
+          break;
+      }
     });
 
     if (connection.state === signalR.HubConnectionState.Disconnected) {
@@ -114,25 +134,28 @@ const DispatchList = () => {
     return () => {
       connection.off("DispatchSlipsUpdated");
     };
-  }, [typeFilter, loadData]);
+  }, [loadData]);
 
-
-  const formatDate = (value) =>
-    value ? new Date(value).toLocaleDateString("vi-VN") : "-";
-
-  const normType = (type, row) => {
-    if (type === 1 || type === "1") return "Sales";
-    if (type === 2 || type === "2") return "Project";
-    if (typeof type === "string") return type;
-    return row?.customerId || row?.salesOrderNo ? "Sales" : "Project";
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+    setPage(1);
   };
 
   const handleConfirm = async (id) => {
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
     try {
-      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/confirm`, {
-        method: "POST",
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${id}/confirm`,
+        {
+          method: "POST",
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (error) {
       console.error("Confirm failed:", error);
       alert("Không thể xác nhận phiếu.");
@@ -142,47 +165,17 @@ const DispatchList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
     try {
-      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (error) {
       console.error("Delete failed:", error);
       alert("Không thể xóa phiếu.");
     }
-  };
-
-  const filteredRows = useMemo(() => {
-    const keyword = search.toLowerCase();
-    return rows.filter((r) => {
-      if (!keyword) return true;
-      const ref = r.referenceNo || "";
-      const so = r.salesOrderNo || "";
-      const req = r.requestNo || "";
-      const customer = r.customerName || r.customer || "";
-      const project = r.projectName || r.project || "";
-      const site = r.siteName || r.shipTo || "";
-      return (
-        ref.toLowerCase().includes(keyword) ||
-        so.toLowerCase().includes(keyword) ||
-        req.toLowerCase().includes(keyword) ||
-        customer.toLowerCase().includes(keyword) ||
-        project.toLowerCase().includes(keyword) ||
-        site.toLowerCase().includes(keyword)
-      );
-    });
-  }, [rows, search]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const pagedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const renderStatus = (status) => {
-    if (status === 1) return <Badge bg="success">Đã xuất</Badge>;
-    if (status === 2) return <Badge bg="info">Đang giao</Badge>;
-    return (
-      <Badge bg="warning" text="dark">
-        Nháp
-      </Badge>
-    );
   };
 
   return (
@@ -207,7 +200,9 @@ const DispatchList = () => {
           <button
             type="button"
             className="wm-btn wm-btn--primary"
-            onClick={() => navigate("/warehouse-dashboard/dispatch-slips/create")}
+            onClick={() =>
+              navigate("/warehouse-dashboard/dispatch-slips/create")
+            }
           >
             <FontAwesomeIcon icon={faPlus} />
             Tạo phiếu xuất kho
@@ -229,7 +224,10 @@ const DispatchList = () => {
               type="text"
               placeholder="Tìm theo khách hàng, mã phiếu, dự án..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
             />
           </InputGroup>
         </div>
@@ -244,7 +242,10 @@ const DispatchList = () => {
                 <Dropdown.Item
                   key={type}
                   active={typeFilter === type}
-                  onClick={() => setTypeFilter(type)}
+                  onClick={() => {
+                    setTypeFilter(type);
+                    setPage(1);
+                  }}
                 >
                   {type === "All" ? "Tất cả loại phiếu" : type}
                 </Dropdown.Item>
@@ -259,13 +260,13 @@ const DispatchList = () => {
           <thead>
             <tr>
               <th>#</th>
-              <th>Loại phiếu</th>
-              <th>Mã</th>
-              <th>Phân Loại</th>
-              <th>Ngày xuất</th>
-              <th>Ngày tạo</th>
-              <th>Ngày xác nhận</th>
-              <th>Trạng thái</th>
+              <th role="button" onClick={() => handleSort("type")}>Loại phiếu</th>
+              <th role="button" onClick={() => handleSort("referenceNo")}>Mã</th>
+              <th>Khách Hàng</th>
+              <th role="button" onClick={() => handleSort("dispatchDate")}>Ngày xuất</th>
+              <th role="button" onClick={() => handleSort("createdAt")}>Ngày tạo</th>
+              <th role="button" onClick={() => handleSort("confirmedAt")}>Ngày xác nhận</th>
+              <th role="button" onClick={() => handleSort("status")}>Trạng thái</th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
@@ -273,18 +274,18 @@ const DispatchList = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={11} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Đang tải dữ liệu...
                 </td>
               </tr>
-            ) : pagedRows.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="wm-empty">
+                <td colSpan={10} className="wm-empty">
                   Không có phiếu phù hợp với bộ lọc hiện tại.
                 </td>
               </tr>
             ) : (
-              pagedRows.map((r, index) => {
+              rows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
                 const code = toStatusCode(r.status);
@@ -292,12 +293,22 @@ const DispatchList = () => {
 
                 return (
                   <tr key={r.id}>
-                    <td>{(currentPage - 1) * pageSize + index + 1}</td>
+                    <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
-                      <Badge bg={isSales ? "info" : "secondary"}>{normalizedType}</Badge>
+                      <Badge bg={isSales ? "info" : "secondary"}>
+                        {normalizedType}
+                      </Badge>
                     </td>
-                    <td>{isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo}</td>
-                    <td>{isSales ? r.customerName || "-" : r.projectName || "-"}</td>
+                    <td>
+                      {isSales
+                        ? r.salesOrderNo || r.referenceNo
+                        : r.requestNo || r.referenceNo}
+                    </td>
+                    <td>
+                      {isSales
+                        ? r.customerName || "-"
+                        : r.projectName || "-"}
+                    </td>
 
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
 
@@ -318,7 +329,11 @@ const DispatchList = () => {
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
-                        onClick={() => navigate(`/warehouse-dashboard/dispatch-slips/${r.id}/items`)}
+                        onClick={() =>
+                          navigate(
+                            `/warehouse-dashboard/dispatch-slips/${r.id}/items`
+                          )
+                        }
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
@@ -351,31 +366,58 @@ const DispatchList = () => {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <div className="wm-subtle-text">
-            Trang {currentPage}/{totalPages} • {filteredRows.length} phiếu
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <Button
-              variant="outline-primary"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            >
-              Trước
-            </Button>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            >
-              Sau
-            </Button>
-          </div>
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div className="wm-subtle-text">
+          Trang {page}/{totalPages} • {total} phiếu
         </div>
-      )}
+
+        <div className="btn-group">
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trước
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .reduce((acc, p, idx, arr) => {
+              if (idx && p - arr[idx - 1] > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "..." ? (
+                <button
+                  key={`gap-${i}`}
+                  className="btn btn-outline-light"
+                  disabled
+                >
+                  ...
+                </button>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
+                  onClick={() => setPage(p)}
+                  disabled={loading}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Sau
+          </button>
+        </div>
+      </div>
     </WarehouseLayout>
   );
 };

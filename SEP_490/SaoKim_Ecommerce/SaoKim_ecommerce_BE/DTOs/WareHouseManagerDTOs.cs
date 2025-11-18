@@ -27,6 +27,8 @@ namespace SaoKim_ecommerce_BE.DTOs
         public ReceivingSlipStatus? Status { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
+        public string? SortBy { get; set; }
+        public string? SortOrder { get; set; }
     }
 
     public class ReceivingSlipUpdateDto
@@ -89,6 +91,23 @@ namespace SaoKim_ecommerce_BE.DTOs
         public decimal UnitPrice { get; set; }
         public string? Note { get; set; }
     }
+
+    public class DispatchSlipListQuery
+    {
+        public string? Type { get; set; }
+        public string? Search { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public string? SortBy { get; set; }
+        public string? SortOrder { get; set; } = "desc";
+    }
+
+    public class DispatchItemListQuery
+    {
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
 
     public class ReceivingExportRequestDto
     {
