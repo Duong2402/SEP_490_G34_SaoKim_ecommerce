@@ -18,7 +18,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [ForeignKey(nameof(UserId))]
         public User? User { get; set; }
 
-        // Thông tin người nhận
         [MaxLength(200)]
         [Column("recipient_name")]
         public string RecipientName { get; set; } = string.Empty;
@@ -27,7 +26,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("phone_number")]
         public string PhoneNumber { get; set; } = string.Empty;
 
-        // Địa chỉ cụ thể
         [MaxLength(300)]
         [Column("line1")]
         public string Line1 { get; set; } = string.Empty;
@@ -48,11 +46,9 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("province")]
         public string? Province { get; set; }
 
-        // Cờ địa chỉ mặc định
         [Column("is_default")]
         public bool IsDefault { get; set; } = false;
 
-        // Thời gian tạo & cập nhật
         [Column("create_at")]
         public DateTime CreateAt { get; set; } = DateTime.UtcNow;
 

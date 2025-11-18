@@ -88,7 +88,6 @@ public class DashboardController : ControllerBase
             })
             .ToListAsync();
 
-        // map Date -> Revenue
         var dict = raw.ToDictionary(x => x.Date, x => x.Revenue);
 
         var result = new List<object>();
@@ -113,7 +112,7 @@ public class DashboardController : ControllerBase
 
         var orders = await _db.Orders
             .AsNoTracking()
-            .Include(o => o.Customer)                 // dùng navigation
+            .Include(o => o.Customer)                 
             .OrderByDescending(o => o.CreatedAt)
             .Take(take)
             .Select(o => new
@@ -122,7 +121,7 @@ public class DashboardController : ControllerBase
                 o.Total,
                 o.Status,
                 o.CreatedAt,
-                CustomerName = o.Customer.Name        // chú ý: Customer, không phải User
+                CustomerName = o.Customer.Name        
             })
             .ToListAsync();
 

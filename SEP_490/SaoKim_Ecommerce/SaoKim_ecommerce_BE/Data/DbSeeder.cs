@@ -87,7 +87,7 @@ namespace SaoKim_ecommerce_BE.Data
                     new User
                     {
                         Name = "Warehouse Manager",
-                        Email = "warehousehmanager@saokim.vn",
+                        Email = "warehousemanager@saokim.vn",
                         Password = HashPassword("123456789"),
                         RoleId = 2,
                         PhoneNumber = "0900000002",

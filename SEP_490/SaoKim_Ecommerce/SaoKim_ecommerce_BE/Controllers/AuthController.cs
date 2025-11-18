@@ -201,7 +201,6 @@ public class AuthController : ControllerBase
     }
 
     // POST: /api/auth/change-password
-    //[Authorize] // yêu cầu đăng nhập; nếu chưa cấu hình JWT có thể tạm bỏ dòng này
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {

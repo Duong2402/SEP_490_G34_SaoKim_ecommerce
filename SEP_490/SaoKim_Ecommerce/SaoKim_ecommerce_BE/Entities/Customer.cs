@@ -4,7 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SaoKim_ecommerce_BE.Entities
 {
-    // ===== CUSTOMER NOTE =====
     [Table("customer_notes")]
     public class CustomerNote
     {
@@ -32,7 +31,6 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
-    // ===== STAFF ACTION LOG =====
     [Table("staff_action_logs")]
     public class StaffActionLog
     {
@@ -57,7 +55,6 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
-    // ===== ORDER =====
     [Table("orders")]
     public class Order
     {

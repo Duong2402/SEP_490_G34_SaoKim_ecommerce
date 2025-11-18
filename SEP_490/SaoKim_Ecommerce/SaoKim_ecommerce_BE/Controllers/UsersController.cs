@@ -12,9 +12,9 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly SaoKimDBContext _db;
         public UsersController(SaoKimDBContext db) => _db = db;
 
-        // GET /api/users  (list + filter + paging)
+        // GET /api/users  
         [HttpGet]
-        [AllowAnonymous]    // đổi sang [Authorize(Roles="admin")] khi triển khai
+        [AllowAnonymous]    
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q,
             [FromQuery] string? role,
@@ -132,13 +132,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             public string? PhoneNumber { get; set; }
             public string? Status { get; set; }
             public DateTime? Dob { get; set; }
-            public int? RoleId { get; set; }    // Thêm trường này!
-            // (thêm các trường cần thiết khác nếu cần)
+            public int? RoleId { get; set; }    
         }
 
-        // GET /api/users/roles  (cho combobox Roles trên FE)
+        // GET /api/users/roles 
         [HttpGet("roles")]
-        [AllowAnonymous]    // triển khai thực tế có thể yêu cầu quyền admin
+        [AllowAnonymous]    
         public async Task<IActionResult> GetRoles()
         {
             var roles = await _db.Roles

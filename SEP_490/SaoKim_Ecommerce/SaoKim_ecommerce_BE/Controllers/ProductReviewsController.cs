@@ -60,7 +60,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 			if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
 				return Unauthorized();
 
-			// One review per user per product -> upsert
 			var existing = await _db.Reviews.FirstOrDefaultAsync(r => r.ProductID == productId && r.UserID == userId);
 			if (existing == null)
 			{
