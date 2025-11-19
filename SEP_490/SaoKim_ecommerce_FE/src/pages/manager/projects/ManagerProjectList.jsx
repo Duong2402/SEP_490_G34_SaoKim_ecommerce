@@ -32,15 +32,18 @@ export default function ManagerProjectList() {
       try {
         setLoading(true);
         const res = await ProjectAPI.getAll(params);
-        // unwrap ApiResponse<PagedResult<T>>
-        const payload = res?.data;
-        const pageData = payload?.data || {};
+        // res chính là ApiResponse<PagedResult<ProjectResponseDTO>>
+        const api = res || {};
+        const pageData = api.data || {}; // data chứa PagedResult
         const items = pageData.items || [];
-        const totalItems = pageData.totalItems ?? 0;
+        const totalItems =
+          pageData.totalItems ??
+          pageData.total ??
+          items.length;
 
         if (mounted) {
-          setRows(items);
-          setTotal(totalItems);
+          setRows(Array.isArray(items) ? items : []);
+          setTotal(Number(totalItems) || 0);
         }
       } catch (e) {
         console.error(e);
@@ -60,13 +63,33 @@ export default function ManagerProjectList() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #eee",
+        borderRadius: 12,
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          marginBottom: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by code/name/customer"
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", minWidth: 260 }}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+            minWidth: 260,
+          }}
         />
         <select
           value={status}
@@ -74,7 +97,11 @@ export default function ManagerProjectList() {
             setStatus(e.target.value);
             setPage(1);
           }}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
         >
           <option value="">All status</option>
           <option value="Draft">Draft</option>
@@ -85,7 +112,11 @@ export default function ManagerProjectList() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
         >
           <option value="created_desc">Created desc</option>
           <option value="created_asc">Created asc</option>
@@ -127,26 +158,54 @@ export default function ManagerProjectList() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ padding: 16, color: "#888" }}>Loading...</td></tr>
+              <tr>
+                <td colSpan={9} style={{ padding: 16, color: "#888" }}>
+                  Loading...
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 16, color: "#888" }}>No data</td></tr>
+              <tr>
+                <td colSpan={9} style={{ padding: 16, color: "#888" }}>
+                  No data
+                </td>
+              </tr>
             ) : (
               rows.map((p, idx) => (
                 <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{(page - 1) * pageSize + idx + 1}</td>
                   <td style={{ padding: 10 }}>
-                    <Link to={`/manager/projects/${p.id}`} style={{ color: "#0b1f3a" }}>
+                    {(page - 1) * pageSize + idx + 1}
+                  </td>
+                  <td style={{ padding: 10 }}>
+                    <Link
+                      to={`/manager/projects/${p.id}`}
+                      style={{ color: "#0b1f3a" }}
+                    >
                       {p.code}
                     </Link>
                   </td>
                   <td style={{ padding: 10 }}>{p.name}</td>
-                  <td style={{ padding: 10 }}>{p.customerName ?? "-"}</td>
+                  <td style={{ padding: 10 }}>
+                    {p.customerName ?? p.customer ?? "-"}
+                  </td>
                   <td style={{ padding: 10 }}>{p.status}</td>
-                  <td style={{ padding: 10 }}>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</td>
-                  <td style={{ padding: 10 }}>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</td>
+                  <td style={{ padding: 10 }}>
+                    {p.startDate
+                      ? new Date(p.startDate).toLocaleDateString()
+                      : "-"}
+                  </td>
+                  <td style={{ padding: 10 }}>
+                    {p.endDate
+                      ? new Date(p.endDate).toLocaleDateString()
+                      : "-"}
+                  </td>
                   <td style={{ padding: 10 }}>{p.budget ?? "-"}</td>
                   <td style={{ padding: 10 }}>
-                    <Link to={`/manager/projects/${p.id}/edit`} style={{ color: "#0b1f3a" }}>Edit</Link>
+                    <Link
+                      to={`/manager/projects/${p.id}/edit`}
+                      style={{ color: "#0b1f3a" }}
+                    >
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               ))
@@ -155,7 +214,15 @@ export default function ManagerProjectList() {
         </table>
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+      <div
+        style={{
+          marginTop: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          justifyContent: "flex-end",
+        }}
+      >
         <label style={{ color: "#666", fontSize: 13 }}>Page size</label>
         <select
           value={pageSize}
@@ -163,16 +230,27 @@ export default function ManagerProjectList() {
             setPageSize(Number(e.target.value));
             setPage(1);
           }}
-          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd" }}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+          }}
         >
-          {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+          {[10, 20, 50].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
         </select>
         <button
           onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page <= 1}
           style={{
-            padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd",
-            background: page <= 1 ? "#f3f3f3" : "#fff", cursor: page <= 1 ? "not-allowed" : "pointer",
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+            background: page <= 1 ? "#f3f3f3" : "#fff",
+            cursor: page <= 1 ? "not-allowed" : "pointer",
           }}
         >
           Prev
@@ -184,8 +262,11 @@ export default function ManagerProjectList() {
           onClick={() => setPage((p) => p + 1)}
           disabled={page >= totalPages}
           style={{
-            padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd",
-            background: page >= totalPages ? "#f3f3f3" : "#fff", cursor: page >= totalPages ? "not-allowed" : "pointer",
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid #ddd",
+            background: page >= totalPages ? "#f3f3f3" : "#fff",
+            cursor: page >= totalPages ? "not-allowed" : "pointer",
           }}
         >
           Next
