@@ -135,7 +135,7 @@ public class AuthController : ControllerBase
             new Claim("UserId", user.UserID.ToString()),
             new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
         }),
-            Expires = DateTime.UtcNow.AddHours(2),
+            Expires = DateTime.UtcNow.AddHours(1),
             Issuer = issuer,
             Audience = audience,
             SigningCredentials = new SigningCredentials(
