@@ -90,7 +90,7 @@ export default function Login() {
       } else if (roleNorm === "customer") {
         to = "/";
       } else if (roleNorm === "manager") {
-        to = "/manager-dashboard";
+        to = "/manager";
       } else if (roleNorm === "project_manager") {
         to = "/projects";
       }

@@ -38,6 +38,10 @@ export default function ManagerSidebar() {
       <NavLink to="/manager/coupons" style={navLinkStyle}>
         Coupons
       </NavLink>
+
+      <NavLink to="/manager/employees" style={navLinkStyle}>
+        Employees
+      </NavLink>
     </nav>
   );
 }

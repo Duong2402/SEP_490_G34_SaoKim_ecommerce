@@ -47,14 +47,15 @@ import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard
 
 //Invoices
 import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
+
 // Users
 import UserList from "./pages/users/UserList";
 import UserCreate from "./pages/users/UserCreate";
 import UserEdit from "./pages/users/UserEdit";
 
-
 //Import Page
 import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
+
 // Manager area
 import ManagerLayout from "./layouts/ManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
@@ -72,6 +73,11 @@ import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionLis
 // Coupons
 import ManagerCouponList from "./pages/manager/coupons/ManagerCouponList";
 
+// Manager Employees
+import ManagerEmployeeList from "./pages/manager/employees/ManagerEmployeeList";
+import ManagerEmployeeCreate from "./pages/manager/employees/ManagerEmployeeCreate";
+import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
+
 export default function App() {
   const { t } = useLanguage();
 
@@ -87,7 +93,6 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/forbidden" element={<AccessDenied />} />
-          
 
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
@@ -107,7 +112,6 @@ export default function App() {
           </Route>
 
           {/* Projects (ngoài khu Manager) */}
-          {/* Projects - public hoặc bạn tự bảo vệ thêm nếu cần */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
@@ -123,6 +127,7 @@ export default function App() {
           <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
 
           <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
+
           {/* Invoices */}
           <Route path="/staff/invoices" element={<ManageInvoices />} />
           <Route path="/products" element={<ManageProduct />} />
@@ -153,11 +158,16 @@ export default function App() {
             <Route path="projects/:id" element={<ManagerProjectDetail />} />
             <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
 
-            {/* *** Promotions cho Manager *** */}
+            {/* Promotions cho Manager */}
             <Route path="promotions" element={<ManagerPromotionList />} />
             
             {/* Coupons cho Manager */}
             <Route path="coupons" element={<ManagerCouponList />} />
+
+            {/* Employees cho Manager */}
+            <Route path="employees" element={<ManagerEmployeeList />} />
+            <Route path="employees/create" element={<ManagerEmployeeCreate />} />
+            <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
           </Route>
 
           {/* 404 */}
