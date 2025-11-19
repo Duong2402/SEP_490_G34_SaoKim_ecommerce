@@ -14,12 +14,16 @@ export default function ManagerProjectEdit() {
     (async () => {
       try {
         const res = await ProjectAPI.getById(id);
-        if (mounted) setDetail(res?.data?.data);
+        // res là ApiResponse<ProjectResponseDTO>
+        const dto = res?.data ?? res;
+        if (mounted) setDetail(dto);
       } catch (e) {
         console.error(e);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
   async function handleSubmit(values) {
@@ -49,9 +53,22 @@ export default function ManagerProjectEdit() {
   if (!detail) return <div style={{ padding: 16 }}>Loading...</div>;
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Edit Project</div>
-      <ManagerProjectForm initialValues={detail} onSubmit={handleSubmit} submitting={submitting} />
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #eee",
+        borderRadius: 12,
+        padding: 16,
+      }}
+    >
+      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>
+        Edit Project
+      </div>
+      <ManagerProjectForm
+        initialValues={detail}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+      />
     </div>
   );
 }

@@ -89,6 +89,10 @@ export default function Login() {
         to = "/admin-dashboard";
       } else if (roleNorm === "customer") {
         to = "/";
+      } else if (roleNorm === "manager") {
+        to = "/manager-dashboard";
+      } else if (roleNorm === "project_manager") {
+        to = "/projects";
       }
 
       navigate(to, { replace: true });
