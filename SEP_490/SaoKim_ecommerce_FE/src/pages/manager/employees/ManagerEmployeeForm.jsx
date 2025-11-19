@@ -74,10 +74,10 @@ export default function ManagerEmployeeForm({
 
   const errors = useMemo(() => {
     const e = {};
-    if (!form.name.trim()) e.name = "Name is required";
-    if (!form.email.trim()) e.email = "Email is required";
-    if (!isEdit && !form.password.trim()) e.password = "Password is required";
-    if (!form.roleId) e.roleId = "Role is required";
+    if (!form.name.trim()) e.name = "Họ tên bắt buộc";
+    if (!form.email.trim()) e.email = "Email bắt buộc";
+    if (!isEdit && !form.password.trim()) e.password = "Vui lòng nhập mật khẩu";
+    if (!form.roleId) e.roleId = "Hãy chọn vai trò";
     return e;
   }, [form, isEdit]);
 
@@ -96,7 +96,6 @@ export default function ManagerEmployeeForm({
     e.preventDefault();
     if (Object.keys(errors).length > 0) return;
 
-    // PAYLOAD PASCALCASE ĐỂ BIND [FromForm] / DTO C#
     const payload = {
       Name: form.name.trim(),
       Email: form.email.trim(),
@@ -110,9 +109,6 @@ export default function ManagerEmployeeForm({
     if (form.password.trim()) {
       payload.Password = form.password.trim();
     }
-
-    // Cả create và edit đều có thể gửi Image,
-    // BE có thể bỏ qua nếu không thay đổi
     if (form.image) {
       payload.Image = form.image;
     }
@@ -121,51 +117,55 @@ export default function ManagerEmployeeForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="form-grid">
-      <div className="field-group">
-        <label>Name</label>
+    <form onSubmit={handleSubmit} className="manager-form">
+      <div className="manager-form__field">
+        <label>Họ tên *</label>
         <input
           name="name"
           value={form.name}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
         {errors.name && <p className="field-error">{errors.name}</p>}
       </div>
 
-      <div className="field-group">
-        <label>Email</label>
+      <div className="manager-form__field">
+        <label>Email *</label>
         <input
           name="email"
           value={form.email}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
         {errors.email && <p className="field-error">{errors.email}</p>}
       </div>
 
-      <div className="field-group">
-        <label>Password</label>
+      <div className="manager-form__field">
+        <label>Mật khẩu {isEdit ? "(bỏ trống nếu không đổi)" : "*"}</label>
         <input
           type="password"
           name="password"
           value={form.password}
           onChange={handleChange}
-          placeholder={isEdit ? "Leave blank to keep current password" : ""}
+          placeholder={isEdit ? "Để trống nếu giữ nguyên mật khẩu" : ""}
           disabled={submitting}
+          className="manager-form__control"
         />
         {errors.password && <p className="field-error">{errors.password}</p>}
       </div>
 
-      <div className="field-group">
-        <label>Role</label>
+      <div className="manager-form__field">
+        <label>Vai trò *</label>
         <select
           name="roleId"
           value={form.roleId}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         >
-          <option value="">Select role</option>
+          <option value="">Chọn vai trò</option>
           {roles.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -175,87 +175,91 @@ export default function ManagerEmployeeForm({
         {errors.roleId && <p className="field-error">{errors.roleId}</p>}
       </div>
 
-      <div className="field-group">
-        <label>Phone</label>
+      <div className="manager-form__field">
+        <label>Điện thoại</label>
         <input
           name="phoneNumber"
           value={form.phoneNumber}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
       </div>
 
-      <div className="field-group">
-        <label>Address</label>
+      <div className="manager-form__field">
+        <label>Địa chỉ</label>
         <input
           name="address"
           value={form.address}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
       </div>
 
-      <div className="field-group">
-        <label>Date of Birth</label>
+      <div className="manager-form__field">
+        <label>Ngày sinh</label>
         <input
           type="date"
           name="dob"
           value={form.dob}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
       </div>
 
-      <div className="field-group">
-        <label>Status</label>
+      <div className="manager-form__field">
+        <label>Trạng thái</label>
         <select
           name="status"
           value={form.status}
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         >
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Suspended">Suspended</option>
+          <option value="Active">Đang làm việc</option>
+          <option value="Inactive">Tạm ngưng</option>
+          <option value="Suspended">Đình chỉ</option>
         </select>
       </div>
 
-      {/* Cho phép chọn ảnh cả khi edit, BE tự xử lý nếu không đổi */}
-      <div className="field-group">
-        <label>Profile image</label>
+      <div className="manager-form__field">
+        <label>Ảnh đại diện</label>
         <input
           type="file"
           name="image"
           accept="image/*"
           onChange={handleChange}
           disabled={submitting}
+          className="manager-form__control"
         />
         {preview && (
           <img
             src={preview}
-            alt="Preview"
+            alt="Xem trước"
             style={{
               marginTop: 8,
               maxWidth: 160,
               maxHeight: 160,
               objectFit: "cover",
-              borderRadius: 4,
-              border: "1px solid #ddd",
+              borderRadius: 8,
+              border: "1px solid var(--manager-border)",
             }}
             onError={(e) => {
-              e.target.style.display = "none";
+              e.currentTarget.style.display = "none";
             }}
           />
         )}
       </div>
 
-      <div className="form-actions">
+      <div className="manager-form__actions">
         <button
           type="submit"
-          className="btn btn-primary"
+          className="manager-btn manager-btn--primary"
           disabled={submitting || Object.keys(errors).length > 0}
         >
-          {submitting ? "Saving..." : isEdit ? "Update Employee" : "Create Employee"}
+          {submitting ? "Đang lưu..." : isEdit ? "Cập nhật" : "Tạo mới"}
         </button>
       </div>
     </form>

@@ -1,7 +1,17 @@
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAngleLeft, faEnvelope, faUnlockAlt } from "@fortawesome/free-solid-svg-icons";
-import { Col, Row, Form, Card, Button, FormCheck, Container, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import {
+  Col,
+  Row,
+  Form,
+  Card,
+  Button,
+  FormCheck,
+  Container,
+  InputGroup,
+  Alert,
+} from "@themesberg/react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import BgImage from "../../assets/signin.svg";
 import "../../assets/css/Auth.css";
@@ -29,19 +39,18 @@ export default function ChangePassword() {
     setError("");
     setSuccess("");
 
-    // Validate đơn giản phía client
     if (form.newPassword.length < 8) {
-      setError("New password phải có ít nhất 8 ký tự.");
+      setError("Mật khẩu mới phải có ít nhất 8 ký tự.");
       return;
     }
     if (form.newPassword !== form.confirmNewPassword) {
-      setError("Confirm password không khớp.");
+      setError("Xác nhận mật khẩu không khớp.");
       return;
     }
 
     setLoading(true);
     try {
-      const token = localStorage.getItem("token"); // nếu API yêu cầu Bearer
+      const token = localStorage.getItem("token");
 
       const res = await fetch("https://localhost:7278/api/Auth/change-password", {
         method: "POST",
@@ -59,19 +68,16 @@ export default function ChangePassword() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setError(data.message || "Change password failed");
+        setError(data.message || "Đổi mật khẩu thất bại.");
         return;
       }
 
       setSuccess("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
-      // Xóa token cũ nếu có, để buộc đăng nhập lại
       localStorage.removeItem("token");
       localStorage.removeItem("role");
-
-      // Điều hướng sau 1 chút cho UX
       setTimeout(() => navigate("/login"), 800);
     } catch (err) {
-      setError("Server error. Please try again.", err);
+      setError("Máy chủ gặp sự cố, vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -88,13 +94,13 @@ export default function ChangePassword() {
         <div className="auth-card-wrap">
           <p className="text-center mb-3">
             <Card.Link as={Link} to="/" className="text-gray-700">
-              <FontAwesomeIcon icon={faAngleLeft} className="me-2" /> Back to homepage
+              <FontAwesomeIcon icon={faAngleLeft} className="me-2" /> Quay về trang chủ
             </Card.Link>
           </p>
 
           <div className="bg-white shadow-soft border rounded border-light p-4 p-lg-5 w-100">
             <div className="text-center mb-4">
-              <h3 className="mb-0">Change Password</h3>
+              <h3 className="mb-0">Đổi mật khẩu</h3>
             </div>
 
             {error && <Alert variant="danger">{error}</Alert>}
@@ -102,7 +108,7 @@ export default function ChangePassword() {
 
             <Form className="mt-4" onSubmit={handleSubmit}>
               <Form.Group id="email" className="mb-4">
-                <Form.Label>Your Email</Form.Label>
+                <Form.Label>Email của bạn</Form.Label>
                 <InputGroup>
                   <InputGroup.Text>
                     <FontAwesomeIcon icon={faEnvelope} />
@@ -111,7 +117,7 @@ export default function ChangePassword() {
                     name="email"
                     type="email"
                     required
-                    placeholder="example@company.com"
+                    placeholder="ví dụ: manager@saokim.vn"
                     value={form.email}
                     onChange={handleChange}
                   />
@@ -119,7 +125,7 @@ export default function ChangePassword() {
               </Form.Group>
 
               <Form.Group id="currentPassword" className="mb-4">
-                <Form.Label>Current Password</Form.Label>
+                <Form.Label>Mật khẩu hiện tại</Form.Label>
                 <InputGroup>
                   <InputGroup.Text>
                     <FontAwesomeIcon icon={faUnlockAlt} />
@@ -128,7 +134,7 @@ export default function ChangePassword() {
                     name="currentPassword"
                     type="password"
                     required
-                    placeholder="Current password"
+                    placeholder="Mật khẩu hiện tại"
                     value={form.currentPassword}
                     onChange={handleChange}
                   />
@@ -136,7 +142,7 @@ export default function ChangePassword() {
               </Form.Group>
 
               <Form.Group id="newPassword" className="mb-4">
-                <Form.Label>New Password</Form.Label>
+                <Form.Label>Mật khẩu mới</Form.Label>
                 <InputGroup>
                   <InputGroup.Text>
                     <FontAwesomeIcon icon={faUnlockAlt} />
@@ -145,7 +151,7 @@ export default function ChangePassword() {
                     name="newPassword"
                     type="password"
                     required
-                    placeholder="New password"
+                    placeholder="Mật khẩu mới"
                     value={form.newPassword}
                     onChange={handleChange}
                   />
@@ -154,7 +160,7 @@ export default function ChangePassword() {
               </Form.Group>
 
               <Form.Group id="confirmNewPassword" className="mb-4">
-                <Form.Label>Confirm New Password</Form.Label>
+                <Form.Label>Xác nhận mật khẩu mới</Form.Label>
                 <InputGroup>
                   <InputGroup.Text>
                     <FontAwesomeIcon icon={faUnlockAlt} />
@@ -163,7 +169,7 @@ export default function ChangePassword() {
                     name="confirmNewPassword"
                     type="password"
                     required
-                    placeholder="Re-enter new password"
+                    placeholder="Nhập lại mật khẩu mới"
                     value={form.confirmNewPassword}
                     onChange={handleChange}
                   />
@@ -174,24 +180,24 @@ export default function ChangePassword() {
                 <Form.Check type="checkbox">
                   <FormCheck.Input id="rememberChangePw" className="me-2" />
                   <FormCheck.Label htmlFor="rememberChangePw" className="mb-0">
-                    Remember this device
+                    Ghi nhớ thiết bị này
                   </FormCheck.Label>
                 </Form.Check>
                 <Card.Link as={Link} to="/login" className="small text-end">
-                  Back to Login
+                  Quay lại đăng nhập
                 </Card.Link>
               </div>
 
               <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-                {loading ? "Processing..." : "Change password"}
+                {loading ? "Đang xử lý..." : "Xác nhận đổi mật khẩu"}
               </Button>
             </Form>
 
             <div className="d-flex justify-content-center align-items-center mt-4">
               <span className="fw-normal">
-                Need an account?
+                Chưa có tài khoản?
                 <Card.Link as={Link} to="/register" className="fw-bold">
-                  {` Create account `}
+                  {` Đăng ký ngay `}
                 </Card.Link>
               </span>
             </div>

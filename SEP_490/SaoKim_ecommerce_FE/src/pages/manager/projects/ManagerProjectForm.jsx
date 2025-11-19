@@ -1,6 +1,13 @@
 // src/pages/manager/projects/ManagerProjectForm.jsx
 import { useEffect, useState } from "react";
 
+const STATUS_OPTIONS = [
+  { value: "Draft", label: "Nháp" },
+  { value: "Active", label: "Đang triển khai" },
+  { value: "Done", label: "Hoàn thành" },
+  { value: "Cancelled", label: "Đã hủy" },
+];
+
 export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
   const [values, setValues] = useState({
     name: "",
@@ -28,90 +35,115 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
     }
   }, [initialValues]);
 
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setValues((v) => ({ ...v, [name]: value }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    await onSubmit(values);
-  }
-
-  const input = {
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-    width: "100%",
-    boxSizing: "border-box",
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  const label = { fontSize: 13, color: "#444", marginBottom: 6 };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await onSubmit(values);
+  };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div>
-          <div style={label}>Project name</div>
-          <input name="name" value={values.name} onChange={handleChange} required style={input} />
-        </div>
-
-        <div>
-          <div style={label}>Status</div>
-          <select name="status" value={values.status} onChange={handleChange} style={input}>
-            <option value="Draft">Draft</option>
-            <option value="Active">Active</option>
-            <option value="Done">Done</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        <div>
-          <div style={label}>Customer name</div>
-          <input name="customerName" value={values.customerName} onChange={handleChange} style={input} />
-        </div>
-
-        <div>
-          <div style={label}>Customer contact</div>
-          <input name="customerContact" value={values.customerContact} onChange={handleChange} style={input} />
-        </div>
-
-        <div>
-          <div style={label}>Start date</div>
-          <input type="date" name="startDate" value={values.startDate} onChange={handleChange} style={input} />
-        </div>
-
-        <div>
-          <div style={label}>End date</div>
-          {/* ✅ đã bỏ style trùng */}
-          <input type="date" name="endDate" value={values.endDate} onChange={handleChange} style={input} />
-        </div>
-
-        <div>
-          <div style={label}>Budget</div>
-          <input name="budget" value={values.budget} onChange={handleChange} style={input} />
-        </div>
-
-        <div style={{ gridColumn: "1 / span 2" }}>
-          <div style={label}>Description</div>
-          <textarea name="description" value={values.description} onChange={handleChange} rows={4} style={input} />
-        </div>
+    <form onSubmit={handleSubmit} className="manager-form">
+      <div className="manager-form__field">
+        <label>Tên dự án *</label>
+        <input
+          name="name"
+          value={values.name}
+          onChange={handleChange}
+          required
+          className="manager-form__control"
+        />
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+      <div className="manager-form__field">
+        <label>Trạng thái</label>
+        <select
+          name="status"
+          value={values.status}
+          onChange={handleChange}
+          className="manager-form__control"
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="manager-form__field">
+        <label>Tên khách hàng</label>
+        <input
+          name="customerName"
+          value={values.customerName}
+          onChange={handleChange}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__field">
+        <label>Liên hệ khách hàng</label>
+        <input
+          name="customerContact"
+          value={values.customerContact}
+          onChange={handleChange}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__field">
+        <label>Ngày bắt đầu</label>
+        <input
+          type="date"
+          name="startDate"
+          value={values.startDate}
+          onChange={handleChange}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__field">
+        <label>Ngày kết thúc</label>
+        <input
+          type="date"
+          name="endDate"
+          value={values.endDate}
+          onChange={handleChange}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__field">
+        <label>Ngân sách (VND)</label>
+        <input
+          name="budget"
+          value={values.budget}
+          onChange={handleChange}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__field" style={{ gridColumn: "1 / -1" }}>
+        <label>Mô tả chi tiết</label>
+        <textarea
+          name="description"
+          value={values.description}
+          onChange={handleChange}
+          rows={4}
+          className="manager-form__control"
+        />
+      </div>
+
+      <div className="manager-form__actions">
         <button
           type="submit"
+          className="manager-btn manager-btn--primary"
           disabled={submitting}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #0b1f3a",
-            background: submitting ? "#94a3b8" : "#0b1f3a",
-            color: "#fff",
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
         >
-          {submitting ? "Saving..." : "Save"}
+          {submitting ? "Đang lưu..." : "Lưu dự án"}
         </button>
       </div>
     </form>

@@ -11,15 +11,15 @@ export default function ManagerEmployeeCreate() {
   const handleSubmit = async (payload) => {
     try {
       setSaving(true);
-      await ManagerEmployeeAPI.create(payload); // API đã unwrap nên không cần .data
-      alert("Employee created successfully");
+      await ManagerEmployeeAPI.create(payload);
+      alert("Tạo nhân sự thành công.");
       navigate("/manager/employees");
     } catch (err) {
       console.error(err);
       const message =
         err?.response?.data?.message ||
         err?.response?.data?.title ||
-        "Failed to create employee";
+        "Không thể tạo nhân sự mới.";
       alert(message);
     } finally {
       setSaving(false);
@@ -27,26 +27,22 @@ export default function ManagerEmployeeCreate() {
   };
 
   return (
-    <div className="container">
-      <div className="panel">
-        <header className="page-header">
-          <div>
-            <h1 className="page-title">Add Employee</h1>
-            <p className="page-subtitle">Create a new employee account</p>
-          </div>
-          <div className="actions">
-            <Link to="/manager/employees" className="btn btn-ghost">
-              Cancel
-            </Link>
-          </div>
-        </header>
-
-        <ManagerEmployeeForm
-          onSubmit={handleSubmit}
-          submitting={saving}
-          isEdit={false}
-        />
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Thêm nhân sự</h2>
+          <p className="manager-panel__subtitle">
+            Hoàn thiện thông tin để cấp quyền truy cập hệ thống cho thành viên mới.
+          </p>
+        </div>
+        <div className="manager-panel__actions">
+          <Link to="/manager/employees" className="manager-btn manager-btn--outline">
+            Hủy
+          </Link>
+        </div>
       </div>
+
+      <ManagerEmployeeForm onSubmit={handleSubmit} submitting={saving} isEdit={false} />
     </div>
   );
 }

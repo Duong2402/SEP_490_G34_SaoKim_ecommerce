@@ -1,24 +1,19 @@
-// src/pages/manager/Dashboard.jsx
 import { useEffect, useState } from "react";
+import { getManagerOverview, getRevenueByDay } from "../../api/manager-reports";
 
-import {
-  getManagerOverview,
-  getRevenueByDay,
-} from "../../api/manager-reports";
-
-function formatCurrency(value) {
-  if (value == null) return "0";
-  return value.toLocaleString("vi-VN", {
+const formatCurrency = (value) => {
+  if (value == null || Number.isNaN(value)) return "0 ₫";
+  return Number(value).toLocaleString("vi-VN", {
     style: "currency",
     currency: "VND",
     maximumFractionDigits: 0,
   });
-}
+};
 
-function formatNumber(value) {
-  if (value == null) return "0";
-  return value.toLocaleString("vi-VN");
-}
+const formatNumber = (value) => {
+  if (value == null || Number.isNaN(value)) return "0";
+  return Number(value).toLocaleString("vi-VN");
+};
 
 export default function ManagerDashboard() {
   const [overview, setOverview] = useState(null);
@@ -27,289 +22,187 @@ export default function ManagerDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    async function load() {
+    const load = async () => {
       try {
         setLoading(true);
         setError("");
-
-        const [ov, rev] = await Promise.all([
+        const [overviewRes, revenueRes] = await Promise.all([
           getManagerOverview(),
           getRevenueByDay(7),
         ]);
-
-        if (!isMounted) return;
-
-        setOverview(ov || {});
-        setRevenueByDay(Array.isArray(rev) ? rev : []);
+        if (!mounted) return;
+        setOverview(overviewRes || {});
+        setRevenueByDay(Array.isArray(revenueRes) ? revenueRes : []);
       } catch (err) {
-        if (!isMounted) return;
-        const msg =
+        if (!mounted) return;
+        const message =
           err?.response?.data ||
           err?.message ||
-          "Đã xảy ra lỗi khi tải dữ liệu";
-        setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+          "Có lỗi xảy ra khi tải dữ liệu tổng quan.";
+        setError(typeof message === "string" ? message : JSON.stringify(message));
       } finally {
-        if (isMounted) setLoading(false);
+        if (mounted) setLoading(false);
       }
-    }
+    };
 
     load();
-
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
 
-  const revenue = overview?.revenue;
-  const warehouse = overview?.warehouse;
-  const projects = overview?.projects;
+  const revenue = overview?.revenue ?? {};
+  const warehouse = overview?.warehouse ?? {};
+  const projects = overview?.projects ?? {};
 
   return (
-    <div
-      className="manager-dashboard container"
-      style={{ padding: "24px 24px 40px" }}
-    >
-      <h1
-        style={{
-          fontSize: "24px",
-          fontWeight: 600,
-          marginBottom: "16px",
-        }}
-      >
-        Dashboard
-      </h1>
-
-      {loading && <div>Đang tải dữ liệu...</div>}
+    <div className="manager-section">
+      {loading && (
+        <div className="manager-panel manager-empty">Đang tải dữ liệu tổng quan...</div>
+      )}
 
       {!loading && error && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "10px 14px",
-            borderRadius: 6,
-            backgroundColor: "#fdecea",
-            color: "#b71c1c",
-            fontSize: "14px",
-          }}
-        >
-          {error}
+        <div className="manager-panel" role="alert">
+          <div className="manager-panel__header">
+            <div>
+              <h2 className="manager-panel__title">Không thể tải dữ liệu</h2>
+              <p className="manager-panel__subtitle">{error}</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {!loading && !error && overview && (
+      {!loading && !error && (
         <>
-          {/* REVENUE SECTION */}
-          <section style={{ marginTop: "24px" }}>
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "12px",
-              }}
-            >
-              Doanh thu
-            </h2>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              <SummaryCard
-                title="Tổng doanh thu"
-                value={formatCurrency(revenue?.totalRevenue)}
-              />
-              <SummaryCard
-                title="Doanh thu 7 ngày gần nhất"
-                value={formatCurrency(revenue?.revenue7d)}
-              />
-              <SummaryCard
-                title="Đơn hàng hôm nay"
-                value={formatNumber(revenue?.ordersToday)}
-              />
-              <SummaryCard
-                title="Đơn đang chờ xử lý"
-                value={formatNumber(revenue?.pendingOrders)}
-              />
-            </div>
-          </section>
-
-          {/* WAREHOUSE SECTION */}
-          <section style={{ marginTop: "32px" }}>
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "12px",
-              }}
-            >
-              Hiệu suất kho
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(260px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              <SummaryCard
-                title="Tổng tồn kho (số lượng)"
-                value={formatNumber(warehouse?.totalStock)}
-              />
-
-              <div style={cardStyle}>
-                <div style={cardTitleStyle}>Nhập kho (phiếu)</div>
-                <div style={cardRowStyle}>
-                  <div>
-                    <div style={labelStyle}>Tuần này</div>
-                    <div style={valueStyle}>
-                      {formatNumber(warehouse?.inbound?.thisWeek)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={labelStyle}>Tuần trước</div>
-                    <div style={valueStyle}>
-                      {formatNumber(warehouse?.inbound?.lastWeek)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={cardStyle}>
-                <div style={cardTitleStyle}>Xuất kho (phiếu)</div>
-                <div style={cardRowStyle}>
-                  <div>
-                    <div style={labelStyle}>Tuần này</div>
-                    <div style={valueStyle}>
-                      {formatNumber(warehouse?.outbound?.thisWeek)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={labelStyle}>Tuần trước</div>
-                    <div style={valueStyle}>
-                      {formatNumber(warehouse?.outbound?.lastWeek)}
-                    </div>
-                  </div>
-                </div>
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Chỉ số doanh thu</h2>
+                <p className="manager-panel__subtitle">
+                  Số liệu cập nhật theo thời gian thực từ hệ thống bán hàng.
+                </p>
               </div>
             </div>
-          </section>
-
-          {/* PROJECT SECTION */}
-          <section style={{ marginTop: "32px" }}>
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "12px",
-              }}
-            >
-              Dự án
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "16px",
-              }}
-            >
+            <div className="manager-summary-grid">
+              <SummaryCard label="Tổng doanh thu" value={formatCurrency(revenue.totalRevenue)} />
               <SummaryCard
-                title="Tổng số dự án"
-                value={formatNumber(projects?.totalProjects)}
+                label="Doanh thu 7 ngày gần nhất"
+                value={formatCurrency(revenue.revenue7d)}
               />
               <SummaryCard
-                title="Dự án nháp"
-                value={formatNumber(projects?.draftProjects)}
+                label="Đơn hàng hôm nay"
+                value={formatNumber(revenue.ordersToday)}
               />
               <SummaryCard
-                title="Dự án đang chạy"
-                value={formatNumber(projects?.activeProjects)}
-              />
-              <SummaryCard
-                title="Dự án hoàn thành"
-                value={formatNumber(projects?.completedProjects)}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(260px, 1fr))",
-                gap: "16px",
-                marginTop: "16px",
-              }}
-            >
-              <SummaryCard
-                title="Tổng Budget"
-                value={formatCurrency(projects?.totalBudget)}
-              />
-              <SummaryCard
-                title="Tổng chi phí sản phẩm"
-                value={formatCurrency(projects?.totalProductCost)}
-              />
-              <SummaryCard
-                title="Tổng chi phí khác"
-                value={formatCurrency(projects?.totalOtherExpenses)}
-              />
-              <SummaryCard
-                title="Tổng chi phí thực tế"
-                value={formatCurrency(projects?.totalActualCost)}
+                label="Đơn đang chờ xử lý"
+                value={formatNumber(revenue.pendingOrders)}
               />
             </div>
           </section>
 
-          {/* REVENUE BY DAY */}
-          <section style={{ marginTop: "32px" }}>
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "12px",
-              }}
-            >
-              Doanh thu 7 ngày gần nhất
-            </h2>
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Hiệu suất kho</h2>
+                <p className="manager-panel__subtitle">
+                  Theo dõi mức tồn và số phiếu nhập - xuất để cân bằng cung ứng.
+                </p>
+              </div>
+            </div>
+            <div className="manager-summary-grid">
+              <SummaryCard
+                label="Tổng tồn kho (số lượng)"
+                value={formatNumber(warehouse.totalStock)}
+              />
+              <SplitCard
+                label="Phiếu nhập kho"
+                currentLabel="Tuần này"
+                currentValue={formatNumber(warehouse?.inbound?.thisWeek)}
+                previousLabel="Tuần trước"
+                previousValue={formatNumber(warehouse?.inbound?.lastWeek)}
+              />
+              <SplitCard
+                label="Phiếu xuất kho"
+                currentLabel="Tuần này"
+                currentValue={formatNumber(warehouse?.outbound?.thisWeek)}
+                previousLabel="Tuần trước"
+                previousValue={formatNumber(warehouse?.outbound?.lastWeek)}
+              />
+            </div>
+          </section>
 
-            <div style={cardStyle}>
-              {!revenueByDay || revenueByDay.length === 0 ? (
-                <div>Không có dữ liệu doanh thu.</div>
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Dự án trọng điểm</h2>
+                <p className="manager-panel__subtitle">
+                  Tình trạng triển khai và ngân sách tổng hợp của các dự án.
+                </p>
+              </div>
+            </div>
+            <div className="manager-summary-grid">
+              <SummaryCard
+                label="Tổng số dự án"
+                value={formatNumber(projects.totalProjects)}
+              />
+              <SummaryCard label="Dự án nháp" value={formatNumber(projects.draftProjects)} />
+              <SummaryCard label="Dự án đang chạy" value={formatNumber(projects.activeProjects)} />
+              <SummaryCard
+                label="Dự án hoàn thành"
+                value={formatNumber(projects.completedProjects)}
+              />
+            </div>
+
+            <div className="manager-summary-grid" style={{ marginTop: 18 }}>
+              <SummaryCard label="Tổng ngân sách" value={formatCurrency(projects.totalBudget)} />
+              <SummaryCard
+                label="Chi phí sản phẩm"
+                value={formatCurrency(projects.totalProductCost)}
+              />
+              <SummaryCard
+                label="Chi phí khác"
+                value={formatCurrency(projects.totalOtherExpenses)}
+              />
+              <SummaryCard
+                label="Chi phí thực tế"
+                value={formatCurrency(projects.totalActualCost)}
+              />
+            </div>
+          </section>
+
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Doanh thu theo ngày (7 ngày)</h2>
+                <p className="manager-panel__subtitle">
+                  Phân bổ doanh thu từng ngày giúp phát hiện xu hướng tăng giảm.
+                </p>
+              </div>
+            </div>
+            <div className="manager-table__wrapper">
+              {revenueByDay.length === 0 ? (
+                <div className="manager-table__empty">Chưa có dữ liệu doanh thu gần đây.</div>
               ) : (
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: "14px",
-                  }}
-                >
+                <table className="manager-table">
                   <thead>
                     <tr>
-                      <th style={thStyle}>Ngày</th>
-                      <th style={thStyle}>Doanh thu</th>
+                      <th>Ngày</th>
+                      <th>Doanh thu</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {revenueByDay.map((item, idx) => {
-                      const d = new Date(item.date);
-                      const dateStr = d.toLocaleDateString("vi-VN", {
+                    {revenueByDay.map((item, index) => {
+                      const formattedDate = new Date(item.date).toLocaleDateString("vi-VN", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
                       });
                       return (
-                        <tr key={idx}>
-                          <td style={tdStyle}>{dateStr}</td>
-                          <td style={tdStyle}>
-                            {formatCurrency(item.revenue)}
-                          </td>
+                        <tr key={`${item.date}-${index}`}>
+                          <td>{formattedDate}</td>
+                          <td>{formatCurrency(item.revenue)}</td>
                         </tr>
                       );
                     })}
@@ -324,57 +217,30 @@ export default function ManagerDashboard() {
   );
 }
 
-function SummaryCard({ title, value }) {
+function SummaryCard({ label, value, meta }) {
   return (
-    <div style={cardStyle}>
-      <div style={cardTitleStyle}>{title}</div>
-      <div style={valueStyle}>{value}</div>
+    <div className="manager-card">
+      <div className="manager-card__label">{label}</div>
+      <div className="manager-card__value">{value}</div>
+      {meta && <div className="manager-card__meta">{meta}</div>}
     </div>
   );
 }
 
-// styles đơn giản cho card
-const cardStyle = {
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  padding: "16px 18px",
-  backgroundColor: "#ffffff",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-};
-
-const cardTitleStyle = {
-  fontSize: "14px",
-  fontWeight: 500,
-  color: "#4b5563",
-  marginBottom: "6px",
-};
-
-const valueStyle = {
-  fontSize: "18px",
-  fontWeight: 600,
-  color: "#111827",
-};
-
-const labelStyle = {
-  fontSize: "12px",
-  color: "#6b7280",
-};
-
-const cardRowStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: "16px",
-  marginTop: "8px",
-};
-
-const thStyle = {
-  textAlign: "left",
-  borderBottom: "1px solid #e5e7eb",
-  padding: "8px 4px",
-  fontWeight: 600,
-};
-
-const tdStyle = {
-  borderBottom: "1px solid #f3f4f6",
-  padding: "6px 4px",
-};
+function SplitCard({ label, currentLabel, currentValue, previousLabel, previousValue }) {
+  return (
+    <div className="manager-card">
+      <div className="manager-card__label">{label}</div>
+      <div className="manager-grid-two" style={{ gap: 8 }}>
+        <div>
+          <div className="manager-card__meta">{currentLabel}</div>
+          <div className="manager-card__value">{currentValue}</div>
+        </div>
+        <div>
+          <div className="manager-card__meta">{previousLabel}</div>
+          <div className="manager-card__value">{previousValue}</div>
+        </div>
+      </div>
+    </div>
+  );
+}

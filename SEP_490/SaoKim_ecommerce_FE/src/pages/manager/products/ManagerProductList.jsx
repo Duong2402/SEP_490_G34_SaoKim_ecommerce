@@ -1,6 +1,17 @@
 // src/pages/manager/products/ManagerProductList.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../../../api/products";
+
+const formatCurrency = (value) => {
+  if (value == null) return "0 ₫";
+  return Number(value).toLocaleString("vi-VN") + " ₫";
+};
+
+const STATUS_LABELS = {
+  Active: "Đang bán",
+  Inactive: "Tạm ngưng",
+  Draft: "Nháp",
+};
 
 export default function ManagerProductList() {
   const [q, setQ] = useState("");
@@ -18,126 +29,141 @@ export default function ManagerProductList() {
     [q, sortBy, sortDir, page, pageSize]
   );
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await ProductsAPI.list(params);
-        // Hỗ trợ cả 2 format: có ApiResponse hay không
-        const payload = res?.data?.data ?? res?.data ?? {};
-        setRows(payload.items ?? []);
-        setTotal(payload.total ?? 0);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  const loadProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await ProductsAPI.list(params);
+      const payload = res?.data?.data ?? res?.data ?? {};
+      setRows(payload.items ?? []);
+      setTotal(payload.total ?? 0);
+    } catch (error) {
+      console.error(error);
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      mounted = false;
-    };
   }, [params]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name/sku/category"
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid #ddd",
-            minWidth: 260,
-          }}
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          <option value="created">Created</option>
-          <option value="name">Name</option>
-          <option value="sku">SKU</option>
-          <option value="category">Category</option>
-          <option value="price">Price</option>
-          <option value="stock">Stock</option>
-          <option value="status">Status</option>
-        </select>
-        <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          <option value="desc">Desc</option>
-          <option value="asc">Asc</option>
-        </select>
-
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <label style={{ color: "#666", fontSize: 13 }}>Page size</label>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd" }}
-          >
-            {[10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Danh sách sản phẩm</h2>
+          <p className="manager-panel__subtitle">
+            Kiểm soát SKU, tồn kho và trạng thái kinh doanh theo thời gian thực.
+          </p>
+        </div>
+        <div className="manager-panel__actions">
+          <button type="button" className="manager-btn manager-btn--outline" onClick={loadProducts}>
+            Làm mới
+          </button>
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="manager-filters">
+        <input
+          className="manager-input"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Tìm theo tên, SKU hoặc danh mục"
+        />
+
+        <select
+          className="manager-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="created">Ngày tạo</option>
+          <option value="name">Tên sản phẩm</option>
+          <option value="sku">Mã SKU</option>
+          <option value="category">Danh mục</option>
+          <option value="price">Giá bán</option>
+          <option value="stock">Tồn kho</option>
+          <option value="status">Trạng thái</option>
+        </select>
+
+        <select
+          className="manager-select"
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value)}
+        >
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </select>
+
+        <label style={{ marginLeft: "auto", fontSize: 14, color: "var(--manager-muted)" }}>
+          Hiển thị
+        </label>
+        <select
+          className="manager-select"
+          style={{ width: 90 }}
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+        >
+          {[10, 20, 50].map((n) => (
+            <option key={n} value={n}>
+              {n} dòng
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="manager-table__wrapper">
+        <table className="manager-table">
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-              <th style={{ padding: 10 }}>#</th>
-              <th style={{ padding: 10 }}>SKU</th>
-              <th style={{ padding: 10 }}>Name</th>
-              <th style={{ padding: 10 }}>Category</th>
-              <th style={{ padding: 10 }}>Unit</th>
-              <th style={{ padding: 10 }}>Price</th>
-              <th style={{ padding: 10 }}>Stock</th>
-              <th style={{ padding: 10 }}>Status</th>
-              <th style={{ padding: 10 }}>Created</th>
+            <tr>
+              <th>#</th>
+              <th>SKU</th>
+              <th>Tên sản phẩm</th>
+              <th>Danh mục</th>
+              <th>Đơn vị</th>
+              <th>Giá bán</th>
+              <th>Tồn kho</th>
+              <th>Trạng thái</th>
+              <th>Ngày tạo</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} style={{ padding: 16, color: "#888" }}>
-                  Loading...
+                <td className="manager-table__empty" colSpan={9}>
+                  Đang tải dữ liệu...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: 16, color: "#888" }}>
-                  No data
+                <td className="manager-table__empty" colSpan={9}>
+                  Không tìm thấy sản phẩm phù hợp.
                 </td>
               </tr>
             ) : (
-              rows.map((p, idx) => (
-                <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{(page - 1) * pageSize + idx + 1}</td>
-                  <td style={{ padding: 10 }}>{p.sku}</td>
-                  <td style={{ padding: 10 }}>{p.name}</td>
-                  <td style={{ padding: 10 }}>{p.category ?? "-"}</td>
-                  <td style={{ padding: 10 }}>{p.unit ?? "-"}</td>
-                  <td style={{ padding: 10 }}>{p.price}</td>
-                  <td style={{ padding: 10 }}>{p.stock}</td>
-                  <td style={{ padding: 10 }}>{p.status ?? "-"}</td>
-                  <td style={{ padding: 10 }}>
-                    {p.created ? new Date(p.created).toLocaleString() : "-"}
+              rows.map((product, idx) => (
+                <tr key={product.id}>
+                  <td>{(page - 1) * pageSize + idx + 1}</td>
+                  <td>{product.sku}</td>
+                  <td>{product.name}</td>
+                  <td>{product.category ?? "-"}</td>
+                  <td>{product.unit ?? "-"}</td>
+                  <td>{formatCurrency(product.price)}</td>
+                  <td>{product.stock ?? 0}</td>
+                  <td>{STATUS_LABELS[product.status] ?? product.status ?? "-"}</td>
+                  <td>
+                    {product.created
+                      ? new Date(product.created).toLocaleDateString("vi-VN")
+                      : "-"}
                   </td>
                 </tr>
               ))
@@ -146,45 +172,21 @@ export default function ManagerProductList() {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div
-        style={{
-          marginTop: 12,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          justifyContent: "flex-end",
-        }}
-      >
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page <= 1}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #ddd",
-            background: page <= 1 ? "#f3f3f3" : "#fff",
-            cursor: page <= 1 ? "not-allowed" : "pointer",
-          }}
-        >
-          Prev
+      <div className="manager-pagination">
+        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+          Trước
         </button>
-        <div style={{ fontSize: 13, color: "#666" }}>
-          Page {page} / {Math.max(1, Math.ceil(total / pageSize))}
-        </div>
+        <span>
+          Trang {page}/{totalPages}
+        </span>
         <button
+          type="button"
           onClick={() => setPage((p) => p + 1)}
-          disabled={page >= Math.ceil(total / pageSize)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #ddd",
-            background: page >= Math.ceil(total / pageSize) ? "#f3f3f3" : "#fff",
-            cursor: page >= Math.ceil(total / pageSize) ? "not-allowed" : "pointer",
-          }}
+          disabled={page >= totalPages}
         >
-          Next
+          Sau
         </button>
+        <span>Tổng {total.toLocaleString("vi-VN")} sản phẩm</span>
       </div>
     </div>
   );

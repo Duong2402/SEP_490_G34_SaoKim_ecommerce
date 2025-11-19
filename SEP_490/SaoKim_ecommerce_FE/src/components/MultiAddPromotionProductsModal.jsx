@@ -8,7 +8,7 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [all, setAll] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(new Set());
 
@@ -17,45 +17,59 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
   const load = async () => {
     setLoading(true);
     try {
-      const dres = await PromotionsAPI.detail(promotionId, true);
-      const ddata = dres?.data?.data ?? dres?.data ?? null;
-      setDetail(ddata);
+      const promotionRes = await PromotionsAPI.detail(promotionId, true);
+      const promotionData = promotionRes?.data?.data ?? promotionRes?.data ?? null;
+      setDetail(promotionData);
 
-      const pres = await ProductsAPI.list({ page: 1, pageSize: 9999 });
-      const payload = pres?.data?.data ?? pres?.data ?? {};
+      const productRes = await ProductsAPI.list({ page: 1, pageSize: 9999 });
+      const payload = productRes?.data?.data ?? productRes?.data ?? {};
       const raw = Array.isArray(payload.items) ? payload.items : [];
 
-      const norm = raw.map((p) => ({
-        id: p.id ?? p.productId ?? p.product_id,
-        name: p.name ?? p.productName ?? p.product_name,
-        sku: p.sku ?? p.productCode ?? p.product_code,
-        price: p.price ?? 0,
-      })).filter(x => x.id != null);
+      const normalized = raw
+        .map((p) => ({
+          id: p.id ?? p.productId ?? p.product_id,
+          name: p.name ?? p.productName ?? p.product_name,
+          sku: p.sku ?? p.productCode ?? p.product_code,
+          price: p.price ?? 0,
+        }))
+        .filter((x) => x.id != null);
 
-      setAll(norm);
-    } catch (e) {
-      console.error(e);
-      setAll([]);
+      setAllProducts(normalized);
+    } catch (error) {
+      console.error(error);
+      setAllProducts([]);
       setDetail(null);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [promotionId]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promotionId]);
 
-  const existingIds = useMemo(() => new Set((detail?.products ?? []).map(p => p.productId)), [detail]);
+  const existingIds = useMemo(
+    () => new Set((detail?.products ?? []).map((p) => p.productId)),
+    [detail]
+  );
+
   const list = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return all
-      .filter(p => !existingIds.has(p.id))
-      .filter(p => !q ? true : (p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)));
-  }, [all, query, existingIds]);
+    const keyword = query.trim().toLowerCase();
+    return allProducts
+      .filter((p) => !existingIds.has(p.id))
+      .filter((p) =>
+        !keyword
+          ? true
+          : p.name?.toLowerCase().includes(keyword) || p.sku?.toLowerCase().includes(keyword)
+      );
+  }, [allProducts, query, existingIds]);
 
   const toggle = (id) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -63,7 +77,7 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
   const toggleAll = () => {
     setSelected((prev) => {
       if (prev.size === list.length) return new Set();
-      return new Set(list.map(x => x.id));
+      return new Set(list.map((x) => x.id));
     });
   };
 
@@ -73,26 +87,28 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
     try {
       const ids = Array.from(selected);
       await Promise.allSettled(
-        ids.map((pid) => PromotionsAPI.addProduct(promotionId, { productId: pid, note: null }))
+        ids.map((productId) =>
+          PromotionsAPI.addProduct(promotionId, { productId, note: null })
+        )
       );
       setSelected(new Set());
       await load();
-    } catch (e) {
-      console.error(e);
-      alert("Thêm sản phẩm thất bại");
+    } catch (error) {
+      console.error(error);
+      alert("Thêm sản phẩm vào khuyến mãi thất bại.");
     } finally {
       setSaving(false);
     }
   };
 
   const removeProduct = async (promotionProductId) => {
-    if (!window.confirm("Gỡ sản phẩm khỏi promotion?")) return;
+    if (!window.confirm("Gỡ sản phẩm này khỏi khuyến mãi?")) return;
     try {
       await PromotionsAPI.removeProduct(promotionProductId);
       await load();
-    } catch (e) {
-      console.error(e);
-      alert("Gỡ sản phẩm thất bại");
+    } catch (error) {
+      console.error(error);
+      alert("Gỡ sản phẩm thất bại.");
     }
   };
 
@@ -101,14 +117,23 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
       <div onClick={onClose} style={backdrop}>
         <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} style={modal(1024)}>
           <div style={header}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Products in Promotion</h2>
-            <button type="button" onClick={onClose} aria-label="Đóng" style={closeBtn}>×</button>
+            <h2 style={{ margin: 0, fontSize: 18 }}>Quản lý sản phẩm khuyến mãi</h2>
+            <button type="button" onClick={onClose} aria-label="Đóng" style={closeBtn}>
+              ×
+            </button>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, padding: 16 }}>
-            {/* PICKER */}
             <div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  marginBottom: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 <input
                   type="search"
                   className="input"
@@ -123,8 +148,13 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
                 <button type="button" className="btn btn-outline" onClick={toggleAll}>
                   {selected.size === list.length && list.length > 0 ? "Bỏ chọn hết" : "Chọn tất cả"}
                 </button>
-                <button type="button" className="btn btn-primary" onClick={addSelected} disabled={saving || selected.size === 0}>
-                  {saving ? "Đang thêm..." : "Thêm vào promotion"}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={addSelected}
+                  disabled={saving || selected.size === 0}
+                >
+                  {saving ? "Đang thêm..." : "Thêm vào khuyến mãi"}
                 </button>
               </div>
 
@@ -144,18 +174,20 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
                       </tr>
                     </thead>
                     <tbody>
-                      {list.map((p) => (
-                        <tr key={p.id}>
+                      {list.map((product) => (
+                        <tr key={product.id}>
                           <td>
                             <input
                               type="checkbox"
-                              checked={selected.has(p.id)}
-                              onChange={() => toggle(p.id)}
+                              checked={selected.has(product.id)}
+                              onChange={() => toggle(product.id)}
                             />
                           </td>
-                          <td>{p.name}</td>
-                          <td>{p.sku}</td>
-                          <td style={{ textAlign: "right" }}>{Number(p.price || 0).toLocaleString("vi-VN")}</td>
+                          <td>{product.name}</td>
+                          <td>{product.sku}</td>
+                          <td style={{ textAlign: "right" }}>
+                            {Number(product.price || 0).toLocaleString("vi-VN")}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -166,9 +198,8 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
 
             <div style={{ borderTop: "1px solid #e5e7eb" }} />
 
-            {/* CURRENT PRODUCTS */}
             <div>
-              <div style={{ marginBottom: 8, fontWeight: 600 }}>Đang có trong promotion</div>
+              <div style={{ marginBottom: 8, fontWeight: 600 }}>Đang có trong chương trình</div>
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
                 {!detail ? (
                   <div style={{ padding: 12, color: "#64748b" }}>Đang tải...</div>
@@ -185,15 +216,18 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
                       </tr>
                     </thead>
                     <tbody>
-                      {detail.products.map((pp, i) => (
-                        <tr key={pp.id}>
-                          <td>{i + 1}</td>
-                          <td>{pp.productName}</td>
-                          <td>{pp.productCode}</td>
+                      {detail.products.map((item, index) => (
+                        <tr key={item.id}>
+                          <td>{index + 1}</td>
+                          <td>{item.productName}</td>
+                          <td>{item.productCode}</td>
                           <td style={{ textAlign: "right" }}>
-                            <button className="btn btn-ghost btn-sm" style={{ color: "#dc2626" }}
-                              onClick={() => removeProduct(pp.id)}>
-                              Remove
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              style={{ color: "#dc2626" }}
+                              onClick={() => removeProduct(item.id)}
+                            >
+                              Gỡ ra
                             </button>
                           </td>
                         </tr>
@@ -206,7 +240,9 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
           </div>
 
           <div style={footer}>
-            <button type="button" className="btn" onClick={onClose}>Đóng</button>
+            <button type="button" className="btn" onClick={onClose}>
+              Đóng
+            </button>
           </div>
         </div>
       </div>
@@ -214,8 +250,35 @@ export default function MultiAddPromotionProductsModal({ promotionId, onClose })
   );
 }
 
-const backdrop = { position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999999 };
-const modal = (w) => ({ background: "#fff", width: w, maxWidth: "96vw", borderRadius: 12, border: "1px solid rgba(148,163,184,.15)", boxShadow: "0 10px 30px rgba(0,0,0,.2)" });
-const header = { padding: "14px 16px", borderBottom: "1px solid rgba(148,163,184,.15)", display: "flex", justifyContent: "space-between", alignItems: "center" };
-const footer = { padding: "12px 16px", display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid rgba(148,163,184,.15)" };
-const closeBtn = { background: "transparent", border: 0, fontSize: 22, cursor: "pointer" };
+const backdrop = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 999999,
+};
+const modal = (w) => ({
+  background: "#fff",
+  width: w,
+  maxWidth: "96vw",
+  borderRadius: 12,
+  border: "1px solid rgba(148,163,184,.15)",
+  boxShadow: "0 10px 30px rgba(0,0,0,.2)",
+});
+const header = {
+  padding: "14px 16px",
+  borderBottom: "1px solid rgba(148,163,184,.15)",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+};
+const footer = {
+  padding: "12px 16px",
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 8,
+  borderTop: "1px solid rgba(148,163,184,.15)",
+};
+const closeBtn = { background: "transparent", border: 0, fontSize: 26, cursor: "pointer", lineHeight: 1 };

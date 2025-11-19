@@ -24,7 +24,7 @@ export default function ManagerEmployeeEdit() {
         setError(
           err?.response?.data?.message ||
             err?.response?.data?.title ||
-            "Failed to load employee"
+            "Không thể tải nhân sự."
         );
       } finally {
         setLoading(false);
@@ -40,14 +40,14 @@ export default function ManagerEmployeeEdit() {
     try {
       setSaving(true);
       await ManagerEmployeeAPI.update(id, payload);
-      alert("Employee updated");
+      alert("Đã cập nhật nhân sự.");
       navigate("/manager/employees");
     } catch (err) {
       console.error(err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.title ||
-        "Failed to update employee";
+        "Không thể cập nhật nhân sự.";
       alert(msg);
     } finally {
       setSaving(false);
@@ -55,55 +55,42 @@ export default function ManagerEmployeeEdit() {
   };
 
   if (loading) {
-    return (
-      <div className="container">
-        <div className="panel">
-          <div className="loading-state">Loading employee...</div>
-        </div>
-      </div>
-    );
+    return <div className="manager-panel manager-empty">Đang tải dữ liệu...</div>;
   }
 
   if (error || !employee) {
     return (
-      <div className="container">
-        <div className="panel">
-          <div className="empty-state">
-            <div className="empty-state-title">Error</div>
-            <div className="empty-state-subtitle">
-              {error || "Employee not found"}
-            </div>
-            <Link to="/manager/employees" className="btn btn-primary">
-              Back to Employees
-            </Link>
-          </div>
-        </div>
+      <div className="manager-panel manager-empty">
+        <p>{error || "Không tìm thấy nhân sự."}</p>
+        <Link to="/manager/employees" className="manager-btn manager-btn--primary" style={{ marginTop: 14 }}>
+          Quay lại danh sách
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <div className="panel">
-        <header className="page-header">
-          <div>
-            <h1 className="page-title">Edit Employee</h1>
-            <p className="page-subtitle">Update employee information</p>
-          </div>
-          <div className="actions">
-            <Link to="/manager/employees" className="btn btn-ghost">
-              Cancel
-            </Link>
-          </div>
-        </header>
-
-        <ManagerEmployeeForm
-          initialValues={employee}
-          onSubmit={handleSubmit}
-          submitting={saving}
-          isEdit
-        />
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Chỉnh sửa nhân sự</h2>
+          <p className="manager-panel__subtitle">
+            Cập nhật thông tin liên hệ, vai trò và trạng thái làm việc.
+          </p>
+        </div>
+        <div className="manager-panel__actions">
+          <Link to="/manager/employees" className="manager-btn manager-btn--outline">
+            Hủy
+          </Link>
+        </div>
       </div>
+
+      <ManagerEmployeeForm
+        initialValues={employee}
+        onSubmit={handleSubmit}
+        submitting={saving}
+        isEdit
+      />
     </div>
   );
 }
