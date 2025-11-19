@@ -1,169 +1,380 @@
 // src/pages/manager/Dashboard.jsx
-import { useEffect, useState, useMemo } from "react";
-import { ProductsAPI } from "../../api/products";
+import { useEffect, useState } from "react";
 
-function KpiCard({ title, value, sub }) {
-  return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #eee",
-        borderRadius: 12,
-        padding: 16,
-        flex: 1,
-        minWidth: 220,
-      }}
-    >
-      <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
-      {sub && <div style={{ marginTop: 8, fontSize: 12, color: "#999" }}>{sub}</div>}
-    </div>
-  );
+import {
+  getManagerOverview,
+  getRevenueByDay,
+} from "../../api/manager-reports";
+
+function formatCurrency(value) {
+  if (value == null) return "0";
+  return value.toLocaleString("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatNumber(value) {
+  if (value == null) return "0";
+  return value.toLocaleString("vi-VN");
 }
 
 export default function ManagerDashboard() {
-  const [totalProducts, setTotalProducts] = useState(null);
-  const [lowStock, setLowStock] = useState([]);
-  const [newProducts, setNewProducts] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [revenueByDay, setRevenueByDay] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const lowStockParams = useMemo(
-    () => ({ page: 1, pageSize: 5, sortBy: "stock", sortDir: "asc" }),
-    []
-  );
-  const newProductsParams = useMemo(
-    () => ({ page: 1, pageSize: 5, sortBy: "created", sortDir: "desc" }),
-    []
-  );
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
 
     async function load() {
       try {
         setLoading(true);
+        setError("");
 
-        // 1) Lấy tổng số sản phẩm (dùng pageSize=1 để BE trả 'total')
-        const totalRes = await ProductsAPI.list({ page: 1, pageSize: 1 });
-        if (mounted) setTotalProducts(totalRes?.data?.data?.total ?? totalRes?.data?.total ?? 0);
+        const [ov, rev] = await Promise.all([
+          getManagerOverview(),
+          getRevenueByDay(7),
+        ]);
 
-        // 2) Low stock
-        const lowRes = await ProductsAPI.list(lowStockParams);
-        const lowItems = lowRes?.data?.data?.items ?? lowRes?.data?.items ?? [];
-        if (mounted) setLowStock(lowItems);
+        if (!isMounted) return;
 
-        // 3) Newest products
-        const newRes = await ProductsAPI.list(newProductsParams);
-        const newItems = newRes?.data?.data?.items ?? newRes?.data?.items ?? [];
-        if (mounted) setNewProducts(newItems);
+        setOverview(ov || {});
+        setRevenueByDay(Array.isArray(rev) ? rev : []);
       } catch (err) {
-        console.error(err);
+        if (!isMounted) return;
+        const msg =
+          err?.response?.data ||
+          err?.message ||
+          "Đã xảy ra lỗi khi tải dữ liệu";
+        setError(typeof msg === "string" ? msg : JSON.stringify(msg));
       } finally {
-        if (mounted) setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     load();
+
     return () => {
-      mounted = false;
+      isMounted = false;
     };
-  }, [lowStockParams, newProductsParams]);
+  }, []);
+
+  const revenue = overview?.revenue;
+  const warehouse = overview?.warehouse;
+  const projects = overview?.projects;
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <KpiCard title="Total products" value={loading || totalProducts === null ? "..." : totalProducts} />
-        <KpiCard
-          title="Low stock (top 5)"
-          value={loading ? "..." : lowStock.length}
-          sub="Sorted by stock asc"
-        />
-        <KpiCard
-          title="Newest (top 5)"
-          value={loading ? "..." : newProducts.length}
-          sub="Sorted by created desc"
-        />
-      </div>
-
-      <div
+    <div
+      className="manager-dashboard container"
+      style={{ padding: "24px 24px 40px" }}
+    >
+      <h1
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
+          fontSize: "24px",
+          fontWeight: 600,
+          marginBottom: "16px",
         }}
       >
-        {/* Low stock table */}
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>Low stock products</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                  <th style={{ padding: 8 }}>SKU</th>
-                  <th style={{ padding: 8 }}>Name</th>
-                  <th style={{ padding: 8 }}>Price</th>
-                  <th style={{ padding: 8 }}>Stock</th>
-                  <th style={{ padding: 8 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(lowStock || []).map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                    <td style={{ padding: 8 }}>{p.sku}</td>
-                    <td style={{ padding: 8 }}>{p.name}</td>
-                    <td style={{ padding: 8 }}>{p.price}</td>
-                    <td style={{ padding: 8 }}>{p.stock}</td>
-                    <td style={{ padding: 8 }}>{p.status ?? "-"}</td>
-                  </tr>
-                ))}
-                {!loading && lowStock?.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 12, color: "#999" }}>
-                      No data
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        Dashboard
+      </h1>
 
-        {/* New products table */}
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>New products</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                  <th style={{ padding: 8 }}>SKU</th>
-                  <th style={{ padding: 8 }}>Name</th>
-                  <th style={{ padding: 8 }}>Price</th>
-                  <th style={{ padding: 8 }}>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(newProducts || []).map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                    <td style={{ padding: 8 }}>{p.sku}</td>
-                    <td style={{ padding: 8 }}>{p.name}</td>
-                    <td style={{ padding: 8 }}>{p.price}</td>
-                    <td style={{ padding: 8 }}>
-                      {p.created ? new Date(p.created).toLocaleString() : "-"}
-                    </td>
-                  </tr>
-                ))}
-                {!loading && newProducts?.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ padding: 12, color: "#999" }}>
-                      No data
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      {loading && <div>Đang tải dữ liệu...</div>}
+
+      {!loading && error && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "10px 14px",
+            borderRadius: 6,
+            backgroundColor: "#fdecea",
+            color: "#b71c1c",
+            fontSize: "14px",
+          }}
+        >
+          {error}
         </div>
-      </div>
+      )}
+
+      {!loading && !error && overview && (
+        <>
+          {/* REVENUE SECTION */}
+          <section style={{ marginTop: "24px" }}>
+            <h2
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                marginBottom: "12px",
+              }}
+            >
+              Doanh thu
+            </h2>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              <SummaryCard
+                title="Tổng doanh thu"
+                value={formatCurrency(revenue?.totalRevenue)}
+              />
+              <SummaryCard
+                title="Doanh thu 7 ngày gần nhất"
+                value={formatCurrency(revenue?.revenue7d)}
+              />
+              <SummaryCard
+                title="Đơn hàng hôm nay"
+                value={formatNumber(revenue?.ordersToday)}
+              />
+              <SummaryCard
+                title="Đơn đang chờ xử lý"
+                value={formatNumber(revenue?.pendingOrders)}
+              />
+            </div>
+          </section>
+
+          {/* WAREHOUSE SECTION */}
+          <section style={{ marginTop: "32px" }}>
+            <h2
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                marginBottom: "12px",
+              }}
+            >
+              Hiệu suất kho
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(260px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              <SummaryCard
+                title="Tổng tồn kho (số lượng)"
+                value={formatNumber(warehouse?.totalStock)}
+              />
+
+              <div style={cardStyle}>
+                <div style={cardTitleStyle}>Nhập kho (phiếu)</div>
+                <div style={cardRowStyle}>
+                  <div>
+                    <div style={labelStyle}>Tuần này</div>
+                    <div style={valueStyle}>
+                      {formatNumber(warehouse?.inbound?.thisWeek)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>Tuần trước</div>
+                    <div style={valueStyle}>
+                      {formatNumber(warehouse?.inbound?.lastWeek)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={cardStyle}>
+                <div style={cardTitleStyle}>Xuất kho (phiếu)</div>
+                <div style={cardRowStyle}>
+                  <div>
+                    <div style={labelStyle}>Tuần này</div>
+                    <div style={valueStyle}>
+                      {formatNumber(warehouse?.outbound?.thisWeek)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>Tuần trước</div>
+                    <div style={valueStyle}>
+                      {formatNumber(warehouse?.outbound?.lastWeek)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* PROJECT SECTION */}
+          <section style={{ marginTop: "32px" }}>
+            <h2
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                marginBottom: "12px",
+              }}
+            >
+              Dự án
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              <SummaryCard
+                title="Tổng số dự án"
+                value={formatNumber(projects?.totalProjects)}
+              />
+              <SummaryCard
+                title="Dự án nháp"
+                value={formatNumber(projects?.draftProjects)}
+              />
+              <SummaryCard
+                title="Dự án đang chạy"
+                value={formatNumber(projects?.activeProjects)}
+              />
+              <SummaryCard
+                title="Dự án hoàn thành"
+                value={formatNumber(projects?.completedProjects)}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(260px, 1fr))",
+                gap: "16px",
+                marginTop: "16px",
+              }}
+            >
+              <SummaryCard
+                title="Tổng Budget"
+                value={formatCurrency(projects?.totalBudget)}
+              />
+              <SummaryCard
+                title="Tổng chi phí sản phẩm"
+                value={formatCurrency(projects?.totalProductCost)}
+              />
+              <SummaryCard
+                title="Tổng chi phí khác"
+                value={formatCurrency(projects?.totalOtherExpenses)}
+              />
+              <SummaryCard
+                title="Tổng chi phí thực tế"
+                value={formatCurrency(projects?.totalActualCost)}
+              />
+            </div>
+          </section>
+
+          {/* REVENUE BY DAY */}
+          <section style={{ marginTop: "32px" }}>
+            <h2
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                marginBottom: "12px",
+              }}
+            >
+              Doanh thu 7 ngày gần nhất
+            </h2>
+
+            <div style={cardStyle}>
+              {!revenueByDay || revenueByDay.length === 0 ? (
+                <div>Không có dữ liệu doanh thu.</div>
+              ) : (
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "14px",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Ngày</th>
+                      <th style={thStyle}>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenueByDay.map((item, idx) => {
+                      const d = new Date(item.date);
+                      const dateStr = d.toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      });
+                      return (
+                        <tr key={idx}>
+                          <td style={tdStyle}>{dateStr}</td>
+                          <td style={tdStyle}>
+                            {formatCurrency(item.revenue)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
+
+function SummaryCard({ title, value }) {
+  return (
+    <div style={cardStyle}>
+      <div style={cardTitleStyle}>{title}</div>
+      <div style={valueStyle}>{value}</div>
+    </div>
+  );
+}
+
+// styles đơn giản cho card
+const cardStyle = {
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  padding: "16px 18px",
+  backgroundColor: "#ffffff",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+};
+
+const cardTitleStyle = {
+  fontSize: "14px",
+  fontWeight: 500,
+  color: "#4b5563",
+  marginBottom: "6px",
+};
+
+const valueStyle = {
+  fontSize: "18px",
+  fontWeight: 600,
+  color: "#111827",
+};
+
+const labelStyle = {
+  fontSize: "12px",
+  color: "#6b7280",
+};
+
+const cardRowStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "16px",
+  marginTop: "8px",
+};
+
+const thStyle = {
+  textAlign: "left",
+  borderBottom: "1px solid #e5e7eb",
+  padding: "8px 4px",
+  fontWeight: 600,
+};
+
+const tdStyle = {
+  borderBottom: "1px solid #f3f4f6",
+  padding: "6px 4px",
+};
