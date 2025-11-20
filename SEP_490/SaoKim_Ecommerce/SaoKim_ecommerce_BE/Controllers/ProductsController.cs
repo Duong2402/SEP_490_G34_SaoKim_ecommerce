@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models;
 
@@ -13,15 +15,17 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
-
-        public ProductsController(SaoKimDBContext db)
+        private readonly IWebHostEnvironment _env;
+        public ProductsController(SaoKimDBContext db, IWebHostEnvironment env)
         {
             _db = db;
+            _env = env;
         }
 
         // GET: /api/products
         //[Authorize] // Cho phép mọi user đã đăng nhập
         [HttpGet]
+        [AllowAnonymous]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
@@ -76,7 +80,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     unit = p.Unit,
                     stock = p.Stock,
                     status = p.Status,
-                    created = p.Created
+                    created = p.CreateAt ?? p.Date
                 })
                 .ToListAsync();
 
@@ -92,8 +96,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
-        // GET: /api/products/5
+        // DETAIL (PUBLIC) — trả về { product, related }
         [HttpGet("{id:int}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var product = await _db.Products.AsNoTracking()
@@ -103,7 +108,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     id = p.ProductID,
                     sku = p.ProductCode,
                     name = p.ProductName,
-                    category = p.Category != null ? p.Category.Name : null,  // 
+                    category = p.Category != null ? p.Category.Name : null,  
                     price = p.Price,
                     stock = p.Stock,
                     status = p.Status,
@@ -112,69 +117,147 @@ namespace SaoKim_ecommerce_BE.Controllers
                     quantity = p.Quantity,
                     description = p.Description,
                     supplier = p.Supplier,
-                    image = p.Image,
+                    image = p.Image != null ? $"/images/{p.Image}" : null,
                     note = p.Note
                 })
                 .FirstOrDefaultAsync();
 
-            if (product == null)
-                return NotFound(new { message = "Product not found" });
+            if (product == null) return NotFound(new { message = "Product not found" });
 
-            return Ok(product);
+            var related = await _db.Products
+                .AsNoTracking()
+                .Where(x => x.Category!.Name == product.category && x.ProductID != id)
+                .OrderByDescending(x => x.CreateAt ?? x.Date)
+                .Take(8)
+                .Select(x => new
+                {
+                    id = x.ProductID,
+                    name = x.ProductName,
+                    price = x.Price,
+                    image = x.Image != null ? $"/images/{x.Image}" : null
+                })
+                .ToListAsync();
+
+            return Ok(new { product = product, related });
         }
 
-        // POST: /api/products
+        // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Product model)
+        [AllowAnonymous]
+        // [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Create([FromForm] CreateProductDto model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.ProductCode);
+            // Kiểm tra SKU trùng
+            var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.Sku);
             if (exists)
                 return Conflict(new { message = "Product code already exists" });
 
-            model.CreateAt = DateTime.UtcNow;
-            model.Status ??= "Active";
+            var product = new Product
+            {
+                ProductCode = model.Sku,
+                ProductName = model.Name,
+                CategoryId = model.CategoryId,
+                Unit = model.Unit,
+                Price = model.Price,
+                Quantity = model.Quantity,
+                Stock = model.Stock,
+                Status = model.Active ? "Active" : "Inactive",
+                Description = model.Description,
+                Supplier = model.Supplier,
+                Note = model.Note,
+                CreateAt = DateTime.UtcNow,
+                Created = DateTime.UtcNow,
+                Date = DateTime.UtcNow,
+            };
 
-            //  giờ Product dùng CategoryId (nullable). Nếu front còn gửi "category" là chuỗi,
-            // hãy đổi front để gửi CategoryId, hoặc viết thêm logic map tên -> id ở đây.
+            // Upload ảnh
+            if (model.ImageFile != null && model.ImageFile.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
+                Directory.CreateDirectory(uploadsFolder);
 
-            _db.Products.Add(model);
+                var ext = Path.GetExtension(model.ImageFile.FileName);
+                var fileName = $"{Guid.NewGuid()}{ext}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using (var stream = System.IO.File.Create(filePath))
+                {
+                    await model.ImageFile.CopyToAsync(stream);
+                }
+
+                product.Image = fileName;
+            }
+
+            _db.Products.Add(product);
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = model.ProductID }, model);
+            return CreatedAtAction(nameof(GetById), new { id = product.ProductID }, product);
         }
 
-        // PUT: /api/products/5
+
+        // UPDATE (YÊU CẦU QUYỀN)
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Product update)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, [FromForm] UpdateProductDto model)
         {
             var existing = await _db.Products.FindAsync(id);
             if (existing == null)
                 return NotFound(new { message = "Product not found" });
 
-            existing.ProductCode = update.ProductCode;
-            existing.ProductName = update.ProductName;
-            existing.CategoryId = update.CategoryId;      //  dùng FK
-            existing.Unit = update.Unit;
-            existing.Price = update.Price;
-            existing.Quantity = update.Quantity;
-            existing.Stock = update.Stock;
-            existing.Status = update.Status;
-            existing.Description = update.Description;
-            existing.Supplier = update.Supplier;
-            existing.Note = update.Note;
-            existing.Image = update.Image;
+            // Update fields
+            existing.ProductCode = model.Sku;
+            existing.ProductName = model.Name;
+            existing.CategoryId = model.CategoryId;
+            existing.Unit = model.Unit;
+            existing.Price = model.Price;
+            existing.Quantity = model.Quantity;
+            existing.Stock = model.Stock;
+            existing.Status = model.Active ? "Active" : "Inactive";
+            existing.Description = model.Description;
+            existing.Supplier = model.Supplier;
+            existing.Note = model.Note;
             existing.UpdateAt = DateTime.UtcNow;
-            existing.UpdateBy = update.UpdateBy;
+            existing.UpdateBy = model.UpdateBy;
+
+            // Nếu có gửi ảnh mới
+            if (model.ImageFile != null && model.ImageFile.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
+                Directory.CreateDirectory(uploadsFolder);
+
+                // Xóa ảnh cũ
+                if (!string.IsNullOrEmpty(existing.Image))
+                {
+                    var oldPath = Path.Combine(uploadsFolder, existing.Image);
+                    if (System.IO.File.Exists(oldPath))
+                        System.IO.File.Delete(oldPath);
+                }
+
+                // Lưu ảnh mới
+                var ext = Path.GetExtension(model.ImageFile.FileName);
+                var fileName = $"{Guid.NewGuid()}{ext}";
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using (var stream = System.IO.File.Create(filePath))
+                {
+                    await model.ImageFile.CopyToAsync(stream);
+                }
+
+                existing.Image = fileName;
+            }
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Product updated successfully" });
         }
 
-        // DELETE: /api/products/5
+
+
+        // DELETE (YÊU CẦU QUYỀN)
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var existing = await _db.Products.FindAsync(id);
@@ -188,6 +271,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET: api/products/home
         [HttpGet("home")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHomeProducts(
             [FromQuery] int Page = 1,
             [FromQuery] int PageSize = 12,
@@ -265,10 +349,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             };
 
             var totalItems = await q.CountAsync();
-
-            var items = await q
-                .Skip((Page - 1) * PageSize)
-                .Take(PageSize)
+            var items = await q.Skip((Page - 1) * PageSize).Take(PageSize)
                 .Select(p => new
                 {
                     id = p.ProductID,
@@ -282,16 +363,19 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .ToListAsync();
 
-            var all = new
+            return Ok(new
             {
-                page = Page,
-                pageSize = PageSize,
-                totalItems,
-                totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
-                items
-            };
-
-            return Ok(new { featured, newArrivals, all });
+                featured,
+                newArrivals,
+                all = new
+                {
+                    page = Page,
+                    pageSize = PageSize,
+                    totalItems,
+                    totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
+                    items
+                }
+            });
         }
     }
 }

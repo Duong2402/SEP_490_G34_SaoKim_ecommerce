@@ -368,9 +368,10 @@ export default function ManageCustomers() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((c) => (
+              {rows.map((c, idx) => (
                 <tr key={c.id}>
-                  <td>{c.id}</td>
+                  {/* STT = offset theo trang + index trong trang */}
+                  <td>{(page - 1) * pageSize + idx + 1}</td>
                   <td>
                     <Button
                       variant="link"
@@ -429,9 +430,7 @@ export default function ManageCustomers() {
 
               <Pagination.Next
                 disabled={page >= totalPages}
-                onClick={() =>
-                  setPage((p) => Math.min(totalPages, p + 1))
-                }
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
               <Pagination.Last
                 disabled={page >= totalPages}

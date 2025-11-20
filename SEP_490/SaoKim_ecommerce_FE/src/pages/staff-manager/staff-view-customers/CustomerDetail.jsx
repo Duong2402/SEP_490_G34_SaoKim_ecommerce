@@ -269,22 +269,24 @@ export default function CustomerDetail() {
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.map((o) => (
+                      {orders.map((o, idx) => (
                         <tr key={o.orderId}>
-                          <td>{o.orderId}</td>
+                          {/* STT = offset theo page + index trong trang */}
+                          <td>{(ordersPage - 1) * ordersPageSize + idx + 1}</td>
                           <td>{(o.total ?? 0).toLocaleString("vi-VN")}đ</td>
                           <td>{o.status}</td>
                           <td>{formatDate(o.createdAt)}</td>
                           <td className="text-end">
-                            {/* Nếu có màn invoice detail:
+                            {/*Nếu có màn invoice detail:
                             <Button
                               size="sm"
                               variant="outline-primary"
-                              onClick={() => navigate(`/staff/invoices/${o.orderId}`)}
+                              onClick={() =>
+                                navigate(`/staff/invoices/${o.orderId}`)
+                              }
                             >
                               View
-                            </Button>
-                            */}
+                            </Button>*/}
                           </td>
                         </tr>
                       ))}

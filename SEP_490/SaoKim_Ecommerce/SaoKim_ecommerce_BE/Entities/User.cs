@@ -74,5 +74,8 @@ namespace SaoKim_ecommerce_BE.Entities
         public ICollection<Order> Orders { get; set; } = new List<Order>();
 
         public ICollection<CustomerNote> Notes { get; set; } = new List<CustomerNote>();
+
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+
     }
 }

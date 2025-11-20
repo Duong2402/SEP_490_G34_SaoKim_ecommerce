@@ -1,98 +1,184 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.Entities;
-using System.Security.Claims;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    //[Authorize]
     public class UsersController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
+        public UsersController(SaoKimDBContext db) => _db = db;
 
-        public UsersController(SaoKimDBContext db)
+        // GET /api/users  (list + filter + paging)
+        [HttpGet]
+        [AllowAnonymous]    // đổi sang [Authorize(Roles="admin")] khi triển khai
+        public async Task<IActionResult> GetAll(
+            [FromQuery] string? q,
+            [FromQuery] string? role,
+            [FromQuery] string? status,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            _db = db;
+            page = Math.Max(1, page);
+            pageSize = Math.Max(1, pageSize);
+
+            var query = _db.Users
+                .AsNoTracking()
+                .Include(u => u.Role)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = $"%{q.Trim()}%";
+                query = query.Where(u =>
+                    EF.Functions.ILike(u.Name ?? "", term) ||
+                    EF.Functions.ILike(u.Email ?? "", term) ||
+                    EF.Functions.ILike(u.PhoneNumber ?? "", term));
+            }
+
+            if (!string.IsNullOrWhiteSpace(role))
+                query = query.Where(u => u.Role != null && u.Role.Name == role);
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(u => u.Status == status);
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(u => u.CreateAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(u => new {
+                    id = u.UserID,
+                    name = u.Name,
+                    email = u.Email,
+                    phone = u.PhoneNumber,
+                    role = u.Role != null ? u.Role.Name : null,
+                    status = u.Status,
+                    createdAt = u.CreateAt
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                items,
+                total,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(total / (double)pageSize)
+            });
+        }
+
+        // GET /api/users/{id}
+        [HttpGet("{id:int}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var u = await _db.Users
+                .AsNoTracking()
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.UserID == id);
+
+            if (u == null) return NotFound(new { message = "User not found" });
+
+            return Ok(new
+            {
+                id = u.UserID,
+                name = u.Name,
+                email = u.Email,
+                phone = u.PhoneNumber,
+                role = u.Role != null ? u.Role.Name : null,   
+                status = u.Status,
+                address = u.Address,
+                dob = u.DOB,
+                image = u.Image,
+                createdAt = u.CreateAt
+            });
+        }
+
+        // PUT /api/users/{id}
+        [HttpPut("{id:int}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto dto)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (!string.IsNullOrWhiteSpace(dto.Status))
+                user.Status = dto.Status;
+            if (!string.IsNullOrWhiteSpace(dto.Name))
+                user.Name = dto.Name;
+            if (!string.IsNullOrWhiteSpace(dto.Address))
+                user.Address = dto.Address;
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+                user.PhoneNumber = dto.PhoneNumber;
+            if (dto.Dob.HasValue)
+                user.DOB = dto.Dob.Value;
+            if (dto.RoleId.HasValue)
+                user.RoleId = dto.RoleId.Value;
+
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "User updated" });
+        }
+
+        public class UserUpdateDto
+        {
+            public string? Name { get; set; }
+            public string? Address { get; set; }
+            public string? PhoneNumber { get; set; }
+            public string? Status { get; set; }
+            public DateTime? Dob { get; set; }
+            public int? RoleId { get; set; }    // Thêm trường này!
+            // (thêm các trường cần thiết khác nếu cần)
+        }
+
+        // GET /api/users/roles  (cho combobox Roles trên FE)
+        [HttpGet("roles")]
+        [AllowAnonymous]    // triển khai thực tế có thể yêu cầu quyền admin
+        public async Task<IActionResult> GetRoles()
+        {
+            var roles = await _db.Roles
+                .AsNoTracking()
+                .OrderBy(r => r.Name)
+                .Select(r => new { id = r.RoleId, name = r.Name })
+                .ToListAsync();
+
+            return Ok(roles);
         }
 
         [HttpGet("me")]
+        [Authorize]
         public async Task<IActionResult> GetMe()
         {
-            var userClaim = User.FindFirst("UserId")?.Value;
-            if (string.IsNullOrWhiteSpace(userClaim))
-                return Unauthorized(new { message = "Unauthorized" });
+            var email = User.Identity?.Name;
+            if (string.IsNullOrEmpty(email))
+                return Unauthorized(new { message = "User not logged in" });
 
-            if (!int.TryParse(userClaim, out var userId))
-                return Unauthorized(new { message = "Unauthorized" });
+            var u = await _db.Users
+                .AsNoTracking()
+                .Include(x => x.Role)
+                .FirstOrDefaultAsync(x => x.Email == email);
 
-            var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserID == userId);
-            if (user == null) return NotFound(new { message = "User not found" });
+            if (u == null)
+                return NotFound(new { message = "User not found" });
 
-            var res = new UserProfileResponse
+            return Ok(new
             {
-                UserId = user.UserID,
-                Name = user.Name,
-                Email = user.Email,
-                PhoneNumber = user.PhoneNumber,
-                Address = user.Address,
-                DOB = user.DOB,
-                Image = user.Image,
-                Role = user.Role?.Name
-            };
-
-            return Ok(res);
-        }
-
-        [HttpPut("me")]
-        [RequestSizeLimit(25_000_000)]
-        public async Task<IActionResult> UpdateMe([FromForm] UpdateUserRequest req)
-        {
-            var userClaim = User.FindFirst("UserId")?.Value;
-            if (string.IsNullOrWhiteSpace(userClaim))
-                return Unauthorized(new { message = "Unauthorized" });
-
-            if (!int.TryParse(userClaim, out var userId))
-                return Unauthorized(new { message = "Unauthorized" });
-
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == userId);
-            if (user == null) return NotFound(new { message = "User not found" });
-
-            if (!string.IsNullOrWhiteSpace(req.Name)) user.Name = req.Name!.Trim();
-            if (!string.IsNullOrWhiteSpace(req.PhoneNumber)) user.PhoneNumber = req.PhoneNumber!.Trim();
-            if (!string.IsNullOrWhiteSpace(req.Address)) user.Address = req.Address!.Trim();
-            if (req.DOB.HasValue)
-            {
-                user.DOB = DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc);
-            }
-
-            if (req.Image != null && req.Image.Length > 0)
-            {
-                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-
-                var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
-                var filePath = Path.Combine(uploadDir, fileName);
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await req.Image.CopyToAsync(stream);
-                }
-                user.Image = $"/uploads/{fileName}";
-            }
-
-            user.UpdateAt = DateTime.UtcNow;
-            user.UpdateBy = User.FindFirst(ClaimTypes.Name)?.Value;
-
-            await _db.SaveChangesAsync();
-
-            return Ok(new { message = "Profile updated" });
+                id = u.UserID,
+                name = u.Name,
+                email = u.Email,
+                phone = u.PhoneNumber,
+                role = u.Role != null ? u.Role.Name : null,
+                status = u.Status,
+                address = u.Address,
+                dob = u.DOB,
+                image = u.Image,
+                createdAt = u.CreateAt
+            });
         }
     }
 }
-
-
-

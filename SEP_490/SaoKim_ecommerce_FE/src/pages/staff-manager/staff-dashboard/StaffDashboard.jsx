@@ -282,17 +282,14 @@ export default function StaffDashboard() {
                             <th>Created</th>
                           </tr>
                         </thead>
+                        {/*stt*/}
                         <tbody>
-                          {latestOrders.map((o) => (
+                          {latestOrders.map((o, idx) => (
                             <tr key={o.orderId}>
-                              <td>{o.orderId}</td>
+                              {/* ID hiển thị 1,2,3,4,5 theo thứ tự dòng */}
+                              <td>{idx + 1}</td>
                               <td>{o.customerName}</td>
-                              <td>
-                                {o.total
-                                  ? o.total.toLocaleString("vi-VN")
-                                  : 0}
-                                đ
-                              </td>
+                              <td>{(o.total ?? 0).toLocaleString("vi-VN")}đ</td>
                               <td>{o.status}</td>
                               <td>{formatDate(o.createdAt)}</td>
                             </tr>

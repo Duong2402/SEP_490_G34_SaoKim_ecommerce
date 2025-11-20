@@ -19,7 +19,6 @@ export default function CheckoutSuccess() {
           <p>Phương thức thanh toán: <strong>{method === "QR" ? "QR chuyển khoản" : "COD"}</strong></p>
           <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 12 }}>
             <Link to="/" className="btn btn-primary">Về trang chủ</Link>
-            <Link to="/projects" className="btn btn-outline">Xem dự án</Link>
           </div>
         </div>
       </main>

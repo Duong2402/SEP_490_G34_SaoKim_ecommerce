@@ -80,5 +80,8 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // quan hệ 1–1: một order có một invoice
+        public Invoice? Invoice { get; set; }
     }
 }

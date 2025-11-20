@@ -6,23 +6,23 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
   const { updateProduct } = useProductsApi();
 
   const handleSubmit = async (values) => {
-    const now = new Date().toISOString();
+    
 
     const payload = {
-      ...(initial || {}),
-      productName: values.name,
-      productCode: values.sku,
-      categoryId: values.categoryId ? Number(values.categoryId) : null, // ✅
+      sku: values.sku,
+      name: values.name,
+      categoryId: values.categoryId ? Number(values.categoryId) : null,
+      unit: initial?.unit ?? "pcs",
       price: values.price,
       quantity: values.stock,
       stock: values.stock,
-      status: values.active ? "Active" : "Inactive",
+      active: values.active,
+      description: initial?.description ?? "",
+      supplier: initial?.supplier ?? "",
+      note: initial?.note ?? "",
       updateBy: "staff01",
-      updateAt: now,
+      imageFile: values.imageFile || null,
     };
-
-    // dọn các trường cũ nếu còn sót
-    delete payload.category;
 
     await updateProduct(id, payload);
     onSuccess && onSuccess();
@@ -39,3 +39,4 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
 }
 
 export default EditProductForm;
+

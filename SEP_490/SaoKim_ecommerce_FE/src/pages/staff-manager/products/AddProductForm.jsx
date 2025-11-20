@@ -5,27 +5,19 @@ function AddProductForm({ onCancel, onSuccess }) {
   const { createProduct } = useProductsApi();
 
   const handleCreate = async (values) => {
-    const now = new Date().toISOString();
-
     const payload = {
-      productName: values.name,
-      productCode: values.sku,
-      categoryId: values.categoryId ? Number(values.categoryId) : null, // ✅ dùng FK
+      sku: values.sku,
+      name: values.name,
+      categoryId: values.categoryId ? Number(values.categoryId) : null,
       unit: "pcs",
       price: values.price,
       quantity: values.stock,
       stock: values.stock,
-      status: values.active ? "Active" : "Inactive",
-      image: "",
+      active: values.active,
       description: "",
       supplier: "",
       note: "",
-      created: now,
-      date: now,
-      createAt: now,
-      createBy: "staff01",
-      updateBy: "",
-      updateAt: now,
+      imageFile: values.imageFile || null,
     };
 
     await createProduct(payload);
@@ -33,7 +25,11 @@ function AddProductForm({ onCancel, onSuccess }) {
   };
 
   return (
-    <ProductForm submitLabel="Create" onSubmit={handleCreate} onCancel={onCancel} />
+    <ProductForm
+      submitLabel="Create"
+      onSubmit={handleCreate}
+      onCancel={onCancel}
+    />
   );
 }
 

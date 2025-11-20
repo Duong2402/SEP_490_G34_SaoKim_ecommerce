@@ -17,31 +17,38 @@ export default function useProductsApi() {
   );
 
   const request = useCallback(
-    async (path, options = {}) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${apiBase}${path}`, {
-          headers: jsonHeaders,
-          ...options,
-        });
+  async (path, options = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const isFormData = options.body instanceof FormData;
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`${res.status} ${res.statusText} - ${text}`);
-        }
+      const headers = isFormData
+        ? options.headers || {} // để browser tự set boundary cho multipart
+        : { ...jsonHeaders, ...(options.headers || {}) };
 
-        const ct = res.headers.get("content-type") || "";
-        return ct.includes("application/json") ? await res.json() : null;
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
+      const res = await fetch(`${apiBase}${path}`, {
+        ...options,
+        headers,
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`${res.status} ${res.statusText} - ${text}`);
       }
-    },
-    [apiBase, jsonHeaders]
-  );
+
+      const ct = res.headers.get("content-type") || "";
+      return ct.includes("application/json") ? await res.json() : null;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  },
+  [apiBase, jsonHeaders]
+);
+
 
   // GET /api/Products (trả về list)
   // const fetchProducts = useCallback(async () => {
@@ -53,22 +60,27 @@ export default function useProductsApi() {
   // }, [request]);
 
   async function fetchProducts({
-    q,
-    page = 1,
-    pageSize = 10,
-    sortBy = "id",
-    sortDir = "asc",
-  } = {}) {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    params.set("page", String(page));
-    params.set("pageSize", String(pageSize));
-    params.set("sortBy", sortBy);
-    params.set("sortDir", sortDir);
+  q,
+  page = 1,
+  pageSize = 10,
+  sortBy = "id",
+  sortDir = "asc",
+} = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  params.set("sortBy", sortBy);
+  params.set("sortDir", sortDir);
 
-    const res = await fetch(`/api/products?${params.toString()}`);
-    return res.json(); // { items, page, pageSize, total, totalPages }
-  }
+  const res = await fetch(`/api/products?${params.toString()}`);
+  const data = await res.json();
+
+  // nếu backend bọc kiểu { success, data: { items,... } }
+  const payload = data?.data || data;
+  return payload; // { items, page, pageSize, total, totalPages }
+}
+
 
   // GET /api/Products/{id}
   const fetchProduct = useCallback(
@@ -81,42 +93,94 @@ export default function useProductsApi() {
 
   // POST /api/Products
   const createProduct = useCallback(
-    async (payload) => {
-      console.log("payyyyload", payload);
+  async (payload) => {
+    // payload: { sku, name, categoryId, unit, price, quantity, stock, active, description, supplier, note, imageFile }
 
-      const created = await request(`/api/Products`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    const formData = new FormData();
+    formData.append("Sku", payload.sku);
+    formData.append("Name", payload.name);
 
-      // Gắn ngay vào state nếu có id
-      setProducts((prev) => [created ?? payload, ...prev]);
-      return created;
-    },
-    [request]
-  );
+    if (payload.categoryId != null) {
+      formData.append("CategoryId", String(payload.categoryId));
+    }
+
+    if (payload.unit != null) {
+      formData.append("Unit", payload.unit);
+    }
+
+    formData.append("Price", String(payload.price ?? 0));
+    formData.append("Quantity", String(payload.quantity ?? 0));
+    formData.append("Stock", String(payload.stock ?? 0));
+    formData.append("Active", String(payload.active ?? true));
+
+    if (payload.description) formData.append("Description", payload.description);
+    if (payload.supplier) formData.append("Supplier", payload.supplier);
+    if (payload.note) formData.append("Note", payload.note);
+
+    if (payload.imageFile) {
+      formData.append("ImageFile", payload.imageFile);
+    }
+
+    const created = await request(`/api/Products`, {
+      method: "POST",
+      body: formData,
+    });
+
+    setProducts((prev) => [created ?? payload, ...prev]);
+    return created;
+  },
+  [request]
+);
+
 
   // PUT /api/Products/{id}
   const updateProduct = useCallback(
-    async (id, payload) => {
-      if (id == null) throw new Error("Missing product id");
-      const updated = await request(`/api/Products/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
+  async (id, payload) => {
+    if (id == null) throw new Error("Missing product id");
 
-      // Đồng bộ state theo id (có nơi dùng productID, có nơi dùng id)
-      setProducts((prev) =>
-        prev.map((p) =>
-          (p.productID ?? p.id) === id
-            ? { ...p, ...p, ...payload, ...(updated || {}) }
-            : p
-        )
-      );
-      return updated;
-    },
-    [request]
-  );
+    const formData = new FormData();
+    formData.append("Sku", payload.sku);
+    formData.append("Name", payload.name);
+
+    if (payload.categoryId != null) {
+      formData.append("CategoryId", String(payload.categoryId));
+    }
+
+    if (payload.unit != null) {
+      formData.append("Unit", payload.unit);
+    }
+
+    formData.append("Price", String(payload.price ?? 0));
+    formData.append("Quantity", String(payload.quantity ?? 0));
+    formData.append("Stock", String(payload.stock ?? 0));
+    formData.append("Active", String(payload.active ?? true));
+
+    if (payload.description) formData.append("Description", payload.description);
+    if (payload.supplier) formData.append("Supplier", payload.supplier);
+    if (payload.note) formData.append("Note", payload.note);
+    if (payload.updateBy) formData.append("UpdateBy", payload.updateBy);
+
+    if (payload.imageFile) {
+      formData.append("ImageFile", payload.imageFile);
+    }
+
+    const updated = await request(`/api/Products/${id}`, {
+      method: "PUT",
+      body: formData,
+    });
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        (p.productID ?? p.id) === id
+          ? { ...p, ...p, ...payload, ...(updated || {}) }
+          : p
+      )
+    );
+    return updated;
+  },
+  [request]
+);
+
 
   // DELETE /api/Products/{id}
   const deleteProduct = useCallback(

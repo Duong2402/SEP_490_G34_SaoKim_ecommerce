@@ -1,5 +1,4 @@
-﻿
-using DocumentFormat.OpenXml.Bibliography;
+﻿using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -119,6 +118,9 @@ public class AuthController : ControllerBase
 
         if (!BCrypt.Net.BCrypt.Verify(req.Password, user.Password))
             return Unauthorized(new { message = "Invalid email or password" });
+
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            return Unauthorized(new { message = "Tài khoản của bạn hiện đang bị tạm khoá. Vui lòng liên hệ hỗ trợ để kích hoạt lại." });
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]);
