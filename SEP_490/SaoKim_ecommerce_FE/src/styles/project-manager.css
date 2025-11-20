@@ -761,7 +761,7 @@
   font-weight: 700;
 }
 
-.pm-shell .pm-modal {
+.pm-modal {
   position: fixed;
   inset: 0;
   background: rgba(0, 10, 30, 0.55);
@@ -770,9 +770,7 @@
   justify-content: center;
   padding: 16px;
   z-index: 9999;
-}
-
-.pm-shell .pm-modal__dialog {
+.pm-modal__dialog {
   background: #fff;
   border: 1px solid var(--pm-border);
   border-radius: 16px;
@@ -783,43 +781,41 @@
   flex-direction: column;
 }
 
-.pm-shell .pm-modal__dialog--medium {
+.pm-modal__dialog--medium {
   max-width: 640px;
 }
 
-.pm-shell .pm-modal__dialog--narrow {
+.pm-modal__dialog--narrow {
   max-width: 520px;
 }
 
-.pm-shell .pm-modal__header,
-.pm-shell .pm-modal__footer {
+.pm-modal__header,
+.pm-modal__footer {
   padding: 14px 16px;
   border-bottom: 1px solid var(--pm-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-}
-
-.pm-shell .pm-modal__footer {
+.pm-modal__footer {
   border-bottom: none;
   border-top: 1px solid var(--pm-border);
   justify-content: flex-end;
 }
 
-.pm-shell .pm-modal__body {
+.pm-modal__body {
   padding: 16px;
   display: grid;
   gap: 12px;
 }
 
-.pm-shell .pm-modal__title {
+.pm-modal__title {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
 }
 
-.pm-shell .pm-modal__close {
+.pm-modal__close {
   background: transparent;
   border: none;
   font-size: 20px;

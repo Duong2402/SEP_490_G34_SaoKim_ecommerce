@@ -1,10 +1,11 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ProjectManagerSidebar from "../pages/ProjectManager/components/ProjectManagerSidebar";
 import "../styles/project-manager.css";
 
 const PAGE_TITLES = [
-  { match: /^\/projects(\/)?$/, label: "Danh sách dự án" },
+  { match: /^\/(projects)\/?$/, label: "Danh sách dự án" },
+  { match: /^\/projects\/overview/, label: "Tổng quan dự án" },
   { match: /^\/projects\/create/, label: "Tạo dự án" },
   { match: /^\/projects\/\d+$/, label: "Chi tiết dự án" },
   { match: /^\/projects\/.+\/edit/, label: "Chỉnh sửa dự án" },
@@ -148,3 +149,4 @@ export default function ProjectManagerLayout() {
     </div>
   );
 }
+

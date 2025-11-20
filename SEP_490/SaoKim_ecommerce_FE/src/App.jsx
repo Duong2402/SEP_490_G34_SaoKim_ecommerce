@@ -32,6 +32,7 @@ import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
+import ProjectOverview from "./pages/ProjectManager/ProjectOverview.jsx";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 // Products (staff manager)
@@ -121,6 +122,7 @@ export default function App() {
           {/* Projects (ngoài khu Manager) */}
           <Route path="/projects" element={<ProjectManagerLayout />}>
             <Route index element={<ProjectList />} />
+            <Route path="overview" element={<ProjectOverview />} />
             <Route path="create" element={<ProjectCreate />} />
             <Route path=":id" element={<ProjectDetail />} />
             <Route path=":id/edit" element={<ProjectEdit />} />

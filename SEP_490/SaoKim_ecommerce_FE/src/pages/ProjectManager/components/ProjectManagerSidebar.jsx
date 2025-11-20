@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
+  { to: "/projects/overview", label: "Tổng quan" },
   { to: "/projects", label: "Danh sách dự án" },
   { to: "/projects/create", label: "Tạo dự án" },
 ];
