@@ -43,6 +43,14 @@ const normType = (type, row) => {
   return row?.customerId || row?.salesOrderNo ? "Sales" : "Project";
 };
 
+const getSlipId = (row) =>
+  row?.id ??
+  row?.dispatchSlipId ??
+  row?.dispatchSlipID ??
+  row?.dispatchId ??
+  row?.slipId ??
+  row?.slipID;
+
 const DispatchList = () => {
   const navigate = useNavigate();
 
@@ -147,30 +155,37 @@ const DispatchList = () => {
   };
 
   const handleConfirm = async (id) => {
+    const slipId = id ?? null;
+    if (!slipId) {
+      alert("Không tìm thấy ID phiếu để xác nhận.");
+      return;
+    }
+    const targetId = Number.isFinite(Number(slipId)) ? Number(slipId) : slipId;
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}/confirm`,
-        {
-          method: "POST",
-        }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      await loadData();
+      alert("Đã xác nhận phiếu.");
     } catch (error) {
       console.error("Confirm failed:", error);
-      alert("Không thể xác nhận phiếu.");
+      alert(error.message || "Không thể xác nhận phiếu.");
     }
   };
 
   const handleDelete = async (id) => {
+    if (!id) {
+      alert("Không tìm thấy ID phiếu để xóa.");
+      return;
+    }
+    const targetId = Number.isFinite(Number(id)) ? Number(id) : id;
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (error) {
       console.error("Delete failed:", error);
@@ -290,6 +305,7 @@ const DispatchList = () => {
                 const isSales = normalizedType === "Sales";
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
+                const slipId = getSlipId(r);
 
                 return (
                   <tr key={r.id}>
@@ -331,9 +347,10 @@ const DispatchList = () => {
                         className="me-2"
                         onClick={() =>
                           navigate(
-                            `/warehouse-dashboard/dispatch-slips/${r.id}/items`
+                            `/warehouse-dashboard/dispatch-slips/${slipId}/items`
                           )
                         }
+                        disabled={!slipId}
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
@@ -344,14 +361,16 @@ const DispatchList = () => {
                             variant="outline-success"
                             size="sm"
                             className="me-2"
-                            onClick={() => handleConfirm(r.id)}
+                            onClick={() => handleConfirm(slipId)}
+                            disabled={!slipId}
                           >
                             <FontAwesomeIcon icon={faCheck} />
                           </Button>
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            onClick={() => handleDelete(r.id)}
+                            onClick={() => handleDelete(slipId)}
+                            disabled={!slipId}
                           >
                             <FontAwesomeIcon icon={faTrash} />
                           </Button>

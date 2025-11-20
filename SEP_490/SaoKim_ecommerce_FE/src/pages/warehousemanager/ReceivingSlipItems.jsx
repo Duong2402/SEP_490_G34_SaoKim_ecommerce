@@ -296,7 +296,7 @@ const ReceivingSlipItems = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
+      if (!res.ok) throw new Error(`Lưu thất bại (${res.status})`);
       await load();
       setShowModal(false);
     } catch (err) {
@@ -479,7 +479,7 @@ const ReceivingSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
+                    <span className="fw-semibold">{item.productCode || "Chưa có mã"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>

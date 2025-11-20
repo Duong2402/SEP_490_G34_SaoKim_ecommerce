@@ -128,7 +128,7 @@ const WarehouseDashboard = () => {
       value: weeklyInbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyInbound;
-        if (lastWeek === 0) return "N/A";
+        if (lastWeek === 0) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -143,7 +143,7 @@ const WarehouseDashboard = () => {
       value: weeklyOutbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyOutbound;
-        if (lastWeek === 0) return "N/A";
+        if (lastWeek === 0) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -183,13 +183,6 @@ const WarehouseDashboard = () => {
             Theo dõi hoạt động nhập - xuất, cảnh báo tồn kho và tình trạng thực thi trong tuần.
           </p>
         </div>
-
-        <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--primary">
-            <FontAwesomeIcon icon={faArrowTrendUp} />
-            Tải báo cáo tuần
-          </button>
-        </div>
       </div>
 
       <div className="wm-stat-grid">
@@ -222,34 +215,34 @@ const WarehouseDashboard = () => {
 
       <div className="wm-grid-two">
         <section className="wm-surface">
-          <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-            <div>
-              <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
-              <p className="wm-subtle-text mb-0">
-                So sánh lượng nhập và xuất trong 6 ngày gần nhất.
-              </p>
-            </div>
+            <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+              <div>
+                <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
+                <p className="wm-subtle-text mb-0">
+                  So sánh lượng nhập và xuất trong 6 ngày gần nhất.
+                </p>
+              </div>
             <span className="wm-tag">
               <FontAwesomeIcon icon={faArrowTrendUp} />
-              Dữ liệu realtime
+              Dữ liệu thời gian thực
             </span>
           </div>
 
-          <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer width="100%" height={320}>
             <BarChart data={chartData} margin={{ top: 12, right: 24, left: -12, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#dbe3ff" />
-              <XAxis dataKey="name" stroke="#7081b9" />
-              <YAxis stroke="#7081b9" />
+              <CartesianGrid strokeDasharray="4 4" stroke="#d6e3f4" />
+              <XAxis dataKey="name" stroke="#6c7ba0" />
+              <YAxis stroke="#6c7ba0" />
               <Tooltip
-                cursor={{ fill: "rgba(31, 91, 255, 0.08)" }}
+                cursor={{ fill: "rgba(31, 118, 192, 0.08)" }}
                 contentStyle={{
                   borderRadius: 14,
-                  border: "1px solid rgba(31, 91, 255, 0.18)",
+                  border: "1px solid rgba(31, 118, 192, 0.18)",
                   boxShadow: "0 18px 40px -30px rgba(15, 27, 61, 0.8)",
                 }}
               />
-              <Bar dataKey="inbound" fill="#1f5bff" radius={[10, 10, 4, 4]} />
-              <Bar dataKey="outbound" fill="#0ea5e9" radius={[10, 10, 4, 4]} />
+              <Bar dataKey="inbound" fill="#1f76c0" radius={[10, 10, 4, 4]} />
+              <Bar dataKey="outbound" fill="#35a0e8" radius={[10, 10, 4, 4]} />
             </BarChart>
           </ResponsiveContainer>
         </section>

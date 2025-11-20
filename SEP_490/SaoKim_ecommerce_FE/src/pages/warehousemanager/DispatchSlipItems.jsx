@@ -189,7 +189,7 @@ const DispatchSlipItems = () => {
       const res = await apiFetch(`/api/warehousemanager/dispatch-items/${itemId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
     } catch (err) {
       alert("Không thể xóa: " + err.message);
@@ -362,7 +362,7 @@ const DispatchSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
+                    <span className="fw-semibold">{item.productCode || "Chưa có mã"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>

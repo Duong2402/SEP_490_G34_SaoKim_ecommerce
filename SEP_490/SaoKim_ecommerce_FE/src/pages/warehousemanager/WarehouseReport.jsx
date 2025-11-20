@@ -20,23 +20,12 @@ const REPORT_CARDS = [
     status: "ready",
     icon: faArrowDown,
   },
-  {
-    title: "Báo cáo xuất kho",
-    description: "Tổng hợp luồng xuất theo khách hàng, trạng thái giao và hiệu suất giao hàng.",
-    link: "#",
-    status: "coming",
-    icon: faArrowUp,
-  },
-  {
-    title: "Tổng hợp tồn kho",
-    description: "Đánh giá tồn kho theo SKU, khu vực lưu trữ và mức cảnh báo định mức.",
-    link: "#",
-    status: "coming",
-    icon: faBoxesStacked,
-  },
 ];
 
-const WarehouseReport = () => (
+const WarehouseReport = () => {
+  const availableReports = REPORT_CARDS.filter((c) => c.status === "ready");
+
+  return (
   <WarehouseLayout>
     <div className="wm-page-header">
       <div>
@@ -58,23 +47,13 @@ const WarehouseReport = () => (
     <div className="wm-summary">
       <div className="wm-summary__card">
         <span className="wm-summary__label">Báo cáo khả dụng</span>
-        <span className="wm-summary__value">01</span>
+        <span className="wm-summary__value">{availableReports.length.toString().padStart(2, "0")}</span>
         <span className="wm-subtle-text">Đã hoàn thiện và sẵn sàng sử dụng</span>
-      </div>
-      <div className="wm-summary__card">
-        <span className="wm-summary__label">Báo cáo sắp ra mắt</span>
-        <span className="wm-summary__value">02</span>
-        <span className="wm-subtle-text">Đang được ưu tiên phát triển</span>
-      </div>
-      <div className="wm-summary__card">
-        <span className="wm-summary__label">Phiên bản hệ thống</span>
-        <span className="wm-summary__value">v1.4.0</span>
-        <span className="wm-subtle-text">Cập nhật gần nhất: 02/2025</span>
       </div>
     </div>
 
     <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-      {REPORT_CARDS.map((card) => (
+      {availableReports.map((card) => (
         <div key={card.title} className="wm-surface d-flex flex-column gap-3 h-100">
           <div className="d-flex align-items-center gap-3">
             <span className="wm-alert-item__badge" style={{ minWidth: 44 }}>
@@ -84,26 +63,18 @@ const WarehouseReport = () => (
               <h2 className="wm-section-title mb-1">{card.title}</h2>
               <p className="wm-subtle-text mb-0">{card.description}</p>
             </div>
-          </div>
+            </div>
 
-          {card.status === "ready" ? (
             <Link to={card.link} className="wm-btn wm-btn--primary text-center">
               <FontAwesomeIcon icon={faChartColumn} />
               Xem báo cáo
             </Link>
-          ) : (
-            <div className="d-flex align-items-center justify-content-between">
-              <Badge bg="warning" text="dark">
-                Đang phát triển
-              </Badge>
-              <span className="wm-subtle-text">Liên hệ hỗ trợ nếu cần ưu tiên.</span>
-            </div>
-          )}
-        </div>
+          </div>
       ))}
     </div>
   </WarehouseLayout>
-);
+  );
+};
 
 export default WarehouseReport;
 

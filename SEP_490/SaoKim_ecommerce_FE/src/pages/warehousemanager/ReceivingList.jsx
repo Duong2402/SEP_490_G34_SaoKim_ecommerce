@@ -129,7 +129,7 @@ export default function ReceivingList() {
       const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/confirm`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Confirm failed");
+      if (!res.ok) throw new Error("Xác nhận thất bại");
 
       setRows((prev) =>
         prev.map((r) =>
@@ -139,7 +139,7 @@ export default function ReceivingList() {
         )
       );
     } catch (error) {
-      console.error("Confirm failed:", error);
+      console.error("Xác nhận thất bại:", error);
       alert("Không thể xác nhận phiếu. Vui lòng thử lại.");
     }
   };
@@ -237,13 +237,13 @@ export default function ReceivingList() {
       });
 
       const data = await res.json();
-      alert(data.message || "Import thành công!");
+      alert(data.message || "Tải phiếu thành công!");
       setShowImportModal(false);
       setImportFile(null);
       loadData();
     } catch (e) {
       console.error(e);
-      alert(e.message || "Import thất bại");
+      alert(e.message || "Tải phiếu thất bại");
     } finally {
       setImportLoading(false);
     }
@@ -490,7 +490,7 @@ export default function ReceivingList() {
                         ? formatDate(r.confirmedAt)
                         : "Chưa xác nhận"}
                     </td>
-                    <td>{r.note || "N/A"}</td>
+                    <td>{r.note || "Không có ghi chú"}</td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"

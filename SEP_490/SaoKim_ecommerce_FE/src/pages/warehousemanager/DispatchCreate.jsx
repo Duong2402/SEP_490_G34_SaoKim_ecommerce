@@ -91,12 +91,12 @@ export default function DispatchCreate() {
       try {
         if (type === "Sales") {
           const res = await apiFetch(`/api/warehousemanager/customers`);
-          if (!res.ok) throw new Error(`Customers HTTP ${res.status}`);
+          if (!res.ok) throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
           const data = await res.json();
           setCustomers((data || []).map(c => ({ value: Number(c.id), label: `${c.id} - ${c.name}` })));
         } else {
           const res = await apiFetch(`/api/warehousemanager/projects`);
-          if (!res.ok) throw new Error(`Projects HTTP ${res.status}`);
+          if (!res.ok) throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
           const data = await res.json();
           setProjects((data || []).map(p => ({ value: Number(p.id), label: `${p.id} - ${p.name}` })));
         }
@@ -363,7 +363,7 @@ export default function DispatchCreate() {
                 options={customers}
                 value={selectedCustomer}
                 onChange={setSelectedCustomer}
-                placeholder="Chọn khách hàng (User role = Customer)"
+                placeholder="Chọn khách hàng (vai trò Khách hàng)"
                 styles={{
                   control: (base) => ({ ...base, minHeight: 45 }),
                   menu: (base) => ({ ...base, fontSize: 14 }),
