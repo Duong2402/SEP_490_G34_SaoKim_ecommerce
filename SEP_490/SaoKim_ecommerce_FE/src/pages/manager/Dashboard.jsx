@@ -1,167 +1,244 @@
-// src/pages/manager/Dashboard.jsx
-import { useEffect, useState, useMemo } from "react";
-import { ProductsAPI } from "../../api/products";
+import { useEffect, useState } from "react";
+import { getManagerOverview, getRevenueByDay } from "../../api/manager-reports";
 
-function KpiCard({ title, value, sub }) {
-  return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #eee",
-        borderRadius: 12,
-        padding: 16,
-        flex: 1,
-        minWidth: 220,
-      }}
-    >
-      <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
-      {sub && <div style={{ marginTop: 8, fontSize: 12, color: "#999" }}>{sub}</div>}
-    </div>
-  );
-}
+const formatCurrency = (value) => {
+  if (value == null || Number.isNaN(value)) return "0 ₫";
+  return Number(value).toLocaleString("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  });
+};
+
+const formatNumber = (value) => {
+  if (value == null || Number.isNaN(value)) return "0";
+  return Number(value).toLocaleString("vi-VN");
+};
 
 export default function ManagerDashboard() {
-  const [totalProducts, setTotalProducts] = useState(null);
-  const [lowStock, setLowStock] = useState([]);
-  const [newProducts, setNewProducts] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [revenueByDay, setRevenueByDay] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const lowStockParams = useMemo(
-    () => ({ page: 1, pageSize: 5, sortBy: "stock", sortDir: "asc" }),
-    []
-  );
-  const newProductsParams = useMemo(
-    () => ({ page: 1, pageSize: 5, sortBy: "created", sortDir: "desc" }),
-    []
-  );
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
+    const load = async () => {
       try {
         setLoading(true);
-
-        // 1) Lấy tổng số sản phẩm (dùng pageSize=1 để BE trả 'total')
-        const totalRes = await ProductsAPI.list({ page: 1, pageSize: 1 });
-        if (mounted) setTotalProducts(totalRes?.data?.data?.total ?? totalRes?.data?.total ?? 0);
-
-        // 2) Low stock
-        const lowRes = await ProductsAPI.list(lowStockParams);
-        const lowItems = lowRes?.data?.data?.items ?? lowRes?.data?.items ?? [];
-        if (mounted) setLowStock(lowItems);
-
-        // 3) Newest products
-        const newRes = await ProductsAPI.list(newProductsParams);
-        const newItems = newRes?.data?.data?.items ?? newRes?.data?.items ?? [];
-        if (mounted) setNewProducts(newItems);
+        setError("");
+        const [overviewRes, revenueRes] = await Promise.all([
+          getManagerOverview(),
+          getRevenueByDay(7),
+        ]);
+        if (!mounted) return;
+        setOverview(overviewRes || {});
+        setRevenueByDay(Array.isArray(revenueRes) ? revenueRes : []);
       } catch (err) {
-        console.error(err);
+        if (!mounted) return;
+        const message =
+          err?.response?.data ||
+          err?.message ||
+          "Có lỗi xảy ra khi tải dữ liệu tổng quan.";
+        setError(typeof message === "string" ? message : JSON.stringify(message));
       } finally {
         if (mounted) setLoading(false);
       }
-    }
+    };
 
     load();
     return () => {
       mounted = false;
     };
-  }, [lowStockParams, newProductsParams]);
+  }, []);
+
+  const revenue = overview?.revenue ?? {};
+  const warehouse = overview?.warehouse ?? {};
+  const projects = overview?.projects ?? {};
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <KpiCard title="Total products" value={loading || totalProducts === null ? "..." : totalProducts} />
-        <KpiCard
-          title="Low stock (top 5)"
-          value={loading ? "..." : lowStock.length}
-          sub="Sorted by stock asc"
-        />
-        <KpiCard
-          title="Newest (top 5)"
-          value={loading ? "..." : newProducts.length}
-          sub="Sorted by created desc"
-        />
-      </div>
+    <div className="manager-section">
+      {loading && (
+        <div className="manager-panel manager-empty">Đang tải dữ liệu tổng quan...</div>
+      )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-      >
-        {/* Low stock table */}
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>Low stock products</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                  <th style={{ padding: 8 }}>SKU</th>
-                  <th style={{ padding: 8 }}>Name</th>
-                  <th style={{ padding: 8 }}>Price</th>
-                  <th style={{ padding: 8 }}>Stock</th>
-                  <th style={{ padding: 8 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(lowStock || []).map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                    <td style={{ padding: 8 }}>{p.sku}</td>
-                    <td style={{ padding: 8 }}>{p.name}</td>
-                    <td style={{ padding: 8 }}>{p.price}</td>
-                    <td style={{ padding: 8 }}>{p.stock}</td>
-                    <td style={{ padding: 8 }}>{p.status ?? "-"}</td>
-                  </tr>
-                ))}
-                {!loading && lowStock?.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 12, color: "#999" }}>
-                      No data
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      {!loading && error && (
+        <div className="manager-panel" role="alert">
+          <div className="manager-panel__header">
+            <div>
+              <h2 className="manager-panel__title">Không thể tải dữ liệu</h2>
+              <p className="manager-panel__subtitle">{error}</p>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* New products table */}
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-          <div style={{ fontWeight: 600, marginBottom: 12 }}>New products</div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                  <th style={{ padding: 8 }}>SKU</th>
-                  <th style={{ padding: 8 }}>Name</th>
-                  <th style={{ padding: 8 }}>Price</th>
-                  <th style={{ padding: 8 }}>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(newProducts || []).map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                    <td style={{ padding: 8 }}>{p.sku}</td>
-                    <td style={{ padding: 8 }}>{p.name}</td>
-                    <td style={{ padding: 8 }}>{p.price}</td>
-                    <td style={{ padding: 8 }}>
-                      {p.created ? new Date(p.created).toLocaleString() : "-"}
-                    </td>
-                  </tr>
-                ))}
-                {!loading && newProducts?.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ padding: 12, color: "#999" }}>
-                      No data
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      {!loading && !error && (
+        <>
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Chỉ số doanh thu</h2>
+                <p className="manager-panel__subtitle">
+                  Số liệu cập nhật theo thời gian thực từ hệ thống bán hàng.
+                </p>
+              </div>
+            </div>
+            <div className="manager-summary-grid">
+              <SummaryCard label="Tổng doanh thu" value={formatCurrency(revenue.totalRevenue)} />
+              <SummaryCard
+                label="Doanh thu 7 ngày gần nhất"
+                value={formatCurrency(revenue.revenue7d)}
+              />
+              <SummaryCard
+                label="Đơn hàng hôm nay"
+                value={formatNumber(revenue.ordersToday)}
+              />
+              <SummaryCard
+                label="Đơn đang chờ xử lý"
+                value={formatNumber(revenue.pendingOrders)}
+              />
+            </div>
+          </section>
+
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Hiệu suất kho</h2>
+                <p className="manager-panel__subtitle">
+                  Theo dõi mức tồn và số phiếu nhập - xuất để cân bằng cung ứng.
+                </p>
+              </div>
+            </div>
+            <div className="manager-summary-grid">
+              <SummaryCard
+                label="Tổng tồn kho (số lượng)"
+                value={formatNumber(warehouse.totalStock)}
+              />
+              <SplitCard
+                label="Phiếu nhập kho"
+                currentLabel="Tuần này"
+                currentValue={formatNumber(warehouse?.inbound?.thisWeek)}
+                previousLabel="Tuần trước"
+                previousValue={formatNumber(warehouse?.inbound?.lastWeek)}
+              />
+              <SplitCard
+                label="Phiếu xuất kho"
+                currentLabel="Tuần này"
+                currentValue={formatNumber(warehouse?.outbound?.thisWeek)}
+                previousLabel="Tuần trước"
+                previousValue={formatNumber(warehouse?.outbound?.lastWeek)}
+              />
+            </div>
+          </section>
+
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Dự án trọng điểm</h2>
+                <p className="manager-panel__subtitle">
+                  Tình trạng triển khai và ngân sách tổng hợp của các dự án.
+                </p>
+              </div>
+            </div>
+            <div className="manager-summary-grid">
+              <SummaryCard
+                label="Tổng số dự án"
+                value={formatNumber(projects.totalProjects)}
+              />
+              <SummaryCard label="Dự án nháp" value={formatNumber(projects.draftProjects)} />
+              <SummaryCard label="Dự án đang chạy" value={formatNumber(projects.activeProjects)} />
+              <SummaryCard
+                label="Dự án hoàn thành"
+                value={formatNumber(projects.completedProjects)}
+              />
+            </div>
+
+            <div className="manager-summary-grid" style={{ marginTop: 18 }}>
+              <SummaryCard label="Tổng ngân sách" value={formatCurrency(projects.totalBudget)} />
+              <SummaryCard
+                label="Chi phí sản phẩm"
+                value={formatCurrency(projects.totalProductCost)}
+              />
+              <SummaryCard
+                label="Chi phí khác"
+                value={formatCurrency(projects.totalOtherExpenses)}
+              />
+              <SummaryCard
+                label="Chi phí thực tế"
+                value={formatCurrency(projects.totalActualCost)}
+              />
+            </div>
+          </section>
+
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h2 className="manager-panel__title">Doanh thu theo ngày (7 ngày)</h2>
+                <p className="manager-panel__subtitle">
+                  Phân bổ doanh thu từng ngày giúp phát hiện xu hướng tăng giảm.
+                </p>
+              </div>
+            </div>
+            <div className="manager-table__wrapper">
+              {revenueByDay.length === 0 ? (
+                <div className="manager-table__empty">Chưa có dữ liệu doanh thu gần đây.</div>
+              ) : (
+                <table className="manager-table">
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenueByDay.map((item, index) => {
+                      const formattedDate = new Date(item.date).toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      });
+                      return (
+                        <tr key={`${item.date}-${index}`}>
+                          <td>{formattedDate}</td>
+                          <td>{formatCurrency(item.revenue)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, meta }) {
+  return (
+    <div className="manager-card">
+      <div className="manager-card__label">{label}</div>
+      <div className="manager-card__value">{value}</div>
+      {meta && <div className="manager-card__meta">{meta}</div>}
+    </div>
+  );
+}
+
+function SplitCard({ label, currentLabel, currentValue, previousLabel, previousValue }) {
+  return (
+    <div className="manager-card">
+      <div className="manager-card__label">{label}</div>
+      <div className="manager-grid-two" style={{ gap: 8 }}>
+        <div>
+          <div className="manager-card__meta">{currentLabel}</div>
+          <div className="manager-card__value">{currentValue}</div>
+        </div>
+        <div>
+          <div className="manager-card__meta">{previousLabel}</div>
+          <div className="manager-card__value">{previousValue}</div>
         </div>
       </div>
     </div>

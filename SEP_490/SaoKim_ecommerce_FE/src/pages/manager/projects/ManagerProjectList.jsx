@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { ProjectAPI } from "../../../api/ProjectManager/projects"; // named export
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ProjectAPI } from "../../../api/ProjectManager/projects";
+
+const STATUS_LABELS = {
+  Draft: "Nháp",
+  Active: "Đang triển khai",
+  Done: "Hoàn thành",
+  Cancelled: "Đã hủy",
+};
 
 export default function ManagerProjectList() {
   const navigate = useNavigate();
@@ -26,127 +33,165 @@ export default function ManagerProjectList() {
     [q, status, sort, page, pageSize]
   );
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await ProjectAPI.getAll(params);
-        // unwrap ApiResponse<PagedResult<T>>
-        const payload = res?.data;
-        const pageData = payload?.data || {};
-        const items = pageData.items || [];
-        const totalItems = pageData.totalItems ?? 0;
-
-        if (mounted) {
-          setRows(items);
-          setTotal(totalItems);
-        }
-      } catch (e) {
-        console.error(e);
-        if (mounted) {
-          setRows([]);
-          setTotal(0);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+  const loadProjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await ProjectAPI.getAll(params);
+      const pageData = res?.data || {};
+      const items = pageData.items ?? [];
+      const totalItems = pageData.totalItems ?? pageData.total ?? 0;
+      setRows(Array.isArray(items) ? items : []);
+      setTotal(Number(totalItems) || 0);
+    } catch (error) {
+      console.error(error);
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
   }, [params]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Quản lý dự án</h2>
+          <p className="manager-panel__subtitle">
+            Theo dõi tiến độ, ngân sách và trạng thái của từng dự án khách hàng.
+          </p>
+        </div>
+        <div className="manager-panel__actions">
+          <button type="button" className="manager-btn manager-btn--outline" onClick={loadProjects}>
+            Làm mới
+          </button>
+          <button
+            type="button"
+            className="manager-btn manager-btn--primary"
+            onClick={() => navigate("/manager/projects/create")}
+          >
+            + Tạo dự án
+          </button>
+        </div>
+      </div>
+
+      <div className="manager-filters">
         <input
+          className="manager-input"
+          placeholder="Tìm theo mã, tên hoặc khách hàng"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by code/name/customer"
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", minWidth: 260 }}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
         />
+
         <select
+          className="manager-select"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
             setPage(1);
           }}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
         >
-          <option value="">All status</option>
-          <option value="Draft">Draft</option>
-          <option value="Active">Active</option>
-          <option value="Done">Done</option>
-          <option value="Cancelled">Cancelled</option>
+          <option value="">Tất cả trạng thái</option>
+          <option value="Draft">Nháp</option>
+          <option value="Active">Đang triển khai</option>
+          <option value="Done">Hoàn thành</option>
+          <option value="Cancelled">Đã hủy</option>
         </select>
+
         <select
+          className="manager-select"
           value={sort}
           onChange={(e) => setSort(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
         >
-          <option value="created_desc">Created desc</option>
-          <option value="created_asc">Created asc</option>
-          <option value="name_asc">Name asc</option>
-          <option value="name_desc">Name desc</option>
+          <option value="created_desc">Mới nhất</option>
+          <option value="created_asc">Cũ nhất</option>
+          <option value="name_asc">Tên A-Z</option>
+          <option value="name_desc">Tên Z-A</option>
         </select>
 
-        <div style={{ marginLeft: "auto" }}>
-          <button
-            onClick={() => navigate("/manager/projects/create")}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #0b1f3a",
-              background: "#0b1f3a",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            + New Project
-          </button>
-        </div>
+        <label style={{ marginLeft: "auto", fontSize: 14, color: "var(--manager-muted)" }}>
+          Mỗi trang
+        </label>
+        <select
+          className="manager-select"
+          style={{ width: 90 }}
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+        >
+          {[10, 20, 50].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="manager-table__wrapper">
+        <table className="manager-table">
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-              <th style={{ padding: 10 }}>#</th>
-              <th style={{ padding: 10 }}>Code</th>
-              <th style={{ padding: 10 }}>Name</th>
-              <th style={{ padding: 10 }}>Customer</th>
-              <th style={{ padding: 10 }}>Status</th>
-              <th style={{ padding: 10 }}>Start</th>
-              <th style={{ padding: 10 }}>End</th>
-              <th style={{ padding: 10 }}>Budget</th>
-              <th style={{ padding: 10 }}></th>
+            <tr>
+              <th>#</th>
+              <th>Mã dự án</th>
+              <th>Tên dự án</th>
+              <th>Khách hàng</th>
+              <th>Trạng thái</th>
+              <th>Bắt đầu</th>
+              <th>Kết thúc</th>
+              <th>Ngân sách</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ padding: 16, color: "#888" }}>Loading...</td></tr>
+              <tr>
+                <td className="manager-table__empty" colSpan={9}>
+                  Đang tải dữ liệu dự án...
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 16, color: "#888" }}>No data</td></tr>
+              <tr>
+                <td className="manager-table__empty" colSpan={9}>
+                  Không có dự án phù hợp.
+                </td>
+              </tr>
             ) : (
-              rows.map((p, idx) => (
-                <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{(page - 1) * pageSize + idx + 1}</td>
-                  <td style={{ padding: 10 }}>
-                    <Link to={`/manager/projects/${p.id}`} style={{ color: "#0b1f3a" }}>
-                      {p.code}
-                    </Link>
+              rows.map((project, idx) => (
+                <tr key={project.id}>
+                  <td>{(page - 1) * pageSize + idx + 1}</td>
+                  <td>
+                    <Link to={`/manager/projects/${project.id}`}>{project.code}</Link>
                   </td>
-                  <td style={{ padding: 10 }}>{p.name}</td>
-                  <td style={{ padding: 10 }}>{p.customerName ?? "-"}</td>
-                  <td style={{ padding: 10 }}>{p.status}</td>
-                  <td style={{ padding: 10 }}>{p.startDate ? new Date(p.startDate).toLocaleDateString() : "-"}</td>
-                  <td style={{ padding: 10 }}>{p.endDate ? new Date(p.endDate).toLocaleDateString() : "-"}</td>
-                  <td style={{ padding: 10 }}>{p.budget ?? "-"}</td>
-                  <td style={{ padding: 10 }}>
-                    <Link to={`/manager/projects/${p.id}/edit`} style={{ color: "#0b1f3a" }}>Edit</Link>
+                  <td>{project.name}</td>
+                  <td>{project.customerName ?? project.customer ?? "-"}</td>
+                  <td>
+                    <StatusBadge value={project.status} />
+                  </td>
+                  <td>
+                    {project.startDate
+                      ? new Date(project.startDate).toLocaleDateString("vi-VN")
+                      : "-"}
+                  </td>
+                  <td>
+                    {project.endDate
+                      ? new Date(project.endDate).toLocaleDateString("vi-VN")
+                      : "-"}
+                  </td>
+                  <td>{project.budget?.toLocaleString("vi-VN") ?? "-"}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <Link to={`/manager/projects/${project.id}/edit`} className="manager-btn manager-btn--outline">
+                      Chỉnh sửa
+                    </Link>
                   </td>
                 </tr>
               ))
@@ -155,42 +200,37 @@ export default function ManagerProjectList() {
         </table>
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-        <label style={{ color: "#666", fontSize: 13 }}>Page size</label>
-        <select
-          value={pageSize}
-          onChange={(e) => {
-            setPageSize(Number(e.target.value));
-            setPage(1);
-          }}
-          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page <= 1}
-          style={{
-            padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd",
-            background: page <= 1 ? "#f3f3f3" : "#fff", cursor: page <= 1 ? "not-allowed" : "pointer",
-          }}
-        >
-          Prev
+      <div className="manager-pagination">
+        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+          Trước
         </button>
-        <div style={{ fontSize: 13, color: "#666" }}>
-          Page {page} / {Math.max(1, totalPages)}
-        </div>
+        <span>
+          Trang {page}/{totalPages}
+        </span>
         <button
+          type="button"
           onClick={() => setPage((p) => p + 1)}
           disabled={page >= totalPages}
-          style={{
-            padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd",
-            background: page >= totalPages ? "#f3f3f3" : "#fff", cursor: page >= totalPages ? "not-allowed" : "pointer",
-          }}
         >
-          Next
+          Sau
         </button>
+        <span>{total.toLocaleString("vi-VN")} dự án</span>
       </div>
     </div>
+  );
+}
+
+function StatusBadge({ value }) {
+  if (!value) return "-";
+  const label = STATUS_LABELS[value] ?? value;
+  let className = "manager-status";
+  if (value === "Draft") className += " manager-status--pending";
+  if (value === "Cancelled") className += " manager-status--danger";
+  if (value === "Active") className += " manager-status--pending";
+  return (
+    <span className={className}>
+      <span className="manager-status__dot" aria-hidden="true" />
+      {label}
+    </span>
   );
 }

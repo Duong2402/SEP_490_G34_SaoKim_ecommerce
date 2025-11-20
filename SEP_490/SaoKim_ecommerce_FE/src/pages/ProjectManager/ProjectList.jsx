@@ -22,7 +22,9 @@ export default function ProjectList() {
     setLoading(true);
     try {
       const res = await ProjectAPI.getAll({ Page: 1, PageSize: 100, Sort: "-CreatedAt" });
-      setProjects(res?.data?.data?.items ?? []);
+      const body = res || {};
+      const pageData = body.data || {};
+      setProjects(pageData.items || []);
     } catch (err) {
       console.error(err);
       setProjects([]);
@@ -52,12 +54,13 @@ export default function ProjectList() {
     const term = search.trim().toLowerCase();
     return projects.filter((project) => {
       const matchesTerm =
-        !term
-        || project.name?.toLowerCase().includes(term)
-        || project.code?.toLowerCase().includes(term)
-        || project.customerName?.toLowerCase().includes(term);
+        !term ||
+        project.name?.toLowerCase().includes(term) ||
+        project.code?.toLowerCase().includes(term) ||
+        project.customerName?.toLowerCase().includes(term);
 
-      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || project.status === statusFilter;
 
       return matchesTerm && matchesStatus;
     });
@@ -73,7 +76,7 @@ export default function ProjectList() {
     const completed = projects.filter((p) => p.status === "Done").length;
     const budget = projects.reduce(
       (sum, project) => sum + (typeof project.budget === "number" ? project.budget : 0),
-      0,
+      0
     );
 
     return { total, active, completed, budget };
@@ -190,7 +193,6 @@ export default function ProjectList() {
                         <Link to={`/projects/${project.id}/edit`} className="btn btn-outline">
                           {t("common.actions.edit")}
                         </Link>
-                        {/* NEW: nút xem báo cáo */}
                         <Link to={`/projects/${project.id}/report`} className="btn btn-outline">
                           Báo cáo
                         </Link>

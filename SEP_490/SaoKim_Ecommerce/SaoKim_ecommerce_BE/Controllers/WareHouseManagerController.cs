@@ -21,7 +21,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly IHubContext<ReceivingHub> _receivingHub;
         private readonly IHubContext<DispatchHub> _dispatchHub;
         private readonly IHubContext<InventoryHub> _inventoryHub;
-        public WarehouseManagerController(SaoKimDBContext db, IHubContext<ReceivingHub> receivingHub, 
+        public WarehouseManagerController(SaoKimDBContext db, IHubContext<ReceivingHub> receivingHub,
             IHubContext<DispatchHub> dispatchHub, IHubContext<InventoryHub> inventoryHub)
         {
             _db = db;
@@ -35,7 +35,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> GetReceivingSlipList([FromQuery] ReceivingSlipListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 20;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
             var query = _db.ReceivingSlips
                 .Where(x => !x.IsDeleted)
@@ -54,8 +54,65 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (q.Status.HasValue) query = query.Where(x => x.Status == q.Status.Value);
 
             var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
+
+            var desc = string.Equals(q.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+            IQueryable<ReceivingSlip> ordered;
+
+            if (!string.IsNullOrWhiteSpace(q.SortBy))
+            {
+                switch (q.SortBy)
+                {
+                    case "referenceNo":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.ReferenceNo).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.ReferenceNo).ThenBy(x => x.Id);
+                        break;
+
+                    case "supplier":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.Supplier).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.Supplier).ThenBy(x => x.Id);
+                        break;
+
+                    case "receiptDate":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.ReceiptDate).ThenBy(x => x.Id);
+                        break;
+
+                    case "status":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.Status).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.Status).ThenBy(x => x.Id);
+                        break;
+
+                    case "createdAt":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+                        break;
+
+                    case "confirmedAt":
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.ConfirmedAt).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.ConfirmedAt).ThenBy(x => x.Id);
+                        break;
+
+                    default:
+                        ordered = desc
+                            ? query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
+                            : query.OrderBy(x => x.ReceiptDate).ThenBy(x => x.Id);
+                        break;
+                }
+            }
+            else
+            {
+                ordered = query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id);
+            }
+
+            var items = await ordered
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
                 .Select(x => new
                 {
                     x.Id,
@@ -66,8 +123,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     x.CreatedAt,
                     x.ConfirmedAt
                 })
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
                 .ToListAsync();
 
             return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
@@ -158,14 +213,13 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> GetReceivingSlipItems([FromRoute] int id)
         {
             var slip = await _db.ReceivingSlips
-        .Include(s => s.Items)
-        .FirstOrDefaultAsync(s => s.Id == id);
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.Id == id);
 
             if (slip == null)
                 return NotFound(new { message = "Receiving slip not found" });
 
-            var items = await _db.ReceivingSlipItems
-                .Where(i => i.ReceivingSlipId == id)
+            var items = slip.Items
                 .OrderBy(i => i.Id)
                 .Select(i => new
                 {
@@ -178,7 +232,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     i.UnitPrice,
                     i.Total
                 })
-                .ToListAsync();
+                .ToList();
 
             return Ok(new
             {
@@ -773,103 +827,114 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpGet("dispatch-slips")]
-        public async Task<IActionResult> GetDispatchSlips([FromQuery] string? type, [FromQuery] string? search)
+        public async Task<IActionResult> GetDispatchSlips([FromQuery] DispatchSlipListQuery q)
         {
-            if (!string.IsNullOrWhiteSpace(type) && type.Equals("Sales", StringComparison.OrdinalIgnoreCase))
-            {
-                var querySales = _db.Set<RetailDispatch>().AsQueryable();
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-                if (!string.IsNullOrWhiteSpace(search))
+            // Chuẩn hóa query chung cho Sales + Project
+            var sales = _db.Set<RetailDispatch>()
+                .Select(x => new
                 {
-                    var s = search.Trim().ToLower();
-                    querySales = querySales.Where(r =>
-                        r.ReferenceNo.ToLower().Contains(s) ||
-                        r.CustomerName.ToLower().Contains(s));
-                }
+                    x.Id,
+                    Type = "Sales",
+                    ReferenceNo = x.ReferenceNo,
+                    CustomerOrProject = x.CustomerName,
+                    DispatchDate = x.DispatchDate,
+                    x.Status,
+                    x.CreatedAt,
+                    x.ConfirmedAt,
+                    x.Note
+                });
 
-                var items = await querySales
-                    .OrderByDescending(x => x.DispatchDate)
-                    .Select(x => new
-                    {
-                        x.Id,
-                        Type = "Sales",
-                        x.ReferenceNo,
-                        x.CustomerName,
-                        x.CustomerId,
-                        DispatchDate = x.DispatchDate,
-                        x.Status,
-                        x.CreatedAt,
-                        x.ConfirmedAt,
-                        x.Note
-                    })
-                    .ToListAsync();
+            var projects = _db.Set<ProjectDispatch>()
+                .Select(x => new
+                {
+                    x.Id,
+                    Type = "Project",
+                    ReferenceNo = x.ReferenceNo,
+                    CustomerOrProject = x.ProjectName,
+                    DispatchDate = x.DispatchDate,
+                    x.Status,
+                    x.CreatedAt,
+                    x.ConfirmedAt,
+                    x.Note
+                });
 
-                return Ok(new { total = items.Count, items });
+            var query = sales.Concat(projects).AsQueryable();
+
+            // Lọc theo type
+            if (!string.IsNullOrWhiteSpace(q.Type) &&
+                !q.Type.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(x => x.Type == q.Type);
             }
 
-            if (!string.IsNullOrWhiteSpace(type) && type.Equals("Project", StringComparison.OrdinalIgnoreCase))
+            // Search
+            if (!string.IsNullOrWhiteSpace(q.Search))
             {
-                var queryProject = _db.Set<ProjectDispatch>().AsQueryable();
-
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    var s = search.Trim().ToLower();
-                    queryProject = queryProject.Where(p =>
-                        p.ReferenceNo.ToLower().Contains(s) ||
-                        p.ProjectName.ToLower().Contains(s));
-                }
-
-                var items = await queryProject
-                    .OrderByDescending(x => x.DispatchDate)
-                    .Select(x => new
-                    {
-                        x.Id,
-                        Type = "Project",
-                        x.ReferenceNo,
-                        x.ProjectName,
-                        x.ProjectId,
-                        DispatchDate = x.DispatchDate,
-                        x.Status,
-                        x.CreatedAt,
-                        x.ConfirmedAt,
-                        x.Note
-                    })
-                    .ToListAsync();
-
-                return Ok(new { total = items.Count, items });
+                var s = q.Search.Trim().ToLower();
+                query = query.Where(x =>
+                    x.ReferenceNo.ToLower().Contains(s) ||
+                    (x.CustomerOrProject ?? "").ToLower().Contains(s));
             }
 
-            var sales = await _db.Set<RetailDispatch>().Select(x => new
+            var total = await query.CountAsync();
+
+            var desc = string.Equals(q.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+            IOrderedQueryable<dynamic> ordered;
+
+            switch (q.SortBy)
             {
-                x.Id,
-                Type = "Sales",
-                x.ReferenceNo,
-                x.CustomerName,
-                x.CustomerId,
-                DispatchDate = x.DispatchDate,
-                x.Status,
-                x.CreatedAt,
-                x.ConfirmedAt,
-                x.Note
-            }).ToListAsync();
+                case "referenceNo":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.ReferenceNo).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.ReferenceNo).ThenBy(x => x.Id);
+                    break;
 
-            var projects = await _db.Set<ProjectDispatch>().Select(x => new
-            {
-                x.Id,
-                Type = "Project",
-                x.ReferenceNo,
-                x.ProjectName,
-                x.ProjectId,
-                DispatchDate = x.DispatchDate,
-                x.Status,
-                x.CreatedAt,
-                x.ConfirmedAt,
-                x.Note
-            }).ToListAsync();
+                case "dispatchDate":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.DispatchDate).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.DispatchDate).ThenBy(x => x.Id);
+                    break;
 
-            var itemsCombined = sales.Cast<object>().Concat(projects.Cast<object>()).ToList();
+                case "createdAt":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
+                    break;
 
-            return Ok(new { total = itemsCombined.Count, items = itemsCombined });
+                case "confirmedAt":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.ConfirmedAt).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.ConfirmedAt).ThenBy(x => x.Id);
+                    break;
+
+                case "status":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.Status).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.Status).ThenBy(x => x.Id);
+                    break;
+
+                case "type":
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.Type).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.Type).ThenBy(x => x.Id);
+                    break;
+
+                default:
+                    ordered = desc
+                        ? query.OrderByDescending(x => x.DispatchDate).ThenByDescending(x => x.Id)
+                        : query.OrderBy(x => x.DispatchDate).ThenBy(x => x.Id);
+                    break;
+            }
+
+            var items = await ordered
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
+                .ToListAsync();
+
+            return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
         }
 
         [HttpGet("receiving-slips/weekly-summary")]
@@ -1124,14 +1189,22 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpGet("dispatch-slips/{id:int}/items")]
-        public async Task<IActionResult> GetDispatchItems(int id)
+        public async Task<IActionResult> GetDispatchItems([FromRoute] int id, [FromQuery] DispatchItemListQuery q)
         {
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
+
             var exists = await _db.Dispatches.AnyAsync(d => d.Id == id);
             if (!exists)
-                return NotFound($"Dispatch {id} không tồn tại");
+                return NotFound(new { message = $"Dispatch {id} không tồn tại" });
 
-            var items = await _db.DispatchItems
-                .Where(i => i.DispatchId == id)
+            var baseQuery = _db.DispatchItems
+                .Where(i => i.DispatchId == id);
+
+            var total = await baseQuery.CountAsync();
+
+            var items = await baseQuery
+                .OrderBy(i => i.Id)
                 .Join(_db.Products,
                       i => i.ProductId,
                       p => p.ProductID,
@@ -1147,11 +1220,13 @@ namespace SaoKim_ecommerce_BE.Controllers
                           i.UnitPrice,
                           i.Total
                       })
-                .OrderBy(x => x.Id)
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
                 .ToListAsync();
 
-            return Ok(items);
+            return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
         }
+
 
         [HttpPost("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> CreateDispatchItem(int id, [FromBody] DispatchItemDto dto)

@@ -13,7 +13,6 @@ namespace SaoKim_ecommerce_BE.Services
         Task<ProjectResponseDTO?> UpdateAsync(int id, UpdateProjectDTO dto, string? updatedBy);
         Task<bool> DeleteAsync(int id);
     }
-
     public class ProjectService : IProjectService
     {
         private readonly SaoKimDBContext _db;
@@ -80,7 +79,6 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
             return Map(entity);
         }
-
         public async Task<ProjectResponseDTO?> GetByIdAsync(int id)
         {
             var p = await _db.Projects.FindAsync(id);
@@ -105,7 +103,6 @@ namespace SaoKim_ecommerce_BE.Services
                 query = query.Where(x => x.Status == q.Status);
             }
 
-            // sort
             if (!string.IsNullOrWhiteSpace(q.Sort))
             {
                 var desc = q.Sort.StartsWith("-");
@@ -135,7 +132,6 @@ namespace SaoKim_ecommerce_BE.Services
             };
 
         }
-
         public async Task<ProjectResponseDTO?> UpdateAsync(int id, UpdateProjectDTO dto, string? updatedBy)
         {
             var p = await _db.Projects.FindAsync(id);
@@ -152,7 +148,6 @@ namespace SaoKim_ecommerce_BE.Services
             p.EndDate = dto.EndDate;
             p.Budget = dto.Budget;
             p.Description = dto.Description;
-            // có thể cập nhật UpdatedAt/UpdatedBy nếu muốn thêm 2 field này
 
             await _db.SaveChangesAsync();
             return Map(p);
@@ -162,7 +157,7 @@ namespace SaoKim_ecommerce_BE.Services
         {
             var p = await _db.Projects.FindAsync(id);
             if (p == null) return false;
-            _db.Projects.Remove(p); // nếu muốn soft-delete thì thêm cột IsDeleted và đổi logic
+            _db.Projects.Remove(p);
             await _db.SaveChangesAsync();
             return true;
         }

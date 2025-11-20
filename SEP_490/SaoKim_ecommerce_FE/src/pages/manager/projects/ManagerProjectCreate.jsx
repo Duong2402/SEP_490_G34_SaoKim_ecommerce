@@ -21,19 +21,26 @@ export default function ManagerProjectCreate() {
         description: values.description,
       };
       const res = await ProjectAPI.create(payload);
-      const newId = res?.data?.data?.id ?? res?.data?.id; // unwrap ApiResponse
+      const newId = res?.data?.data?.id ?? res?.data?.id;
       navigate(`/manager/projects/${newId}`);
-    } catch (e) {
-      console.error(e);
-      alert("Create failed");
+    } catch (error) {
+      console.error(error);
+      alert("Không thể tạo dự án, vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Create Project</div>
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Tạo dự án mới</h2>
+          <p className="manager-panel__subtitle">
+            Điền đầy đủ thông tin để khởi tạo và phân phối nguồn lực chính xác.
+          </p>
+        </div>
+      </div>
       <ManagerProjectForm onSubmit={handleSubmit} submitting={submitting} />
     </div>
   );

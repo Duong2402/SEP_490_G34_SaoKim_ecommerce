@@ -92,7 +92,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
-        // DETAIL (PUBLIC) — trả về { product, related }
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -137,7 +136,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { product = product, related });
         }
 
-        // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
         [AllowAnonymous]
         //[Authorize(Roles = "Admin")]
@@ -153,16 +151,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             model.CreateAt = DateTime.UtcNow;
             model.Status ??= "Active";
 
-            //  giờ Product dùng CategoryId (nullable). Nếu front còn gửi "category" là chuỗi,
-            // hãy đổi front để gửi CategoryId, hoặc viết thêm logic map tên -> id ở đây.
-
             _db.Products.Add(model);
             await _db.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetById), new { id = model.ProductID }, model);
         }
 
-        // UPDATE (YÊU CẦU QUYỀN)
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromBody] Product update)
@@ -173,7 +167,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             existing.ProductCode = update.ProductCode;
             existing.ProductName = update.ProductName;
-            existing.CategoryId = update.CategoryId;      //  dùng FK
+            existing.CategoryId = update.CategoryId;      
             existing.Unit = update.Unit;
             existing.Price = update.Price;
             existing.Quantity = update.Quantity;
@@ -190,7 +184,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product updated successfully" });
         }
 
-        // DELETE (YÊU CẦU QUYỀN)
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)

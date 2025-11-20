@@ -18,7 +18,6 @@ namespace SaoKim_ecommerce_BE.Controllers
     [ApiController]
     [AllowAnonymous]
     [Route("api/[controller]")]
-    // Sau khi test xong có thể bật lại:
     // [Authorize(Roles = "staff")]  // hoặc "staff,admin" tùy hệ thống
     public class CustomersController : ControllerBase
     {
@@ -29,15 +28,13 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db = db;
         }
 
-        // Lấy role_id của role 'customer'
         private async Task<int> GetCustomerRoleIdAsync()
         {
             return await _db.Roles
-                .Where(r => r.Name.ToLower() == "customer")   // dùng Name, không phải RoleName
+                .Where(r => r.Name.ToLower() == "customer")   
                 .Select(r => r.RoleId)
                 .FirstOrDefaultAsync();
         }
-
 
         // GET /api/customers
         [HttpGet]
@@ -56,7 +53,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (page < 1) page = 1;
             if (pageSize <= 0 || pageSize > 200) pageSize = 10;
 
-            // Chuẩn hóa createdFrom/createdTo về UTC để khớp timestamptz của PostgreSQL
             if (createdFrom.HasValue && createdFrom.Value.Kind == DateTimeKind.Unspecified)
             {
                 createdFrom = DateTime.SpecifyKind(createdFrom.Value, DateTimeKind.Utc);
@@ -79,7 +75,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 });
             }
 
-            // 1. Query users (IQueryable<User>) + filter trên DB
             var usersQuery = _db.Users
                 .AsNoTracking()
                 .Include(u => u.Orders)
@@ -107,7 +102,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (createdTo.HasValue)
                 usersQuery = usersQuery.Where(u => u.CreateAt < createdTo.Value);
 
-            // 2. Project sang DTO và MATERIALIZE về memory
             var list = await usersQuery
                 .Select(u => new CustomerListItemDto(
                     u.UserID,
@@ -122,16 +116,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                         .Sum(o => (decimal?)o.Total) ?? 0m,
                     u.Orders.Max(o => (DateTime?)o.CreatedAt)
                 ))
-                .ToListAsync(); // từ đây trở xuống chỉ còn LINQ trên List<>
+                .ToListAsync(); 
 
-            // 3. Lọc tiếp theo minSpend / minOrders trong memory
             if (minSpend.HasValue)
                 list = list.Where(c => c.TotalSpend >= minSpend.Value).ToList();
 
             if (minOrders.HasValue)
                 list = list.Where(c => c.OrdersCount >= minOrders.Value).ToList();
 
-            // 4. Sort trong memory
             var dir = sortDir.ToLower() == "asc" ? "asc" : "desc";
 
             list = (sortBy?.ToLower(), dir) switch
@@ -151,7 +143,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 _ => list.OrderByDescending(c => c.CreateAt).ToList()
             };
 
-            // 5. Paging trong memory
             var total = list.Count;
             var items = list
                 .Skip((page - 1) * pageSize)
@@ -166,9 +157,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 items
             });
         }
-    
-
-
 
         // GET /api/customers/{id}
         [HttpGet("{id:int}")]
@@ -219,7 +207,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> GetOrders(
             int id,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 5)   // để mặc định 5 đơn gần nhất
+            [FromQuery] int pageSize = 5)   
         {
             if (page < 1) page = 1;
             if (pageSize <= 0 || pageSize > 200) pageSize = 5;

@@ -60,7 +60,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             return (items, total);
         }
-
         public async Task<PromotionDetailDto?> GetAsync(int id)
         {
             var entity = await _db.Promotions
@@ -91,7 +90,6 @@ namespace SaoKim_ecommerce_BE.Services
                 }).ToList()
             };
         }
-
         public async Task<int> CreateAsync(PromotionCreateDto dto)
         {
             var entity = new Promotion
@@ -141,7 +139,6 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
             return true;
         }
-
         public async Task<bool> DeleteAsync(int id)
         {
             var entity = await _db.Promotions.Include(p => p.PromotionProducts).FirstOrDefaultAsync(p => p.Id == id);

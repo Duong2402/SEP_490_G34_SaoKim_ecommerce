@@ -60,7 +60,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<string>.Ok("OK"));
         }
 
-        // NEW: Toggle Active <-> Inactive
         [HttpPost("{id:int}/toggle")]
         public async Task<ActionResult<ApiResponse<string>>> Toggle(int id)
         {

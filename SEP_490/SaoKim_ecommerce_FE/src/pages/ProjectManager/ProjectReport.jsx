@@ -21,7 +21,8 @@ export default function ProjectReport() {
       setLoading(true);
       try {
         const res = await ProjectAPI.getReport(id);
-        if (mounted) setReport(res?.data?.data ?? null);
+        const body = res || {};
+        if (mounted) setReport(body.data ?? body ?? null);
       } catch (e) {
         console.error(e);
         if (mounted) setReport(null);
@@ -36,9 +37,9 @@ export default function ProjectReport() {
 
   const handleExportPdf = async () => {
     try {
-      const res = await ProjectAPI.getReportPdf(id);
+      const blob = await ProjectAPI.getReportPdf(id);
       const url = window.URL.createObjectURL(
-        new Blob([res.data], { type: "application/pdf" })
+        new Blob([blob], { type: "application/pdf" })
       );
       const a = document.createElement("a");
       a.href = url;
@@ -88,7 +89,6 @@ export default function ProjectReport() {
     actualAllIn,
     variance,
     profitApprox,
-    //taskCount,
     taskCompleted,
     taskDelayed,
     taskActive,

@@ -1,18 +1,5 @@
 ﻿namespace SaoKim_ecommerce_BE.DTOs
 {
-    //public class ProductListItemDto
-    //{
-    //    public int Id { get; set; }
-    //    public string Sku { get; set; } = string.Empty;   // map ProductCode
-    //    public string Name { get; set; } = string.Empty;  // map ProductName
-    //    public string? Category { get; set; }
-    //    public decimal Price { get; set; }
-    //    public int Quantity { get; set; }
-    //    public int Stock { get; set; }
-    //    public string? Status { get; set; }
-    //    public DateTime? Created { get; set; }
-    //}
-
     public class ProductListItemDto
     {
         public int Id { get; set; }
@@ -51,8 +38,8 @@
 
     public class CreateProductDto
     {
-        public string Sku { get; set; } = string.Empty;   // required
-        public string Name { get; set; } = string.Empty;  // required
+        public string Sku { get; set; } = string.Empty;   
+        public string Name { get; set; } = string.Empty;  
         public string? Category { get; set; }
         public string? Unit { get; set; }
         public decimal Price { get; set; }

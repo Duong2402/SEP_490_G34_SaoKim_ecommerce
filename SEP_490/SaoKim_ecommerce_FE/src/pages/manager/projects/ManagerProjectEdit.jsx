@@ -8,18 +8,27 @@ export default function ManagerProjectEdit() {
   const navigate = useNavigate();
   const [detail, setDetail] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        setLoading(true);
+        setError("");
         const res = await ProjectAPI.getById(id);
-        if (mounted) setDetail(res?.data?.data);
-      } catch (e) {
-        console.error(e);
+        if (mounted) setDetail(res?.data ?? res ?? null);
+      } catch (err) {
+        console.error(err);
+        if (mounted) setError("Không tìm thấy dự án hoặc đã có lỗi xảy ra.");
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
   async function handleSubmit(values) {
@@ -38,20 +47,41 @@ export default function ManagerProjectEdit() {
       };
       await ProjectAPI.update(id, payload);
       navigate(`/manager/projects/${id}`);
-    } catch (e) {
-      console.error(e);
-      alert("Update failed");
+    } catch (err) {
+      console.error(err);
+      alert("Không thể cập nhật dự án. Vui lòng thử lại.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!detail) return <div style={{ padding: 16 }}>Loading...</div>;
+  if (loading) {
+    return <div className="manager-panel manager-empty">Đang tải dữ liệu dự án...</div>;
+  }
+
+  if (error || !detail) {
+    return (
+      <div className="manager-panel manager-empty">
+        {error || "Dự án không tồn tại hoặc đã bị xóa."}
+      </div>
+    );
+  }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>Edit Project</div>
-      <ManagerProjectForm initialValues={detail} onSubmit={handleSubmit} submitting={submitting} />
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Cập nhật dự án</h2>
+          <p className="manager-panel__subtitle">
+            Điều chỉnh thông tin để phản ánh đúng tiến độ và cam kết với khách hàng.
+          </p>
+        </div>
+      </div>
+      <ManagerProjectForm
+        initialValues={detail}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+      />
     </div>
   );
 }

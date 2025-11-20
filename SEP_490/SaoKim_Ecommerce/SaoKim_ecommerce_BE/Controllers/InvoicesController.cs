@@ -180,14 +180,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             var fileName = $"Invoice_{inv.Code}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
             var path = Path.Combine(folder, fileName);
 
-            // Header cửa hàng
             string storeName = "SAO KIM LIGHTNING";
             string storeAddr = "Email: saokim@gmail.com";
             string storePhone = "ĐT: 0133 878 120";
             string invoiceTitle = "HÓA ĐƠN BÁN HÀNG";
             string sellLine = "Mặt hàng bán: Sao Kim Lightning";
 
-            // Tên hiển thị dưới khu vực chữ ký
             string customerSignName = string.IsNullOrWhiteSpace(inv.CustomerName)
                 ? "Khách hàng"
                 : inv.CustomerName.Trim();
@@ -229,14 +227,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                         col.Item().PaddingTop(8);
 
-                        // Thông tin KH
                         col.Item().Text($"Tên khách hàng: {inv.CustomerName ?? ""}");
                         col.Item().Text($"Điện thoại: {inv.Phone ?? ""}");
                         col.Item().Text($"Email: {inv.Email ?? ""}");
 
                         col.Item().PaddingTop(6);
 
-                        // Bảng hàng hóa
                         col.Item().Table(t =>
                         {
                             t.ColumnsDefinition(c =>
@@ -271,7 +267,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                         col.Item().PaddingTop(8);
 
-                        // Tổng kết
                         col.Item().Row(r =>
                         {
                             r.RelativeItem();
@@ -297,7 +292,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                         col.Item().PaddingTop(16);
                         col.Item().AlignRight().Text($"Ngày {inv.CreatedAt:dd} tháng {inv.CreatedAt:MM} năm {inv.CreatedAt:yyyy}");
 
-                        // Chữ ký có tên
                         col.Item().PaddingTop(30);
                         col.Item().Row(r =>
                         {
@@ -329,12 +323,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { message = "PDF generated successfully." });
         }
-
-
-
-
-
-
 
         // GET /api/invoices/{id}/pdf  (download/preview)
         [HttpGet("{id:int}/pdf")]

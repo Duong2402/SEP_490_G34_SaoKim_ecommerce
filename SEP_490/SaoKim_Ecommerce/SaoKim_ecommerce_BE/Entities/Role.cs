@@ -10,7 +10,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("role_id")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int RoleId { get; set; }
-
         [Required]
         [Column("role_name")]
         [MaxLength(100)]

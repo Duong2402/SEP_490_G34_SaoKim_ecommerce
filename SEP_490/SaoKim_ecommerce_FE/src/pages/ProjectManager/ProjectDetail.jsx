@@ -104,7 +104,8 @@ function ProjectDetail() {
     setLoadingProject(true);
     try {
       const res = await ProjectAPI.getById(id);
-      setProject(res?.data?.data ?? null);
+      const body = res || {};
+      setProject(body.data ?? body ?? null);
     } catch (error) {
       console.error(error);
       setProject(null);
@@ -118,7 +119,9 @@ function ProjectDetail() {
     setLoadingTasks(true);
     try {
       const res = await TaskAPI.list(id);
-      const list = res?.data?.data ?? [];
+      const api = res || {};
+      const payload = api.data ?? api;
+      const list = payload.items ?? payload;
       setTasks(Array.isArray(list) ? list.map(normalizeTaskFromAPI) : []);
     } catch (error) {
       console.error(error);
@@ -133,7 +136,10 @@ function ProjectDetail() {
     setLoadingProducts(true);
     try {
       const res = await ProjectProductAPI.list(id);
-      setProducts(res?.data?.data?.items ?? []);
+      const api = res || {};
+      const payload = api.data ?? api;
+      const items = payload.items ?? payload;
+      setProducts(Array.isArray(items) ? items : []);
     } catch (error) {
       console.error(error);
       setProducts([]);
@@ -146,8 +152,15 @@ function ProjectDetail() {
     if (!id) return;
     setLoadingExpenses(true);
     try {
-      const res = await ProjectExpenseAPI.list(id, { sort: "-Date", page: 1, pageSize: 100 });
-      const items = res?.data?.data?.page?.items ?? [];
+      const res = await ProjectExpenseAPI.list(id, {
+        sort: "-Date",
+        page: 1,
+        pageSize: 100,
+      });
+      const api = res || {};
+      const payload = api.data ?? api;
+      const page = payload.page ?? payload;
+      const items = page.items ?? page;
       setExpenses(Array.isArray(items) ? items : []);
     } catch (err) {
       console.error(err);
@@ -376,7 +389,6 @@ function ProjectDetail() {
   const goToPreviousMonth = () => setMonth((current) => current.subtract(1, "month"));
   const goToNextMonth = () => setMonth((current) => current.add(1, "month"));
 
-  // --- Totals for Budget vs Actual (combined: Products + Expenses) ---
   const totalProductCost = useMemo(
     () => products.reduce((sum, p) => sum + (Number(p.total) || 0), 0),
     [products]

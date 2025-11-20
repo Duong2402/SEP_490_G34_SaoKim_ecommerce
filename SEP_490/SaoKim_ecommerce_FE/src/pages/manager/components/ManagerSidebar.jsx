@@ -1,43 +1,28 @@
 import { NavLink } from "react-router-dom";
 
-const linkBase = {
-  display: "block",
-  padding: "10px 12px",
-  borderRadius: 8,
-  color: "#d7e3ff",
-  textDecoration: "none",
-  fontSize: 14,
-  marginBottom: 6,
-};
+const NAV_ITEMS = [
+  { to: "/manager/dashboard", label: "Tổng quan" },
+  { to: "/manager/products", label: "Sản phẩm" },
+  { to: "/manager/projects", label: "Dự án" },
+  { to: "/manager/promotions", label: "Khuyến mãi" },
+  { to: "/manager/coupons", label: "Mã giảm giá" },
+  { to: "/manager/employees", label: "Nhân sự" },
+];
 
 export default function ManagerSidebar() {
-  const navLinkStyle = ({ isActive }) => ({
-    ...linkBase,
-    background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-    color: isActive ? "#fff" : "#d7e3ff",
-  });
-
   return (
-    <nav>
-      <NavLink to="/manager/dashboard" style={navLinkStyle}>
-        Overview
-      </NavLink>
-
-      <NavLink to="/manager/products" style={navLinkStyle}>
-        Products
-      </NavLink>
-
-      <NavLink to="/manager/projects" style={navLinkStyle}>
-        Projects
-      </NavLink>
-
-      <NavLink to="/manager/promotions" style={navLinkStyle}>
-        Promotions
-      </NavLink>
-
-      <NavLink to="/manager/coupons" style={navLinkStyle}>
-        Coupons
-      </NavLink>
+    <nav className="manager-sidebar__nav" aria-label="Điều hướng trang quản lý">
+      {NAV_ITEMS.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) =>
+            `manager-nav-link${isActive ? " manager-nav-link--active" : ""}`
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
     </nav>
   );
 }

@@ -12,9 +12,12 @@ export default function ProjectCreate() {
   const handleSubmit = async (payload) => {
     try {
       setSaving(true);
-      await ProjectAPI.create(payload);
+      const res = await ProjectAPI.create(payload);
+      const body = res || {};
+      const created = body.data ?? body;
+      const newId = created?.id;
       alert(t("projects.create.success"));
-      navigate("/projects");
+      navigate(newId ? `/projects/${newId}` : "/projects");
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || t("projects.create.failure"));
