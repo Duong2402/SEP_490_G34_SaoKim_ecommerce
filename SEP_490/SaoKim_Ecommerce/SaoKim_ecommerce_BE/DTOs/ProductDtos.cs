@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 ﻿using Microsoft.AspNetCore.Http;
 
 namespace SaoKim_ecommerce_BE.DTOs
-=======
-﻿namespace SaoKim_ecommerce_BE.DTOs
->>>>>>> origin/main
 {
     public class ProductListItemDto
     {
@@ -43,18 +39,12 @@ namespace SaoKim_ecommerce_BE.DTOs
     // CREATE DTO dùng [FromForm] để nhận cả file ảnh
     public class CreateProductDto
     {
-<<<<<<< HEAD
         public string Sku { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
 
         // CategoryId đúng với entity Product
         public int? CategoryId { get; set; }
 
-=======
-        public string Sku { get; set; } = string.Empty;   
-        public string Name { get; set; } = string.Empty;  
-        public string? Category { get; set; }
->>>>>>> origin/main
         public string? Unit { get; set; }
         public decimal Price { get; set; }
         public int Quantity { get; set; }

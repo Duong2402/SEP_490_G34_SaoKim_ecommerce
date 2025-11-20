@@ -10,7 +10,6 @@ namespace SaoKim_ecommerce_BE.Entities
     public class Invoice
     {
         public int Id { get; set; }
-<<<<<<< HEAD
 
         [Column("code")]
         public string Code { get; set; } = default!;                  // INV-YYYYMMDD-###
@@ -44,19 +43,10 @@ namespace SaoKim_ecommerce_BE.Entities
 
         // optional: nếu là hoá đơn dự án
         [Column("project_id")]
-=======
-        public string Code { get; set; } = default!;                  
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public int? CustomerId { get; set; }
-        public string? CustomerName { get; set; }
-        public string? Email { get; set; }
-        public string? Phone { get; set; }
->>>>>>> origin/main
         public int? ProjectId { get; set; }
 
         [Column("project_name")]
         public string? ProjectName { get; set; }
-<<<<<<< HEAD
 
         // Tổng tiền
         [Column("subtotal")]
@@ -66,15 +56,10 @@ namespace SaoKim_ecommerce_BE.Entities
         public decimal Discount { get; set; }
 
         [Column("tax")]
-=======
-        public decimal Subtotal { get; set; }
-        public decimal Discount { get; set; }
->>>>>>> origin/main
         public decimal Tax { get; set; }
 
         [Column("total")]
         public decimal Total { get; set; }
-<<<<<<< HEAD
 
         [Column("status")]
         public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
@@ -95,14 +80,6 @@ namespace SaoKim_ecommerce_BE.Entities
         public long? PdfSize { get; set; }
 
         [Column("pdf_uploaded_at")]
-=======
-        public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
-        public int? DispatchId { get; set; }
-        public List<InvoiceItem> Items { get; set; } = new();
-        public string? PdfFileName { get; set; }
-        public string? PdfOriginalName { get; set; }
-        public long? PdfSize { get; set; }
->>>>>>> origin/main
         public DateTime? PdfUploadedAt { get; set; }
     }
 
@@ -114,11 +91,8 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("invoice_id")]
         public int InvoiceId { get; set; }
         public Invoice Invoice { get; set; } = default!;
-<<<<<<< HEAD
 
         [Column("product_id")]
-=======
->>>>>>> origin/main
         public int? ProductId { get; set; }
 
         [Column("product_name")]
@@ -126,24 +100,17 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("uom")]
         public string Uom { get; set; } = "pcs";
-<<<<<<< HEAD
 
         [Column("quantity")]
         public decimal Quantity { get; set; }      // FE mapping: qty
 
         [Column("unit_price")]
-=======
-        public decimal Quantity { get; set; }
->>>>>>> origin/main
         public decimal UnitPrice { get; set; }
 
         [Column("line_total")]
         public decimal LineTotal { get; set; }
-<<<<<<< HEAD
 
         [Column("order_code")]
-=======
->>>>>>> origin/main
         public string? OrderCode { get; set; }
     }
 }
