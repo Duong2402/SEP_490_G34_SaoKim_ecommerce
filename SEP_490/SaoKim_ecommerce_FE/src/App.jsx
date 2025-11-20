@@ -7,6 +7,7 @@ import { useLanguage } from "./i18n/LanguageProvider.jsx";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
+import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomeProductsBody from "./pages/homepage/HomeProductsBody";
 import AccessDenied from "./pages/auth/AccessDenied";
@@ -69,9 +70,13 @@ import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
 
 // Promotions 
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
+import ManagerPromotionCreate from "./pages/manager/promotions/ManagerPromotionCreate";
+import ManagerPromotionEdit from "./pages/manager/promotions/ManagerPromotionEdit";
 
 // Coupons
 import ManagerCouponList from "./pages/manager/coupons/ManagerCouponList";
+import ManagerCouponCreate from "./pages/manager/coupons/ManagerCouponCreate";
+import ManagerCouponEdit from "./pages/manager/coupons/ManagerCouponEdit";
 
 // Manager Employees
 import ManagerEmployeeList from "./pages/manager/employees/ManagerEmployeeList";
@@ -92,6 +97,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forbidden" element={<AccessDenied />} />
 
           {/* Warehouse protected group */}
@@ -160,9 +166,13 @@ export default function App() {
 
             {/* Promotions cho Manager */}
             <Route path="promotions" element={<ManagerPromotionList />} />
+            <Route path="promotions/create" element={<ManagerPromotionCreate />} />
+            <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
             
             {/* Coupons cho Manager */}
             <Route path="coupons" element={<ManagerCouponList />} />
+            <Route path="coupons/create" element={<ManagerCouponCreate />} />
+            <Route path="coupons/:id/edit" element={<ManagerCouponEdit />} />
 
             {/* Employees cho Manager */}
             <Route path="employees" element={<ManagerEmployeeList />} />

@@ -3,6 +3,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ManagerEmployeeAPI } from "../../../api/manager-employees";
 
+const STATUS_LABELS = {
+  Active: "Đang làm việc",
+  Inactive: "Tạm ngưng",
+  Suspended: "Đình chỉ",
+};
+
 export default function ManagerEmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -27,7 +33,6 @@ export default function ManagerEmployeeList() {
         status: statusFilter !== "all" ? statusFilter : undefined,
         role: roleFilter !== "all" ? roleFilter : undefined,
       };
-
       const data = await ManagerEmployeeAPI.getAll(params);
       setEmployees(data?.items ?? []);
       setTotalItems(data?.total ?? 0);
@@ -63,201 +68,184 @@ export default function ManagerEmployeeList() {
     if (!value) return "-";
     const d = new Date(value);
     if (Number.isNaN(d.valueOf())) return "-";
-    return d.toLocaleDateString();
-  };
-
-  const getStatusClass = (status) => {
-    switch (status) {
-      case "Active":
-        return "badge badge-success";
-      case "Inactive":
-        return "badge badge-warning";
-      case "Suspended":
-        return "badge badge-danger";
-      default:
-        return "badge";
-    }
+    return d.toLocaleDateString("vi-VN");
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to remove this employee?")) {
-      return;
-    }
+    if (!window.confirm("Bạn có chắc muốn xóa nhân sự này?")) return;
     try {
       await ManagerEmployeeAPI.remove(id);
-      alert("Employee removed");
+      alert("Đã xóa nhân sự.");
       loadEmployees();
     } catch (err) {
       console.error(err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.title ||
-        "Failed to remove employee";
+        "Không thể xóa nhân sự.";
       alert(msg);
     }
   };
 
   return (
-    <div className="container">
-      <div className="panel">
-        <header className="page-header">
-          <div>
-            <h1 className="page-title">Manage Employees</h1>
-            <p className="page-subtitle">
-              View, add, edit and remove employees
-            </p>
-          </div>
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={loadEmployees}
-              disabled={loading}
-            >
-              Refresh
-            </button>
-            <Link to="/manager/employees/create" className="btn btn-primary">
-              Add Employee
-            </Link>
-          </div>
-        </header>
-
-        <div className="filters-row">
-          <input
-            className="input"
-            type="search"
-            placeholder="Search by name, email, or phone..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-
-          <select
-            className="select"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="all">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-
-          <select
-            className="select"
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="all">All Roles</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.name}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Nhân sự</h2>
+          <p className="manager-panel__subtitle">
+            Giám sát hồ sơ, trạng thái làm việc và phân quyền đội ngũ Sao Kim.
+          </p>
         </div>
-
-        {loading ? (
-          <div className="loading-state">Loading employees...</div>
-        ) : employees.length ? (
-          <>
-            <div className="table-responsive">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Phone</th>
-                    <th>Created At</th>
-                    <th style={{ width: 180 }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td>
-                      <td>{u.name}</td>
-                      <td>{u.email || "-"}</td>
-                      <td>{u.role || "-"}</td>
-                      <td>
-                        <span className={getStatusClass(u.status)}>
-                          {u.status || "Active"}
-                        </span>
-                      </td>
-                      <td>{u.phone || "-"}</td>
-                      <td>{formatDate(u.createdAt)}</td>
-                      <td>
-                        <div className="table-actions">
-                          <Link
-                            to={`/manager/employees/${u.id}/edit`}
-                            className="btn btn-outline"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-danger"
-                            onClick={() => handleDelete(u.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1 || loading}
-                >
-                  Previous
-                </button>
-                <span>
-                  Page {page} of {totalPages} (Total: {totalItems} employees)
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages || loading}
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-title">No employees found</div>
-            <div className="empty-state-subtitle">
-              {search || statusFilter !== "all" || roleFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Get started by creating a new employee"}
-            </div>
-            <Link to="/manager/employees/create" className="btn btn-primary">
-              Add Employee
-            </Link>
-          </div>
-        )}
+        <div className="manager-panel__actions">
+          <button type="button" className="manager-btn manager-btn--outline" onClick={loadEmployees}>
+            Làm mới
+          </button>
+          <Link to="/manager/employees/create" className="manager-btn manager-btn--primary">
+            + Thêm nhân sự
+          </Link>
+        </div>
       </div>
+
+      <div className="manager-filters">
+        <input
+          className="manager-input"
+          type="search"
+          placeholder="Tìm theo tên hoặc email"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+
+        <select
+          className="manager-select"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="all">Tất cả trạng thái</option>
+          <option value="Active">Đang làm việc</option>
+          <option value="Inactive">Tạm ngưng</option>
+          <option value="Suspended">Đình chỉ</option>
+        </select>
+
+        <select
+          className="manager-select"
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="all">Tất cả vai trò</option>
+          {roles.map((role) => (
+            <option key={role.id} value={role.name}>
+              {role.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="manager-empty">Đang tải danh sách nhân sự...</div>
+      ) : employees.length ? (
+        <>
+          <div className="manager-table__wrapper">
+            <table className="manager-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Họ tên</th>
+                  <th>Email</th>
+                  <th>Vai trò</th>
+                  <th>Trạng thái</th>
+                  <th>Điện thoại</th>
+                  <th>Ngày tạo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>{emp.id}</td>
+                    <td>{emp.name}</td>
+                    <td>{emp.email || "-"}</td>
+                    <td>{emp.role || "-"}</td>
+                    <td>
+                      <StatusPill status={emp.status} />
+                    </td>
+                    <td>{emp.phone || emp.phoneNumber || "-"}</td>
+                    <td>{formatDate(emp.createdAt)}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <Link
+                          to={`/manager/employees/${emp.id}/edit`}
+                          className="manager-btn manager-btn--outline"
+                        >
+                          Chỉnh sửa
+                        </Link>
+                        <button
+                          type="button"
+                          className="manager-btn manager-btn--outline"
+                          style={{ color: "#d64a4a", borderColor: "rgba(214,74,74,0.4)" }}
+                          onClick={() => handleDelete(emp.id)}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="manager-pagination">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+              >
+                Trước
+              </button>
+              <span>
+                Trang {page} / {totalPages} (Tổng {totalItems} nhân sự)
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || loading}
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="manager-empty">
+          {search || statusFilter !== "all" || roleFilter !== "all"
+            ? "Không tìm thấy nhân sự phù hợp với bộ lọc."
+            : "Bắt đầu bằng cách tạo mới một hồ sơ nhân sự."}
+        </div>
+      )}
     </div>
+  );
+}
+
+function StatusPill({ status }) {
+  if (!status) return "-";
+  let className = "manager-status";
+  if (status === "Inactive" || status === "Suspended") {
+    className += status === "Suspended" ? " manager-status--danger" : " manager-status--pending";
+  }
+  return (
+    <span className={className}>
+      <span className="manager-status__dot" aria-hidden="true" />
+      {STATUS_LABELS[status] ?? status}
+    </span>
   );
 }

@@ -1,54 +1,154 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ManagerSidebar from "../pages/manager/components/ManagerSidebar";
+import "../styles/manager.css";
 
-const SIDEBAR_WIDTH = 260;
+const PAGE_TITLES = [
+  { match: /^\/manager(\/dashboard)?$/, label: "Tổng quan hoạt động" },
+  { match: /^\/manager\/products/, label: "Danh mục sản phẩm" },
+  { match: /^\/manager\/projects/, label: "Quản lý dự án" },
+  { match: /^\/manager\/promotions/, label: "Chương trình khuyến mãi" },
+  { match: /^\/manager\/coupons/, label: "Mã giảm giá" },
+  { match: /^\/manager\/employees/, label: "Nhân sự" },
+];
+
+const getIdentity = () => {
+  if (typeof window === "undefined") {
+    return { name: "", email: "manager@saokim.vn" };
+  }
+  const name = window.localStorage.getItem("userName") || "";
+  const email = window.localStorage.getItem("userEmail") || "";
+  return {
+    name: name || "",
+    email: email || "manager@saokim.vn",
+  };
+};
+
+const getInitials = (value) => {
+  if (!value) return "SK";
+  const parts = value.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 export default function ManagerLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const userWrapperRef = useRef(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [identity, setIdentity] = useState(() => getIdentity());
+
+  const pageTitle = useMemo(() => {
+    const current = PAGE_TITLES.find((item) => item.match.test(location.pathname));
+    return current?.label || "Điều hành kinh doanh";
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const sync = () => setIdentity(getIdentity());
+    window.addEventListener("storage", sync);
+    window.addEventListener("localStorageChange", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("localStorageChange", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!userMenuOpen) return;
+      if (userWrapperRef.current && !userWrapperRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userMenuOpen]);
+
+  const handleLogout = () => {
+    if (!window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
+    ["token", "role", "userEmail", "userName"].forEach((key) => localStorage.removeItem(key));
+    navigate("/login", { replace: true });
+  };
+
+  const goToProfile = () => {
+    setUserMenuOpen(false);
+    navigate("/account");
+  };
+
+  const goToChangePassword = () => {
+    setUserMenuOpen(false);
+    navigate("/change-password");
+  };
+
   return (
-    <div>
-      {/* Sidebar cố định bên trái */}
-      <aside
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          bottom: 0,
-          width: SIDEBAR_WIDTH,
-          background: "#0b1f3a",
-          color: "#fff",
-          padding: 16,
-          boxSizing: "border-box",
-          overflowY: "auto",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>Manager Console</div>
+    <div className="manager-shell">
+      <aside className="manager-sidebar" aria-label="Điều hướng quản lý">
+        <div className="manager-sidebar__brand">
+          <span className="manager-sidebar__mark">SK</span>
+          <div className="manager-sidebar__title">
+            <strong>Sao Kim Portal</strong>
+            <span>Không gian quản lý</span>
+          </div>
+        </div>
+
         <ManagerSidebar />
+
+        <div className="manager-sidebar__footer">
+          Phiên làm việc an toàn
+          <br />
+          Hỗ trợ: 0963 811 369
+        </div>
       </aside>
 
-      {/* Nội dung */}
-      <main
-        style={{
-          marginLeft: SIDEBAR_WIDTH,
-          minHeight: "100vh",
-          background: "#f6f8fb",
-        }}
-      >
-        <div style={{ padding: 24 }}>
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #eee",
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-              fontWeight: 700,
-            }}
-          >
-            Dashboard
+      <div className="manager-main">
+        <header className="manager-topbar">
+          <div className="manager-topbar__titles">
+            <span className="manager-topbar__eyebrow">Khu vực quản lý</span>
+            <h1 className="manager-topbar__title">{pageTitle}</h1>
           </div>
+          <div className="manager-topbar__actions">
+            <button type="button" className="manager-logout" onClick={handleLogout}>
+              Đăng xuất
+            </button>
+            <div className="manager-user" ref={userWrapperRef}>
+              <button
+                type="button"
+                className="manager-user__button"
+                onClick={() => setUserMenuOpen((open) => !open)}
+                aria-haspopup="true"
+                aria-expanded={userMenuOpen}
+              >
+                <span className="manager-user__avatar">
+                  {getInitials(identity.name || identity.email)}
+                </span>
+                <span className="manager-user__meta">
+                  {identity.name || "Quản lý Sao Kim"}
+                  <span>{identity.email}</span>
+                </span>
+              </button>
+              {userMenuOpen && (
+                <div className="manager-user__dropdown" role="menu">
+                  <button type="button" onClick={goToProfile}>
+                    Hồ sơ cá nhân
+                  </button>
+                  <button type="button" onClick={goToChangePassword}>
+                    Đổi mật khẩu
+                  </button>
+                  <button type="button" onClick={handleLogout}>
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="manager-content">
           <Outlet />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

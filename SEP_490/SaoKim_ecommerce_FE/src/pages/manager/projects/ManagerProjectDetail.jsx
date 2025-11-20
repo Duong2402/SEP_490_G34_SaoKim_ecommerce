@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProjectAPI } from "../../../api/ProjectManager/projects";
 import { ProjectProductAPI } from "../../../api/ProjectManager/project-products";
 import { ProjectExpenseAPI } from "../../../api/ProjectManager/project-expenses";
+
+const STATUS_LABELS = {
+  Draft: "Nháp",
+  Active: "Đang triển khai",
+  Done: "Hoàn thành",
+  Cancelled: "Đã hủy",
+};
+
+const formatCurrency = (value) => {
+  if (value == null) return "0 ₫";
+  return Number(value).toLocaleString("vi-VN") + " ₫";
+};
 
 export default function ManagerProjectDetail() {
   const { id } = useParams();
@@ -13,200 +25,225 @@ export default function ManagerProjectDetail() {
   const [expenses, setExpenses] = useState([]);
   const [totalExpense, setTotalExpense] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
-
     async function load() {
       try {
-        setErr("");
         setLoading(true);
+        setError("");
 
-        const [pRes, prodRes, expRes] = await Promise.all([
-          ProjectAPI.getById(id),                         // ApiResponse<ProjectDto>
-          ProjectProductAPI.list(id),                     // ApiResponse<{ items:[] } | [] 
-          ProjectExpenseAPI.list(id, { Page: 1, PageSize: 50 }), // ApiResponse<{ page:{items:[]}, totalAmount }>
+        const [projectRes, productRes, expenseRes] = await Promise.all([
+          ProjectAPI.getById(id),
+          ProjectProductAPI.list(id),
+          ProjectExpenseAPI.list(id, { Page: 1, PageSize: 50 }),
         ]);
 
-        // --- unwrap Project ---
-        const p = pRes?.data?.data ?? pRes?.data ?? null;
+        if (!mounted) return;
+        setProject(projectRes?.data?.data ?? projectRes?.data ?? null);
 
-        // --- unwrap Products (mảng hoặc object có items/Items) ---
-        const prodPayload = prodRes?.data?.data ?? prodRes?.data ?? {};
+        const prodPayload = productRes?.data?.data ?? productRes?.data ?? {};
         const prodItems =
           prodPayload?.items ??
           prodPayload?.Items ??
           (Array.isArray(prodPayload) ? prodPayload : []);
+        setProducts(Array.isArray(prodItems) ? prodItems : []);
 
-        // --- unwrap Expenses: ưu tiên nested page.items ---
-        const expPayload = expRes?.data?.data ?? expRes?.data ?? {};
+        const expPayload = expenseRes?.data?.data ?? expenseRes?.data ?? {};
         const pageObj = expPayload?.page ?? expPayload?.Page ?? {};
-        const expItemsFromPage =
-          pageObj?.items ?? pageObj?.Items ?? [];
-        const expItemsFlat =
-          expPayload?.items ?? expPayload?.Items ?? [];
-        const expItems = Array.isArray(expItemsFromPage) && expItemsFromPage.length > 0
-          ? expItemsFromPage
-          : (Array.isArray(expItemsFlat) ? expItemsFlat : []);
-
-        const totalAmt = expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0;
-
-        if (mounted) {
-          setProject(p || null);
-          setProducts(Array.isArray(prodItems) ? prodItems : []);
-          setExpenses(Array.isArray(expItems) ? expItems : []);
-          setTotalExpense(Number(totalAmt) || 0);
-        }
-      } catch (e) {
-        console.error(e);
-        if (mounted) setErr("Load failed");
+        const expenseItems =
+          pageObj?.items ??
+          pageObj?.Items ??
+          expPayload?.items ??
+          expPayload?.Items ??
+          [];
+        setExpenses(Array.isArray(expenseItems) ? expenseItems : []);
+        setTotalExpense(Number(expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0));
+      } catch (err) {
+        console.error(err);
+        if (mounted) setError("Không thể tải dữ liệu dự án.");
       } finally {
         if (mounted) setLoading(false);
       }
     }
 
     load();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
-  if (err) return <div style={{ padding: 16, color: "#b91c1c" }}>{err}</div>;
-  if (!project) return <div style={{ padding: 16 }}>Project not found</div>;
+  if (loading) {
+    return <div className="manager-panel manager-empty">Đang tải thông tin dự án...</div>;
+  }
 
-  const headerItem = { marginBottom: 8, color: "#444" };
-  const box = { background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 };
+  if (error || !project) {
+    return (
+      <div className="manager-panel manager-empty">
+        {error || "Không tìm thấy dự án tương ứng."}
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      {/* Header */}
-      <div style={{ ...box, display: "flex", alignItems: "center" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, color: "#666" }}>Project</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>
-            {(project.code || "").toString()} — {(project.name || "").toString()}
+    <div className="manager-section">
+      <section className="manager-panel">
+        <div className="manager-panel__header">
+          <div>
+            <p className="manager-panel__subtitle">Mã dự án: {project.code}</p>
+            <h2 className="manager-panel__title">{project.name}</h2>
+            <StatusBadge value={project.status} />
           </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
-            Status: <b>{project.status || "-"}</b>
+          <div className="manager-panel__actions">
+            <button
+              type="button"
+              className="manager-btn manager-btn--outline"
+              onClick={() => navigate(`/manager/projects/${id}/edit`)}
+            >
+              Chỉnh sửa
+            </button>
+            <Link
+              to={`/manager/projects/${id}/report`}
+              className="manager-btn manager-btn--primary"
+            >
+              Xem báo cáo
+            </Link>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => navigate(`/manager/projects/${id}/edit`)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #0b1f3a",
-              background: "#0b1f3a",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            Edit
-          </button>
-          <Link
-            to={`/manager/projects/${id}/report`}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #ddd",
-              background: "#fff",
-              color: "#0b1f3a",
-              textDecoration: "none",
-            }}
-          >
-            View report
-          </Link>
-        </div>
-      </div>
 
-      {/* Info */}
-      <div style={{ ...box }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-          <div><div style={headerItem}>Customer</div><div>{project.customerName || "-"}</div></div>
-          <div><div style={headerItem}>Contact</div><div>{project.customerContact || "-"}</div></div>
-          <div><div style={headerItem}>Budget</div><div>{project.budget ?? "-"}</div></div>
-          <div><div style={headerItem}>Start date</div><div>{project.startDate ? new Date(project.startDate).toLocaleDateString() : "-"}</div></div>
-          <div><div style={headerItem}>End date</div><div>{project.endDate ? new Date(project.endDate).toLocaleDateString() : "-"}</div></div>
-          <div><div style={headerItem}>Created by</div><div>{project.createdBy || "-"}</div></div>
+        <div className="manager-grid-two">
+          <InfoItem label="Khách hàng" value={project.customerName} />
+          <InfoItem label="Liên hệ" value={project.customerContact} />
+          <InfoItem label="Ngân sách" value={formatCurrency(project.budget)} />
+          <InfoItem
+            label="Ngày bắt đầu"
+            value={
+              project.startDate
+                ? new Date(project.startDate).toLocaleDateString("vi-VN")
+                : "-"
+            }
+          />
+          <InfoItem
+            label="Ngày kết thúc"
+            value={
+              project.endDate ? new Date(project.endDate).toLocaleDateString("vi-VN") : "-"
+            }
+          />
+          <InfoItem label="Người tạo" value={project.createdBy || "-"} />
         </div>
+
         {project.description && (
-          <div style={{ marginTop: 12 }}>
-            <div style={headerItem}>Description</div>
-            <div>{project.description}</div>
+          <div style={{ marginTop: 18 }}>
+            <div className="manager-card__label" style={{ marginBottom: 6 }}>
+              Ghi chú
+            </div>
+            <p className="manager-panel__subtitle">{project.description}</p>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Products */}
-      <div style={{ ...box }}>
-        <div style={{ fontWeight: 700, marginBottom: 12 }}>Items</div>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                <th style={{ padding: 10 }}>Product</th>
-                <th style={{ padding: 10 }}>UoM</th>
-                <th style={{ padding: 10 }}>Qty</th>
-                <th style={{ padding: 10 }}>UnitPrice</th>
-                <th style={{ padding: 10 }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(products || []).map((it) => (
-                <tr key={it.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{it.productName}</td>
-                  <td style={{ padding: 10 }}>{it.uom}</td>
-                  <td style={{ padding: 10 }}>{it.quantity}</td>
-                  <td style={{ padding: 10 }}>{it.unitPrice}</td>
-                  <td style={{ padding: 10 }}>{it.total}</td>
-                </tr>
-              ))}
-              {(!products || products.length === 0) && (
-                <tr><td colSpan={5} style={{ padding: 12, color: "#999" }}>No items</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Expenses */}
-      <div style={{ ...box }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ fontWeight: 700 }}>Expenses</div>
-          <div style={{ fontSize: 13, color: "#334155" }}>
-            Total:&nbsp;<b>{totalExpense}</b>
+      <section className="manager-panel">
+        <div className="manager-panel__header">
+          <div>
+            <h2 className="manager-panel__title">Hạng mục sản phẩm</h2>
+            <p className="manager-panel__subtitle">
+              Danh sách vật tư và số lượng phân bổ cho dự án.
+            </p>
           </div>
         </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                <th style={{ padding: 10 }}>Date</th>
-                <th style={{ padding: 10 }}>Category</th>
-                <th style={{ padding: 10 }}>Vendor</th>
-                <th style={{ padding: 10 }}>Amount</th>
-                <th style={{ padding: 10 }}>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(expenses || []).map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{ex.date ? new Date(ex.date).toLocaleDateString() : "-"}</td>
-                  <td style={{ padding: 10 }}>{ex.category ?? "-"}</td>
-                  <td style={{ padding: 10 }}>{ex.vendor ?? "-"}</td>
-                  <td style={{ padding: 10 }}>{ex.amount}</td>
-                  <td style={{ padding: 10 }}>{ex.description ?? "-"}</td>
+        <div className="manager-table__wrapper">
+          {products.length === 0 ? (
+            <div className="manager-table__empty">Chưa có sản phẩm nào được gán.</div>
+          ) : (
+            <table className="manager-table">
+              <thead>
+                <tr>
+                  <th>Sản phẩm</th>
+                  <th>Đơn vị</th>
+                  <th>Số lượng</th>
+                  <th>Đơn giá</th>
+                  <th>Thành tiền</th>
                 </tr>
-              ))}
-              {(!expenses || expenses.length === 0) && (
-                <tr><td colSpan={5} style={{ padding: 12, color: "#999" }}>No expenses</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {products.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.productName}</td>
+                    <td>{item.uom}</td>
+                    <td>{item.quantity}</td>
+                    <td>{formatCurrency(item.unitPrice)}</td>
+                    <td>{formatCurrency(item.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      </div>
+      </section>
+
+      <section className="manager-panel">
+        <div className="manager-panel__header">
+          <div>
+            <h2 className="manager-panel__title">Chi phí phát sinh</h2>
+            <p className="manager-panel__subtitle">
+              Tổng chi phí thực tế: <strong>{formatCurrency(totalExpense)}</strong>
+            </p>
+          </div>
+        </div>
+        <div className="manager-table__wrapper">
+          {expenses.length === 0 ? (
+            <div className="manager-table__empty">Chưa có khoản chi phí nào.</div>
+          ) : (
+            <table className="manager-table">
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Hạng mục</th>
+                  <th>Nhà cung cấp</th>
+                  <th>Số tiền</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((expense) => (
+                  <tr key={expense.id}>
+                    <td>
+                      {expense.date ? new Date(expense.date).toLocaleDateString("vi-VN") : "-"}
+                    </td>
+                    <td>{expense.category ?? "-"}</td>
+                    <td>{expense.vendor ?? "-"}</td>
+                    <td>{formatCurrency(expense.amount)}</td>
+                    <td>{expense.description ?? "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
     </div>
+  );
+}
+
+function InfoItem({ label, value }) {
+  return (
+    <div>
+      <div className="manager-card__label">{label}</div>
+      <div className="manager-card__value">{value || "-"}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ value }) {
+  if (!value) return null;
+  let className = "manager-status";
+  if (value === "Draft") className += " manager-status--pending";
+  if (value === "Cancelled") className += " manager-status--danger";
+  return (
+    <span className={className} style={{ marginTop: 8, display: "inline-flex" }}>
+      <span className="manager-status__dot" aria-hidden="true" />
+      {STATUS_LABELS[value] ?? value}
+    </span>
   );
 }
