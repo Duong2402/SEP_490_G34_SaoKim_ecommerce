@@ -136,7 +136,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             // (thêm các trường cần thiết khác nếu cần)
         }
 
-        // GET /api/users/roles  (cho combobox Roles trên FE)
+        // GET /api/users/roles  
         [HttpGet("roles")]
         [AllowAnonymous]    // triển khai thực tế có thể yêu cầu quyền admin
         public async Task<IActionResult> GetRoles()

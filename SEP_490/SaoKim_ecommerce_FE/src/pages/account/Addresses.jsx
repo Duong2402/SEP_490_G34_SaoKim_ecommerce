@@ -17,7 +17,6 @@ export default function Addresses() {
     recipientName: "",
     phoneNumber: "",
     line1: "",
-    line2: "",
     ward: "",
     district: "",
     province: "",
@@ -39,25 +38,32 @@ export default function Addresses() {
   const enablePlaces = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 
   const provinces = useMemo(() => getProvinces(), []);
-  const districts = useMemo(
-    () => (provinceCode ? getDistricts(provinceCode) : []),
-    [provinceCode]
-  );
-  const wards = useMemo(
-    () => (districtCode ? getWards(districtCode) : []),
-    [districtCode]
-  );
+  // Districts: filter cứng theo province code!
+  const districts = useMemo(() => {
+    if (!provinceCode) return [];
+    const raw = getDistricts(provinceCode);
+    // Tìm field đúng
+    return raw.filter(
+      (d) =>
+        String(Number(d.province_code || d.parent_code)) === String(Number(provinceCode))
+    );
+  }, [provinceCode]);
 
-  const findProvinceByName = (name) =>
-    provinces.find((p) => p.name.toLowerCase() === (name || "").toLowerCase());
-  const findDistrictByName = (provCode, name) =>
-    getDistricts(provCode).find(
-      (d) => d.name.toLowerCase() === (name || "").toLowerCase()
+  // Wards: filter cứng theo district code!
+  const wards = useMemo(() => {
+    if (!districtCode) return [];
+    const raw = getWards(districtCode);
+    // Field thường là district_code hoặc parent_code
+    return raw.filter(
+      (w) =>
+        String(Number(w.district_code || w.parent_code)) === String(Number(districtCode))
     );
-  const findWardByName = (distCode, name) =>
-    getWards(distCode).find(
-      (w) => w.name.toLowerCase() === (name || "").toLowerCase()
-    );
+  }, [districtCode]);
+
+  // Find by code - fix: convert both sides to Number for loose comparison, tránh "04" với "4" bị lệch
+  const findProvinceByCode = (code) => provinces.find(p => String(Number(p.code)) === String(Number(code)));
+  const findDistrictByCode = (provCode, code) => getDistricts(provCode).find(d => String(Number(d.code)) === String(Number(code)));
+  const findWardByCode = (distCode, code) => getWards(distCode).find(w => String(Number(w.code)) === String(Number(code)));
 
   const fetchAll = async () => {
     setLoading(true);
@@ -87,11 +93,13 @@ export default function Addresses() {
 
   // Khi người dùng đổi Tỉnh → reset Quận, Phường
   const onProvinceChange = (code) => {
-    setProvinceCode(code);
+    const codeStr = String(code);
+    console.log("Chọn tỉnh code:", codeStr);
+    setProvinceCode(codeStr);
     setDistrictCode("");
     setWardCode("");
 
-    const p = provinces.find((x) => x.code === code);
+    const p = provinces.find((x) => String(x.code) === codeStr);
     setForm((prev) => ({
       ...prev,
       province: p ? p.name : "",
@@ -128,7 +136,6 @@ export default function Addresses() {
       recipientName: "",
       phoneNumber: "",
       line1: "",
-      line2: "",
       ward: "",
       district: "",
       province: "",
@@ -205,7 +212,6 @@ export default function Addresses() {
       recipientName: a.recipientName || "",
       phoneNumber: a.phoneNumber || "",
       line1: a.line1 || "",
-      line2: a.line2 || "",
       ward: a.ward || "",
       district: a.district || "",
       province: a.province || "",
@@ -213,15 +219,15 @@ export default function Addresses() {
     });
 
     // map tên -> code để preselect
-    const p = findProvinceByName(a.province);
+    const p = findProvinceByCode(a.province);
     const pCode = p?.code || "";
     setProvinceCode(pCode);
 
-    const d = pCode ? findDistrictByName(pCode, a.district) : null;
+    const d = pCode ? findDistrictByCode(pCode, a.district) : null;
     const dCode = d?.code || "";
     setDistrictCode(dCode);
 
-    const w = dCode ? findWardByName(dCode, a.ward) : null;
+    const w = dCode ? findWardByCode(dCode, a.ward) : null;
     setWardCode(w?.code || "");
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -318,15 +324,10 @@ export default function Addresses() {
           </label>
 
           <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 1)
-            <Line1Input />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 2 - tuỳ chọn)
+            Địa chỉ cụ thể 
             <input
-              value={form.line2}
-              onChange={(e) => setForm({ ...form, line2: e.target.value })}
+              value={form.line1}
+              onChange={(e) => setForm({ ...form, line1: e.target.value })}
             />
           </label>
 
@@ -334,12 +335,12 @@ export default function Addresses() {
             Tỉnh/Thành
             <select
               value={provinceCode}
-              onChange={(e) => onProvinceChange(e.target.value)}
+              onChange={(e) => onProvinceChange(String(e.target.value))}
               required
             >
               <option value="">Chọn Tỉnh/Thành</option>
               {provinces.map((p) => (
-                <option key={p.code} value={p.code}>{p.name}</option>
+                <option key={p.code} value={String(p.code)}>{p.name}</option>
               ))}
             </select>
           </label>
@@ -347,14 +348,15 @@ export default function Addresses() {
           <label>
             Quận/Huyện
             <select
+              key={provinceCode}
               value={districtCode}
-              onChange={(e) => onDistrictChange(e.target.value)}
+              onChange={(e) => onDistrictChange(String(e.target.value))}
               disabled={!provinceCode}
               required
             >
               <option value="">{provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}</option>
               {districts.map((d) => (
-                <option key={d.code} value={d.code}>{d.name}</option>
+                <option key={d.code} value={String(d.code)}>{d.name}</option>
               ))}
             </select>
           </label>
@@ -362,14 +364,15 @@ export default function Addresses() {
           <label>
             Phường/Xã
             <select
+              key={districtCode}
               value={wardCode}
-              onChange={(e) => onWardChange(e.target.value)}
+              onChange={(e) => onWardChange(String(e.target.value))}
               disabled={!districtCode}
               required
             >
               <option value="">{districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}</option>
               {wards.map((w) => (
-                <option key={w.code} value={w.code}>{w.name}</option>
+                <option key={w.code} value={String(w.code)}>{w.name}</option>
               ))}
             </select>
           </label>
@@ -416,7 +419,7 @@ export default function Addresses() {
                 </div>
               </div>
               <div style={{ color: "#667" }}>
-                {[a.line1, a.line2, a.ward, a.district, a.province].filter(Boolean).join(", ")}
+                {[a.line1, a.ward, a.district, a.province].filter(Boolean).join(", ")}
               </div>
             </div>
           ))}

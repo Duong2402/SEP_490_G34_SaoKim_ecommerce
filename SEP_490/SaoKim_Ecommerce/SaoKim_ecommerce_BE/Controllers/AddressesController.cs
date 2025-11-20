@@ -41,8 +41,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     RecipientName = a.RecipientName,
                     PhoneNumber = a.PhoneNumber,
                     Line1 = a.Line1,
-                    Line2 = a.Line2,
-                    Ward = a.Ward,
+                    //Ward = a.Ward,
                     District = a.District,
                     Province = a.Province,
                     IsDefault = a.IsDefault
@@ -70,7 +69,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 RecipientName = req.RecipientName,
                 PhoneNumber = req.PhoneNumber,
                 Line1 = req.Line1,
-                Line2 = req.Line2,
                 Ward = req.Ward,
                 District = req.District,
                 Province = req.Province,
@@ -101,7 +99,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             entity.RecipientName = req.RecipientName;
             entity.PhoneNumber = req.PhoneNumber;
             entity.Line1 = req.Line1;
-            entity.Line2 = req.Line2;
             entity.Ward = req.Ward;
             entity.District = req.District;
             entity.Province = req.Province;

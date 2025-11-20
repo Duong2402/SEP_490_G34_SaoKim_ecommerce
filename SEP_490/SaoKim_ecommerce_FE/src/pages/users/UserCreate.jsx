@@ -10,12 +10,18 @@ export default function UserCreate() {
   const handleSubmit = async (payload) => {
     try {
       setSaving(true);
+
+      // http.js đã trả về thẳng res.data, nhưng ở đây mình không cần dùng kết quả
       await UserAPI.create(payload);
+
       alert("User created successfully");
       navigate("/users");
     } catch (err) {
       console.error(err);
-      const errorMsg = err?.response?.data?.message || err?.response?.data?.title || "Failed to create user";
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Failed to create user";
       alert(errorMsg);
     } finally {
       setSaving(false);
@@ -37,15 +43,12 @@ export default function UserCreate() {
           </div>
         </header>
 
-        <UserForm onSubmit={handleSubmit} submitting={saving} isEdit={false} />
+        <UserForm
+          onSubmit={handleSubmit}
+          submitting={saving}
+          isEdit={false}
+        />
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-

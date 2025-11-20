@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Models;
 using System.Data;
+
 
 namespace SaoKim_ecommerce_BE.Data
 {
@@ -10,7 +12,7 @@ namespace SaoKim_ecommerce_BE.Data
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
         public DbSet<Product> Products => Set<Product>();
-        public DbSet<Category> Categories => Set<Category>();              // 🆕
+        public DbSet<Category> Categories => Set<Category>();              
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
@@ -22,7 +24,8 @@ namespace SaoKim_ecommerce_BE.Data
         //Customer
         public DbSet<CustomerNote> CustomerNotes { get; set; }
         public DbSet<StaffActionLog> StaffActionLogs { get; set; }
-        public DbSet<Order> Orders { get; set; }
+        public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
 
         // NEW:
@@ -381,7 +384,6 @@ namespace SaoKim_ecommerce_BE.Data
                      .OnDelete(DeleteBehavior.Cascade);
 
                     e.Property(a => a.Line1).HasMaxLength(200).IsRequired();
-                    e.Property(a => a.Line2).HasMaxLength(200);
                     e.Property(a => a.Ward).HasMaxLength(100);
                     e.Property(a => a.District).HasMaxLength(100);
                     e.Property(a => a.Province).HasMaxLength(100);

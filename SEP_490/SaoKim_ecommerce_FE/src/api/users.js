@@ -36,4 +36,5 @@ export const UserAPI = {
   // Tiện ích thêm nếu cần
   getMe: () => http.get("/users/me"),
   updateMe: (data) => http.put("/users/me", createFormData(data)),
+  setStatus: (id, status) => http.put(`/users/${id}`, { status }),
 };

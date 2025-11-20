@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+
 import "../styles/EcommerceHeader.css";
 
 const NAV_LINKS = [
@@ -8,6 +9,30 @@ const NAV_LINKS = [
   { to: "/#projects", label: "Du an tieu bieu" },
   { to: "/#contact", label: "Lien he" },
 ];
+
+// Xác định "chủ giỏ hàng" theo email / username
+function getCartOwnerKey() {
+  if (typeof window === "undefined") return "guest";
+  const email = localStorage.getItem("userEmail");
+  const name = localStorage.getItem("userName");
+  return (email || name || "guest").toString();
+}
+
+function getCartCountKeyForCurrentUser() {
+  const owner = getCartOwnerKey();
+  return `cartCount_${owner}`;
+}
+
+function getCartCountValue() {
+  if (typeof window === "undefined") return 0;
+  try {
+    const key = getCartCountKeyForCurrentUser();
+    const raw = Number(localStorage.getItem(key) || 0);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export default function EcommerceHeader() {
   const navigate = useNavigate();
@@ -24,11 +49,13 @@ export default function EcommerceHeader() {
   const syncSession = () => {
     try {
       const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail");
-      const cart = Number(localStorage.getItem("cartCount") || 0);
+      const name =
+        localStorage.getItem("userName") || localStorage.getItem("userEmail");
+      const cart = getCartCountValue();
+
       setIsLoggedIn(Boolean(token && name));
       setUserName(name || null);
-      setCartCount(Number.isFinite(cart) && cart > 0 ? cart : 0);
+      setCartCount(cart);
     } catch {
       setIsLoggedIn(false);
       setUserName(null);
@@ -44,18 +71,30 @@ export default function EcommerceHeader() {
         syncSession();
         return;
       }
-      if (["token", "userName", "userEmail", "cartCount", "role"].includes(e.key)) {
+
+      // đổi token / thông tin user
+      if (["token", "userName", "userEmail", "role"].includes(e.key)) {
+        syncSession();
+        return;
+      }
+
+      // bất kỳ cartCount_<owner> đổi
+      if (e.key && e.key.startsWith("cartCount_")) {
         syncSession();
       }
     };
 
     const onAuthChanged = () => syncSession();
+    const onLocalStorageChange = () => syncSession();
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("auth:changed", onAuthChanged);
+    window.addEventListener("localStorageChange", onLocalStorageChange);
+
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("auth:changed", onAuthChanged);
+      window.removeEventListener("localStorageChange", onLocalStorageChange);
     };
   }, []);
 
@@ -76,16 +115,21 @@ export default function EcommerceHeader() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = () => {
     try {
-      ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
+      ["token", "userEmail", "userName", "role"].forEach((k) =>
+        localStorage.removeItem(k)
+      );
     } catch {}
+
     setIsLoggedIn(false);
     setUserName(null);
     setCartCount(0);
+
     window.dispatchEvent(new Event("auth:changed"));
     navigate("/login");
   };
@@ -105,25 +149,19 @@ export default function EcommerceHeader() {
 
   return (
     <header className="site-header">
-      <div className="site-header__announcement">
-        <div className="site-header__announcement-inner">
-          <span className="site-header__announcement-badge">Sao Kim Lightning</span>
-          <p>
-            Thiet bi chieu sang chuyen nghiep cho showroom, khach san va nha o cao cap. Nhan tu van thiet ke mien phi
-            cung doi ngu ky su Sao Kim.
-          </p>
-          <a href="tel:0918113559" className="site-header__announcement-link">
-            0918 113 559
-          </a>
-        </div>
-      </div>
-
       <div className="site-header__shell">
         <div className="site-header__brand-group">
-          <Link to="/" className="site-header__brand" aria-label="Trang chu">
+          <Link
+            to="/"
+            className="site-header__brand"
+            aria-label="Trang chu"
+          >
             <span className="site-header__brand-mark">
               <span className="site-header__brand-glow" />
-              <img src="/images/saokim-logo.jpg" alt="Sao Kim Lightning logo" />
+              <img
+                src="/images/saokim-logo.jpg"
+                alt="Sao Kim Lightning logo"
+              />
             </span>
             <div className="site-header__brand-copy">
               <h1>Sao Kim Lightning</h1>
@@ -133,7 +171,11 @@ export default function EcommerceHeader() {
 
           <nav className="site-header__nav" aria-label="Main navigation">
             {NAV_LINKS.map((item) => (
-              <Link key={item.to} to={item.to} className="site-header__nav-link">
+              <Link
+                key={item.to}
+                to={item.to}
+                className="site-header__nav-link"
+              >
                 {item.label}
               </Link>
             ))}
@@ -150,8 +192,15 @@ export default function EcommerceHeader() {
               placeholder="Tim kiem san pham, dong den, ma thiet bi..."
               aria-label="Search products"
             />
-            <button type="button" aria-label="Start search" onClick={startSearch}>
-              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            <button
+              type="button"
+              aria-label="Start search"
+              onClick={startSearch}
+            >
+              <i
+                className="fa-solid fa-magnifying-glass"
+                aria-hidden="true"
+              />
             </button>
           </div>
 
@@ -175,8 +224,15 @@ export default function EcommerceHeader() {
                   aria-haspopup="menu"
                   aria-expanded={menuOpen ? "true" : "false"}
                 >
-                  <span className="site-header__user-name">{userName}</span>
-                  <i className={`fa-solid fa-chevron-${menuOpen ? "up" : "down"}`} aria-hidden="true" />
+                  <span className="site-header__user-name">
+                    {userName}
+                  </span>
+                  <i
+                    className={`fa-solid fa-chevron-${
+                      menuOpen ? "up" : "down"
+                    }`}
+                    aria-hidden="true"
+                  />
                 </button>
 
                 {menuOpen && (
@@ -234,13 +290,34 @@ export default function EcommerceHeader() {
                 Dang nhap
               </Link>
             )}
-
-            <Link to="/cart" className="site-header__cart" aria-label="Gio hang">
+            
+            <Link
+              to="/cart"
+              className="site-header__cart"
+              aria-label="Giỏ hàng"
+            >
               <span className="site-header__cart-icon">
-                <i className="fa-solid fa-bag-shopping" aria-hidden="true" />
-                {cartCount > 0 && <span className="site-header__cart-badge">{cartCount}</span>}
+                <i
+                  className="fa-solid fa-bag-shopping"
+                  aria-hidden="true"
+                />
+                {cartCount > 0 && (
+                  <span className="site-header__cart-badge">
+                    {cartCount}
+                  </span>
+                )}
               </span>
-              <span className="site-header__cart-label">Gio hang</span>
+              <span className="site-header__cart-label">Giỏ hàng</span>
+            </Link>
+            <Link
+              to="/account/orders"
+              className="site-header__cart"
+              aria-label="Đơn hàng của tôi"
+            >
+              <span className="site-header__cart-icon">
+                <i className="fa-solid fa-receipt" aria-hidden="true" />
+              </span>
+              <span className="site-header__cart-label">Đơn hàng của tôi</span>
             </Link>
           </div>
         </div>

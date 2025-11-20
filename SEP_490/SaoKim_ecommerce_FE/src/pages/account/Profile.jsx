@@ -116,7 +116,9 @@ export default function Profile() {
     <div style={{ maxWidth: 720, margin: "24px auto", padding: 24, background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ marginBottom: 16 }}>Cập nhật thông tin tài khoản</h2>
-        <Link to="/account/addresses">Quản lý địa chỉ</Link>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <Link to="/account/addresses">Quản lý địa chỉ</Link>
+        </div>
       </div>
       {error && <div style={{ color: "#b00020", marginBottom: 12 }}>{error}</div>}
       {success && <div style={{ color: "#0a7e07", marginBottom: 12 }}>{success}</div>}

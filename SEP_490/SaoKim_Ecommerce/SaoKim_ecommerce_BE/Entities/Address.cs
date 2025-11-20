@@ -30,14 +30,9 @@ namespace SaoKim_ecommerce_BE.Entities
         // Địa chỉ cụ thể
         [MaxLength(300)]
         [Column("line1")]
-        public string Line1 { get; set; } = string.Empty;
-
-        [MaxLength(200)]
-        [Column("line2")]
-        public string? Line2 { get; set; }
-
-        [MaxLength(100)]
+        public string Line1 { get; set; }
         [Column("ward")]
+        [MaxLength(200)]
         public string? Ward { get; set; }
 
         [MaxLength(100)]

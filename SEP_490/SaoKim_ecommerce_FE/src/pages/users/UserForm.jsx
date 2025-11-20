@@ -47,11 +47,12 @@ export default function UserForm({
   const [imagePreview, setImagePreview] = useState(null);
   const [loadingRoles, setLoadingRoles] = useState(true);
 
+  // Load roles
   useEffect(() => {
     const loadRoles = async () => {
       try {
-        const res = await UserAPI.getRoles();
-        setRoles(res?.data || []);
+        const data = await UserAPI.getRoles();
+        setRoles(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to load roles:", err);
         setRoles([]);
@@ -62,6 +63,7 @@ export default function UserForm({
     loadRoles();
   }, []);
 
+  // Set initial values
   useEffect(() => {
     if (initialValues) {
       setForm({
@@ -75,8 +77,8 @@ export default function UserForm({
         status: initialValues.status || "Active",
         image: null,
       });
+
       if (initialValues.image) {
-        // If it's a URL string, use it directly; if it's a File, create preview
         if (typeof initialValues.image === "string") {
           setImagePreview(initialValues.image);
         } else if (initialValues.image instanceof File) {
@@ -95,42 +97,46 @@ export default function UserForm({
     }
   }, [initialValues]);
 
+  // Validation
   const errors = useMemo(() => {
     const issues = {};
-    if (!form.name.trim()) {
-      issues.name = "Name is required";
-    }
+    if (!form.name.trim()) issues.name = "Name is required";
+
     if (!form.email.trim()) {
       issues.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       issues.email = "Invalid email format";
     }
+
     if (!isEdit && !form.password.trim()) {
       issues.password = "Password is required";
     } else if (form.password && form.password.length < 8) {
       issues.password = "Password must be at least 8 characters";
     }
-    if (!form.roleId) {
-      issues.roleId = "Role is required";
-    }
+
+    if (!form.roleId) issues.roleId = "Role is required";
+
     return issues;
   }, [form, isEdit]);
 
+  // Handle input
   const handleChange = (event) => {
     const { name, value, files } = event.target;
+
     if (name === "image" && files && files[0]) {
       const file = files[0];
       setForm((prev) => ({ ...prev, [name]: file }));
+
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
+
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
   };
 
+  // Reset
   const handleReset = () => {
     if (initialValues) {
       setForm({
@@ -144,12 +150,9 @@ export default function UserForm({
         status: initialValues.status || "Active",
         image: null,
       });
+
       if (initialValues.image) {
-        if (typeof initialValues.image === "string") {
-          setImagePreview(initialValues.image);
-        } else {
-          setImagePreview(null);
-        }
+        setImagePreview(initialValues.image);
       } else {
         setImagePreview(null);
       }
@@ -159,10 +162,11 @@ export default function UserForm({
     }
   };
 
+  // Submit
   const handleSubmit = (event) => {
     event.preventDefault();
-    // Validate roleId bắt buộc
-    if (!form.roleId || isNaN(parseInt(form.roleId, 10))) {
+
+    if (!form.roleId || isNaN(parseInt(form.roleId))) {
       alert("Role is required!");
       return;
     }
@@ -171,28 +175,32 @@ export default function UserForm({
       Name: form.name.trim(),
       Email: form.email.trim(),
       Password: form.password.trim() || undefined,
-      RoleId: parseInt(form.roleId, 10), // Đảm bảo là số
+      RoleId: parseInt(form.roleId),
       PhoneNumber: form.phoneNumber.trim() || undefined,
       Address: form.address.trim() || undefined,
-      Dob: form.dob ? form.dob : undefined, // yyyy-MM-dd hoặc chuỗi parse được cho C#
+      Dob: form.dob || undefined,
       Status: form.status || "Active",
       Image: form.image || undefined,
     };
-    // Loại bỏ các key không hợp lệ (undefined, null, NaN, "") khỏi payload gửi API
+
     Object.keys(payload).forEach(
-      (key) => (payload[key] === undefined || 
-               payload[key] === null || 
-               payload[key] === "" ||
-               (typeof payload[key] === "number" && isNaN(payload[key]))) && delete payload[key]
+      (k) =>
+        (payload[k] === undefined ||
+          payload[k] === null ||
+          payload[k] === "" ||
+          (typeof payload[k] === "number" && isNaN(payload[k]))) &&
+        delete payload[k]
     );
 
     onSubmit(payload);
   };
 
-  const resolvedSubmitLabel = submitLabel || (isEdit ? "Update User" : "Create User");
+  const resolvedSubmitLabel =
+    submitLabel || (isEdit ? "Update User" : "Create User");
 
   return (
     <form onSubmit={handleSubmit} className="form-grid">
+
       <Field label="Name" name="name" error={errors.name} required>
         <input
           id="name"
@@ -200,8 +208,8 @@ export default function UserForm({
           value={form.name}
           onChange={handleChange}
           className="input"
-          placeholder="Enter full name"
           disabled={submitting}
+          placeholder="Enter full name"
         />
       </Field>
 
@@ -213,12 +221,17 @@ export default function UserForm({
           value={form.email}
           onChange={handleChange}
           className="input"
-          placeholder="Enter email address"
           disabled={submitting}
+          placeholder="Enter email"
         />
       </Field>
 
-      <Field label="Password" name="password" error={errors.password} required={!isEdit}>
+      <Field
+        label="Password"
+        name="password"
+        error={errors.password}
+        required={!isEdit}
+      >
         <input
           id="password"
           name="password"
@@ -226,12 +239,17 @@ export default function UserForm({
           value={form.password}
           onChange={handleChange}
           className="input"
-          placeholder={isEdit ? "Leave blank to keep current password" : "Enter password (min 8 characters)"}
           disabled={submitting}
+          placeholder={
+            isEdit
+              ? "Leave blank to keep current password"
+              : "Enter password (min 8 characters)"
+          }
         />
       </Field>
 
       <div className="form-grid double">
+        {/* ROLE */}
         <Field label="Role" name="roleId" error={errors.roleId} required>
           <select
             id="roleId"
@@ -243,25 +261,25 @@ export default function UserForm({
           >
             <option value="">Select a role</option>
             {roles.map((role, idx) => (
-              <option key={role.roleId || role.id || idx} value={role.roleId || role.id}>
+              <option
+                key={role.roleId || role.id || idx}
+                value={role.roleId || role.id}
+              >
                 {role.name}
               </option>
             ))}
           </select>
         </Field>
 
+        {/* STATUS READONLY */}
         <Field label="Status" name="status">
-          <select
+          <input
             id="status"
             name="status"
             value={form.status}
-            onChange={handleChange}
-            className="select"
-            disabled={submitting}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+            className="input"
+            readOnly
+          />
         </Field>
       </div>
 
@@ -269,11 +287,9 @@ export default function UserForm({
         <input
           id="phoneNumber"
           name="phoneNumber"
-          type="tel"
           value={form.phoneNumber}
           onChange={handleChange}
           className="input"
-          placeholder="Enter phone number"
           disabled={submitting}
         />
       </Field>
@@ -285,7 +301,6 @@ export default function UserForm({
           value={form.address}
           onChange={handleChange}
           className="input"
-          placeholder="Enter address"
           disabled={submitting}
         />
       </Field>
@@ -318,9 +333,6 @@ export default function UserForm({
               <img
                 src={imagePreview}
                 alt="Preview"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
                 style={{
                   maxWidth: "200px",
                   maxHeight: "200px",
@@ -343,6 +355,7 @@ export default function UserForm({
         >
           Reset
         </button>
+
         <button
           type="submit"
           className="btn btn-primary"
@@ -351,6 +364,7 @@ export default function UserForm({
           {submitting ? "Saving..." : resolvedSubmitLabel}
         </button>
       </div>
+
     </form>
   );
 }
