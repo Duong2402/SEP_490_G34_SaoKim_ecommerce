@@ -118,9 +118,49 @@ export default function Profile() {
     );
 
   return (
-    <div className="account-shell">
-      <div className="account-card">
-        <div className="account-header">
+    <div
+      style={{
+        maxWidth: 720,
+        margin: "24px auto",
+        padding: 24,
+        background: "#fff",
+        borderRadius: 8,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <h2 style={{ marginBottom: 16 }}>Cập nhật thông tin tài khoản</h2>
+        <div style={{ display: "flex", gap: 16 }}>
+          <Link to="/account/addresses">Quản lý địa chỉ</Link>
+        </div>
+      </div>
+
+      {error && (
+        <div className="account-alert account-alert--error" style={{ marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="account-alert account-alert--success" style={{ marginBottom: 12 }}>
+          {success}
+        </div>
+      )}
+
+      <form className="account-form" onSubmit={onSubmit}>
+        <div
+          style={{
+            display: "flex",
+            gap: 24,
+            alignItems: "flex-start",
+            marginBottom: 16,
+          }}
+        >
           <div>
             <p className="account-eyebrow">Tài khoản Sao Kim</p>
             <h1 className="account-title">Thông tin cá nhân</h1>
@@ -130,81 +170,84 @@ export default function Profile() {
           </Link>
         </div>
 
-        {error && <div className="account-alert account-alert--error">{error}</div>}
-        {success && <div className="account-alert account-alert--success">{success}</div>}
+        <div className="account-layout">
+          <div className="account-avatar">
+            <div className="account-avatar__preview">
+              {previewUrl ? (
+                <img src={previewUrl} alt="Ảnh đại diện" />
+              ) : (
+                <span style={{ color: "var(--account-muted)" }}>Chưa có ảnh</span>
+              )}
+            </div>
+            <label className="account-upload">
+              Chọn ảnh mới
+              <input type="file" accept="image/*" onChange={onFile} />
+            </label>
+            <p style={{ color: "var(--account-muted)", fontSize: 13 }}>
+              JPG, PNG dưới 5MB để hiển thị sắc nét.
+            </p>
+          </div>
 
-        <form className="account-form" onSubmit={onSubmit}>
-          <div className="account-layout">
-            <div className="account-avatar">
-              <div className="account-avatar__preview">
-                {previewUrl ? (
-                  <img src={previewUrl} alt="Ảnh đại diện" />
-                ) : (
-                  <span style={{ color: "var(--account-muted)" }}>Chưa có ảnh</span>
-                )}
-              </div>
-              <label className="account-upload">
-                Chọn ảnh mới
-                <input type="file" accept="image/*" onChange={onFile} />
-              </label>
-              <p style={{ color: "var(--account-muted)", fontSize: 13 }}>
-                JPG, PNG dưới 5MB để hiển thị sắc nét.
-              </p>
+          <div className="account-main">
+            <div className="account-field">
+              <label>Họ và tên</label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={onChange}
+                placeholder="Nhập họ tên"
+              />
+            </div>
+            <div className="account-field">
+              <label>Email (không thể thay đổi)</label>
+              <input name="email" value={form.email} disabled />
             </div>
 
-            <div className="account-main">
+            <div className="account-grid">
               <div className="account-field">
-                <label>Họ và tên</label>
+                <label>Số điện thoại</label>
                 <input
-                  name="name"
-                  value={form.name}
+                  name="phoneNumber"
+                  value={form.phoneNumber}
                   onChange={onChange}
-                  placeholder="Nhập họ tên"
+                  placeholder="VD: 0987..."
                 />
               </div>
               <div className="account-field">
-                <label>Email (không thể thay đổi)</label>
-                <input name="email" value={form.email} disabled />
-              </div>
-
-              <div className="account-grid">
-                <div className="account-field">
-                  <label>Số điện thoại</label>
-                  <input
-                    name="phoneNumber"
-                    value={form.phoneNumber}
-                    onChange={onChange}
-                    placeholder="VD: 0987..."
-                  />
-                </div>
-                <div className="account-field">
-                  <label>Ngày sinh</label>
-                  <input type="date" name="dob" value={form.dob} onChange={onChange} />
-                </div>
-              </div>
-
-              <div className="account-field">
-                <label>Địa chỉ</label>
-                <input
-                  name="address"
-                  value={form.address}
-                  onChange={onChange}
-                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                />
+                <label>Ngày sinh</label>
+                <input type="date" name="dob" value={form.dob} onChange={onChange} />
               </div>
             </div>
-          </div>
 
-          <div className="account-actions">
-            <button type="button" className="account-btn account-btn--ghost" onClick={() => navigate("/")}>
-              Về trang chủ
-            </button>
-            <button type="submit" className="account-btn account-btn--primary" disabled={saving}>
-              {saving ? "Đang lưu..." : "Lưu thay đổi"}
-            </button>
+            <div className="account-field">
+              <label>Địa chỉ</label>
+              <input
+                name="address"
+                value={form.address}
+                onChange={onChange}
+                placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
+              />
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+
+        <div className="account-actions">
+          <button
+            type="button"
+            className="account-btn account-btn--ghost"
+            onClick={() => navigate("/")}
+          >
+            Về trang chủ
+          </button>
+          <button
+            type="submit"
+            className="account-btn account-btn--primary"
+            disabled={saving}
+          >
+            {saving ? "Đang lưu..." : "Lưu thay đổi"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

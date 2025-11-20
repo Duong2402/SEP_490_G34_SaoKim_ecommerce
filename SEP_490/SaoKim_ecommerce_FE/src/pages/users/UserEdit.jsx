@@ -16,8 +16,11 @@ export default function UserEdit() {
       try {
         setLoading(true);
         setError("");
+
+        // http.js return res.data => res CHÍNH LÀ user data
         const res = await UserAPI.getById(id);
-        setUser(res?.data || null);
+        setUser(res || null);
+
       } catch (err) {
         console.error(err);
         setError(err?.response?.data?.message || "Failed to load user");
@@ -25,6 +28,7 @@ export default function UserEdit() {
         setLoading(false);
       }
     };
+
     if (id) {
       loadUser();
     }
@@ -38,7 +42,10 @@ export default function UserEdit() {
       navigate("/users");
     } catch (err) {
       console.error(err);
-      const errorMsg = err?.response?.data?.message || err?.response?.data?.title || "Failed to update user";
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Failed to update user";
       alert(errorMsg);
     } finally {
       setSaving(false);
@@ -61,7 +68,9 @@ export default function UserEdit() {
         <div className="panel">
           <div className="empty-state">
             <div className="empty-state-title">Error</div>
-            <div className="empty-state-subtitle">{error || "User not found"}</div>
+            <div className="empty-state-subtitle">
+              {error || "User not found"}
+            </div>
             <Link to="/users" className="btn btn-primary">
               Back to Users
             </Link>
@@ -71,7 +80,6 @@ export default function UserEdit() {
     );
   }
 
-  // Build image URL for preview
   const imageUrl = user.image
     ? user.image.startsWith("http") || user.image.startsWith("/")
       ? user.image.startsWith("http")

@@ -1,24 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import EcommerceHeader from "../../components/EcommerceHeader";
-
-function readCart() {
-  try {
-    const raw = localStorage.getItem("cartItems");
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeCart(items) {
-  const normalized = Array.isArray(items) ? items : [];
-  localStorage.setItem("cartItems", JSON.stringify(normalized));
-  const totalQty = normalized.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
-  localStorage.setItem("cartCount", String(totalQty));
-  window.dispatchEvent(new Event("localStorageChange"));
-}
+import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
 
 export default function Cart() {
   const [items, setItems] = useState(() => readCart());
@@ -28,19 +11,44 @@ export default function Cart() {
   const lastClickAtRef = useRef(new Map());
 
   useEffect(() => {
-    const sync = () => setItems(readCart());
+    const sync = () => {
+      const cart = readCart();
+      setItems(cart);
+      setSelectedIds(new Set());
+    };
+
+    sync();
+
     window.addEventListener("storage", sync);
     window.addEventListener("localStorageChange", sync);
+    window.addEventListener("auth:changed", sync);
+
     return () => {
       window.removeEventListener("storage", sync);
       window.removeEventListener("localStorageChange", sync);
+      window.removeEventListener("auth:changed", sync);
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const validIds = new Set(items.map((it) => it.id));
+      const next = new Set();
+      prev.forEach((id) => {
+        if (validIds.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [items]);
 
   const total = useMemo(() => {
     return items
       .filter((it) => selectedIds.has(it.id))
-      .reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
+      .reduce(
+        (sum, it) =>
+          sum + (Number(it.price) || 0) * (Number(it.quantity) || 0),
+        0
+      );
   }, [items, selectedIds]);
 
   const updateQty = (productId, delta) => {
@@ -99,63 +107,160 @@ export default function Cart() {
     else setSelectedIds(new Set(items.map((it) => it.id)));
   };
 
+  // Chỉ lưu selectedItems rồi sang trang checkout
   const proceedCheckout = () => {
     const selectedItems = items.filter((it) => selectedIds.has(it.id));
     if (selectedItems.length === 0) {
       alert("Vui lòng chọn ít nhất một sản phẩm để thanh toán.");
       return;
     }
-    localStorage.setItem("checkoutItems", JSON.stringify(selectedItems));
-    navigate("/checkout");
+
+    const { checkoutKey } = getCartKeys();
+    localStorage.setItem(checkoutKey, JSON.stringify(selectedItems));
+
+    navigate("/checkout");   // ← chính là điều hướng sang Checkout
   };
 
   return (
     <div className="cart-page">
       <EcommerceHeader />
       <main className="cart-main" style={{ padding: 24 }}>
-        <div className="cart-container" style={{ maxWidth: 1040, margin: "0 auto" }}>
+        <div
+          className="cart-container"
+          style={{ maxWidth: 1040, margin: "0 auto" }}
+        >
           <h1 style={{ marginBottom: 16 }}>Giỏ hàng</h1>
           {items.length === 0 ? (
             <div>
               <p>Giỏ hàng trống.</p>
-              <Link to="/" className="btn btn-primary">Tiếp tục mua sắm</Link>
+              <Link to="/" className="btn btn-primary">
+                Tiếp tục mua sắm
+              </Link>
             </div>
           ) : (
-            <div className="cart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
+            <div
+              className="cart-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 320px",
+                gap: 24,
+              }}
+            >
               <section>
                 <div style={{ marginBottom: 8 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <input
                       type="checkbox"
-                      checked={selectedIds.size === items.length && items.length > 0}
+                      checked={
+                        selectedIds.size === items.length &&
+                        items.length > 0
+                      }
                       onChange={selectAll}
                     />
                     <span>Chọn tất cả ({items.length})</span>
                   </label>
                 </div>
-                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                  }}
+                >
                   {items.map((it) => (
-                    <li key={it.id} style={{ display: "flex", gap: 16, padding: "12px 0", borderBottom: "1px solid #eee" }}>
+                    <li
+                      key={it.id}
+                      style={{
+                        display: "flex",
+                        gap: 16,
+                        padding: "12px 0",
+                        borderBottom: "1px solid #eee",
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedIds.has(it.id)}
                         onChange={() => toggleSelect(it.id)}
                         style={{ alignSelf: "center" }}
                       />
-                      <img src={it.image} alt={it.name} style={{ width: 92, height: 92, objectFit: "cover", borderRadius: 8 }} />
+
+                      <img
+                        src={it.image}
+                        alt={it.name}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "/placeholder-product.png";
+                        }}
+                        style={{
+                          width: 92,
+                          height: 92,
+                          objectFit: "cover",
+                          borderRadius: 8,
+                        }}
+                      />
+
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600 }}>{it.name}</div>
-                        <div style={{ color: "#667", fontSize: 14 }}>Mã: {it.code || it.sku || it.id}</div>
-                        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                          <button type="button" className="btn btn-outline btn-small" disabled={Number(it.quantity) <= 1} onClick={() => throttledUpdate(it.id, -1)}>-</button>
-                          <span style={{ minWidth: 28, textAlign: "center" }}>{it.quantity}</span>
-                          <button type="button" className="btn btn-outline btn-small" onClick={() => throttledUpdate(it.id, +1)}>+</button>
-                          <button type="button" className="btn btn-outline btn-small" onClick={() => removeItem(it.id)} style={{ marginLeft: 12 }}>Xóa</button>
+                        <div
+                          style={{ color: "#667", fontSize: 14 }}
+                        >
+                          Mã: {it.code || it.sku || it.id}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 8,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-small"
+                            disabled={Number(it.quantity) <= 1}
+                            onClick={() => throttledUpdate(it.id, -1)}
+                          >
+                            -
+                          </button>
+
+                          <span style={{ minWidth: 28, textAlign: "center" }}>
+                            {Number(it.quantity) || 1}
+                          </span>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-small"
+                            onClick={() => throttledUpdate(it.id, +1)}
+                          >
+                            +
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-small"
+                            onClick={() => removeItem(it.id)}
+                            style={{ marginLeft: 12 }}
+                          >
+                            Xóa
+                          </button>
                         </div>
                       </div>
+
                       <div style={{ fontWeight: 600 }}>
-                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                          (Number(it.price) || 0) * (Number(it.quantity) || 0)
+                        {new Intl.NumberFormat("vi-VN", {
+                          style: "currency",
+                          currency: "VND",
+                        }).format(
+                          (Number(it.price) || 0) *
+                            (Number(it.quantity) || 0)
                         )}
                       </div>
                     </li>
@@ -163,26 +268,59 @@ export default function Cart() {
                 </ul>
               </section>
 
-              <aside style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, height: "fit-content" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span>Tạm tính ({selectedIds.size} sản phẩm)</span>
+              <aside
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 16,
+                  height: "fit-content",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <span>
+                    Tạm tính ({selectedIds.size} sản phẩm)
+                  </span>
                   <strong>
-                    {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(total)}
+                    {new Intl.NumberFormat("vi-VN", {
+                      style: "currency",
+                      currency: "VND",
+                    }).format(total)}
                   </strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, color: "#667" }}>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 16,
+                    color: "#667",
+                  }}
+                >
                   <span>Phí vận chuyển</span>
                   <span>Tính ở bước sau</span>
                 </div>
+
                 <button
                   type="button"
                   className="btn btn-primary"
                   style={{ width: "100%" }}
+                  disabled={selectedIds.size === 0}
                   onClick={proceedCheckout}
                 >
                   Tiến hành thanh toán
                 </button>
-                <Link to="/" className="btn btn-outline" style={{ width: "100%", marginTop: 8 }}>
+
+                <Link
+                  to="/"
+                  className="btn btn-outline"
+                  style={{ width: "100%", marginTop: 8 }}
+                >
                   Tiếp tục mua sắm
                 </Link>
               </aside>
