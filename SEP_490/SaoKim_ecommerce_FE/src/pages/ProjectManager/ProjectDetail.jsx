@@ -1,4 +1,4 @@
-// src/pages/ProjectManager/ProjectDetail.jsx
+﻿// src/pages/ProjectManager/ProjectDetail.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -19,7 +19,7 @@ import MultiAddProjectProductsModal from "../../components/MultiAddProjectProduc
 import AddEditProjectExpenseModal from "../../components/AddEditProjectExpenseModal.jsx";
 
 const UI_TO_BE = {
-  Pending: "New",
+              
   Doing: "InProgress",
   Done: "Done",
   Delayed: "Delayed",
@@ -408,7 +408,7 @@ function ProjectDetail() {
 
   if (loadingProject) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel loading-state">{t("projects.detail.loadingProject")}</div>
       </div>
     );
@@ -416,7 +416,7 @@ function ProjectDetail() {
 
   if (!project) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel empty-state">
           <div className="empty-state-title">{t("projects.detail.notFoundTitle")}</div>
           <div className="empty-state-subtitle">
@@ -435,7 +435,7 @@ function ProjectDetail() {
     : t("projects.detail.subtitleFallback");
 
   return (
-    <div className="container">
+    <div className="pm-page">
       <div className="project-detail">
         <section className="panel project-hero">
           <div className="project-hero__top">
@@ -457,7 +457,7 @@ function ProjectDetail() {
               <Link to={`/projects/${id}/edit`} className="btn btn-outline">
                 {t("common.actions.edit")}
               </Link>
-              {/* NEW: nút đi tới trang Báo cáo */}
+              
               <Link to={`/projects/${id}/report`} className="btn btn-outline">
                 Xem báo cáo
               </Link>
@@ -746,14 +746,13 @@ function ProjectDetail() {
             <div>
               <h2 className="project-section-title">Sản phẩm sử dụng</h2>
               <p className="project-section-subtitle">
-                Danh sách các sản phẩm thuộc dự án này, bao gồm số lượng và đơn giá.
+                Danh sách sản phẩm thuộc dự án này, bao gồm số lượng và đơn giá.
               </p>
             </div>
-            <div>
+            <div className="actions">
               <button
                 type="button"
                 className="btn btn-outline"
-                style={{ marginRight: 8 }}
                 onClick={() => setShowMultiAddModal(true)}
               >
                 + Thêm nhiều sản phẩm
@@ -774,7 +773,7 @@ function ProjectDetail() {
           {loadingProducts ? (
             <div className="loading-state">Đang tải danh sách sản phẩm...</div>
           ) : products.length ? (
-            <div style={{ overflowX: "auto" }}>
+            <div className="table-responsive">
               <table className="table">
                 <thead>
                   <tr>
@@ -794,10 +793,12 @@ function ProjectDetail() {
                       <td>{item.uom}</td>
                       <td>{formatNumber(item.quantity)}</td>
                       <td>{formatNumber(item.unitPrice)}</td>
-                      <td><strong>{formatNumber(item.total)}</strong></td>
+                      <td>
+                        <strong>{formatNumber(item.total)}</strong>
+                      </td>
                       <td>{item.note || "-"}</td>
                       <td>
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <div className="table-actions">
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => {
@@ -811,17 +812,17 @@ function ProjectDetail() {
                             className="btn btn-ghost btn-sm"
                             style={{ color: "#dc2626" }}
                             onClick={async () => {
-                              if (!window.confirm("Bạn có chắc muốn xoá sản phẩm này?")) return;
+                              if (!window.confirm("Bạn chắc chắn muốn xóa sản phẩm này?")) return;
                               try {
                                 await ProjectProductAPI.remove(id, item.id);
                                 await loadProducts();
                               } catch (err) {
                                 console.error(err);
-                                alert("Xoá thất bại!");
+                                alert("Xóa thất bại!");
                               }
                             }}
                           >
-                            Xoá
+                            Xóa
                           </button>
                         </div>
                       </td>
@@ -836,7 +837,7 @@ function ProjectDetail() {
                     <td colSpan={3}>
                       <strong>
                         {formatNumber(
-                          products.reduce((sum, p) => sum + (Number(p.total) || 0), 0)
+                          products.reduce((sum, p) => sum + (Number(p.total) || 0), 0),
                         )}{" "}
                         VND
                       </strong>
@@ -848,7 +849,9 @@ function ProjectDetail() {
           ) : (
             <div className="empty-state">
               <div className="empty-state-title">Chưa có sản phẩm nào</div>
-              <div className="empty-state-subtitle">Hãy thêm sản phẩm cho dự án này.</div>
+              <div className="empty-state-subtitle">
+                Hãy thêm sản phẩm cho dự án này.
+              </div>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -881,9 +884,7 @@ function ProjectDetail() {
               onSaved={loadProducts}
             />
           )}
-        </section>
-
-        {/* ---- PROJECT EXPENSES (OTHER COSTS) ---- */}
+        </section>{/* ---- PROJECT EXPENSES (OTHER COSTS) ---- */}
         <section className="panel" style={{ marginTop: 16 }}>
           <div className="project-section-header">
             <div>
@@ -903,7 +904,7 @@ function ProjectDetail() {
             </div>
           </div>
 
-          {/* Summary Budget vs Actual (All-in) */}
+                    {/* Summary Budget vs Actual (All-in) */}
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
@@ -911,23 +912,23 @@ function ProjectDetail() {
             marginBottom: 12
           }}>
             <div className="project-overview__card">
-              <div className="project-overview__label">Planned (Budget)</div>
+              <div className="project-overview__label">Kế hoạch (ngân sách)</div>
               <div className="project-overview__value">
                 {formatBudget(project.budget, lang)}
               </div>
-              <div className="project-overview__description">Ngân sách kế hoạch.</div>
+              <div className="project-overview__description">Ngân sách đã duyệt.</div>
             </div>
             <div className="project-overview__card">
-              <div className="project-overview__label">Actual (All-in)</div>
+              <div className="project-overview__label">Thực tế (tổng)</div>
               <div className="project-overview__value">
                 {formatBudget(totalActualAllIn, lang)}
               </div>
               <div className="project-overview__description">
-                Gồm Sản phẩm {formatBudget(totalProductCost, lang)} + Chi phí khác {formatBudget(totalExpenseCost, lang)}.
+                Gồm sản phẩm {formatBudget(totalProductCost, lang)} + chi phí khác {formatBudget(totalExpenseCost, lang)}.
               </div>
             </div>
             <div className="project-overview__card">
-              <div className="project-overview__label">Variance</div>
+              <div className="project-overview__label">Chênh lệch</div>
               <div
                 className="project-overview__value"
                 style={{ color: variance < 0 ? "#dc2626" : "#16a34a" }}
@@ -939,7 +940,6 @@ function ProjectDetail() {
               </div>
             </div>
           </div>
-
           {loadingExpenses ? (
             <div className="loading-state">Đang tải danh sách chi phí...</div>
           ) : expenses.length ? (
@@ -991,7 +991,7 @@ function ProjectDetail() {
                               }
                             }}
                           >
-                            Xóa
+                            XÃ³a
                           </button>
                         </div>
                       </td>
@@ -1064,31 +1064,13 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
       : t("projects.detail.taskModal.create");
 
   return createPortal(
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-    >
+    <div className="pm-modal" onClick={onClose}>
       <div
+        className="pm-modal__dialog pm-modal__dialog--narrow"
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-modal-title"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#fff",
-          width: 520,
-          maxWidth: "95vw",
-          borderRadius: 12,
-          border: "1px solid rgba(148,163,184,.15)",
-          boxShadow: "0 10px 30px rgba(0,0,0,.2)",
-        }}
       >
         <form
           onSubmit={(e) => {
@@ -1096,68 +1078,93 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
             onSubmit();
           }}
         >
-          {/* HEADER */}
-          <div style={{
-            padding: "14px 16px",
-            borderBottom: "1px solid rgba(148,163,184,.15)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}>
-            <h2 id="task-modal-title" style={{ margin: 0, fontSize: 18 }}>{title}</h2>
-            <button type="button" onClick={onClose}
+          <div className="pm-modal__header">
+            <h2 id="task-modal-title" className="pm-modal__title">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
               aria-label={t("common.actions.cancel")}
-              style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer" }}>
+              className="pm-modal__close"
+            >
               ×
             </button>
           </div>
 
-          {/* BODY */}
-          <div style={{ padding: 16, display: "grid", gap: 12 }}>
+          <div className="pm-modal__body">
             <div>
               <label htmlFor="task-name" style={{ display: "block", marginBottom: 6 }}>
                 {t("projects.detail.taskModal.name")}
               </label>
-              <input id="task-name" name="name" className="input"
-                     value={form.name} onChange={onChange} disabled={saving} />
-              {errors.name ? <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.name}</p> : null}
+              <input
+                id="task-name"
+                name="name"
+                className="input"
+                value={form.name}
+                onChange={onChange}
+                disabled={saving}
+              />
+              {errors.name ? (
+                <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.name}</p>
+              ) : null}
             </div>
 
             <div>
               <label htmlFor="task-assignee" style={{ display: "block", marginBottom: 6 }}>
                 {t("projects.detail.taskModal.assignee")}
               </label>
-              <input id="task-assignee" name="assignee" className="input"
-                     value={form.assignee} onChange={onChange} disabled={saving} />
+              <input
+                id="task-assignee"
+                name="assignee"
+                className="input"
+                value={form.assignee}
+                onChange={onChange}
+                disabled={saving}
+              />
             </div>
 
             <div>
               <label htmlFor="task-start" style={{ display: "block", marginBottom: 6 }}>
                 {t("projects.detail.taskModal.startDate")}
               </label>
-              <input id="task-start" type="date" name="startDate" className="input"
-                     value={form.startDate} onChange={onChange} disabled={saving} />
-              {errors.startDate ? <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.startDate}</p> : null}
+              <input
+                id="task-start"
+                type="date"
+                name="startDate"
+                className="input"
+                value={form.startDate}
+                onChange={onChange}
+                disabled={saving}
+              />
+              {errors.startDate ? (
+                <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.startDate}</p>
+              ) : null}
             </div>
 
             <div>
               <label htmlFor="task-duration" style={{ display: "block", marginBottom: 6 }}>
                 {t("projects.detail.taskModal.duration")}
               </label>
-              <input id="task-duration" type="number" min="1" name="durationDays" className="input"
-                     value={form.durationDays} onChange={onChange} disabled={saving} />
-              {errors.durationDays ? <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.durationDays}</p> : null}
+              <input
+                id="task-duration"
+                type="number"
+                min="1"
+                name="durationDays"
+                className="input"
+                value={form.durationDays}
+                onChange={onChange}
+                disabled={saving}
+              />
+              {errors.durationDays ? (
+                <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>
+                  {errors.durationDays}
+                </p>
+              ) : null}
             </div>
           </div>
 
-          {/* FOOTER */}
-          <div style={{
-            padding: "12px 16px",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            borderTop: "1px solid rgba(148,163,184,.15)",
-          }}>
+          <div className="pm-modal__footer">
             <button type="button" className="btn" onClick={onClose} disabled={saving}>
               {t("projects.detail.taskModal.cancel")}
             </button>
@@ -1168,8 +1175,11 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
-
 export default ProjectDetail;
+
+
+
+

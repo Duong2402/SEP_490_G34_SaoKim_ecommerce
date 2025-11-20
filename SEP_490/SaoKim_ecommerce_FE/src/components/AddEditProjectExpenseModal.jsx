@@ -3,23 +3,26 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import { ProjectExpenseAPI } from "../api/ProjectManager/project-expenses";
-import { useLanguage } from "../i18n/LanguageProvider.jsx";
 
 const CATEGORIES = [
-  "Procurement", "Logistics/Shipping", "Installation/Labour",
-  "Site Delivery", "Warehouse Handling", "Warranty/After-sales",
-  "Discount/Rebate", "Misc"
+  "Mua hàng",
+  "Vận chuyển / Kho bãi",
+  "Lắp đặt / Nhân công",
+  "Giao tại công trình",
+  "Xử lý kho",
+  "Bảo hành / Hậu mãi",
+  "Chiết khấu / Hoàn",
+  "Khác",
 ];
 
 export default function AddEditProjectExpenseModal({
   open = false,
   projectId,
-  expense,          // null => create, object => edit
+  expense,
   onClose,
-  onSaved
+  onSaved,
 }) {
   const isEdit = Boolean(expense?.id);
-  const { t } = useLanguage();
 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -36,7 +39,9 @@ export default function AddEditProjectExpenseModal({
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -65,19 +70,19 @@ export default function AddEditProjectExpenseModal({
   }, [expense, open]);
 
   const validate = () => {
-    const e = {};
-    if (!form.date) e.date = "Vui lòng chọn ngày.";
+    const issue = {};
+    if (!form.date) issue.date = "Vui lòng chọn ngày.";
     const amt = Number(form.amount);
-    if (!Number.isFinite(amt) || amt < 0) e.amount = "Số tiền không hợp lệ.";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    if (!Number.isFinite(amt) || amt < 0) issue.amount = "Số tiền không hợp lệ.";
+    setErrors(issue);
+    return Object.keys(issue).length === 0;
   };
 
   const handleChange = (ev) => {
     const { name, value } = ev.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === "amount" ? value.replace(/[^\d.]/g, "") : value
+      [name]: name === "amount" ? value.replace(/[^\d.]/g, "") : value,
     }));
   };
 
@@ -112,83 +117,113 @@ export default function AddEditProjectExpenseModal({
   if (!open) return null;
 
   return createPortal(
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,.45)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
-      }}
-    >
+    <div className="pm-modal" onClick={onClose}>
       <div
+        className="pm-modal__dialog pm-modal__dialog--medium"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        style={{
-          background: "#fff", width: 560, maxWidth: "95vw", borderRadius: 12,
-          border: "1px solid rgba(148,163,184,.15)", boxShadow: "0 10px 30px rgba(0,0,0,.2)"
-        }}
       >
         <form onSubmit={handleSubmit}>
-          <div style={{
-            padding: "14px 16px", borderBottom: "1px solid rgba(148,163,184,.15)",
-            display: "flex", justifyContent: "space-between", alignItems: "center"
-          }}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>{isEdit ? "Cập nhật chi phí" : "Thêm chi phí"}</h2>
-            <button type="button" onClick={onClose}
-              aria-label="Đóng" style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer" }}>
+          <div className="pm-modal__header">
+            <h2 className="pm-modal__title">{isEdit ? "Cập nhật chi phí" : "Thêm chi phí"}</h2>
+            <button type="button" onClick={onClose} aria-label="Đóng" className="pm-modal__close">
               ×
             </button>
           </div>
 
-          <div style={{ padding: 16, display: "grid", gap: 12 }}>
+          <div className="pm-modal__body">
             <div>
               <label className="label">Ngày</label>
-              <input type="date" name="date" className="input" value={form.date} onChange={handleChange} disabled={saving}/>
+              <input
+                type="date"
+                name="date"
+                className="input"
+                value={form.date}
+                onChange={handleChange}
+                disabled={saving}
+              />
               {errors.date ? <p style={{ color: "#b91c1c", fontSize: 12 }}>{errors.date}</p> : null}
             </div>
 
             <div>
               <label className="label">Nhóm chi phí</label>
-              <select name="category" className="input" value={form.category} onChange={handleChange} disabled={saving}>
+              <select
+                name="category"
+                className="input"
+                value={form.category}
+                onChange={handleChange}
+                disabled={saving}
+              >
                 <option value="">-- Chọn --</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
               <label className="label">Nhà cung cấp</label>
-              <input name="vendor" className="input" value={form.vendor} onChange={handleChange} disabled={saving}/>
+              <input
+                name="vendor"
+                className="input"
+                value={form.vendor}
+                onChange={handleChange}
+                disabled={saving}
+              />
             </div>
 
             <div>
               <label className="label">Mô tả</label>
-              <input name="description" className="input" value={form.description} onChange={handleChange} disabled={saving}/>
+              <input
+                name="description"
+                className="input"
+                value={form.description}
+                onChange={handleChange}
+                disabled={saving}
+              />
             </div>
 
             <div>
               <label className="label">Số tiền (VND)</label>
-              <input name="amount" className="input" inputMode="decimal" value={form.amount} onChange={handleChange} disabled={saving}/>
-              {errors.amount ? <p style={{ color: "#b91c1c", fontSize: 12 }}>{errors.amount}</p> : null}
+              <input
+                name="amount"
+                className="input"
+                inputMode="decimal"
+                value={form.amount}
+                onChange={handleChange}
+                disabled={saving}
+              />
+              {errors.amount ? (
+                <p style={{ color: "#b91c1c", fontSize: 12 }}>{errors.amount}</p>
+              ) : null}
             </div>
 
             <div>
               <label className="label">Link hóa đơn</label>
-              <input name="receiptUrl" className="input" value={form.receiptUrl} onChange={handleChange} disabled={saving}/>
+              <input
+                name="receiptUrl"
+                className="input"
+                value={form.receiptUrl}
+                onChange={handleChange}
+                disabled={saving}
+              />
             </div>
           </div>
 
-          <div style={{
-            padding: "12px 16px", display: "flex", justifyContent: "flex-end",
-            gap: 8, borderTop: "1px solid rgba(148,163,184,.15)"
-          }}>
-            <button type="button" className="btn" onClick={onClose} disabled={saving}>Hủy</button>
+          <div className="pm-modal__footer">
+            <button type="button" className="btn" onClick={onClose} disabled={saving}>
+              Hủy
+            </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Đang lưu..." : (isEdit ? "Cập nhật" : "Thêm")}
+              {saving ? "Đang lưu..." : isEdit ? "Cập nhật" : "Thêm"}
             </button>
           </div>
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -86,60 +86,30 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
     }
   };
 
+  const title = product ? "Cập nhật sản phẩm" : "Thêm sản phẩm vào dự án";
+  const submitLabel = saving ? "Đang lưu..." : product ? "Cập nhật" : "Thêm";
+
   return (
     <Portal>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,.45)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 999999, // bump để không bị section dưới đè
-        }}
-      >
+      <div className="pm-modal" onClick={onClose}>
         <div
+          className="pm-modal__dialog pm-modal__dialog--wide"
           role="dialog"
           aria-modal="true"
           aria-labelledby="pp-modal-title"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            background: "#fff",
-            width: 720,
-            maxWidth: "95vw",
-            borderRadius: 12,
-            border: "1px solid rgba(148,163,184,.15)",
-            boxShadow: "0 10px 30px rgba(0,0,0,.2)",
-          }}
         >
           <form onSubmit={handleSubmit}>
-            {/* HEADER */}
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid rgba(148,163,184,.15)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 id="pp-modal-title" style={{ margin: 0, fontSize: 18 }}>
-                {product ? "Cập nhật sản phẩm" : "Thêm sản phẩm vào dự án"}
+            <div className="pm-modal__header">
+              <h2 id="pp-modal-title" className="pm-modal__title">
+                {title}
               </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Đóng"
-                style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer" }}
-              >
+              <button type="button" onClick={onClose} aria-label="Đóng" className="pm-modal__close">
                 ×
               </button>
             </div>
 
-            {/* BODY */}
-            <div style={{ padding: 16, display: "grid", gap: 16 }}>
+            <div className="pm-modal__body">
               {!product && (
                 <div>
                   <label style={{ display: "block", marginBottom: 6 }}>Chọn sản phẩm</label>
@@ -148,7 +118,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="pm-inline-grid">
                 <div>
                   <label htmlFor="pp-qty" style={{ display: "block", marginBottom: 6 }}>
                     Số lượng
@@ -195,26 +165,17 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                   rows={3}
                   value={form.note}
                   onChange={handleChange}
-                  placeholder="Tuỳ chọn"
+                  placeholder="Tùy chọn"
                 />
               </div>
             </div>
 
-            {/* FOOTER */}
-            <div
-              style={{
-                padding: "12px 16px",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                borderTop: "1px solid rgba(148,163,184,.15)",
-              }}
-            >
+            <div className="pm-modal__footer">
               <button type="button" className="btn" onClick={onClose} disabled={saving}>
-                Huỷ
+                Hủy
               </button>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Đang lưu..." : product ? "Cập nhật" : "Thêm"}
+                {submitLabel}
               </button>
             </div>
           </form>

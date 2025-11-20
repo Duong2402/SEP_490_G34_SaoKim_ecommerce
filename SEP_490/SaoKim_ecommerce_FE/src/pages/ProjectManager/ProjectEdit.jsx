@@ -54,7 +54,7 @@ export default function ProjectEdit() {
 
   if (loading) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel loading-state">{t("projects.edit.loading")}</div>
       </div>
     );
@@ -62,7 +62,7 @@ export default function ProjectEdit() {
 
   if (!detail) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel empty-state">
           <div className="empty-state-title">{t("projects.edit.notFoundTitle")}</div>
           <div className="empty-state-subtitle">{t("projects.edit.notFoundSubtitle")}</div>
@@ -79,7 +79,7 @@ export default function ProjectEdit() {
     : t("projects.edit.subtitleFallback");
 
   return (
-    <div className="container">
+    <div className="pm-page">
       <div className="panel">
         <header className="page-header">
           <div>

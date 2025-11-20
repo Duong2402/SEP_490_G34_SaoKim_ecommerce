@@ -59,6 +59,7 @@ import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerD
 
 // Manager area
 import ManagerLayout from "./layouts/ManagerLayout";
+import ProjectManagerLayout from "./layouts/ProjectManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
 import ManagerProductList from "./pages/manager/products/ManagerProductList";
 
@@ -118,11 +119,13 @@ export default function App() {
           </Route>
 
           {/* Projects (ngoài khu Manager) */}
-          <Route path="/projects" element={<ProjectList />} />
-          <Route path="/projects/create" element={<ProjectCreate />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/projects/:id/edit" element={<ProjectEdit />} />
-          <Route path="/projects/:id/report" element={<ProjectReport />} />
+          <Route path="/projects" element={<ProjectManagerLayout />}>
+            <Route index element={<ProjectList />} />
+            <Route path="create" element={<ProjectCreate />} />
+            <Route path=":id" element={<ProjectDetail />} />
+            <Route path=":id/edit" element={<ProjectEdit />} />
+            <Route path=":id/report" element={<ProjectReport />} />
+          </Route>
 
           {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />

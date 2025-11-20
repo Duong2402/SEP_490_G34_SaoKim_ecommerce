@@ -27,7 +27,7 @@ export default function ProjectCreate() {
   };
 
   return (
-    <div className="container">
+    <div className="pm-page">
       <div className="panel">
         <header className="page-header">
           <div>
