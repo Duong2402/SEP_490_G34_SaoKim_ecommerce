@@ -4,10 +4,82 @@ import EcommerceHeader from "../../components/EcommerceHeader";
 import "../../styles/product-detail.css";
 
 let API_BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "";
 if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/800x600?text=No+Image";
+
+// ====== CART HELPERS: dùng chung logic key theo email/username ======
+
+function getCartOwnerKey() {
+  if (typeof window === "undefined") return "guest";
+  const email = localStorage.getItem("userEmail");
+  const name = localStorage.getItem("userName");
+  return (email || name || "guest").toString();
+}
+
+function getCartKeys() {
+  const owner = getCartOwnerKey();
+  return {
+    itemsKey: `cartItems_${owner}`,
+    countKey: `cartCount_${owner}`,
+    checkoutKey: `checkoutItems_${owner}`,
+  };
+}
+
+function readCart() {
+  try {
+    const { itemsKey } = getCartKeys();
+    const raw = localStorage.getItem(itemsKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCart(items) {
+  const normalized = Array.isArray(items) ? items : [];
+  const { itemsKey, countKey } = getCartKeys();
+
+  localStorage.setItem(itemsKey, JSON.stringify(normalized));
+
+  const totalQty = normalized.reduce(
+    (sum, it) => sum + (Number(it.quantity) || 0),
+    0
+  );
+  localStorage.setItem(countKey, String(totalQty));
+
+  window.dispatchEvent(new Event("localStorageChange"));
+}
+
+function addToCartFromProduct(product, quantity = 1) {
+  if (!product) return;
+  const cart = readCart();
+  const idx = cart.findIndex((it) => it.id === product.id);
+
+  if (idx >= 0) {
+    const currentQty = Number(cart[idx].quantity) || 0;
+    cart[idx] = {
+      ...cart[idx],
+      quantity: currentQty + quantity,
+    };
+  } else {
+    cart.push({
+      id: product.id,
+      name: product.name || "San pham",
+      price: Number(product.price) || 0,
+      image: (product.image || product.thumbnailUrl) ?? "",
+      code: product.code || product.sku || product.productCode,
+      quantity: quantity,
+    });
+  }
+
+  writeCart(cart);
+}
+
+// ====== FETCH / PRODUCT HELPERS ======
 
 async function fetchJson(url, opts = {}) {
   const response = await fetch(url, opts);
@@ -18,7 +90,8 @@ async function fetchJson(url, opts = {}) {
 
 function buildImageUrl(pathOrFile) {
   if (!pathOrFile) return FALLBACK_IMAGE;
-  if (pathOrFile.startsWith("http://") || pathOrFile.startsWith("https://")) return pathOrFile;
+  if (pathOrFile.startsWith("http://") || pathOrFile.startsWith("https://"))
+    return pathOrFile;
   const relative = pathOrFile.startsWith("/") ? pathOrFile : `/${pathOrFile}`;
   return `${API_BASE}${relative}`;
 }
@@ -26,7 +99,10 @@ function buildImageUrl(pathOrFile) {
 function formatCurrency(value) {
   const numeric = Number(value || 0);
   if (!numeric) return "Contact for pricing";
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(numeric);
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(numeric);
 }
 
 function adaptProductResponse(payload) {
@@ -46,7 +122,10 @@ function adaptProductResponse(payload) {
     };
   }
   if (payload.id || payload.name) {
-    return { product: payload, related: payload.related ?? payload.relatedProducts ?? [] };
+    return {
+      product: payload,
+      related: payload.related ?? payload.relatedProducts ?? [],
+    };
   }
   return { product: null, related: [] };
 }
@@ -122,7 +201,9 @@ function pickHighlights(product) {
   const source = product.highlights || product.features || product.tags;
   if (!source) return [];
   if (Array.isArray(source)) {
-    return source.map((item) => (typeof item === "string" ? item : item?.label ?? item?.name));
+    return source.map((item) =>
+      typeof item === "string" ? item : item?.label ?? item?.name
+    );
   }
   if (typeof source === "string") {
     return source
@@ -133,38 +214,45 @@ function pickHighlights(product) {
   return [];
 }
 
-const RelatedProductCard = memo(function RelatedProductCard({ product }) {
-  const [imageError, setImageError] = useState(false);
+const RelatedProductCard = memo(
+  function RelatedProductCard({ product }) {
+    const [imageError, setImageError] = useState(false);
 
-  if (!product) return null;
+    if (!product) return null;
 
-  const imageUrl = buildImageUrl(product.image || product.thumbnailUrl);
+    const imageUrl = buildImageUrl(product.image || product.thumbnailUrl);
 
-  return (
-    <Link to={`/products/${product.id}`} className="product-related-card">
-      <div className="product-related-card__media">
-        <img
-          src={imageError ? FALLBACK_IMAGE : imageUrl}
-          alt={product.name || "San pham"}
-          loading="lazy"
-          onError={() => setImageError(true)}
-        />
-      </div>
-      <div className="product-related-card__body">
-        <div className="product-related-card__title">{product.name || "San pham"}</div>
-        <div className="product-related-card__price">{formatCurrency(product.price)}</div>
-      </div>
-    </Link>
-  );
-}, (prevProps, nextProps) => {
-  if (!prevProps.product || !nextProps.product) return false;
-  return (
-    prevProps.product.id === nextProps.product.id &&
-    prevProps.product.name === nextProps.product.name &&
-    prevProps.product.price === nextProps.product.price &&
-    prevProps.product.image === nextProps.product.image
-  );
-});
+    return (
+      <Link to={`/products/${product.id}`} className="product-related-card">
+        <div className="product-related-card__media">
+          <img
+            src={imageError ? FALLBACK_IMAGE : imageUrl}
+            alt={product.name || "San pham"}
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        </div>
+        <div className="product-related-card__body">
+          <div className="product-related-card__title">
+            {product.name || "San pham"}
+          </div>
+          <div className="product-related-card__price">
+            {formatCurrency(product.price)}
+          </div>
+        </div>
+      </Link>
+    );
+  },
+  (prevProps, nextProps) => {
+    if (!prevProps.product || !nextProps.product) return false;
+    return (
+      prevProps.product.id === nextProps.product.id &&
+      prevProps.product.name === nextProps.product.name &&
+      prevProps.product.price === nextProps.product.price &&
+      prevProps.product.image === nextProps.product.image
+    );
+  }
+);
 
 RelatedProductCard.displayName = "RelatedProductCard";
 
@@ -173,10 +261,17 @@ export default function ProductDetail() {
   const [data, setData] = useState({ product: null, related: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [authState, setAuthState] = useState({ isLoggedIn: false, name: "" });
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    name: "",
+  });
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mainImageError, setMainImageError] = useState(false);
-  const [reviews, setReviews] = useState({ items: [], averageRating: 0, count: 0 });
+  const [reviews, setReviews] = useState({
+    items: [],
+    averageRating: 0,
+    count: 0,
+  });
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewError, setReviewError] = useState("");
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
@@ -195,7 +290,8 @@ export default function ProductDetail() {
         setData(adaptProductResponse(payload));
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || "Unable to load product information");
+        if (!cancelled)
+          setError(err.message || "Unable to load product information");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -225,7 +321,8 @@ export default function ProductDetail() {
         });
       })
       .catch((err) => {
-        if (!cancelled) setReviewError(err.message || "Unable to load reviews");
+        if (!cancelled)
+          setReviewError(err.message || "Unable to load reviews");
       })
       .finally(() => {
         if (!cancelled) setReviewsLoading(false);
@@ -239,7 +336,10 @@ export default function ProductDetail() {
   useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail") || "";
+      const name =
+        localStorage.getItem("userName") ||
+        localStorage.getItem("userEmail") ||
+        "";
       const isLoggedIn = Boolean(token && name);
       setAuthState((prev) => {
         if (prev.isLoggedIn === isLoggedIn && prev.name === name) return prev;
@@ -267,7 +367,10 @@ export default function ProductDetail() {
 
   const product = data.product;
   const gallery = useMemo(() => buildGallery(product), [product]);
-  const specifications = useMemo(() => normalizeSpecifications(product), [product]);
+  const specifications = useMemo(
+    () => normalizeSpecifications(product),
+    [product]
+  );
   const highlights = useMemo(() => pickHighlights(product), [product]);
   const relatedProducts = Array.isArray(data.related) ? data.related : [];
 
@@ -318,7 +421,9 @@ export default function ProductDetail() {
   }, [product]);
 
   const activeImage =
-    !mainImageError && gallery[activeImageIndex] ? gallery[activeImageIndex] : FALLBACK_IMAGE;
+    !mainImageError && gallery[activeImageIndex]
+      ? gallery[activeImageIndex]
+      : FALLBACK_IMAGE;
 
   const renderStatus = (message) => (
     <div className="product-detail-page">
@@ -352,10 +457,18 @@ export default function ProductDetail() {
               <h1>{product.name || "San pham"}</h1>
               <p>{heroSummary}</p>
               <div className="product-detail-hero__meta">
-                <span className="product-detail-hero__badge">Authentic product</span>
-                {product.brand && <span className="product-detail-hero__badge">Brand: {product.brand}</span>}
+                <span className="product-detail-hero__badge">
+                  Authentic product
+                </span>
+                {product.brand && (
+                  <span className="product-detail-hero__badge">
+                    Brand: {product.brand}
+                  </span>
+                )}
                 {product.category && (
-                  <span className="product-detail-hero__badge">Category: {product.category}</span>
+                  <span className="product-detail-hero__badge">
+                    Category: {product.category}
+                  </span>
                 )}
               </div>
             </div>
@@ -376,7 +489,9 @@ export default function ProductDetail() {
                     <button
                       type="button"
                       key={image}
-                      className={`product-gallery__thumb${index === activeImageIndex ? " is-active" : ""}`}
+                      className={`product-gallery__thumb${
+                        index === activeImageIndex ? " is-active" : ""
+                      }`}
                       onClick={() => setActiveImageIndex(index)}
                     >
                       <img src={image} alt={`View image ${index + 1}`} />
@@ -388,16 +503,25 @@ export default function ProductDetail() {
 
             <div className="product-info">
               <div>
-                <div className="product-info__price">{formatCurrency(product.price)}</div>
+                <div className="product-info__price">
+                  {formatCurrency(product.price)}
+                </div>
                 <div className="product-info__stock">
-                  {typeof product.quantity === "number" && product.quantity > 0 ? (
+                  {typeof product.quantity === "number" &&
+                  product.quantity > 0 ? (
                     <>
-                      <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                      <i
+                        className="fa-solid fa-circle-check"
+                        aria-hidden="true"
+                      />
                       <span>In stock</span>
                     </>
                   ) : (
                     <>
-                      <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                      <i
+                        className="fa-solid fa-triangle-exclamation"
+                        aria-hidden="true"
+                      />
                       <span>Contact us for stock availability</span>
                     </>
                   )}
@@ -407,7 +531,10 @@ export default function ProductDetail() {
               {!!quickFacts.length && (
                 <dl className="product-info__facts">
                   {quickFacts.map((item) => (
-                    <div className="product-info__fact" key={`${item.label}-${item.value}`}>
+                    <div
+                      className="product-info__fact"
+                      key={`${item.label}-${item.value}`}
+                    >
                       <dt>{item.label}</dt>
                       <dd>{item.value}</dd>
                     </div>
@@ -429,54 +556,29 @@ export default function ProductDetail() {
                     <button
                       type="button"
                       className="btn btn-primary product-info__cta-primary"
-                      onClick={() => {
-                        if (!product) return;
-                        const readCart = () => {
-                          try {
-                            const raw = localStorage.getItem("cartItems");
-                            const parsed = raw ? JSON.parse(raw) : [];
-                            return Array.isArray(parsed) ? parsed : [];
-                          } catch {
-                            return [];
-                          }
-                        };
-                        const writeCart = (items) => {
-                          const normalized = Array.isArray(items) ? items : [];
-                          localStorage.setItem("cartItems", JSON.stringify(normalized));
-                          const count = normalized.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
-                          localStorage.setItem("cartCount", String(count));
-                          window.dispatchEvent(new Event("localStorageChange"));
-                        };
-                        const current = readCart();
-                        const existing = current.find((it) => it.id === product.id);
-                        if (existing) {
-                          existing.quantity = (Number(existing.quantity) || 0) + 1;
-                          writeCart([...current]);
-                        } else {
-                          const newItem = {
-                            id: product.id,
-                            name: product.name || "San pham",
-                            price: Number(product.price) || 0,
-                            image: (product.image || product.thumbnailUrl) ?? "",
-                            code: product.code || product.sku || product.productCode,
-                            quantity: 1,
-                          };
-                          writeCart([...(current || []), newItem]);
-                        }
-                      }}
+                      onClick={() => addToCartFromProduct(product, 1)}
                     >
                       Add to cart
                     </button>
-                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
+                    <a
+                      className="btn btn-outline product-info__cta-secondary"
+                      href="tel:0918113559"
+                    >
                       Lighting consultation
                     </a>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className="btn btn-primary product-info__cta-primary">
+                    <Link
+                      to="/login"
+                      className="btn btn-primary product-info__cta-primary"
+                    >
                       Sign in to purchase
                     </Link>
-                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
+                    <a
+                      className="btn btn-outline product-info__cta-secondary"
+                      href="tel:0918113559"
+                    >
                       Call 0918 113 559
                     </a>
                   </>
@@ -485,15 +587,24 @@ export default function ProductDetail() {
 
               <div className="product-info__service">
                 <span>
-                  <i className="fa-solid fa-truck-fast" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-truck-fast"
+                    aria-hidden="true"
+                  />
                   Nationwide delivery within 2-4 days
                 </span>
                 <span>
-                  <i className="fa-solid fa-shield-halved" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-shield-halved"
+                    aria-hidden="true"
+                  />
                   7-day return policy for manufacturing faults
                 </span>
                 <span>
-                  <i className="fa-solid fa-lightbulb" aria-hidden="true" />
+                  <i
+                    className="fa-solid fa-lightbulb"
+                    aria-hidden="true"
+                  />
                   Complimentary lighting design consultation
                 </span>
               </div>
@@ -514,7 +625,10 @@ export default function ProductDetail() {
               <h3>Specifications</h3>
               <dl className="product-specs__list">
                 {specifications.map((spec) => (
-                  <div className="product-specs__row" key={`${spec.label}-${spec.value}`}>
+                  <div
+                    className="product-specs__row"
+                    key={`${spec.label}-${spec.value}`}
+                  >
                     <dt>{spec.label}</dt>
                     <dd>{spec.value}</dd>
                   </div>
@@ -546,18 +660,31 @@ export default function ProductDetail() {
             ) : (
               <>
                 <div className="product-reviews__summary">
-                  <strong>Average rating:</strong> {reviews.averageRating} / 5 ({reviews.count} {reviews.count === 1 ? "review" : "reviews"})
+                  <strong>Average rating:</strong> {reviews.averageRating} / 5 (
+                  {reviews.count}{" "}
+                  {reviews.count === 1 ? "review" : "reviews"})
                 </div>
                 <ul className="product-reviews__list">
                   {reviews.items.length === 0 && <li>No reviews yet.</li>}
                   {reviews.items.map((r) => (
                     <li key={r.id} className="product-reviews__item">
                       <div className="product-reviews__item-head">
-                        <span className="product-reviews__user">{r.userName || "Customer"}</span>
-                        <span className="product-reviews__rating">{`★`.repeat(r.rating)}{`☆`.repeat(5 - r.rating)}</span>
+                        <span className="product-reviews__user">
+                          {r.userName || "Customer"}
+                        </span>
+                        <span className="product-reviews__rating">
+                          {"★".repeat(r.rating)}
+                          {"☆".repeat(5 - r.rating)}
+                        </span>
                       </div>
-                      {r.comment && <div className="product-reviews__comment">{r.comment}</div>}
-                      <div className="product-reviews__date">{new Date(r.createdAt).toLocaleString()}</div>
+                      {r.comment && (
+                        <div className="product-reviews__comment">
+                          {r.comment}
+                        </div>
+                      )}
+                      <div className="product-reviews__date">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -573,22 +700,36 @@ export default function ProductDetail() {
                   setSubmittingReview(true);
                   const token = localStorage.getItem("token");
                   try {
-                    const res = await fetch(`${API_BASE}/api/products/${id}/reviews`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                      },
-                      body: JSON.stringify({ rating: Number(reviewForm.rating), comment: reviewForm.comment }),
-                    });
+                    const res = await fetch(
+                      `${API_BASE}/api/products/${id}/reviews`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          rating: Number(reviewForm.rating),
+                          comment: reviewForm.comment,
+                        }),
+                      }
+                    );
                     const text = await res.text();
                     if (!res.ok) throw new Error(text || res.statusText);
-                    const payload = text ? JSON.parse(text) : { items: [] };
-                    const items = Array.isArray(payload?.items) ? payload.items : [];
+                    const payload = text
+                      ? JSON.parse(text)
+                      : { items: [] };
+                    const items = Array.isArray(payload?.items)
+                      ? payload.items
+                      : [];
                     setReviews({
                       items,
-                      averageRating: Number(payload?.averageRating || 0),
-                      count: Number(payload?.count || items.length || 0),
+                      averageRating: Number(
+                        payload?.averageRating || 0
+                      ),
+                      count: Number(
+                        payload?.count || items.length || 0
+                      ),
                     });
                     setReviewForm({ rating: 5, comment: "" });
                   } catch (err) {
@@ -604,10 +745,17 @@ export default function ProductDetail() {
                     id="rating"
                     className="form-control"
                     value={reviewForm.rating}
-                    onChange={(e) => setReviewForm((s) => ({ ...s, rating: e.target.value }))}
+                    onChange={(e) =>
+                      setReviewForm((s) => ({
+                        ...s,
+                        rating: e.target.value,
+                      }))
+                    }
                   >
                     {[5, 4, 3, 2, 1].map((v) => (
-                      <option key={v} value={v}>{v}</option>
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -620,10 +768,19 @@ export default function ProductDetail() {
                     maxLength={1000}
                     placeholder="Share your experience with this product"
                     value={reviewForm.comment}
-                    onChange={(e) => setReviewForm((s) => ({ ...s, comment: e.target.value }))}
+                    onChange={(e) =>
+                      setReviewForm((s) => ({
+                        ...s,
+                        comment: e.target.value,
+                      }))
+                    }
                   />
                 </div>
-                <button type="submit" className="btn btn-primary" disabled={submittingReview}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingReview}
+                >
                   {submittingReview ? "Submitting..." : "Submit review"}
                 </button>
               </form>

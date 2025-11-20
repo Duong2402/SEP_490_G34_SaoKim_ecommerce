@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -25,7 +25,6 @@ import { apiFetch } from "../../api/lib/apiClient";
 import * as signalR from "@microsoft/signalr";
 import { getReceivingHubConnection } from "../../signalr/receivingHub";
 
-const API_BASE = "https://localhost:7278";
 
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
@@ -44,6 +43,9 @@ export default function ReceivingList() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [pageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const [sortBy, setSortBy] = useState("receiptDate");
   const [sortOrder, setSortOrder] = useState("desc");
   const [showImportModal, setShowImportModal] = useState(false);
@@ -54,15 +56,26 @@ export default function ReceivingList() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("pageSize", pageSize);
+      if (search) params.append("search", search);
+      if (sortBy) params.append("sortBy", sortBy);
+      if (sortOrder) params.append("sortOrder", sortOrder);
+
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips?${params.toString()}`
+      );
       const data = await res.json();
+
       setRows(data.items || []);
+      setTotal(data.total || 0);
     } catch (error) {
       console.error("Error loading receiving slips:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, search, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -82,20 +95,16 @@ export default function ReceivingList() {
 
       if (action === "created") {
         setRows((prev) => [payload, ...prev]);
+        setTotal((t) => t + 1);
       } else if (action === "deleted") {
         setRows((prev) => prev.filter(r => r.id !== payload.id));
-      } else if (action === "updated") {
+      } else if (action === "updated" || action === "confirmed") {
         setRows((prev) =>
           prev.map(r => r.id === payload.id ? { ...r, ...payload } : r)
         );
       }
       else if (action === "imported") {
-        // Import có thể tạo nhiều phiếu, reload toàn bộ là dễ nhất
         loadData();
-      } else if (action === "confirmed") {
-        setRows((prev) =>
-          prev.map(r => r.id === payload.id ? { ...r, ...payload } : r)
-        );
       }
     });
 
@@ -143,24 +152,6 @@ export default function ReceivingList() {
     });
   };
 
-  const toggleSelectPage = () => {
-    const pageIds = sortedRows.slice(0, pageSize).map(r => r.id);
-    const allSelected = pageIds.every(id => selectedIds.has(id));
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (allSelected) {
-        pageIds.forEach(id => next.delete(id));
-      } else {
-        pageIds.forEach(id => next.add(id));
-      }
-      return next;
-    });
-  };
-
-  const selectAllFiltered = () => {
-    setSelectedIds(new Set(filteredRows.map(r => r.id)));
-  };
-
   const clearSelection = () => setSelectedIds(new Set());
 
   async function handleExportSelected(includeItems = true) {
@@ -170,7 +161,7 @@ export default function ReceivingList() {
         "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu đang hiển thị theo bộ lọc hiện tại?"
       );
       if (!confirmAll) return;
-      const allIds = filteredRows.map(r => r.id);
+      const allIds = rows.map(r => r.id);
       if (allIds.length === 0) {
         alert("Không có dữ liệu để xuất.");
         return;
@@ -242,14 +233,14 @@ export default function ReceivingList() {
 
       const res = await apiFetch(`/api/warehousemanager/receiving-slips/import`, {
         method: "POST",
-        body: formData, // KHÔNG headers Content-Type ở đây
+        body: formData,
       });
 
       const data = await res.json();
       alert(data.message || "Import thành công!");
       setShowImportModal(false);
       setImportFile(null);
-      // reload list nếu cần
+      loadData();
     } catch (e) {
       console.error(e);
       alert(e.message || "Import thất bại");
@@ -259,41 +250,18 @@ export default function ReceivingList() {
   };
 
   const handleSort = (field) => {
-    if (sortBy === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    else {
+    if (sortBy === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
       setSortBy(field);
       setSortOrder("asc");
     }
+    setPage(1);
   };
 
-  const filteredRows = useMemo(() => {
-    if (!search) return rows;
-    const keyword = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.referenceNo?.toLowerCase().includes(keyword) ||
-        r.supplier?.toLowerCase().includes(keyword)
-    );
-  }, [rows, search]);
-
-  const sortedRows = useMemo(() => {
-    const sorted = [...filteredRows];
-    sorted.sort((a, b) => {
-      let valA = a[sortBy];
-      let valB = b[sortBy];
-      if (sortBy.includes("Date")) {
-        valA = new Date(valA);
-        valB = new Date(valB);
-      }
-      if (typeof valA === "string") valA = valA.toLowerCase();
-      if (typeof valB === "string") valB = valB.toLowerCase();
-
-      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [filteredRows, sortBy, sortOrder]);
+  const selectAllCurrentPage = () => {
+    setSelectedIds(new Set(rows.map(r => r.id)));
+  };
 
   const formatDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "-");
 
@@ -334,7 +302,7 @@ export default function ReceivingList() {
             <FontAwesomeIcon icon={faFileImport} /> Nhập từ phiếu
           </button>
 
-          <button type="button" className="wm-btn wm-btn--light" onClick={selectAllFiltered}>
+          <button type="button" className="wm-btn wm-btn--light" onClick={selectAllCurrentPage}>
             Chọn tất cả kết quả
           </button>
           <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
@@ -414,7 +382,10 @@ export default function ReceivingList() {
               type="text"
               placeholder="Tìm theo mã phiếu hoặc nhà cung cấp..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
             />
           </InputGroup>
         </div>
@@ -427,8 +398,25 @@ export default function ReceivingList() {
               <th>
                 <Form.Check
                   type="checkbox"
-                  checked={sortedRows.slice(0, pageSize).every(r => selectedIds.has(r.id)) && sortedRows.slice(0, pageSize).length > 0}
-                  onChange={toggleSelectPage}
+                  checked={
+                    rows.length > 0 &&
+                    rows.every((r) => selectedIds.has(r.id))
+                  }
+                  onChange={() => {
+                    const pageIds = rows.map((r) => r.id);
+                    const allSelected = pageIds.every((id) =>
+                      selectedIds.has(id)
+                    );
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (allSelected) {
+                        pageIds.forEach((id) => next.delete(id));
+                      } else {
+                        pageIds.forEach((id) => next.add(id));
+                      }
+                      return next;
+                    });
+                  }}
                 />
               </th>
               <th>#</th>
@@ -451,7 +439,8 @@ export default function ReceivingList() {
                 Ngày xác nhận
               </th>
               <th role="button" onClick={() => handleSort("note")}>
-                Ghi chú</th>
+                Ghi chú
+              </th>
               <th className="text-end">Thao tác</th>
             </tr>
           </thead>
@@ -462,14 +451,14 @@ export default function ReceivingList() {
                   Đang tải dữ liệu...
                 </td>
               </tr>
-            ) : sortedRows.length === 0 ? (
+            ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={10} className="wm-empty">
                   Không tìm thấy phiếu phù hợp.
                 </td>
               </tr>
             ) : (
-              sortedRows.slice(0, pageSize).map((r, idx) => {
+              rows.map((r, idx) => {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
                 const checked = selectedIds.has(r.id);
@@ -482,7 +471,7 @@ export default function ReceivingList() {
                         onChange={() => toggleRow(r.id)}
                       />
                     </td>
-                    <td>{idx + 1}</td>
+                    <td>{(page - 1) * pageSize + idx + 1}</td>
                     <td>{r.referenceNo}</td>
                     <td>{r.supplier}</td>
                     <td>{formatDate(r.receiptDate)}</td>
@@ -496,7 +485,11 @@ export default function ReceivingList() {
                       )}
                     </td>
                     <td>{formatDate(r.createdAt)}</td>
-                    <td>{r.confirmedAt ? formatDate(r.confirmedAt) : "Chưa xác nhận"}</td>
+                    <td>
+                      {r.confirmedAt
+                        ? formatDate(r.confirmedAt)
+                        : "Chưa xác nhận"}
+                    </td>
                     <td>{r.note || "N/A"}</td>
                     <td className="text-end">
                       <Button
@@ -504,7 +497,9 @@ export default function ReceivingList() {
                         size="sm"
                         className="me-2"
                         onClick={() =>
-                          navigate(`/warehouse-dashboard/receiving-slips/${r.id}/items`)
+                          navigate(
+                            `/warehouse-dashboard/receiving-slips/${r.id}/items`
+                          )
                         }
                       >
                         <FontAwesomeIcon icon={faEye} />
@@ -535,6 +530,59 @@ export default function ReceivingList() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div>
+          Tổng: {total} phiếu • Trang {page}/{totalPages}
+        </div>
+
+        <div className="btn-group">
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trước
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .reduce((acc, p, idx, arr) => {
+              if (idx && p - arr[idx - 1] > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "..." ? (
+                <button
+                  key={`gap-${i}`}
+                  className="btn btn-outline-light"
+                  disabled
+                >
+                  ...
+                </button>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
+                  onClick={() => setPage(p)}
+                  disabled={loading}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Sau
+          </button>
+        </div>
       </div>
     </WarehouseLayout>
   );

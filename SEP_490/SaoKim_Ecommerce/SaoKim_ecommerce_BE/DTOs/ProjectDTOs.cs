@@ -3,19 +3,17 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Collections.Generic;
 
-// alias để tránh đụng System.Threading.Tasks.TaskStatus
 using TaskStatusEnum = SaoKim_ecommerce_BE.Entities.TaskStatus;
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
-    // ======= CÁC DTO SẴN CÓ (giữ nguyên) =======
     public class CreateProjectDTO
     {
-        [MaxLength(50)] public string? Code { get; set; }   // cho phép null -> tự sinh
+        [MaxLength(50)] public string? Code { get; set; }   
         [Required, MaxLength(200)] public string Name { get; set; } = default!;
         [MaxLength(200)] public string? CustomerName { get; set; }
         [MaxLength(100)] public string? CustomerContact { get; set; }
-        [MaxLength(50)] public string? Status { get; set; } = "Draft"; // match schema hiện tại
+        [MaxLength(50)] public string? Status { get; set; } = "Draft"; 
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         [Range(0, 1_000_000_000)] public decimal? Budget { get; set; }
@@ -53,10 +51,10 @@ namespace SaoKim_ecommerce_BE.DTOs
     public class ProjectQuery
     {
         public string? Keyword { get; set; }
-        public string? Status { get; set; }    // Draft/InProgress/Done/Cancelled...
+        public string? Status { get; set; }    
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
-        public string? Sort { get; set; } = "-CreatedAt"; // "Name" hoặc "-CreatedAt"
+        public string? Sort { get; set; } = "-CreatedAt"; 
     }
 
     public class ProjectPagedResult<T>
@@ -67,11 +65,10 @@ namespace SaoKim_ecommerce_BE.DTOs
         public IEnumerable<T> Items { get; set; } = Array.Empty<T>();
     }
 
-    // ======= NEW: DTO cho Tasks/Gantt =======
     public class TaskDayDTO
     {
         public DateTime Date { get; set; }
-        public TaskStatusEnum Status { get; set; }  // dùng alias để tránh trùng
+        public TaskStatusEnum Status { get; set; }  
     }
 
     public class TaskDTO

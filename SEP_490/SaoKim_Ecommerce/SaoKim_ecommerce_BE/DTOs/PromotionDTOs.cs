@@ -34,12 +34,12 @@ namespace SaoKim_ecommerce_BE.DTOs
     {
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
-        public string DiscountType { get; set; } = "Percentage"; // Percentage | FixedAmount
+        public string DiscountType { get; set; } = "Percentage"; 
         public decimal DiscountValue { get; set; }
         public DateTimeOffset StartDate { get; set; }
         public DateTimeOffset EndDate { get; set; }
         public string Status { get; set; } = "Draft";
-        public List<int>? ProductIds { get; set; } // optional: khởi tạo nhanh
+        public List<int>? ProductIds { get; set; } 
     }
 
     public class PromotionUpdateDto : PromotionCreateDto { }

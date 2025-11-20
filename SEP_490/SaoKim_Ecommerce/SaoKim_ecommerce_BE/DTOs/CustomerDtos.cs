@@ -36,7 +36,6 @@ namespace SaoKim_ecommerce_BE.Dtos.Customers
         DateTime? LastOrderAt,
         IEnumerable<CustomerNoteDto> Notes
     );
-    //add note cho manager
     public class CustomerNoteCreateRequest
     {
         public string Content { get; set; } = string.Empty;

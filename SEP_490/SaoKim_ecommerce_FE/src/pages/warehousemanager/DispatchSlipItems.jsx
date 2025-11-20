@@ -51,11 +51,17 @@ const DispatchSlipItems = () => {
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
 
   useEffect(() => {
     load();
     loadProducts();
-  }, [id]);
+  }, [id, page]);
 
   useEffect(() => {
     const connection = getDispatchHubConnection();
@@ -120,10 +126,18 @@ const DispatchSlipItems = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/items`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("pageSize", pageSize);
+
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : data.items || []);
+
+      setItems(data.items || []);
+      setTotal(data.total || 0);
     } catch (e) {
       setError(e.message || "Không thể tải danh sách hàng hóa.");
     } finally {
@@ -369,6 +383,59 @@ const DispatchSlipItems = () => {
             )}
           </tbody>
         </Table>
+      </div>
+
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div>
+          Tổng: {total} dòng hàng • Trang {page}/{totalPages}
+        </div>
+
+        <div className="btn-group">
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trước
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .reduce((acc, p, idx, arr) => {
+              if (idx && p - arr[idx - 1] > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "..." ? (
+                <button
+                  key={`gap-${i}`}
+                  className="btn btn-outline-light"
+                  disabled
+                >
+                  ...
+                </button>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
+                  onClick={() => setPage(p)}
+                  disabled={loading}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Sau
+          </button>
+        </div>
       </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">

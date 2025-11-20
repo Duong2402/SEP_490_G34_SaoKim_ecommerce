@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getProvinces, getDistricts, getWards } from "sub-vn";
 import { useJsApiLoader, Autocomplete } from "@react-google-maps/api";
+import "../../styles/account.css";
 
 export default function Addresses() {
   const navigate = useNavigate();
@@ -17,19 +18,19 @@ export default function Addresses() {
     recipientName: "",
     phoneNumber: "",
     line1: "",
-    line2: "",
     ward: "",
     district: "",
     province: "",
     isDefault: false,
   });
 
-  // selection state (lưu code để đổ danh sách phụ thuộc)
+  // selection state
   const [provinceCode, setProvinceCode] = useState("");
   const [districtCode, setDistrictCode] = useState("");
   const [wardCode, setWardCode] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   // Google Places loader (tùy chọn)
   const { isLoaded: isGMapsLoaded } = useJsApiLoader({
@@ -39,25 +40,26 @@ export default function Addresses() {
   const enablePlaces = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 
   const provinces = useMemo(() => getProvinces(), []);
-  const districts = useMemo(
-    () => (provinceCode ? getDistricts(provinceCode) : []),
-    [provinceCode]
-  );
-  const wards = useMemo(
-    () => (districtCode ? getWards(districtCode) : []),
-    [districtCode]
-  );
 
+  const districts = useMemo(() => {
+    if (!provinceCode) return [];
+    return getDistricts(provinceCode);
+  }, [provinceCode]);
+
+  const wards = useMemo(() => {
+    if (!districtCode) return [];
+    return getWards(districtCode);
+  }, [districtCode]);
+
+  // Tìm theo tên (vì DB lưu tên tỉnh/quận/phường)
   const findProvinceByName = (name) =>
-    provinces.find((p) => p.name.toLowerCase() === (name || "").toLowerCase());
+    provinces.find((p) => p.name === name);
+
   const findDistrictByName = (provCode, name) =>
-    getDistricts(provCode).find(
-      (d) => d.name.toLowerCase() === (name || "").toLowerCase()
-    );
+    getDistricts(provCode).find((d) => d.name === name);
+
   const findWardByName = (distCode, name) =>
-    getWards(distCode).find(
-      (w) => w.name.toLowerCase() === (name || "").toLowerCase()
-    );
+    getWards(distCode).find((w) => w.name === name);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -85,13 +87,14 @@ export default function Addresses() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // Khi người dùng đổi Tỉnh → reset Quận, Phường
+  // Khi đổi Tỉnh → reset Quận, Phường
   const onProvinceChange = (code) => {
-    setProvinceCode(code);
+    const codeStr = String(code);
+    setProvinceCode(codeStr);
     setDistrictCode("");
     setWardCode("");
 
-    const p = provinces.find((x) => x.code === code);
+    const p = provinces.find((x) => String(x.code) === codeStr);
     setForm((prev) => ({
       ...prev,
       province: p ? p.name : "",
@@ -100,12 +103,13 @@ export default function Addresses() {
     }));
   };
 
-  // Khi người dùng đổi Quận → reset Phường
+  // Khi đổi Quận → reset Phường
   const onDistrictChange = (code) => {
-    setDistrictCode(code);
+    const codeStr = String(code);
+    setDistrictCode(codeStr);
     setWardCode("");
 
-    const d = districts.find((x) => x.code === code);
+    const d = districts.find((x) => String(x.code) === codeStr);
     setForm((prev) => ({
       ...prev,
       district: d ? d.name : "",
@@ -114,8 +118,9 @@ export default function Addresses() {
   };
 
   const onWardChange = (code) => {
-    setWardCode(code);
-    const w = wards.find((x) => x.code === code);
+    const codeStr = String(code);
+    setWardCode(codeStr);
+    const w = wards.find((x) => String(x.code) === codeStr);
     setForm((prev) => ({
       ...prev,
       ward: w ? w.name : "",
@@ -128,7 +133,6 @@ export default function Addresses() {
       recipientName: "",
       phoneNumber: "",
       line1: "",
-      line2: "",
       ward: "",
       district: "",
       province: "",
@@ -143,19 +147,28 @@ export default function Addresses() {
     e.preventDefault();
     setError("");
 
-    // Validate cơ bản
-    if (!form.recipientName.trim() || !form.phoneNumber.trim() || !form.line1.trim()) {
-      setError("Vui lòng nhập đủ Người nhận, SĐT và Địa chỉ dòng 1");
+    if (
+      !form.recipientName.trim() ||
+      !form.phoneNumber.trim() ||
+      !form.line1.trim()
+    ) {
+      setError(
+        "Vui lòng nhập đủ Người nhận, SĐT và Địa chỉ dòng 1"
+      );
       return;
     }
     if (!form.province || !form.district || !form.ward) {
-      setError("Vui lòng chọn đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã");
+      setError(
+        "Vui lòng chọn đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã"
+      );
       return;
     }
 
     try {
       const method = editing ? "PUT" : "POST";
-      const url = editing ? `${apiBase}/api/addresses/${editing}` : `${apiBase}/api/addresses`;
+      const url = editing
+        ? `${apiBase}/api/addresses/${editing}`
+        : `${apiBase}/api/addresses`;
       const res = await fetch(url, {
         method,
         headers: {
@@ -164,7 +177,10 @@ export default function Addresses() {
         },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error(editing ? "Cập nhật thất bại" : "Thêm mới thất bại");
+      if (!res.ok)
+        throw new Error(
+          editing ? "Cập nhật thất bại" : "Thêm mới thất bại"
+        );
       await fetchAll();
       resetForm();
     } catch (e) {
@@ -205,7 +221,6 @@ export default function Addresses() {
       recipientName: a.recipientName || "",
       phoneNumber: a.phoneNumber || "",
       line1: a.line1 || "",
-      line2: a.line2 || "",
       ward: a.ward || "",
       district: a.district || "",
       province: a.province || "",
@@ -213,16 +228,21 @@ export default function Addresses() {
     });
 
     // map tên -> code để preselect
-    const p = findProvinceByName(a.province);
-    const pCode = p?.code || "";
+    const p = a.province ? findProvinceByName(a.province) : null;
+    const pCode = p?.code ? String(p.code) : "";
     setProvinceCode(pCode);
 
-    const d = pCode ? findDistrictByName(pCode, a.district) : null;
-    const dCode = d?.code || "";
+    const d =
+      pCode && a.district
+        ? findDistrictByName(pCode, a.district)
+        : null;
+    const dCode = d?.code ? String(d.code) : "";
     setDistrictCode(dCode);
 
-    const w = dCode ? findWardByName(dCode, a.ward) : null;
-    setWardCode(w?.code || "");
+    const w =
+      dCode && a.ward ? findWardByName(dCode, a.ward) : null;
+    const wCode = w?.code ? String(w.code) : "";
+    setWardCode(wCode);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -233,17 +253,20 @@ export default function Addresses() {
       return (
         <input
           value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, line1: e.target.value })
+          }
           required
         />
       );
     }
-    // Chỉ hiển thị Autocomplete khi isGMapsLoaded=true
     if (!isGMapsLoaded) {
       return (
         <input
           value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, line1: e.target.value })
+          }
           placeholder="Đang tải gợi ý..."
           required
         />
@@ -251,32 +274,28 @@ export default function Addresses() {
     }
     return (
       <Autocomplete
-        onPlaceChanged={(/* place auto trong đối tượng Autocomplete */) => {
-          // Lấy formatted_address
-          const place = window.google?.maps?.places?.PlacesServiceStatus ? null : null; // tránh lỗi TS khi biên dịch
-        }}
         onLoad={(ac) => {
-          // hook sự kiện place_changed để lấy address
           ac.addListener("place_changed", () => {
             const place = ac.getPlace();
-            if (place && place.formatted_address) {
-              setForm((prev) => ({ ...prev, line1: place.formatted_address }));
-            } else if (place && place.name) {
-              setForm((prev) => ({ ...prev, line1: place.name }));
+            const value =
+              place?.formatted_address || place?.name || "";
+            if (value) {
+              setForm((prev) => ({ ...prev, line1: value }));
             }
           });
         }}
         options={{
-          // Giới hạn VN
           componentRestrictions: { country: "vn" },
-          fields: ["formatted_address", "name", "address_components", "geometry"],
+          fields: ["formatted_address", "name"],
           types: ["geocode"],
         }}
       >
         <input
           value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
-          placeholder="Nhập địa chỉ (có gợi ý)"
+          onChange={(e) =>
+            setForm({ ...form, line1: e.target.value })
+          }
+          placeholder="Nhập địa chỉ (có gợi ý Google)"
           required
         />
       </Autocomplete>
@@ -284,144 +303,271 @@ export default function Addresses() {
   };
 
   return (
-    <div style={{ maxWidth: 960, margin: "24px auto", padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+    <div
+      style={{
+        maxWidth: 960,
+        margin: "24px auto",
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
         <h2 style={{ margin: 0 }}>Quản lý địa chỉ</h2>
-        <Link to="/account" style={{ textDecoration: "none" }}>&larr; Về thông tin tài khoản</Link>
+        <Link to="/account" style={{ textDecoration: "none" }}>
+          &larr; Về thông tin tài khoản
+        </Link>
       </div>
 
       {error && (
-        <div style={{ color: "#b00020", marginBottom: 12 }}>{error}</div>
+        <div style={{ color: "#b00020", marginBottom: 12 }}>
+          {error}
+        </div>
       )}
 
       {/* Form tạo/sửa */}
-      <form onSubmit={submitForm} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <h3 style={{ marginTop: 0 }}>{editing ? "Sửa địa chỉ" : "Thêm địa chỉ mới"}</h3>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <label>
-            Người nhận
-            <input
-              value={form.recipientName}
-              onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
-              required
-            />
-          </label>
-
-          <label>
-            Số điện thoại
-            <input
-              value={form.phoneNumber}
-              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-              required
-            />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 1)
-            <Line1Input />
-          </label>
-
-          <label style={{ gridColumn: "1 / -1" }}>
-            Địa chỉ (dòng 2 - tuỳ chọn)
-            <input
-              value={form.line2}
-              onChange={(e) => setForm({ ...form, line2: e.target.value })}
-            />
-          </label>
-
-          <label>
-            Tỉnh/Thành
-            <select
-              value={provinceCode}
-              onChange={(e) => onProvinceChange(e.target.value)}
-              required
-            >
-              <option value="">Chọn Tỉnh/Thành</option>
-              {provinces.map((p) => (
-                <option key={p.code} value={p.code}>{p.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Quận/Huyện
-            <select
-              value={districtCode}
-              onChange={(e) => onDistrictChange(e.target.value)}
-              disabled={!provinceCode}
-              required
-            >
-              <option value="">{provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}</option>
-              {districts.map((d) => (
-                <option key={d.code} value={d.code}>{d.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Phường/Xã
-            <select
-              value={wardCode}
-              onChange={(e) => onWardChange(e.target.value)}
-              disabled={!districtCode}
-              required
-            >
-              <option value="">{districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}</option>
-              {wards.map((w) => (
-                <option key={w.code} value={w.code}>{w.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={form.isDefault}
-              onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-            />
-            Đặt làm địa chỉ mặc định
-          </label>
+      <section className="address-panel" style={{ marginBottom: 20 }}>
+        <div>
+          <h2 className="address-panel__title">
+            {editing ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}
+          </h2>
+          <p className="address-panel__subtitle">
+            Nhập thông tin người nhận và khu vực giao hàng để đội vận
+            hành xử lý đơn chính xác.
+          </p>
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button type="submit" className="btn btn-primary">
-            {editing ? "Lưu thay đổi" : "Thêm địa chỉ"}
-          </button>
-          {editing && (
-            <button type="button" className="btn" onClick={resetForm}>Hủy</button>
-          )}
-        </div>
-      </form>
-
-      {/* Danh sách địa chỉ */}
-      {loading ? (
-        <div>Đang tải...</div>
-      ) : items.length === 0 ? (
-        <div>Chưa có địa chỉ nào.</div>
-      ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          {items.map((a) => (
-            <div key={a.addressId} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontWeight: 600 }}>
-                  {a.recipientName} • {a.phoneNumber} {a.isDefault && <span style={{ color: "#2563eb" }}>(Mặc định)</span>}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {!a.isDefault && (
-                    <button className="btn btn-outline" onClick={() => setDefault(a.addressId)}>Đặt mặc định</button>
-                  )}
-                  <button className="btn btn-outline" onClick={() => startEdit(a)}>Sửa</button>
-                  <button className="btn btn-danger" onClick={() => remove(a.addressId)}>Xóa</button>
-                </div>
-              </div>
-              <div style={{ color: "#667" }}>
-                {[a.line1, a.line2, a.ward, a.district, a.province].filter(Boolean).join(", ")}
-              </div>
+        <form className="address-form" onSubmit={submitForm}>
+          <div className="address-grid">
+            <div className="account-field">
+              <label>Người nhận</label>
+              <input
+                value={form.recipientName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    recipientName: e.target.value,
+                  })
+                }
+                required
+              />
             </div>
-          ))}
+
+            <div className="account-field">
+              <label>Số điện thoại</label>
+              <input
+                value={form.phoneNumber}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    phoneNumber: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="account-field account-field--full">
+              <label>Địa chỉ cụ thể</label>
+              <Line1Input />
+            </div>
+
+            <div className="account-field">
+              <label>Tỉnh/Thành</label>
+              <select
+                value={provinceCode}
+                onChange={(e) =>
+                  onProvinceChange(String(e.target.value))
+                }
+                required
+              >
+                <option value="">Chọn Tỉnh/Thành</option>
+                {provinces.map((p) => (
+                  <option
+                    key={p.code}
+                    value={String(p.code)}
+                  >
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="account-field">
+              <label>Quận/Huyện</label>
+              <select
+                key={provinceCode}
+                value={districtCode}
+                onChange={(e) =>
+                  onDistrictChange(String(e.target.value))
+                }
+                disabled={!provinceCode}
+                required
+              >
+                <option value="">
+                  {provinceCode
+                    ? "Chọn Quận/Huyện"
+                    : "Chọn Tỉnh trước"}
+                </option>
+                {districts.map((d) => (
+                  <option
+                    key={d.code}
+                    value={String(d.code)}
+                  >
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="account-field">
+              <label>Phường/Xã</label>
+              <select
+                key={districtCode}
+                value={wardCode}
+                onChange={(e) =>
+                  onWardChange(String(e.target.value))
+                }
+                disabled={!districtCode}
+                required
+              >
+                <option value="">
+                  {districtCode
+                    ? "Chọn Phường/Xã"
+                    : "Chọn Quận trước"}
+                </option>
+                {wards.map((w) => (
+                  <option
+                    key={w.code}
+                    value={String(w.code)}
+                  >
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="address-checkbox">
+              <input
+                type="checkbox"
+                checked={form.isDefault}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    isDefault: e.target.checked,
+                  })
+                }
+              />
+              Đặt làm địa chỉ mặc định
+            </label>
+          </div>
+
+          {error && (
+            <div className="account-alert account-alert--error">
+              {error}
+            </div>
+          )}
+
+          <div className="account-actions">
+            {editing && (
+              <button
+                type="button"
+                className="account-btn account-btn--ghost"
+                onClick={resetForm}
+              >
+                Hủy
+              </button>
+            )}
+            <button
+              type="submit"
+              className="account-btn account-btn--primary"
+            >
+              {editing ? "Lưu thay đổi" : "Thêm địa chỉ"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {/* Danh sách địa chỉ đã lưu */}
+      <section className="address-panel">
+        <div>
+          <h2 className="address-panel__title">Địa chỉ đã lưu</h2>
+          <p className="address-panel__subtitle">
+            Bạn có thể lưu nhiều địa chỉ để phục vụ các dự án và khách
+            hàng khác nhau.
+          </p>
         </div>
-      )}
+
+        {loading ? (
+          <div className="address-empty">
+            Đang tải danh sách địa chỉ...
+          </div>
+        ) : items.length === 0 ? (
+          <div className="address-empty">
+            Chưa có địa chỉ nào. Hãy thêm địa chỉ đầu tiên của bạn.
+          </div>
+        ) : (
+          <div className="address-list">
+            {items.map((a) => (
+              <div
+                key={a.addressId}
+                className="address-card"
+              >
+                <div className="address-card__head">
+                  <div>
+                    <div className="address-card__name">
+                      {a.recipientName}
+                    </div>
+                    <div className="address-card__meta">
+                      {a.phoneNumber}
+                    </div>
+                  </div>
+                  {a.isDefault && (
+                    <span className="address-chip">
+                      Mặc định
+                    </span>
+                  )}
+                </div>
+                <div className="address-card__body">
+                  {[a.line1, a.ward, a.district, a.province]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+                <div className="address-actions">
+                  {!a.isDefault && (
+                    <button
+                      type="button"
+                      className="account-btn account-btn--ghost"
+                      onClick={() => setDefault(a.addressId)}
+                    >
+                      Đặt mặc định
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="account-btn account-btn--ghost"
+                    onClick={() => startEdit(a)}
+                  >
+                    Chỉnh sửa
+                  </button>
+                  <button
+                    type="button"
+                    className="account-btn account-btn--danger"
+                    onClick={() => remove(a.addressId)}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

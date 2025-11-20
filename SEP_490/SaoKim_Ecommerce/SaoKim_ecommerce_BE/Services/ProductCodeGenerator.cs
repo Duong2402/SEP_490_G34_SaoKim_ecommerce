@@ -10,8 +10,6 @@ namespace SaoKim_ecommerce_BE.Services
             string shortName = GetShortName(productName);
             return $"{shortName}-{productId:D3}";
         }
-
-        
         private static string GetShortName(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return "SP";

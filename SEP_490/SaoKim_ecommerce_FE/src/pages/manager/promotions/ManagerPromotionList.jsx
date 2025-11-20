@@ -1,11 +1,20 @@
 // src/pages/manager/promotions/ManagerPromotionList.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PromotionsAPI } from "../../../api/promotions";
-import AddEditPromotionModal from "../../../components/AddEditPromotionModal";
 import MultiAddPromotionProductsModal from "../../../components/MultiAddPromotionProductsModal";
 import { formatDate } from "../../ProjectManager/projectHelpers";
 
+const STATUS_LABELS = {
+  Draft: "Nháp",
+  Scheduled: "Đã lên lịch",
+  Active: "Đang chạy",
+  Inactive: "Tạm dừng",
+  Expired: "Đã kết thúc",
+};
+
 export default function ManagerPromotionList() {
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [sortBy, setSortBy] = useState("created");
@@ -17,137 +26,195 @@ export default function ManagerPromotionList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [showEdit, setShowEdit] = useState(null);       // null | dto
-  const [showProducts, setShowProducts] = useState(null); // promotion id
+  const [selectedPromotionId, setSelectedPromotionId] = useState(null);
 
   const params = useMemo(
-    () => ({ q: q || undefined, status: status || undefined, sortBy, sortDir, page, pageSize }),
+    () => ({
+      q: q || undefined,
+      status: status || undefined,
+      sortBy,
+      sortDir,
+      page,
+      pageSize,
+    }),
     [q, status, sortBy, sortDir, page, pageSize]
   );
 
-  const load = async () => {
-    setLoading(true);
+  const loadPromotions = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await PromotionsAPI.list(params);
       const payload = res?.data?.data ?? res?.data ?? {};
       setRows(payload.items ?? []);
       setTotal(payload.total ?? 0);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
+      setRows([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [params]);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => { await load(); })();
-    return () => { mounted = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+    loadPromotions();
+  }, [loadPromotions]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const onDeleted = async (id) => {
-    if (!window.confirm("Xóa promotion này? Hành động không thể hoàn tác.")) return;
+  const handleDelete = async (id) => {
+    if (!window.confirm("Xóa chương trình khuyến mãi này? Hành động không thể hoàn tác.")) {
+      return;
+    }
     try {
       await PromotionsAPI.remove(id);
-      await load();
-    } catch (e) {
-      console.error(e);
-      alert("Xóa thất bại");
+      await loadPromotions();
+    } catch (error) {
+      console.error(error);
+      alert("Không thể xóa khuyến mãi.");
     }
   };
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 16 }}>
-      {/* Filters & Actions */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name"
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", minWidth: 260 }}
-        />
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          <option value="">All statuses</option>
-          <option value="Draft">Draft</option>
-          <option value="Scheduled">Scheduled</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Expired">Expired</option>
-        </select>
-
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          <option value="created">Created</option>
-          <option value="name">Name</option>
-          <option value="startDate">Start date</option>
-          <option value="endDate">End date</option>
-          <option value="discountValue">Discount</option>
-          <option value="status">Status</option>
-        </select>
-        <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          <option value="desc">Desc</option>
-          <option value="asc">Asc</option>
-        </select>
-
-        <div style={{ marginLeft: "auto" }}>
-          <button className="btn btn-primary" onClick={() => setShowEdit({})}>+ New Promotion</button>
+    <div className="manager-panel">
+      <div className="manager-panel__header">
+        <div>
+          <h2 className="manager-panel__title">Khuyến mãi</h2>
+          <p className="manager-panel__subtitle">
+            Thiết lập ưu đãi và quản lý sản phẩm tham gia để tối ưu doanh số.
+          </p>
+        </div>
+        <div className="manager-panel__actions">
+          <button type="button" className="manager-btn manager-btn--outline" onClick={loadPromotions}>
+            Làm mới
+          </button>
+          <button
+            type="button"
+            className="manager-btn manager-btn--primary"
+            onClick={() => navigate("/manager/promotions/create")}
+          >
+            + Tạo khuyến mãi
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="manager-filters">
+        <input
+          className="manager-input"
+          placeholder="Tìm theo tên khuyến mãi"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
+        />
+        <select
+          className="manager-select"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Tất cả trạng thái</option>
+          <option value="Draft">Nháp</option>
+          <option value="Scheduled">Đã lên lịch</option>
+          <option value="Active">Đang chạy</option>
+          <option value="Inactive">Tạm dừng</option>
+          <option value="Expired">Đã kết thúc</option>
+        </select>
+
+        <select
+          className="manager-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+        >
+          <option value="created">Ngày tạo</option>
+          <option value="name">Tên khuyến mãi</option>
+          <option value="startDate">Ngày bắt đầu</option>
+          <option value="endDate">Ngày kết thúc</option>
+          <option value="discountValue">Giá trị ưu đãi</option>
+          <option value="status">Trạng thái</option>
+        </select>
+
+        <select
+          className="manager-select"
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value)}
+        >
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </select>
+      </div>
+
+      <div className="manager-table__wrapper">
+        <table className="manager-table">
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-              <th style={{ padding: 10 }}>#</th>
-              <th style={{ padding: 10 }}>Name</th>
-              <th style={{ padding: 10 }}>Discount</th>
-              <th style={{ padding: 10 }}>Start</th>
-              <th style={{ padding: 10 }}>End</th>
-              <th style={{ padding: 10 }}>Status</th>
-              <th style={{ padding: 10 }}>Created</th>
-              <th style={{ padding: 10, width: 220 }}></th>
+            <tr>
+              <th>#</th>
+              <th>Tên chương trình</th>
+              <th>Giá trị ưu đãi</th>
+              <th>Bắt đầu</th>
+              <th>Kết thúc</th>
+              <th>Trạng thái</th>
+              <th>Ngày tạo</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ padding: 16, color: "#888" }}>Loading...</td></tr>
+              <tr>
+                <td className="manager-table__empty" colSpan={8}>
+                  Đang tải dữ liệu...
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: 16, color: "#888" }}>No data</td></tr>
+              <tr>
+                <td className="manager-table__empty" colSpan={8}>
+                  Chưa có chương trình khuyến mãi nào.
+                </td>
+              </tr>
             ) : (
-              rows.map((p, idx) => (
-                <tr key={p.id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                  <td style={{ padding: 10 }}>{(page - 1) * pageSize + idx + 1}</td>
-                  <td style={{ padding: 10 }}>
-                    <div style={{ fontWeight: 600 }}>{p.name}</div>
-                    {p.description ? <div style={{ fontSize: 12, color: "#64748b" }}>{p.description}</div> : null}
+              rows.map((promo, idx) => (
+                <tr key={promo.id}>
+                  <td>{(page - 1) * pageSize + idx + 1}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{promo.name}</div>
+                    {promo.description && (
+                      <div className="manager-card__meta">{promo.description}</div>
+                    )}
                   </td>
-                  <td style={{ padding: 10 }}>
-                    {p.discountType === "Percentage" ? `${p.discountValue}%` : `${p.discountValue} VND`}
+                  <td>
+                    {promo.discountType === "Percentage"
+                      ? `${promo.discountValue}%`
+                      : `${Number(promo.discountValue).toLocaleString("vi-VN")} ₫`}
                   </td>
-                  <td style={{ padding: 10 }}>{formatDate(p.startDate, "vi")}</td>
-                  <td style={{ padding: 10 }}>{formatDate(p.endDate, "vi")}</td>
-                  <td style={{ padding: 10 }}>{p.status}</td>
-                  <td style={{ padding: 10 }}>{p.createdAt ? new Date(p.createdAt).toLocaleString() : "-"}</td>
-                  <td style={{ padding: 10, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button className="btn btn-outline btn-sm" onClick={() => setShowProducts(p.id)}>Products</button>
-                    <button className="btn btn-outline btn-sm" onClick={() => setShowEdit(p)}>Edit</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => onDeleted(p.id)} style={{ color: "#dc2626" }}>
-                      Delete
+                  <td>{formatDate(promo.startDate, "vi")}</td>
+                  <td>{formatDate(promo.endDate, "vi")}</td>
+                  <td>{STATUS_LABELS[promo.status] ?? promo.status}</td>
+                  <td>{promo.createdAt ? new Date(promo.createdAt).toLocaleString("vi-VN") : "-"}</td>
+                  <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="manager-btn manager-btn--outline"
+                      onClick={() => setSelectedPromotionId(promo.id)}
+                    >
+                      Sản phẩm
+                    </button>
+                    <button
+                      type="button"
+                      className="manager-btn manager-btn--outline"
+                      onClick={() => navigate(`/manager/promotions/${promo.id}/edit`)}
+                    >
+                      Chỉnh sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="manager-btn manager-btn--outline"
+                      style={{ color: "#d64a4a", borderColor: "rgba(214,74,74,0.4)" }}
+                      onClick={() => handleDelete(promo.id)}
+                    >
+                      Xóa
                     </button>
                   </td>
                 </tr>
@@ -157,47 +224,42 @@ export default function ManagerPromotionList() {
         </table>
       </div>
 
-      {/* Pagination */}
-      <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page <= 1}
-          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}
-        >
-          Prev
+      <div className="manager-pagination">
+        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+          Trước
         </button>
-        <div style={{ fontSize: 13, color: "#666" }}>
-          Page {page} / {totalPages}
-        </div>
+        <span>
+          Trang {page}/{totalPages}
+        </span>
         <button
+          type="button"
           onClick={() => setPage((p) => p + 1)}
           disabled={page >= totalPages}
-          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}
         >
-          Next
+          Sau
         </button>
-        <label style={{ color: "#666", fontSize: 13, marginLeft: 12 }}>Page size</label>
+        <label>Hiển thị</label>
         <select
+          className="manager-select"
+          style={{ width: 90 }}
           value={pageSize}
-          onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-          style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ddd" }}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
         >
-          {[10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+          {[10, 20, 50].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Modals */}
-      {showEdit !== null && (
-        <AddEditPromotionModal
-          promotion={showEdit?.id ? showEdit : null}
-          onClose={() => setShowEdit(null)}
-          onSaved={async () => { setShowEdit(null); await load(); }}
-        />
-      )}
-      {showProducts !== null && (
+      {selectedPromotionId !== null && (
         <MultiAddPromotionProductsModal
-          promotionId={showProducts}
-          onClose={() => setShowProducts(null)}
+          promotionId={selectedPromotionId}
+          onClose={() => setSelectedPromotionId(null)}
         />
       )}
     </div>

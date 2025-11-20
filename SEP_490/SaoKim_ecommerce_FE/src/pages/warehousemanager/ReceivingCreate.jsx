@@ -53,7 +53,7 @@ export default function ReceivingCreate() {
   const [uoms, setUoms] = useState([]);
 
 
-  floadproect(() => {
+  useEffect(() => {
   const loadProducts = async () => {
     try {
       const res = await apiFetch(`/api/products`);

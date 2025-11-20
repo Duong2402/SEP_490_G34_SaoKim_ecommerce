@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Entities;
 
 namespace SaoKim_ecommerce_BE.Services
 {
@@ -15,7 +16,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<HomeProductsDto> GetHomeAsync(ProductQueryParams query)
         {
-            // Featured: 8 sp mới nhất, còn hàng
             var featured = await _db.Products
                 .AsNoTracking()
                 .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
@@ -28,12 +28,11 @@ namespace SaoKim_ecommerce_BE.Services
                     Slug = null,
                     Price = p.Price,
                     ThumbnailUrl = p.Image,
-                    CreatedAt = p.CreateAt ?? p.Date,   // DTO non-null
-                    Stock = p.Quantity                   // thêm Stock để InStock tính đúng
+                    CreatedAt = p.CreateAt ?? p.Date,  
+                    Stock = p.Quantity                   
                 })
                 .ToListAsync();
 
-            // New arrivals: 12 sp mới nhất
             var newArrivals = await _db.Products
                 .AsNoTracking()
                 .Where(p => p.Status == "Active" || p.Status == null)
@@ -51,7 +50,6 @@ namespace SaoKim_ecommerce_BE.Services
                 })
                 .ToListAsync();
 
-            // All (paged + filter/sort)
             var all = await GetPagedAsync(query);
 
             return new HomeProductsDto
@@ -70,20 +68,12 @@ namespace SaoKim_ecommerce_BE.Services
             var q = _db.Products.AsNoTracking()
                 .Where(p => p.Status == "Active" || p.Status == null);
 
-            // Keyword
             if (!string.IsNullOrWhiteSpace(query.Keyword))
             {
                 var kw = query.Keyword.Trim();
                 q = q.Where(p => EF.Functions.Like(p.ProductName, $"%{kw}%"));
-                // Nếu DB phân biệt hoa/thường, có thể dùng: p.ProductName.ToLower().Contains(kw.ToLower())
             }
 
-            // Category (đề nghị đổi ProductQueryParams.CategoryId -> Category: string?)
-            // Nếu bạn CHƯA đổi DTO, tạm bỏ lọc Category để tránh sai lệch kiểu.
-            // if (!string.IsNullOrWhiteSpace(query.Category))
-            //     q = q.Where(p => p.Category == query.Category);
-
-            // Sort
             q = query.SortBy switch
             {
                 "price_asc" => q.OrderBy(p => p.Price).ThenByDescending(p => p.CreateAt ?? p.Date),

@@ -41,14 +41,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public bool IsDefault { get; set; }
     }
 
-    //public class AddressResponse
-    //{
-    //    public int Id { get; set; }
-    //    public string ReceiverName { get; set; } = string.Empty;
-    //    public string Phone { get; set; } = string.Empty;
-    //    public string Line1 { get; set; } = string.Empty;
-    //    public bool IsDefault { get; set; }
-    //}
 }
 
 

@@ -13,7 +13,6 @@ namespace SaoKim_ecommerce_BE.Services
         {
             _db = db;
         }
-
         public async Task<ProjectProductListDTO> GetProductsAsync(int projectId)
         {
             var exists = await _db.Projects.AsNoTracking().AnyAsync(p => p.Id == projectId);
@@ -53,7 +52,6 @@ namespace SaoKim_ecommerce_BE.Services
                 .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId);
             if (product == null) throw new KeyNotFoundException("Product not found");
 
-            // chặn trùng (ProjectId, ProductId)
             var dup = await _db.ProjectProducts
                 .AnyAsync(x => x.ProjectId == projectId && x.ProductId == dto.ProductId);
             if (dup) throw new InvalidOperationException("Product already added to this project");
@@ -116,7 +114,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Note = entity.Note
             };
         }
-
         public async Task<bool> RemoveProductAsync(int projectId, int projectProductId)
         {
             var entity = await _db.ProjectProducts

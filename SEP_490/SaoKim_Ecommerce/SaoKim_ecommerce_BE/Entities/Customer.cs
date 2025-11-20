@@ -4,7 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SaoKim_ecommerce_BE.Entities
 {
-    // ===== CUSTOMER NOTE =====
     [Table("customer_notes")]
     public class CustomerNote
     {
@@ -32,7 +31,6 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
-    // ===== STAFF ACTION LOG =====
     [Table("staff_action_logs")]
     public class StaffActionLog
     {
@@ -56,6 +54,7 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
+<<<<<<< HEAD
 
     // ===== ORDER =====
     [Table("orders")]
@@ -84,4 +83,6 @@ namespace SaoKim_ecommerce_BE.Entities
         // quan hệ 1–1: một order có một invoice
         public Invoice? Invoice { get; set; }
     }
+=======
+>>>>>>> origin/main
 }

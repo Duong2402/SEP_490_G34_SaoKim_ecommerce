@@ -1,15 +1,6 @@
 // src/components/ProductSelector.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../api/products";
-
-/**
- * Selector này ưu tiên format cũ:
- *   /api/products  -> { items: [...] }
- * và fallback nếu BE trả dạng ApiResponse:
- *   { success, data: { items: [...] } }
- *
- * Trả về object gọn: { id, name, sku, price, unit } qua onSelect
- */
 export default function ProductSelector({ value, onSelect }) {
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState([]);
@@ -22,13 +13,10 @@ export default function ProductSelector({ value, onSelect }) {
         setLoading(true);
         const res = await ProductsAPI.list({ page: 1, pageSize: 1000 });
 
-        // ƯU TIÊN KIỂU CŨ
         let raw = res?.data?.items;
 
-        // fallback kiểu ApiResponse
         if (!Array.isArray(raw)) raw = res?.data?.data?.items;
 
-        // fallback nốt nếu BE trả list trực tiếp
         if (!Array.isArray(raw)) raw = Array.isArray(res?.data) ? res?.data : [];
 
         const normalized = (raw || []).map((p) => ({
@@ -37,7 +25,6 @@ export default function ProductSelector({ value, onSelect }) {
           sku: p.sku ?? p.productCode ?? p.product_code,
           price: p.price ?? 0,
           unit: p.unit ?? p.uom ?? p.Unit ?? "",
-          // giữ reference gốc phòng chỗ gọi cần thêm field
           _raw: p,
         })).filter(x => x.id != null);
 

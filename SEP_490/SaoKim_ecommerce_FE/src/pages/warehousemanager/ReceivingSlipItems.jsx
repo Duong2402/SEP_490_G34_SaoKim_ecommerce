@@ -25,7 +25,7 @@ import { apiFetch } from "../../api/lib/apiClient";
 import { getReceivingHubConnection } from "../../signalr/receivingHub";
 import * as signalR from "@microsoft/signalr";
 
-const API_BASE = "https://localhost:7278";
+const PAGE_SIZE = 10;
 
 const initialForm = {
   productId: "",
@@ -69,10 +69,7 @@ const ReceivingSlipItems = () => {
   const [status, setStatus] = useState(0);
   const [uoms, setUoms] = useState([]);
 
-  useEffect(() => {
-    load();
-    loadProducts();
-  }, [id]);
+  const [page, setPage] = useState(1);
 
   const totals = useMemo(() => {
     const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
@@ -86,6 +83,17 @@ const ReceivingSlipItems = () => {
       totalItems: items.length,
     };
   }, [items]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return items.slice(start, start + PAGE_SIZE);
+  }, [items, page]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    if (page > maxPage) setPage(maxPage);
+  }, [items, page]);
 
   async function load() {
     setLoading(true);
@@ -163,6 +171,12 @@ const ReceivingSlipItems = () => {
     if (Number.isNaN(n)) return null;
     return products.find((p) => Number(p.id) === n) || null;
   }
+
+  useEffect(() => {
+    load();
+    loadProducts();
+    loadUOMs();
+  }, [id]);
 
   useEffect(() => {
     const connection = getReceivingHubConnection();
@@ -502,6 +516,57 @@ const ReceivingSlipItems = () => {
             )}
           </tbody>
         </Table>
+      </div>
+
+      <div className="d-flex justify-content-between align-items-center mt-3">
+        <div>
+          Tổng: {items.length} dòng • Trang {page}/{totalPages}
+        </div>
+
+        <div className="btn-group">
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trước
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .reduce((acc, p, idx, arr) => {
+              if (idx && p - arr[idx - 1] > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "..." ? (
+                <button
+                  key={`gap-${i}`}
+                  className="btn btn-outline-light"
+                  disabled
+                >
+                  ...
+                </button>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Sau
+          </button>
+        </div>
       </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">

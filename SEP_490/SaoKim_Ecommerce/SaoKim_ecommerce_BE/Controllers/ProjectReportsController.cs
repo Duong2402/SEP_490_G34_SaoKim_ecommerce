@@ -52,9 +52,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return File(pdf, "application/pdf", fileName);
         }
 
-        // --------------------------
-        // Core: tổng hợp dữ liệu báo cáo
-        // --------------------------
         private async Task<ProjectReportDto> BuildReportAsync(int projectId)
         {
             var p = await _db.Projects
@@ -63,13 +60,11 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (p == null) return null;
 
-            // Tổng thành tiền sản phẩm (xem như Revenue hiện tại)
             var totalProductAmount = await _db.ProjectProducts
                 .AsNoTracking()
                 .Where(x => x.ProjectId == projectId)
                 .SumAsync(x => (decimal?)x.Total) ?? 0m;
 
-            // Tổng chi phí vận hành/triển khai
             var totalOtherExpenses = await _db.ProjectExpenses
                 .AsNoTracking()
                 .Where(x => x.ProjectId == projectId)
@@ -78,9 +73,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             var budget = p.Budget ?? 0m;
             var actualAllIn = totalProductAmount + totalOtherExpenses;
             var variance = budget - actualAllIn;
-            var profitApprox = totalProductAmount - totalOtherExpenses; // chưa trừ COGS riêng
+            var profitApprox = totalProductAmount - totalOtherExpenses; 
 
-            // Tiến độ & issues
             var tasks = await _db.TaskItems
                 .AsNoTracking()
                 .Where(t => t.ProjectId == projectId)
@@ -135,9 +129,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             };
         }
 
-        // --------------------------
-        // PDF render bằng QuestPDF
-        // --------------------------
         private byte[] GeneratePdf(ProjectReportDto dto)
         {
             QuestPDF.Settings.License = LicenseType.Community;
@@ -161,7 +152,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                     page.Content().PaddingTop(8).Column(col =>
                     {
-                        // Project Info
                         col.Item().Text($"{dto.Code ?? "-"} — {dto.Name}").Bold().FontSize(13);
                         col.Item().Text(txt =>
                         {
@@ -180,7 +170,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                         col.Item().PaddingVertical(6).LineHorizontal(0.5f);
 
-                        // KPI hàng đầu
                         col.Item().Grid(grid =>
                         {
                             grid.Columns(3);
@@ -273,7 +262,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                             static IContainer Cell(IContainer c) => c.Padding(4);
                         });
 
-                        // Issues (tránh dùng List extension để khỏi lỗi)
+                        // Issues
                         col.Item().PaddingTop(8).Text("Issues (Delayed Tasks)").SemiBold();
                         if (dto.Issues != null && dto.Issues.Count > 0)
                         {

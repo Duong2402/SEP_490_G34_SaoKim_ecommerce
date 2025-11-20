@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import http from "../../api/http";
+import { ProjectAPI } from "../../api/ProjectManager/projects";
 import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import ProjectForm from "./ProjectForm";
 
@@ -15,8 +15,9 @@ export default function ProjectEdit() {
   useEffect(() => {
     const loadDetail = async () => {
       try {
-        const res = await http.get(`/api/Projects/${id}`);
-        setDetail(res.data?.data || null);
+        const res = await ProjectAPI.getById(id);
+        const body = res || {};
+        setDetail(body.data ?? body ?? null);
       } catch (err) {
         console.error(err);
         alert(t("projects.messages.loadFailure"));
@@ -31,7 +32,7 @@ export default function ProjectEdit() {
   const handleSubmit = async (payload) => {
     try {
       setSaving(true);
-      await http.put(`/api/Projects/${id}`, {
+      await ProjectAPI.update(id, {
         name: payload.name,
         customerName: payload.customerName,
         customerContact: payload.customerContact,
@@ -95,7 +96,12 @@ export default function ProjectEdit() {
           </div>
         </header>
 
-        <ProjectForm initialValues={detail} onSubmit={handleSubmit} submitting={saving} showCode={false} />
+        <ProjectForm
+          initialValues={detail}
+          onSubmit={handleSubmit}
+          submitting={saving}
+          showCode={false}
+        />
       </div>
     </div>
   );

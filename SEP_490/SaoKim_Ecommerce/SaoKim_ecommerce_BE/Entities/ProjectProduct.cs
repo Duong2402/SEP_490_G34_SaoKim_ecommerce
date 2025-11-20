@@ -15,7 +15,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Required]
         public int ProductId { get; set; }
 
-        // chốt thông tin tại thời điểm thêm, tránh lệ thuộc thay đổi ở bảng products
         [Required, MaxLength(200)]
         public string ProductName { get; set; } = default!;
 
@@ -39,7 +38,6 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navs
         public Project Project { get; set; } = default!;
         public Product Product { get; set; } = default!;
     }

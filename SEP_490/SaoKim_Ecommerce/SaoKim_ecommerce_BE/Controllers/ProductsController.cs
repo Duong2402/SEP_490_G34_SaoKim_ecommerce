@@ -96,7 +96,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
-        // DETAIL (PUBLIC) — trả về { product, related }
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -141,7 +140,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { product = product, related });
         }
 
-        // CREATE (YÊU CẦU QUYỀN)
         [HttpPost]
         [AllowAnonymous]
         // [Authorize(Roles = "Admin")]
@@ -173,6 +171,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 Date = DateTime.UtcNow,
             };
 
+<<<<<<< HEAD
             // Upload ảnh
             if (model.ImageFile != null && model.ImageFile.Length > 0)
             {
@@ -192,13 +191,19 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
 
             _db.Products.Add(product);
+=======
+            _db.Products.Add(model);
+>>>>>>> origin/main
             await _db.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetById), new { id = product.ProductID }, product);
         }
 
+<<<<<<< HEAD
 
         // UPDATE (YÊU CẦU QUYỀN)
+=======
+>>>>>>> origin/main
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] UpdateProductDto model)
@@ -207,6 +212,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (existing == null)
                 return NotFound(new { message = "Product not found" });
 
+<<<<<<< HEAD
             // Update fields
             existing.ProductCode = model.Sku;
             existing.ProductName = model.Name;
@@ -219,6 +225,20 @@ namespace SaoKim_ecommerce_BE.Controllers
             existing.Description = model.Description;
             existing.Supplier = model.Supplier;
             existing.Note = model.Note;
+=======
+            existing.ProductCode = update.ProductCode;
+            existing.ProductName = update.ProductName;
+            existing.CategoryId = update.CategoryId;      
+            existing.Unit = update.Unit;
+            existing.Price = update.Price;
+            existing.Quantity = update.Quantity;
+            existing.Stock = update.Stock;
+            existing.Status = update.Status;
+            existing.Description = update.Description;
+            existing.Supplier = update.Supplier;
+            existing.Note = update.Note;
+            existing.Image = update.Image;
+>>>>>>> origin/main
             existing.UpdateAt = DateTime.UtcNow;
             existing.UpdateBy = model.UpdateBy;
 
@@ -253,9 +273,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product updated successfully" });
         }
 
+<<<<<<< HEAD
 
 
         // DELETE (YÊU CẦU QUYỀN)
+=======
+>>>>>>> origin/main
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
