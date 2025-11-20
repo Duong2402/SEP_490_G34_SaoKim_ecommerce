@@ -101,26 +101,32 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         >
           <form onSubmit={handleSubmit}>
             <div className="pm-modal__header">
-              <h2 id="pp-modal-title" className="pm-modal__title">
-                {title}
-              </h2>
+              <div>
+                <h2 id="pp-modal-title" className="pm-modal__title">
+                  {title}
+                </h2>
+                <p className="pm-modal__subtitle">
+                  Chọn sản phẩm, nhập số lượng và đơn giá cho dự án.
+                </p>
+              </div>
               <button type="button" onClick={onClose} aria-label="Đóng" className="pm-modal__close">
                 ×
               </button>
             </div>
 
-            <div className="pm-modal__body">
+            <div className="pm-modal__body pm-modal__section">
               {!product && (
-                <div>
-                  <label style={{ display: "block", marginBottom: 6 }}>Chọn sản phẩm</label>
+                <div className="pm-field">
+                  <span className="pm-field__label">Chọn sản phẩm</span>
                   <ProductSelector value={pickedProduct} onSelect={handlePick} />
                   <input type="hidden" name="productId" value={form.productId} readOnly />
+                  <span className="pm-field__hint">Tìm kiếm theo tên hoặc mã SKU.</span>
                 </div>
               )}
 
-              <div className="pm-inline-grid">
-                <div>
-                  <label htmlFor="pp-qty" style={{ display: "block", marginBottom: 6 }}>
+              <div className="pm-modal__grid">
+                <div className="pm-field">
+                  <label htmlFor="pp-qty" className="pm-field__label">
                     Số lượng
                   </label>
                   <input
@@ -134,10 +140,11 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                     onChange={handleChange}
                     required
                   />
+                  <span className="pm-field__hint">Nhập số lượng giao/thi công.</span>
                 </div>
 
-                <div>
-                  <label htmlFor="pp-price" style={{ display: "block", marginBottom: 6 }}>
+                <div className="pm-field">
+                  <label htmlFor="pp-price" className="pm-field__label">
                     Đơn giá (VND)
                   </label>
                   <input
@@ -149,13 +156,14 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                     step="1"
                     value={form.unitPrice}
                     onChange={handleChange}
-                    placeholder="Bỏ trống để dùng giá của sản phẩm"
+                    placeholder="Bỏ trống để dùng giá sản phẩm"
                   />
+                  <span className="pm-field__hint">Có thể bỏ trống để lấy giá mặc định.</span>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="pp-note" style={{ display: "block", marginBottom: 6 }}>
+              <div className="pm-field">
+                <label htmlFor="pp-note" className="pm-field__label">
                   Ghi chú
                 </label>
                 <textarea
@@ -165,7 +173,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                   rows={3}
                   value={form.note}
                   onChange={handleChange}
-                  placeholder="Tùy chọn"
+                  placeholder="Ghi rõ yêu cầu đóng gói, màu sắc, v.v. (tùy chọn)"
                 />
               </div>
             </div>

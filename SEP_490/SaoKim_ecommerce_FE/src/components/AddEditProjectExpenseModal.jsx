@@ -126,15 +126,20 @@ export default function AddEditProjectExpenseModal({
       >
         <form onSubmit={handleSubmit}>
           <div className="pm-modal__header">
-            <h2 className="pm-modal__title">{isEdit ? "Cập nhật chi phí" : "Thêm chi phí"}</h2>
+            <div>
+              <h2 className="pm-modal__title">{isEdit ? "Cập nhật chi phí" : "Thêm chi phí"}</h2>
+              <p className="pm-modal__subtitle">
+                Ghi nhận chi phí thực tế, nhóm chi phí và chứng từ liên quan.
+              </p>
+            </div>
             <button type="button" onClick={onClose} aria-label="Đóng" className="pm-modal__close">
               ×
             </button>
           </div>
 
-          <div className="pm-modal__body">
-            <div>
-              <label className="label">Ngày</label>
+          <div className="pm-modal__body pm-modal__grid">
+            <div className="pm-field">
+              <label className="pm-field__label">Ngày</label>
               <input
                 type="date"
                 name="date"
@@ -146,8 +151,8 @@ export default function AddEditProjectExpenseModal({
               {errors.date ? <p style={{ color: "#b91c1c", fontSize: 12 }}>{errors.date}</p> : null}
             </div>
 
-            <div>
-              <label className="label">Nhóm chi phí</label>
+            <div className="pm-field">
+              <label className="pm-field__label">Nhóm chi phí</label>
               <select
                 name="category"
                 className="input"
@@ -164,8 +169,8 @@ export default function AddEditProjectExpenseModal({
               </select>
             </div>
 
-            <div>
-              <label className="label">Nhà cung cấp</label>
+            <div className="pm-field">
+              <label className="pm-field__label">Nhà cung cấp</label>
               <input
                 name="vendor"
                 className="input"
@@ -175,8 +180,8 @@ export default function AddEditProjectExpenseModal({
               />
             </div>
 
-            <div>
-              <label className="label">Mô tả</label>
+            <div className="pm-field">
+              <label className="pm-field__label">Mô tả</label>
               <input
                 name="description"
                 className="input"
@@ -184,10 +189,11 @@ export default function AddEditProjectExpenseModal({
                 onChange={handleChange}
                 disabled={saving}
               />
+              <span className="pm-field__hint">Ví dụ: Phí vận chuyển, chi phí nhân công, v.v.</span>
             </div>
 
-            <div>
-              <label className="label">Số tiền (VND)</label>
+            <div className="pm-field">
+              <label className="pm-field__label">Số tiền (VND)</label>
               <input
                 name="amount"
                 className="input"
@@ -201,8 +207,8 @@ export default function AddEditProjectExpenseModal({
               ) : null}
             </div>
 
-            <div>
-              <label className="label">Link hóa đơn</label>
+            <div className="pm-field">
+              <label className="pm-field__label">Link hóa đơn</label>
               <input
                 name="receiptUrl"
                 className="input"
@@ -210,6 +216,7 @@ export default function AddEditProjectExpenseModal({
                 onChange={handleChange}
                 disabled={saving}
               />
+              <span className="pm-field__hint">URL đến hóa đơn/biên nhận (tùy chọn).</span>
             </div>
           </div>
 

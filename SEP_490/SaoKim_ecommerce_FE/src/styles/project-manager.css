@@ -809,6 +809,19 @@
   gap: 12px;
 }
 
+.pm-modal__section {
+  padding: 14px 12px;
+  border: 1px solid var(--pm-border);
+  border-radius: 12px;
+  background: var(--pm-blue-50);
+}
+
+.pm-modal__section-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--pm-text);
+}
+
 .pm-modal__title {
   margin: 0;
   font-size: 18px;
@@ -821,6 +834,38 @@
   font-size: 20px;
   cursor: pointer;
   color: var(--pm-muted);
+}
+
+.pm-modal__subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--pm-muted);
+}
+
+.pm-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.pm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pm-field__label {
+  font-weight: 600;
+  color: var(--pm-text);
+}
+
+.pm-field__hint {
+  font-size: 12px;
+  color: var(--pm-muted);
+}
+
+.pm-modal__footer .btn {
+  min-width: 120px;
 }
 
 .pm-shell .pm-inline-grid {

@@ -1077,11 +1077,16 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
             e.preventDefault();
             onSubmit();
           }}
-        >
-          <div className="pm-modal__header">
-            <h2 id="task-modal-title" className="pm-modal__title">
-              {title}
-            </h2>
+          >
+            <div className="pm-modal__header">
+              <div>
+                <h2 id="task-modal-title" className="pm-modal__title">
+                  {title}
+                </h2>
+                <p className="pm-modal__subtitle">
+                  Khai báo công việc, người phụ trách và thời gian thực hiện.
+                </p>
+              </div>
             <button
               type="button"
               onClick={onClose}
@@ -1092,9 +1097,9 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
             </button>
           </div>
 
-          <div className="pm-modal__body">
-            <div>
-              <label htmlFor="task-name" style={{ display: "block", marginBottom: 6 }}>
+          <div className="pm-modal__body pm-modal__grid pm-modal__section">
+            <div className="pm-field">
+              <label htmlFor="task-name" className="pm-field__label">
                 {t("projects.detail.taskModal.name")}
               </label>
               <input
@@ -1107,11 +1112,13 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
               />
               {errors.name ? (
                 <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>{errors.name}</p>
-              ) : null}
+              ) : (
+                <span className="pm-field__hint">Ví dụ: Lắp đặt chiếu sáng tầng 2.</span>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="task-assignee" style={{ display: "block", marginBottom: 6 }}>
+            <div className="pm-field">
+              <label htmlFor="task-assignee" className="pm-field__label">
                 {t("projects.detail.taskModal.assignee")}
               </label>
               <input
@@ -1121,11 +1128,12 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
                 value={form.assignee}
                 onChange={onChange}
                 disabled={saving}
+                placeholder="Nhập người phụ trách"
               />
             </div>
 
-            <div>
-              <label htmlFor="task-start" style={{ display: "block", marginBottom: 6 }}>
+            <div className="pm-field">
+              <label htmlFor="task-start" className="pm-field__label">
                 {t("projects.detail.taskModal.startDate")}
               </label>
               <input
@@ -1142,8 +1150,8 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
               ) : null}
             </div>
 
-            <div>
-              <label htmlFor="task-duration" style={{ display: "block", marginBottom: 6 }}>
+            <div className="pm-field">
+              <label htmlFor="task-duration" className="pm-field__label">
                 {t("projects.detail.taskModal.duration")}
               </label>
               <input
@@ -1160,7 +1168,9 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
                 <p style={{ marginTop: 4, color: "#b91c1c", fontSize: 12 }}>
                   {errors.durationDays}
                 </p>
-              ) : null}
+              ) : (
+                <span className="pm-field__hint">Số ngày thực hiện.</span>
+              )}
             </div>
           </div>
 
