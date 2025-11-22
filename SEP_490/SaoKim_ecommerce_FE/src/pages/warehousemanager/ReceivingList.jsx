@@ -9,7 +9,7 @@ import {
   faFileImport,
   faPlus,
   faDownload,
-  faFileExport
+  faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Breadcrumb,
@@ -18,13 +18,12 @@ import {
   Badge,
   Button,
 } from "@themesberg/react-bootstrap";
-import { Modal, Spinner } from "react-bootstrap";
+import { Modal, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
 import * as signalR from "@microsoft/signalr";
 import { getReceivingHubConnection } from "../../signalr/receivingHub";
-
 
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
@@ -44,7 +43,7 @@ export default function ReceivingList() {
   const [search, setSearch] = useState("");
   const [pageSize] = useState(10);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0)
+  const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const [sortBy, setSortBy] = useState("receiptDate");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -52,6 +51,7 @@ export default function ReceivingList() {
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [notify, setNotify] = useState(null); 
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -72,6 +72,7 @@ export default function ReceivingList() {
       setTotal(data.total || 0);
     } catch (error) {
       console.error("Error loading receiving slips:", error);
+      setNotify("Lỗi khi tải danh sách phiếu nhập.");
     } finally {
       setLoading(false);
     }
@@ -97,13 +98,12 @@ export default function ReceivingList() {
         setRows((prev) => [payload, ...prev]);
         setTotal((t) => t + 1);
       } else if (action === "deleted") {
-        setRows((prev) => prev.filter(r => r.id !== payload.id));
+        setRows((prev) => prev.filter((r) => r.id !== payload.id));
       } else if (action === "updated" || action === "confirmed") {
         setRows((prev) =>
-          prev.map(r => r.id === payload.id ? { ...r, ...payload } : r)
+          prev.map((r) => (r.id === payload.id ? { ...r, ...payload } : r))
         );
-      }
-      else if (action === "imported") {
+      } else if (action === "imported") {
         loadData();
       }
     });
@@ -116,6 +116,7 @@ export default function ReceivingList() {
         })
         .catch((err) => {
           console.error("SignalR connection error:", err);
+          setNotify("Không thể kết nối realtime tới máy chủ.");
         });
     }
 
@@ -124,12 +125,26 @@ export default function ReceivingList() {
     };
   }, [loadData]);
 
+  useEffect(() => {
+    if (notify) {
+      const t = setTimeout(() => setNotify(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [notify]);
+
   const handleConfirm = async (id) => {
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/confirm`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Confirm failed");
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/${id}/confirm`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Xác nhận thất bại");
+      }
 
       setRows((prev) =>
         prev.map((r) =>
@@ -138,16 +153,19 @@ export default function ReceivingList() {
             : r
         )
       );
+
+      setNotify("Xác nhận thành công.");
     } catch (error) {
-      console.error("Confirm failed:", error);
-      alert("Không thể xác nhận phiếu. Vui lòng thử lại.");
+      console.error("Xác nhận thất bại:", error);
+      setNotify(error.message || "Không thể xác nhận phiếu.");
     }
   };
 
   const toggleRow = (id) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -161,9 +179,9 @@ export default function ReceivingList() {
         "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu đang hiển thị theo bộ lọc hiện tại?"
       );
       if (!confirmAll) return;
-      const allIds = rows.map(r => r.id);
+      const allIds = rows.map((r) => r.id);
       if (allIds.length === 0) {
-        alert("Không có dữ liệu để xuất.");
+        setNotify("Không có dữ liệu để xuất.");
         return;
       }
       await exportByIds(allIds, includeItems);
@@ -174,11 +192,14 @@ export default function ReceivingList() {
 
   async function exportByIds(ids, includeItems) {
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/export-selected`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, includeItems }),
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/export-selected`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, includeItems }),
+        }
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Export thất bại");
@@ -187,14 +208,18 @@ export default function ReceivingList() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `receiving-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
+      a.download = `receiving-slips-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      setNotify("Xuất file thành công.");
     } catch (e) {
       console.error(e);
-      alert(e.message);
+      setNotify(e.message || "Export thất bại.");
     }
   }
 
@@ -202,27 +227,30 @@ export default function ReceivingList() {
     if (!window.confirm("Bạn có chắc muốn đưa phiếu này vào thùng rác?")) return;
 
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Xóa thất bại");
       }
 
-      setRows(prev => prev.filter(r => r.id !== id));
+      setRows((prev) => prev.filter((r) => r.id !== id));
 
-      alert("Phiếu đã bị xóa!");
+      setNotify("Phiếu đã bị xóa.");
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      setNotify(error.message || "Không thể xóa phiếu.");
     }
   };
 
   const handleImport = async () => {
     if (!importFile) {
-      alert("Vui lòng chọn file Excel trước!");
+      setNotify("Vui lòng chọn file Excel trước.");
       return;
     }
 
@@ -231,19 +259,22 @@ export default function ReceivingList() {
       const formData = new FormData();
       formData.append("file", importFile);
 
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/import`, {
-        method: "POST",
-        body: formData,
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/import`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-      const data = await res.json();
-      alert(data.message || "Import thành công!");
+      const data = await res.json().catch(() => ({}));
+      setNotify(data.message || "Tải phiếu thành công.");
       setShowImportModal(false);
       setImportFile(null);
       loadData();
     } catch (e) {
       console.error(e);
-      alert(e.message || "Import thất bại");
+      setNotify(e.message || "Tải phiếu thất bại.");
     } finally {
       setImportLoading(false);
     }
@@ -260,10 +291,11 @@ export default function ReceivingList() {
   };
 
   const selectAllCurrentPage = () => {
-    setSelectedIds(new Set(rows.map(r => r.id)));
+    setSelectedIds(new Set(rows.map((r) => r.id)));
   };
 
-  const formatDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "-");
+  const formatDate = (v) =>
+    v ? new Date(v).toLocaleDateString("vi-VN") : "-";
 
   return (
     <WarehouseLayout>
@@ -279,7 +311,8 @@ export default function ReceivingList() {
           </div>
           <h1 className="wm-page-title">Quản lý phiếu nhập kho</h1>
           <p className="wm-page-subtitle">
-            Kiểm soát luồng hàng vào kho, xác nhận phiếu và theo dõi tiến độ tiếp nhận.
+            Kiểm soát luồng hàng vào kho, xác nhận phiếu và theo dõi tiến độ
+            tiếp nhận.
           </p>
         </div>
 
@@ -288,7 +321,10 @@ export default function ReceivingList() {
             type="button"
             className="wm-btn wm-btn--light"
             onClick={() => {
-              window.open(`/api/warehousemanager/download-template`, "_blank");
+              window.open(
+                `/api/warehousemanager/download-template`,
+                "_blank"
+              );
             }}
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
@@ -302,10 +338,18 @@ export default function ReceivingList() {
             <FontAwesomeIcon icon={faFileImport} /> Nhập từ phiếu
           </button>
 
-          <button type="button" className="wm-btn wm-btn--light" onClick={selectAllCurrentPage}>
+          <button
+            type="button"
+            className="wm-btn wm-btn--light"
+            onClick={selectAllCurrentPage}
+          >
             Chọn tất cả kết quả
           </button>
-          <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
+          <button
+            type="button"
+            className="wm-btn wm-btn--light"
+            onClick={clearSelection}
+          >
             Bỏ chọn
           </button>
 
@@ -320,14 +364,20 @@ export default function ReceivingList() {
           <button
             type="button"
             className="wm-btn wm-btn--primary"
-            onClick={() => navigate("/warehouse-dashboard/receiving-slips/create")}
+            onClick={() =>
+              navigate("/warehouse-dashboard/receiving-slips/create")
+            }
           >
             <FontAwesomeIcon icon={faPlus} /> Tạo phiếu mới
           </button>
         </div>
       </div>
 
-      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
+      <Modal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Nhập phiếu từ file Excel</Modal.Title>
         </Modal.Header>
@@ -336,7 +386,10 @@ export default function ReceivingList() {
             variant="link"
             className="mb-3 p-0"
             onClick={() =>
-              window.open(`/api/warehousemanager/download-template`, "_blank")
+              window.open(
+                `/api/warehousemanager/download-template`,
+                "_blank"
+              )
             }
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
@@ -349,11 +402,15 @@ export default function ReceivingList() {
             onChange={(e) => setImportFile(e.target.files[0])}
           />
           <small className="text-muted d-block mt-2">
-            File cần gồm: Supplier, ReceiptDate, Note, ProductName, Uom, Quantity, UnitPrice
+            File cần gồm: Supplier, ReceiptDate, Note, ProductName, Uom,
+            Quantity, UnitPrice
           </small>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowImportModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowImportModal(false)}
+          >
             Hủy
           </Button>
           <Button
@@ -490,7 +547,7 @@ export default function ReceivingList() {
                         ? formatDate(r.confirmedAt)
                         : "Chưa xác nhận"}
                     </td>
-                    <td>{r.note || "N/A"}</td>
+                    <td>{r.note || "Không có ghi chú"}</td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"
@@ -547,7 +604,10 @@ export default function ReceivingList() {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .filter(
+              (p) =>
+                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
+            )
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -565,8 +625,9 @@ export default function ReceivingList() {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -584,7 +645,31 @@ export default function ReceivingList() {
           </button>
         </div>
       </div>
+
+      {notify && (
+        <ToastContainer
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 9999,
+          }}
+        >
+          <Toast
+            onClose={() => setNotify(null)}
+            show={!!notify}
+            delay={3500}
+            autohide
+            bg="warning"
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body>{notify}</Toast.Body>
+          </Toast>
+        </ToastContainer>
+      )}
     </WarehouseLayout>
   );
 }
-
