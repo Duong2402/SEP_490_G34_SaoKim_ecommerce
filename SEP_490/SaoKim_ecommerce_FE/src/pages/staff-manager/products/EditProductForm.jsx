@@ -1,3 +1,4 @@
+// src/pages/manager/products/EditProductForm.jsx
 import React from "react";
 import ProductForm from "./ProductForm";
 import useProductsApi from "../api/useProducts";
@@ -6,8 +7,6 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
   const { updateProduct } = useProductsApi();
 
   const handleSubmit = async (values) => {
-    
-
     const payload = {
       sku: values.sku,
       name: values.name,
@@ -39,4 +38,3 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
 }
 
 export default EditProductForm;
-

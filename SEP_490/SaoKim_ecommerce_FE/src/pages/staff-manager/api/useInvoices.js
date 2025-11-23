@@ -15,7 +15,7 @@ export default function useInvoicesApi() {
   const fetchInvoices = async (opts = {}) => {
     const qs = buildQuery(opts);
     const res = await http.get(`/invoices${qs ? "?" + qs : ""}`);
-    return res;                         // interceptor đã trả về res.data rồi
+    return res;
   };
 
   const getInvoice = async (id) => {
@@ -33,7 +33,6 @@ export default function useInvoicesApi() {
     return res;
   };
 
-  // PDF: upload thủ công (giữ nếu cần)
   const uploadPdf = async (id, file) => {
     const fd = new FormData();
     fd.append("file", file);
@@ -43,16 +42,14 @@ export default function useInvoicesApi() {
     return res;
   };
 
-  // PDF: lấy blob; inline=true để preview (Content-Disposition:inline)
   const getPdfBlob = async (id, inline = false) => {
     const res = await http.get(
       `/invoices/${id}/pdf${inline ? "?inline=true" : ""}`,
       { responseType: "blob" }
     );
-    return res;             // interceptor trả về blob (res.data)
+    return res;
   };
 
-  // PDF: generate theo nghiệp vụ (Paid mới cho phép)
   const generatePdf = async (id) => {
     const res = await http.post(`/invoices/${id}/generate-pdf`);
     return res;
@@ -63,15 +60,21 @@ export default function useInvoicesApi() {
     return res;
   };
 
+  // NEW: gửi email hóa đơn tới khách
+  const sendInvoiceEmail = async (id) => {
+    const res = await http.post(`/invoices/${id}/send-email`);
+    return res;
+  };
+
   return {
     fetchInvoices,
     getInvoice,
     updateStatus,
     deleteInvoice,
-    // PDF helpers
     uploadPdf,
     getPdfBlob,
     generatePdf,
     deletePdf,
+    sendInvoiceEmail, // nhớ export ra
   };
 }

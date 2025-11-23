@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../../../api/products";
 
 const formatCurrency = (value) => {
-  if (value == null) return "0 ₫";
+  if (value == null) return "0 ₫";
   return Number(value).toLocaleString("vi-VN") + " ₫";
 };
 
@@ -12,6 +12,8 @@ const STATUS_LABELS = {
   Inactive: "Tạm ngưng",
   Draft: "Nháp",
 };
+
+const FALLBACK_IMAGE = "https://via.placeholder.com/80x80?text=No+Image";
 
 export default function ManagerProductList() {
   const [q, setQ] = useState("");
@@ -61,7 +63,11 @@ export default function ManagerProductList() {
           </p>
         </div>
         <div className="manager-panel__actions">
-          <button type="button" className="manager-btn manager-btn--outline" onClick={loadProducts}>
+          <button
+            type="button"
+            className="manager-btn manager-btn--outline"
+            onClick={loadProducts}
+          >
             Làm mới
           </button>
         </div>
@@ -101,7 +107,13 @@ export default function ManagerProductList() {
           <option value="asc">Tăng dần</option>
         </select>
 
-        <label style={{ marginLeft: "auto", fontSize: 14, color: "var(--manager-muted)" }}>
+        <label
+          style={{
+            marginLeft: "auto",
+            fontSize: 14,
+            color: "var(--manager-muted)",
+          }}
+        >
           Hiển thị
         </label>
         <select
@@ -126,6 +138,7 @@ export default function ManagerProductList() {
           <thead>
             <tr>
               <th>#</th>
+              <th>Ảnh</th>
               <th>SKU</th>
               <th>Tên sản phẩm</th>
               <th>Danh mục</th>
@@ -136,44 +149,75 @@ export default function ManagerProductList() {
               <th>Ngày tạo</th>
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td className="manager-table__empty" colSpan={9}>
+                <td className="manager-table__empty" colSpan={10}>
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="manager-table__empty" colSpan={9}>
+                <td className="manager-table__empty" colSpan={10}>
                   Không tìm thấy sản phẩm phù hợp.
                 </td>
               </tr>
             ) : (
-              rows.map((product, idx) => (
-                <tr key={product.id}>
-                  <td>{(page - 1) * pageSize + idx + 1}</td>
-                  <td>{product.sku}</td>
-                  <td>{product.name}</td>
-                  <td>{product.category ?? "-"}</td>
-                  <td>{product.unit ?? "-"}</td>
-                  <td>{formatCurrency(product.price)}</td>
-                  <td>{product.stock ?? 0}</td>
-                  <td>{STATUS_LABELS[product.status] ?? product.status ?? "-"}</td>
-                  <td>
-                    {product.created
-                      ? new Date(product.created).toLocaleDateString("vi-VN")
-                      : "-"}
-                  </td>
-                </tr>
-              ))
+              rows.map((product, idx) => {
+                const imageUrl =
+                  product.image || product.thumbnailUrl || FALLBACK_IMAGE;
+
+                return (
+                  <tr key={product.id}>
+                    <td>{(page - 1) * pageSize + idx + 1}</td>
+
+                    <td>
+                      <img
+                        src={imageUrl}
+                        alt={product.name}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          objectFit: "cover",
+                          borderRadius: 4,
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.src = FALLBACK_IMAGE;
+                        }}
+                      />
+                    </td>
+
+                    <td>{product.sku}</td>
+                    <td>{product.name}</td>
+                    <td>{product.category ?? "-"}</td>
+                    <td>{product.unit ?? "-"}</td>
+                    <td>{formatCurrency(product.price)}</td>
+                    <td>{product.stock ?? 0}</td>
+                    <td>
+                      {STATUS_LABELS[product.status] ??
+                        product.status ??
+                        "-"}
+                    </td>
+                    <td>
+                      {product.created
+                        ? new Date(product.created).toLocaleDateString("vi-VN")
+                        : "-"}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
       <div className="manager-pagination">
-        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+        <button
+          type="button"
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1}
+        >
           Trước
         </button>
         <span>

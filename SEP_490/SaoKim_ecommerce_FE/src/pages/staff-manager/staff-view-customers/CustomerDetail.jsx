@@ -1,3 +1,4 @@
+// src/pages/staff-manager/staff-view-customers/CustomerDetail.jsx
 import { faHome, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -13,10 +14,9 @@ import {
   Spinner,
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useCustomersApi from "../api/useCustomers";
-import { useNavigate } from "react-router-dom";
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -25,9 +25,10 @@ export default function CustomerDetail() {
 
   const {
     getCustomerById,
-    fetchCustomerOrders, // dùng hàm này cho Recent Orders
+    fetchCustomerOrders,
     addCustomerNote,
-    updateCustomerStatus,
+    updateCustomerNote,
+    deleteCustomerNote,
   } = useCustomersApi();
 
   const [customer, setCustomer] = useState(null);
@@ -41,12 +42,15 @@ export default function CustomerDetail() {
   const [ordersTotalPages, setOrdersTotalPages] = useState(1);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
-  // Notes
+  // Notes – add
   const [noteContent, setNoteContent] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
-  // Status
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  // Notes – edit / delete
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState(null);
 
   // Load customer detail
   const loadCustomer = async () => {
@@ -63,7 +67,7 @@ export default function CustomerDetail() {
     }
   };
 
-  // Load recent orders (lịch sử đơn hàng)
+  // Load recent orders
   const loadOrders = async () => {
     if (!customerId) return;
     setLoadingOrders(true);
@@ -97,6 +101,7 @@ export default function CustomerDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId, ordersPage, ordersPageSize]);
 
+  // Thêm note mới
   const handleAddNote = async (e) => {
     e.preventDefault();
     if (!noteContent.trim() || !customerId) return;
@@ -114,17 +119,53 @@ export default function CustomerDetail() {
     }
   };
 
-  const handleToggleStatus = async () => {
-    if (!customer || !customerId) return;
-    setUpdatingStatus(true);
+  // Bắt đầu sửa note
+  const handleStartEditNote = (note) => {
+    setEditingNoteId(note.id);
+    setEditingContent(note.content);
+  };
+
+  const handleCancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingContent("");
+    setSavingEdit(false);
+  };
+
+  // Lưu note sau khi sửa
+  const handleSaveEditNote = async (noteId) => {
+    if (!editingContent.trim()) {
+      alert("Nội dung ghi chú không được để trống");
+      return;
+    }
+    if (!customerId) return;
+
+    setSavingEdit(true);
     try {
-      await updateCustomerStatus(customerId, !customer.isBanned);
+      await updateCustomerNote(customerId, noteId, editingContent.trim());
+      await loadCustomer();
+      handleCancelEditNote();
+    } catch (error) {
+      console.error(error);
+      alert("Không cập nhật được ghi chú");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // Xóa note
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa ghi chú này?")) return;
+    if (!customerId) return;
+
+    setDeletingNoteId(noteId);
+    try {
+      await deleteCustomerNote(customerId, noteId);
       await loadCustomer();
     } catch (error) {
       console.error(error);
-      alert("Không cập nhật được trạng thái khách hàng");
+      alert("Không xóa được ghi chú");
     } finally {
-      setUpdatingStatus(false);
+      setDeletingNoteId(null);
     }
   };
 
@@ -136,7 +177,7 @@ export default function CustomerDetail() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/dashboard">
+            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item as={Link} to="/staff/manager-customers">
@@ -188,28 +229,6 @@ export default function CustomerDetail() {
                   <p className="mb-1">
                     <strong>Created: </strong> {formatDate(customer.createAt)}
                   </p>
-                  <p className="mb-1 d-flex align-items-center gap-2">
-                    <strong>Status: </strong>{" "}
-                    {customer.isBanned ? (
-                      <Badge bg="secondary">Banned</Badge>
-                    ) : (
-                      <Badge bg="success">Active</Badge>
-                    )}
-                  </p>
-
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    variant={customer.isBanned ? "success" : "outline-danger"}
-                    onClick={handleToggleStatus}
-                    disabled={updatingStatus}
-                  >
-                    {updatingStatus
-                      ? "Saving..."
-                      : customer.isBanned
-                      ? "Unban customer"
-                      : "Ban customer"}
-                  </Button>
                 </Card.Body>
               </Card>
             </Col>
@@ -242,7 +261,7 @@ export default function CustomerDetail() {
                 </Card.Body>
               </Card>
 
-              {/* Recent Orders */}
+              {/* Recent Orders: chỉ hiển thị đơn gần đây */}
               <Card className="mb-4 shadow-sm">
                 <Card.Header>
                   <div className="d-flex justify-content-between align-items-center">
@@ -261,40 +280,32 @@ export default function CustomerDetail() {
                   <Table hover responsive className="mb-0">
                     <thead>
                       <tr>
-                        <th>ID</th>
+                        <th>#</th>
                         <th>Total</th>
                         <th>Status</th>
                         <th>Created</th>
-                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {orders.map((o, idx) => (
                         <tr key={o.orderId}>
-                          {/* STT = offset theo page + index trong trang */}
-                          <td>{(ordersPage - 1) * ordersPageSize + idx + 1}</td>
-                          <td>{(o.total ?? 0).toLocaleString("vi-VN")}đ</td>
-                          <td>{o.status}</td>
-                          <td>{formatDate(o.createdAt)}</td>
-                          <td className="text-end">
-                            {/*Nếu có màn invoice detail:
-                            <Button
-                              size="sm"
-                              variant="outline-primary"
-                              onClick={() =>
-                                navigate(`/staff/invoices/${o.orderId}`)
-                              }
-                            >
-                              View
-                            </Button>*/}
+                          <td>
+                            {(ordersPage - 1) * ordersPageSize + idx + 1}
                           </td>
+                          <td>
+                            {(o.total ?? 0).toLocaleString("vi-VN")}đ
+                          </td>
+                          <td>
+                            <StatusBadge status={o.status} />
+                          </td>
+                          <td>{formatDate(o.createdAt)}</td>
                         </tr>
                       ))}
 
                       {!loadingOrders && orders.length === 0 && (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={4}
                             className="text-center text-muted py-3"
                           >
                             No orders
@@ -340,13 +351,14 @@ export default function CustomerDetail() {
             </Col>
           </Row>
 
-          {/* Notes */}
+          {/* Internal Notes */}
           <Row>
             <Col md={12}>
               <Card className="shadow-sm">
                 <Card.Body>
                   <h5 className="mb-3">Internal Notes</h5>
 
+                  {/* Form thêm note */}
                   <Form onSubmit={handleAddNote} className="mb-3">
                     <Row className="g-2">
                       <Col md={10}>
@@ -370,6 +382,7 @@ export default function CustomerDetail() {
                     </Row>
                   </Form>
 
+                  {/* Danh sách note */}
                   {customer.notes && customer.notes.length > 0 ? (
                     <Table hover responsive size="sm">
                       <thead>
@@ -377,14 +390,71 @@ export default function CustomerDetail() {
                           <th>Staff</th>
                           <th>Content</th>
                           <th>Created</th>
+                          <th className="text-end">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {customer.notes.map((n) => (
                           <tr key={n.id}>
                             <td>{n.staffName}</td>
-                            <td>{n.content}</td>
+                            <td style={{ maxWidth: 500 }}>
+                              {editingNoteId === n.id ? (
+                                <Form.Control
+                                  as="textarea"
+                                  rows={2}
+                                  value={editingContent}
+                                  onChange={(e) =>
+                                    setEditingContent(e.target.value)
+                                  }
+                                />
+                              ) : (
+                                n.content
+                              )}
+                            </td>
                             <td>{formatDateTime(n.createdAt)}</td>
+                            <td className="text-end">
+                              {editingNoteId === n.id ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="success"
+                                    className="me-2"
+                                    disabled={savingEdit}
+                                    onClick={() => handleSaveEditNote(n.id)}
+                                  >
+                                    {savingEdit ? "Saving..." : "Save"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline-secondary"
+                                    onClick={handleCancelEditNote}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    className="me-2"
+                                    onClick={() => handleStartEditNote(n)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    disabled={deletingNoteId === n.id}
+                                    onClick={() => handleDeleteNote(n.id)}
+                                  >
+                                    {deletingNoteId === n.id
+                                      ? "Deleting..."
+                                      : "Delete"}
+                                  </Button>
+                                </>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -400,6 +470,22 @@ export default function CustomerDetail() {
       )}
     </StaffLayout>
   );
+}
+
+// Badge trạng thái đơn
+function StatusBadge({ status }) {
+  const s = String(status || "").toLowerCase();
+  if (s === "pending")
+    return (
+      <Badge bg="warning" text="dark">
+        Pending
+      </Badge>
+    );
+  if (s === "shipping") return <Badge bg="info">Shipping</Badge>;
+  if (s === "paid") return <Badge bg="primary">Paid</Badge>;
+  if (s === "completed") return <Badge bg="success">Completed</Badge>;
+  if (s === "cancelled") return <Badge bg="secondary">Cancelled</Badge>;
+  return <Badge bg="secondary">{status || "Unknown"}</Badge>;
 }
 
 function formatDate(dateStr) {

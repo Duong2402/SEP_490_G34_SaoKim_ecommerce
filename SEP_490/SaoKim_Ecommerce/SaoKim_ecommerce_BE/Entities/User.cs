@@ -64,9 +64,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("update_at")]
         public DateTime? UpdateAt { get; set; }
 
-        [Column("is_banned")]
-        public bool IsBanned { get; set; } = false;
-
         [Column("deleted_at")]
         public DateTime? DeletedAt { get; set; }
 

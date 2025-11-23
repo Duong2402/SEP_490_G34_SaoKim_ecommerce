@@ -7,7 +7,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Badge,
   Breadcrumb,
   Button,
   ButtonGroup,
@@ -29,11 +28,9 @@ import useCustomersApi from "../api/useCustomers";
 
 export default function ManageCustomers() {
   const navigate = useNavigate();
-  const { fetchCustomers, updateCustomerStatus, exportCustomers } =
-    useCustomersApi();
+  const { fetchCustomers, exportCustomers } = useCustomersApi();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
   const [createdFrom, setCreatedFrom] = useState(null);
   const [createdTo, setCreatedTo] = useState(null);
   const [minSpend, setMinSpend] = useState("");
@@ -56,7 +53,6 @@ export default function ManageCustomers() {
     try {
       const res = await fetchCustomers({
         q: debouncedSearch,
-        status,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
         minSpend: minSpend || undefined,
@@ -83,7 +79,6 @@ export default function ManageCustomers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     debouncedSearch,
-    status,
     createdFrom,
     createdTo,
     minSpend,
@@ -94,36 +89,11 @@ export default function ManageCustomers() {
     sortDir,
   ]);
 
-  const renderStatus = (isBanned) =>
-    isBanned ? (
-      <Badge bg="secondary">Banned</Badge>
-    ) : (
-      <Badge bg="success">Active</Badge>
-    );
-
-  const handleToggleBan = async (row) => {
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn ${row.isBanned ? "mở khóa" : "khóa"} khách hàng này?`
-      )
-    )
-      return;
-
-    try {
-      await updateCustomerStatus(row.id, !row.isBanned);
-      await load();
-    } catch (error) {
-      console.error(error);
-      alert("Cập nhật trạng thái thất bại");
-    }
-  };
-
   const handleExport = async () => {
     setExporting(true);
     try {
       const blob = await exportCustomers({
         q: debouncedSearch,
-        status,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
       });
@@ -131,7 +101,6 @@ export default function ManageCustomers() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      // Đổi sang .xlsx
       a.download = `customers_${new Date()
         .toISOString()
         .replace(/[-:T.]/g, "")
@@ -175,7 +144,6 @@ export default function ManageCustomers() {
         </Button>
       </div>
 
-      {/* Search + Filters */}
       <Card className="mb-4 shadow-sm">
         <Card.Body>
           <Row className="g-3 align-items-end">
@@ -195,21 +163,6 @@ export default function ManageCustomers() {
                   }}
                 />
               </InputGroup>
-            </Col>
-
-            <Col md={2}>
-              <Form.Label>Status</Form.Label>
-              <Form.Select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="banned">Banned</option>
-              </Form.Select>
             </Col>
 
             <Col md={2}>
@@ -362,7 +315,6 @@ export default function ManageCustomers() {
                 <th>Phone</th>
                 <th className="text-end">Orders</th>
                 <th className="text-end">Total Spend</th>
-                <th>Status</th>
                 <th>Created</th>
                 <th className="text-end">Actions</th>
               </tr>
@@ -370,7 +322,6 @@ export default function ManageCustomers() {
             <tbody>
               {rows.map((c, idx) => (
                 <tr key={c.id}>
-                  {/* STT = offset theo trang + index trong trang */}
                   <td>{(page - 1) * pageSize + idx + 1}</td>
                   <td>
                     <Button
@@ -387,15 +338,16 @@ export default function ManageCustomers() {
                   <td className="text-end">
                     {(c.totalSpend ?? 0).toLocaleString("vi-VN")}đ
                   </td>
-                  <td>{renderStatus(c.isBanned)}</td>
                   <td>{formatDate(c.createAt)}</td>
                   <td className="text-end">
                     <Button
                       size="sm"
-                      variant={c.isBanned ? "success" : "outline-danger"}
-                      onClick={() => handleToggleBan(c)}
+                      variant="outline-primary"
+                      onClick={() =>
+                        navigate(`/staff/manager-orders?customerId=${c.id}`)
+                      }
                     >
-                      {c.isBanned ? "Unban" : "Ban"}
+                      Orders
                     </Button>
                   </td>
                 </tr>
@@ -403,7 +355,7 @@ export default function ManageCustomers() {
 
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     No data
                   </td>
                 </tr>
@@ -503,3 +455,4 @@ function renderPageItems(current, total, onClick) {
 
   return items;
 }
+  

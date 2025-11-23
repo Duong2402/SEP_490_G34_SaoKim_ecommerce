@@ -50,6 +50,9 @@ import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard
 //Invoices
 import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 
+//Orders
+import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
+
 // Users
 import UserList from "./pages/users/UserList";
 import UserCreate from "./pages/users/UserCreate";
@@ -118,6 +121,16 @@ export default function App() {
             </Route>
           </Route>
 
+          {/* Staff protected group */}
+            <Route element={<ProtectedRoute allow={["staff"]} />}>
+            <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
+            <Route path="/staff/manager-products" element={<ManageProduct />} />
+            <Route path="/staff/manager-customers" element={<ManageCustomers />} />
+            <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
+            <Route path="/staff/manager-orders" element={<ManageOrders />} />
+            <Route path="/staff/invoices" element={<ManageInvoices />} />
+            </Route>
+
           {/* Projects (ngoài khu Manager) */}
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/projects/create" element={<ProjectCreate />} />
@@ -127,17 +140,9 @@ export default function App() {
 
           {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/staff/manager-products" element={<ManageProduct />} />
+          
 
-          {/* Customers */}
-          <Route path="/staff/manager-customers" element={<ManageCustomers />} />
-          <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
-
-          <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
-
-          {/* Invoices */}
-          <Route path="/staff/invoices" element={<ManageInvoices />} />
-          <Route path="/products" element={<ManageProduct />} />
+          {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />

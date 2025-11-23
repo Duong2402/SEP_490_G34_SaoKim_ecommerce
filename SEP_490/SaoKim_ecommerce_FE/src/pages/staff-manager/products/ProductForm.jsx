@@ -202,7 +202,7 @@ export default function ProductForm({
           </Form.Group>
         </Col>
 
-        <Col md={3}>
+        {/*<Col md={3}>
           <Form.Group>
             <Form.Label>Stock</Form.Label>
             <Form.Control
@@ -219,7 +219,7 @@ export default function ProductForm({
               {errors.stock?.message}
             </Form.Control.Feedback>
           </Form.Group>
-        </Col>
+        </Col>*/}
 
         {/* Input chọn ảnh – chỗ thêm ảnh ở đây */}
         <Col md={6}>
