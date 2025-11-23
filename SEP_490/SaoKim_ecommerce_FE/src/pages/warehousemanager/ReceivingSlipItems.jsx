@@ -7,9 +7,8 @@ import {
   Button,
   Form,
   InputGroup,
-  Alert,
 } from "@themesberg/react-bootstrap";
-import { Modal } from "react-bootstrap";
+import { Modal, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -70,11 +69,16 @@ const ReceivingSlipItems = () => {
   const [uoms, setUoms] = useState([]);
 
   const [page, setPage] = useState(1);
+  const [notify, setNotify] = useState(null); 
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+    const totalQty = items.reduce(
+      (acc, item) => acc + Number(item.quantity || 0),
+      0
+    );
     const totalValue = items.reduce(
-      (acc, item) => acc + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      (acc, item) =>
+        acc + Number(item.quantity || 0) * Number(item.unitPrice || 0),
       0
     );
     return {
@@ -95,25 +99,38 @@ const ReceivingSlipItems = () => {
     if (page > maxPage) setPage(maxPage);
   }, [items, page]);
 
+  useEffect(() => {
+    if (!notify) return;
+    const t = setTimeout(() => setNotify(null), 3500);
+    return () => clearTimeout(t);
+  }, [notify]);
+
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/items`);
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/${id}/items`
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      setItems(Array.isArray(data) ? data : data.items || []);
+      const list = Array.isArray(data) ? data : data.items || [];
+      setItems(list);
 
       const sup =
-        (Array.isArray(data) ? "" : data?.supplier ?? data?.Supplier ?? "") || "";
+        (Array.isArray(data)
+          ? ""
+          : data?.supplier ?? data?.Supplier ?? "") || "";
       setSupplier(String(sup));
 
-      const rawStatus = (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
+      const rawStatus =
+        (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
       setStatus(toStatusCode(rawStatus));
-
     } catch (e) {
-      setError(e.message || "Không thể tải danh sách hàng hóa.");
+      const msg = e.message || "Không thể tải danh sách hàng hóa.";
+      setError(msg);
+      setNotify(msg);
     } finally {
       setLoading(false);
     }
@@ -127,12 +144,9 @@ const ReceivingSlipItems = () => {
       setUoms(data);
     } catch (e) {
       console.error("Không thể tải đơn vị tính:", e);
+      setNotify("Không thể tải danh sách đơn vị tính.");
     }
   }
-
-  useEffect(() => {
-    loadUOMs();
-  }, []);
 
   async function loadProducts() {
     try {
@@ -144,18 +158,22 @@ const ReceivingSlipItems = () => {
 
       const payload = json.data ?? json;
 
-      const raw = Array.isArray(payload)
-        ? payload
-        : payload.items || [];
+      const raw = Array.isArray(payload) ? payload : payload.items || [];
 
       const normalized = raw
         .map((p) => ({
           id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
           name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
           uom:
-            p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
-            p.unitOfMeasure ?? p.UnitOfMeasure ??
-            p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
+            p.uom ??
+            p.Uom ??
+            p.unit ??
+            p.Unit ??
+            p.unitOfMeasure ??
+            p.UnitOfMeasure ??
+            p.unitOfMeasureName ??
+            p.UnitOfMeasureName ??
+            "",
         }))
         .filter((p) => p.id != null && p.name);
 
@@ -163,6 +181,7 @@ const ReceivingSlipItems = () => {
       setProducts(normalized);
     } catch (e) {
       console.error("Tải danh sách sản phẩm lỗi:", e);
+      setNotify("Không thể tải danh sách sản phẩm.");
     }
   }
 
@@ -188,17 +207,16 @@ const ReceivingSlipItems = () => {
 
       if (payload.slipId !== Number(id)) return;
 
-      setItems(prev => {
+      setItems((prev) => {
         switch (payload.action) {
           case "created":
             return [...prev, payload.item];
-
           case "deleted":
-            return prev.filter(i => i.id !== payload.itemId);
-
+            return prev.filter((i) => i.id !== payload.itemId);
           case "updated":
-            return prev.map(i => i.id === payload.item.id ? payload.item : i);
-
+            return prev.map((i) =>
+              i.id === payload.item.id ? payload.item : i
+            );
           default:
             return prev;
         }
@@ -209,7 +227,10 @@ const ReceivingSlipItems = () => {
       connection
         .start()
         .then(() => console.log("SignalR connected in ReceivingSlipItems"))
-        .catch((err) => console.error("SignalR connection error:", err));
+        .catch((err) => {
+          console.error("SignalR connection error:", err);
+          setNotify("Không thể kết nối realtime tới máy chủ.");
+        });
     }
 
     return () => {
@@ -220,12 +241,17 @@ const ReceivingSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-items/${itemId}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-items/${itemId}`,
+        {
+          method: "DELETE",
+        }
+      );
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
+      await load();
+      setNotify("Đã xóa sản phẩm khỏi phiếu.");
     } catch (err) {
-      alert("Không thể xóa: " + err.message);
+      setNotify("Không thể xóa: " + err.message);
     }
   };
 
@@ -275,7 +301,6 @@ const ReceivingSlipItems = () => {
     return Object.keys(errs).length === 0;
   };
 
-
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
@@ -296,11 +321,12 @@ const ReceivingSlipItems = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
+      if (!res.ok) throw new Error(`Lưu thất bại (${res.status})`);
       await load();
       setShowModal(false);
+      setNotify("Lưu dòng hàng thành công.");
     } catch (err) {
-      alert("Không thể lưu: " + err.message);
+      setNotify("Không thể lưu: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -315,15 +341,20 @@ const ReceivingSlipItems = () => {
     setSupplierErr("");
     setSavingSupplier(true);
     try {
-      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplier: sup }),
-      });
-      if (!res.ok) throw new Error(`Lưu nhà cung cấp thất bại (${res.status})`);
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ supplier: sup }),
+        }
+      );
+      if (!res.ok)
+        throw new Error(`Lưu nhà cung cấp thất bại (${res.status})`);
       setIsEditingSupplier(false);
+      setNotify("Đã cập nhật nhà cung cấp.");
     } catch (e) {
-      alert("Không thể lưu nhà cung cấp: " + e.message);
+      setNotify("Không thể lưu nhà cung cấp: " + e.message);
     } finally {
       setSavingSupplier(false);
     }
@@ -348,7 +379,8 @@ const ReceivingSlipItems = () => {
           </div>
           <h1 className="wm-page-title">Chi tiết phiếu nhập RC{id}</h1>
           <p className="wm-page-subtitle">
-            Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp nhận thực tế.
+            Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp
+            nhận thực tế.
           </p>
         </div>
 
@@ -363,7 +395,11 @@ const ReceivingSlipItems = () => {
           </button>
 
           {!isConfirmed && (
-            <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
+            <button
+              type="button"
+              className="wm-btn wm-btn--primary"
+              onClick={openCreate}
+            >
               <FontAwesomeIcon icon={faPlus} />
               Tạo mới
             </button>
@@ -374,8 +410,8 @@ const ReceivingSlipItems = () => {
       <div className="wm-surface mb-3">
         <div className="d-flex align-items-center justify-content-between mb-1">
           <Form.Label className="mb-0">Nhà cung cấp</Form.Label>
-          {!isConfirmed && (
-            !isEditingSupplier ? (
+          {!isConfirmed &&
+            (!isEditingSupplier ? (
               <FontAwesomeIcon
                 icon={faEdit}
                 role="button"
@@ -407,8 +443,7 @@ const ReceivingSlipItems = () => {
                   Hủy
                 </Button>
               </div>
-            )
-          )}
+            ))}
         </div>
         <Form.Control
           type="text"
@@ -418,14 +453,10 @@ const ReceivingSlipItems = () => {
           isInvalid={!!supplierErr}
           placeholder="Nhập nhà cung cấp"
         />
-        {supplierErr && <div className="text-danger small mt-1">{supplierErr}</div>}
+        {supplierErr && (
+          <div className="text-danger small mt-1">{supplierErr}</div>
+        )}
       </div>
-
-      {error && (
-        <Alert variant="danger" className="wm-surface">
-          Không thể tải dữ liệu: {error}
-        </Alert>
-      )}
 
       <div className="wm-summary">
         <div className="wm-summary__card">
@@ -471,24 +502,29 @@ const ReceivingSlipItems = () => {
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={isConfirmed ? 7 : 8} className="wm-empty">
-                  Chưa có sản phẩm nào nào trong phiếu nhập này.
+                  Chưa có sản phẩm nào trong phiếu nhập này.
                 </td>
               </tr>
             ) : (
-              items.map((item, index) => (
+              pagedItems.map((item, index) => (
                 <tr key={item.id}>
-                  <td>{index + 1}</td>
+                  <td>{(page - 1) * PAGE_SIZE + index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
+                    <span className="fw-semibold">
+                      {item.productCode || "Chưa có mã"}
+                    </span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
-                  <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} đ</td>
                   <td>
-                    {(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString(
-                      "vi-VN"
-                    )}{" "}
+                    {Number(item.unitPrice || 0).toLocaleString("vi-VN")} đ
+                  </td>
+                  <td>
+                    {(
+                      Number(item.unitPrice || 0) *
+                      Number(item.quantity || 0)
+                    ).toLocaleString("vi-VN")}{" "}
                     đ
                   </td>
 
@@ -533,7 +569,10 @@ const ReceivingSlipItems = () => {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .filter(
+              (p) =>
+                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
+            )
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -551,7 +590,9 @@ const ReceivingSlipItems = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                 >
                   {p}
@@ -605,15 +646,26 @@ const ReceivingSlipItems = () => {
               <Form.Label>Mã sản phẩm</Form.Label>
               {productInputMode === "select" ? (
                 <Select
-                  options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                  options={products.map((p) => ({
+                    value: p.id,
+                    label: `${p.id} - ${p.name}`,
+                  }))}
                   value={
                     form.productId
-                      ? { value: form.productId, label: `${form.productId} - ${form.productName}` }
+                      ? {
+                          value: form.productId,
+                          label: `${form.productId} - ${form.productName}`,
+                        }
                       : null
                   }
                   onChange={(option) => {
                     if (!option) {
-                      setForm({ ...form, productId: "", productName: "", uom: "" });
+                      setForm({
+                        ...form,
+                        productId: "",
+                        productName: "",
+                        uom: "",
+                      });
                       return;
                     }
                     const selected = findProductById(option.value);
@@ -626,7 +678,7 @@ const ReceivingSlipItems = () => {
                   }}
                   placeholder="Chọn sản phẩm"
                   isClearable
-                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                  styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                   menuPortalTarget={document.body}
                 />
               ) : (
@@ -639,9 +691,19 @@ const ReceivingSlipItems = () => {
                     const val = e.target.value;
                     const found = findProductById(val);
                     if (found) {
-                      setForm({ ...form, productId: val, productName: found.name, uom: found.uom || "" });
+                      setForm({
+                        ...form,
+                        productId: val,
+                        productName: found.name,
+                        uom: found.uom || "",
+                      });
                     } else {
-                      setForm({ ...form, productId: val, productName: "", uom: "" });
+                      setForm({
+                        ...form,
+                        productId: val,
+                        productName: "",
+                        uom: "",
+                      });
                     }
                   }}
                   isInvalid={!!formErrs.productId}
@@ -662,9 +724,13 @@ const ReceivingSlipItems = () => {
                     ? "Nhập tên sản phẩm"
                     : "Tên sẽ tự điền theo mã sản phẩm"
                 }
-                onChange={(e) => setForm({ ...form, productName: e.target.value })}
-                disabled={productInputMode === "select" && !!findProductById(form.productId)}
-                // disabled={!!form.productName}
+                onChange={(e) =>
+                  setForm({ ...form, productName: e.target.value })
+                }
+                disabled={
+                  productInputMode === "select" &&
+                  !!findProductById(form.productId)
+                }
                 isInvalid={!!formErrs.productName}
               />
               <Form.Control.Feedback type="invalid">
@@ -677,16 +743,29 @@ const ReceivingSlipItems = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Đơn vị tính</Form.Label>
                   <Select
-                    options={uoms.map((u) => ({ value: u.name, label: u.name }))}
-                    value={form.uom ? { value: form.uom, label: form.uom } : null}
-                    onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
+                    options={uoms.map((u) => ({
+                      value: u.name,
+                      label: u.name,
+                    }))}
+                    value={
+                      form.uom ? { value: form.uom, label: form.uom } : null
+                    }
+                    onChange={(option) =>
+                      setForm({ ...form, uom: option?.value || "" })
+                    }
                     placeholder="Chọn đơn vị tính "
                     isClearable
-                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    styles={{
+                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
                     menuPortalTarget={document.body}
                     isDisabled={!!form.uom}
                   />
-                  {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
+                  {formErrs.uom && (
+                    <div className="text-danger small mt-1">
+                      {formErrs.uom}
+                    </div>
+                  )}
                 </Form.Group>
               </div>
               <div className="col-md-6 mb-3">
@@ -696,7 +775,9 @@ const ReceivingSlipItems = () => {
                     type="number"
                     min={1}
                     value={form.quantity}
-                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, quantity: e.target.value })
+                    }
                     isInvalid={!!formErrs.quantity}
                   />
                   <Form.Control.Feedback type="invalid">
@@ -714,7 +795,11 @@ const ReceivingSlipItems = () => {
                   min={0}
                   value={form.unitPrice}
                   onChange={(e) =>
-                    setForm({ ...form, unitPrice: e.target.value === '' ? '' : Number(e.target.value) })
+                    setForm({
+                      ...form,
+                      unitPrice:
+                        e.target.value === "" ? "" : Number(e.target.value),
+                    })
                   }
                   isInvalid={!!formErrs.unitPrice}
                 />
@@ -724,11 +809,14 @@ const ReceivingSlipItems = () => {
                 </Form.Control.Feedback>
               </InputGroup>
             </Form.Group>
-
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowModal(false)} disabled={saving}>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowModal(false)}
+            disabled={saving}
+          >
             Hủy
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -737,6 +825,31 @@ const ReceivingSlipItems = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {notify && (
+        <ToastContainer
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 9999,
+          }}
+        >
+          <Toast
+            onClose={() => setNotify(null)}
+            show={!!notify}
+            delay={3500}
+            autohide
+            bg="danger"
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body>{notify}</Toast.Body>
+          </Toast>
+        </ToastContainer>
+      )}
     </WarehouseLayout>
   );
 };

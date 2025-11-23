@@ -6,9 +6,8 @@ import {
   Button,
   Form,
   InputGroup,
-  Alert,
 } from "@themesberg/react-bootstrap";
-import { Modal } from "react-bootstrap";
+import { Modal, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -17,15 +16,12 @@ import {
   faSave,
   faTrash,
   faEdit,
-  faTruckPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
 import { getDispatchHubConnection } from "../../signalr/dispatchHub";
 import * as signalR from "@microsoft/signalr";
-
-const API_BASE = "https://localhost:7278";
 
 const initialForm = {
   productId: "",
@@ -54,14 +50,20 @@ const DispatchSlipItems = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [notification, setNotification] = useState(null);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
 
   useEffect(() => {
     load();
     loadProducts();
   }, [id, page]);
+
+  useEffect(() => {
+    if (!notification) return;
+    const t = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(t);
+  }, [notification]);
 
   useEffect(() => {
     const connection = getDispatchHubConnection();
@@ -110,7 +112,10 @@ const DispatchSlipItems = () => {
   }, [id]);
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+    const totalQty = items.reduce(
+      (acc, item) => acc + Number(item.quantity || 0),
+      0
+    );
     const deliveredQty = items.reduce(
       (acc, item) => acc + Number(item.deliveredQuantity || 0),
       0
@@ -139,7 +144,12 @@ const DispatchSlipItems = () => {
       setItems(data.items || []);
       setTotal(data.total || 0);
     } catch (e) {
-      setError(e.message || "Không thể tải danh sách hàng hóa.");
+      const msg = e.message || "Không thể tải danh sách hàng hóa.";
+      setError(msg);
+      setNotification({
+        type: "danger",
+        message: msg,
+      });
     } finally {
       setLoading(false);
     }
@@ -153,9 +163,7 @@ const DispatchSlipItems = () => {
       console.log("GET /api/products:", json);
 
       const payload = json.data ?? json;
-      const raw = Array.isArray(payload)
-        ? payload
-        : payload.items || [];
+      const raw = Array.isArray(payload) ? payload : payload.items || [];
 
       const normalized = raw
         .map((p) => ({
@@ -164,9 +172,13 @@ const DispatchSlipItems = () => {
           productCode: p.productCode ?? p.ProductCode ?? p.code ?? p.Code,
           uom: p.uom ?? p.Uom ?? p.unit ?? p.Unit,
           price:
-            p.price ?? p.Price ??
-            p.unitPrice ?? p.UnitPrice ??
-            p.defaultPrice ?? p.DefaultPrice ?? 0,
+            p.price ??
+            p.Price ??
+            p.unitPrice ??
+            p.UnitPrice ??
+            p.defaultPrice ??
+            p.DefaultPrice ??
+            0,
         }))
         .filter((p) => p.id != null && p.name);
 
@@ -174,6 +186,10 @@ const DispatchSlipItems = () => {
       setProducts(normalized);
     } catch (e) {
       console.error("Error loading products:", e);
+      setNotification({
+        type: "danger",
+        message: "Không thể tải danh mục sản phẩm.",
+      });
     }
   }
 
@@ -186,13 +202,23 @@ const DispatchSlipItems = () => {
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa dòng hàng này khỏi phiếu xuất?")) return;
     try {
-      const res = await apiFetch(`/api/warehousemanager/dispatch-items/${itemId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-items/${itemId}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
+      setNotification({
+        type: "success",
+        message: "Đã xóa dòng hàng.",
+      });
     } catch (err) {
-      alert("Không thể xóa: " + err.message);
+      setNotification({
+        type: "danger",
+        message: "Không thể xóa: " + err.message,
+      });
     }
   };
 
@@ -264,10 +290,26 @@ const DispatchSlipItems = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || `Lỗi lưu dữ liệu (${res.status})`);
+      }
+
       await load();
       setShowModal(false);
+      setNotification({
+        type: "success",
+        message:
+          mode === "create"
+            ? "Đã thêm dòng hàng."
+            : "Đã cập nhật dòng hàng.",
+      });
     } catch (err) {
-      alert("Không thể lưu: " + err.message);
+      setNotification({
+        type: "danger",
+        message: "Không thể lưu: " + err.message,
+      });
     } finally {
       setSaving(false);
     }
@@ -290,7 +332,8 @@ const DispatchSlipItems = () => {
           </div>
           <h1 className="wm-page-title">Chi tiết phiếu xuất #{id}</h1>
           <p className="wm-page-subtitle">
-            Theo dõi phân bổ hàng hóa, kiểm soát số lượng đã giao và ghi chú đặc biệt.
+            Theo dõi phân bổ hàng hóa, kiểm soát số lượng đã giao và ghi chú
+            đặc biệt.
           </p>
         </div>
 
@@ -303,18 +346,16 @@ const DispatchSlipItems = () => {
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
           </button>
-          <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
+          <button
+            type="button"
+            className="wm-btn wm-btn--primary"
+            onClick={openCreate}
+          >
             <FontAwesomeIcon icon={faPlus} />
             Thêm dòng hàng
           </button>
         </div>
       </div>
-
-      {error && (
-        <Alert variant="danger" className="wm-surface">
-          Không thể tải dữ liệu: {error}
-        </Alert>
-      )}
 
       <div className="wm-summary">
         <div className="wm-summary__card">
@@ -362,19 +403,38 @@ const DispatchSlipItems = () => {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td>
-                    <span className="fw-semibold">{item.productCode || "N/A"}</span>
+                    <span className="fw-semibold">
+                      {item.productCode || "Chưa có mã"}
+                    </span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
-                  <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ</td>
-                  <td>{(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString("vi-VN")} VNĐ</td>
+                  <td>
+                    {Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ
+                  </td>
+                  <td>
+                    {(
+                      Number(item.unitPrice || 0) *
+                      Number(item.quantity || 0)
+                    ).toLocaleString("vi-VN")}{" "}
+                    VNĐ
+                  </td>
                   <td>{item.note || "-"}</td>
                   <td className="text-end">
-                    <Button variant="outline-primary" size="sm" className="me-2" onClick={() => openEdit(item)}>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => openEdit(item)}
+                    >
                       <FontAwesomeIcon icon={faEdit} />
                     </Button>
-                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleDelete(item.id)}
+                    >
                       <FontAwesomeIcon icon={faTrash} />
                     </Button>
                   </td>
@@ -400,7 +460,10 @@ const DispatchSlipItems = () => {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .filter(
+              (p) =>
+                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
+            )
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -418,8 +481,9 @@ const DispatchSlipItems = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -438,17 +502,34 @@ const DispatchSlipItems = () => {
         </div>
       </div>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
+      <Modal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        centered
+        size="lg"
+      >
         <Modal.Header closeButton>
-          <Modal.Title>{mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}</Modal.Title>
+          <Modal.Title>
+            {mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Sản phẩm</Form.Label>
               <Select
-                options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
-                value={form.productId ? { value: form.productId, label: `${form.productId} - ${form.productName}` } : null}
+                options={products.map((p) => ({
+                  value: p.id,
+                  label: `${p.id} - ${p.name}`,
+                }))}
+                value={
+                  form.productId
+                    ? {
+                        value: form.productId,
+                        label: `${form.productId} - ${form.productName}`,
+                      }
+                    : null
+                }
                 onChange={(option) => {
                   if (!option) {
                     setForm(initialForm);
@@ -469,7 +550,9 @@ const DispatchSlipItems = () => {
                 styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                 menuPortalTarget={document.body}
               />
-              {formErrs.productId && <div className="text-danger mt-1">{formErrs.productId}</div>}
+              {formErrs.productId && (
+                <div className="text-danger mt-1">{formErrs.productId}</div>
+              )}
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -482,8 +565,13 @@ const DispatchSlipItems = () => {
                     ? "Nhập tên sản phẩm"
                     : "Tên sẽ tự điền theo mã sản phẩm"
                 }
-                onChange={(e) => setForm({ ...form, productName: e.target.value })}
-                disabled={productInputMode === "select" && !!findProductById(form.productId)}
+                onChange={(e) =>
+                  setForm({ ...form, productName: e.target.value })
+                }
+                disabled={
+                  productInputMode === "select" &&
+                  !!findProductById(form.productId)
+                }
                 isInvalid={!!formErrs.productName}
               />
               <Form.Control.Feedback type="invalid">
@@ -503,11 +591,15 @@ const DispatchSlipItems = () => {
                     type="number"
                     min={1}
                     value={form.quantity}
-                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, quantity: e.target.value })
+                    }
                     isInvalid={!!formErrs.quantity}
                   />
                   <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
-                  <Form.Control.Feedback type="invalid">{formErrs.quantity}</Form.Control.Feedback>
+                  <Form.Control.Feedback type="invalid">
+                    {formErrs.quantity}
+                  </Form.Control.Feedback>
                 </InputGroup>
               </div>
             </div>
@@ -518,7 +610,9 @@ const DispatchSlipItems = () => {
                   type="number"
                   min={0}
                   value={form.unitPrice}
-                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, unitPrice: e.target.value })
+                  }
                   isInvalid={!!formErrs.unitPrice}
                 />
                 <InputGroup.Text>VNĐ</InputGroup.Text>
@@ -534,14 +628,20 @@ const DispatchSlipItems = () => {
                 as="textarea"
                 rows={3}
                 value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, note: e.target.value })
+                }
                 placeholder="Thông tin giao hàng, lưu ý đặc biệt..."
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowModal(false)} disabled={saving}>
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowModal(false)}
+            disabled={saving}
+          >
             Hủy
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -550,9 +650,50 @@ const DispatchSlipItems = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ToastContainer
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 9999,
+        }}
+      >
+        {notification && (
+          <Toast
+            bg={
+              notification.type === "danger"
+                ? "danger"
+                : notification.type === "warning"
+                ? "warning"
+                : notification.type === "success"
+                ? "success"
+                : "light"
+            }
+            onClose={() => setNotification(null)}
+            show={!!notification}
+            delay={3500}
+            autohide
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body
+              className={
+                notification.type === "danger" ||
+                notification.type === "warning"
+                  ? "text-white"
+                  : "text-dark"
+              }
+            >
+              {notification.message}
+            </Toast.Body>
+          </Toast>
+        )}
+      </ToastContainer>
     </WarehouseLayout>
   );
 };
 
 export default DispatchSlipItems;
-

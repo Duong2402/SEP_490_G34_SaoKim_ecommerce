@@ -52,9 +52,9 @@ const WarehouseSidebar = () => {
       <div className="warehouse-sidebar__inner">
         <div className="warehouse-sidebar__brand">
           <span className="warehouse-sidebar__brand-badge">Sao Kim</span>
-          <h3 className="warehouse-sidebar__brand-title">Warehouse Suite</h3>
+          <h3 className="warehouse-sidebar__brand-title">Kho Sao Kim</h3>
           <p className="warehouse-sidebar__brand-subtitle">
-            Trung tâm quản trị kho của Sao Kim Lighting.
+            Trung tâm điều phối nhập - xuất - tồn cho Warehouse Manager.
           </p>
         </div>
 
@@ -90,4 +90,3 @@ const WarehouseSidebar = () => {
 };
 
 export default WarehouseSidebar;
-

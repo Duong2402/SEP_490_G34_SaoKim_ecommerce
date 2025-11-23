@@ -11,10 +11,10 @@ const InboundReport = () => {
 
   useEffect(() => {
     const dummyData = [
-      { id: 1, supplier: "ABC Supplies", project: "Project A", source: "Import", date: "2025-10-25", quantity: 200 },
-      { id: 2, supplier: "XYZ Co.", project: "Project B", source: "Local", date: "2025-10-28", quantity: 120 },
-      { id: 3, supplier: "Delta Ltd.", project: "Project A", source: "Import", date: "2025-10-29", quantity: 300 },
-      { id: 4, supplier: "Omega Group", project: "Project C", source: "Local", date: "2025-11-02", quantity: 180 },
+      { id: 1, supplier: "Công ty ABC", project: "Dự án A", source: "Nhập khẩu", date: "2025-10-25", quantity: 200 },
+      { id: 2, supplier: "Thiết bị XYZ", project: "Dự án B", source: "Nội địa", date: "2025-10-28", quantity: 120 },
+      { id: 3, supplier: "Delta Logistics", project: "Dự án A", source: "Nhập khẩu", date: "2025-10-29", quantity: 300 },
+      { id: 4, supplier: "Tập đoàn Omega", project: "Dự án C", source: "Nội địa", date: "2025-11-02", quantity: 180 },
     ];
     setInboundData(dummyData);
   }, []);
@@ -112,7 +112,7 @@ const InboundReport = () => {
                   <td className="fw-semibold">{item.supplier}</td>
                   <td>{item.project}</td>
                   <td>
-                    <Badge bg={item.source === "Import" ? "info" : "success"}>
+                    <Badge bg={item.source === "Nhập khẩu" ? "info" : "success"}>
                       {item.source}
                     </Badge>
                   </td>
@@ -163,4 +163,3 @@ const InboundReport = () => {
 };
 
 export default InboundReport;
-
