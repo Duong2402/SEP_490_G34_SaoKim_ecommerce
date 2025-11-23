@@ -21,8 +21,8 @@ import {
   InputGroup,
   Row,
   Table,
-  Pagination, // <— thêm
-  Spinner,    // <— thêm (nếu muốn hiển thị loading)
+  Pagination,
+  Spinner,
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
@@ -77,7 +77,6 @@ export default function ManageProduct() {
       if (res?.page && res.page !== page) setPage(res.page);
       if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
     } catch (e) {
-      // có thể hiển thị toast/alert
       console.error(e);
     } finally {
       setLoadingTable(false);
@@ -98,14 +97,11 @@ export default function ManageProduct() {
 
   // reload sau khi tạo/sửa/xóa
   const handleReload = async () => {
-    // nếu vừa xóa khiến trang hiện tại > totalPages mới -> lùi 1 trang
     await load();
     if (page > 1 && rows.length === 1 && total > 0) {
-      // sau khi load xong, nếu trang rỗng do vừa xóa bản ghi cuối, lùi trang và load lại
       const newPage = Math.max(1, page - 1);
       if (newPage !== page) {
         setPage(newPage);
-        // load sẽ tự chạy lại do useEffect phụ thuộc page
       }
     }
   };
@@ -170,7 +166,7 @@ export default function ManageProduct() {
             </InputGroup>
           </Col>
 
-            {/* Page size + sort */}
+          {/* Page size + sort */}
           <Col xs="auto" className="ps-md-0 text-end">
             <Dropdown as={ButtonGroup}>
               <Dropdown.Toggle
@@ -206,19 +202,49 @@ export default function ManageProduct() {
 
                 <Dropdown.Divider />
                 <Dropdown.Header>Sort by</Dropdown.Header>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("asc"); setPage(1); }}>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
                   ID ↑
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("desc"); setPage(1); }}>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
                   ID ↓
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("created"); setSortDir("desc"); setPage(1); }}>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("created");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
                   Created ↓
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("name"); setSortDir("asc"); setPage(1); }}>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("name");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
                   Name ↑
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("price"); setSortDir("desc"); setPage(1); }}>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("price");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
                   Price ↓
                 </Dropdown.Item>
               </Dropdown.Menu>
@@ -244,6 +270,7 @@ export default function ManageProduct() {
             <thead>
               <tr>
                 <th style={{ whiteSpace: "nowrap" }}>ID</th>
+                <th>Image</th> {/* cột ảnh mới */}
                 <th>SKU</th>
                 <th>Name</th>
                 <th>Category</th>
@@ -257,6 +284,27 @@ export default function ManageProduct() {
               {(rows || []).map((p) => (
                 <tr key={p.id}>
                   <td>{p.id}</td>
+
+                  {/* cell ảnh */}
+                  <td>
+                    {p.image ? (
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          objectFit: "cover",
+                          borderRadius: 8,
+                          border: "1px solid #e0e0e0",
+                          backgroundColor: "#f8f9fa",
+                        }}
+                      />
+                    ) : (
+                      <span className="text-muted small">No image</span>
+                    )}
+                  </td>
+
                   <td>{p.sku}</td>
                   <td>{p.name}</td>
                   <td>{p.category}</td>
@@ -266,7 +314,6 @@ export default function ManageProduct() {
                   {/*<td className="text-end">{p.stock}</td>*/}
                   <td>{renderStatus(p.status)}</td>
                   <td className="text-end">
-                    {/* icon mat */}
                     {/* <Button
                       variant="outline-info"
                       size="sm"
@@ -298,7 +345,7 @@ export default function ManageProduct() {
 
               {!loadingTable && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={9} className="text-center text-muted py-4">
                     No data
                   </td>
                 </tr>
@@ -321,7 +368,6 @@ export default function ManageProduct() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               />
 
-              {/* hiển thị dải trang ngắn gọn */}
               {renderPageItems(page, totalPages, (p) => setPage(p))}
 
               <Pagination.Next
@@ -345,8 +391,6 @@ export default function ManageProduct() {
                 onCancel={() => setShowCreate(false)}
                 onSuccess={() => {
                   setShowCreate(false);
-                  // sau khi tạo mới quay về page 1 để thấy item mới nhất nếu sort id desc
-                  // hoặc chỉ cần reload trang hiện tại
                   load({ page: 1 });
                 }}
               />
@@ -423,7 +467,7 @@ function useDebounce(value, delay = 400) {
 /** Render các nút trang: hiện quanh trang hiện tại */
 function renderPageItems(current, total, onClick) {
   const items = [];
-  const window = 2; // số trang hai bên
+  const window = 2;
   const start = Math.max(1, current - window);
   const end = Math.min(total, current + window);
 
@@ -433,7 +477,8 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
   }
 
   for (let p = start; p <= end; p++) {
@@ -449,7 +494,8 @@ function renderPageItems(current, total, onClick) {
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

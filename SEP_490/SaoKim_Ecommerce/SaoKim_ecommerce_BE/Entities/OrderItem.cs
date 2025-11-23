@@ -24,5 +24,9 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("unit_price")]
         public decimal UnitPrice { get; set; }
+
+        //để lấy dữ liệu từ product sang invoice
+        [ForeignKey(nameof(ProductId))]
+        public Product Product { get; set; } = null!;
     }
 }

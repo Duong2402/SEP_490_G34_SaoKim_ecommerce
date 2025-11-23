@@ -29,6 +29,11 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public class CustomerNoteUpdateRequest
+        {
+            public string Content { get; set; } = string.Empty;
+        }
     }
 
     [Table("staff_action_logs")]

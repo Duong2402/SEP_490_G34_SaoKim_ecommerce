@@ -5,12 +5,13 @@ import { Row, Col, Form, Button } from "@themesberg/react-bootstrap";
 import useCategoriesApi from "../api/useCategories";
 
 const normalizeDefaults = (d = {}) => ({
-  sku: d.sku ?? "",
-  name: d.name ?? "",
-  categoryId: d.categoryId ?? "",       // ✅ dùng id, không còn string name
+  sku: d.sku ?? d.productCode ?? "",
+  name: d.name ?? d.productName ?? "",
+  categoryId: d.categoryId ?? "",
   price: d.price ?? 0,
-  stock: d.stock ?? 0,
-  active: d.active ?? true,
+  stock: d.stock ?? d.quantity ?? 0,
+  active: d.active ?? (d.status ? d.status === "Active" : true),
+  imageFile: null,
 });
 
 export default function ProductForm({
@@ -51,7 +52,6 @@ export default function ProductForm({
     })();
   }, []);
 
-  // Khi chọn option, nếu là "__NEW__" thì bật ô nhập
   const handleCategorySelect = (e) => {
     const v = e.target.value;
     if (v === "__NEW__") {
@@ -59,7 +59,7 @@ export default function ProductForm({
       setValue("categoryId", ""); // xoá chọn tạm
     } else {
       setAddingNew(false);
-      setValue("categoryId", v);  // lưu id dạng string; sẽ Number() khi submit
+      setValue("categoryId", v); // lưu id dạng string; sẽ Number() khi submit
     }
   };
 
@@ -69,7 +69,7 @@ export default function ProductForm({
     try {
       const created = await createCategory({ name }); // { id, name, slug }
       setCategories((prev) => [...prev, created]);
-      setValue("categoryId", String(created.id), { shouldValidate: true }); // chọn luôn id mới
+      setValue("categoryId", String(created.id), { shouldValidate: true });
       setAddingNew(false);
       setNewCategory("");
     } catch (err) {
@@ -78,7 +78,6 @@ export default function ProductForm({
   };
 
   const submitWrapped = (values) => {
-    // ép kiểu id sang số ở Add/Edit
     return onSubmit({
       ...values,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
@@ -203,7 +202,7 @@ export default function ProductForm({
           </Form.Group>
         </Col>
 
-        <Col md={3}>
+        {/*<Col md={3}>
           <Form.Group>
             <Form.Label>Stock</Form.Label>
             <Form.Control
@@ -219,6 +218,22 @@ export default function ProductForm({
             <Form.Control.Feedback type="invalid">
               {errors.stock?.message}
             </Form.Control.Feedback>
+          </Form.Group>
+        </Col>*/}
+
+        {/* Input chọn ảnh – chỗ thêm ảnh ở đây */}
+        <Col md={6}>
+          <Form.Group>
+            <Form.Label>Image</Form.Label>
+            <Form.Control
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setValue("imageFile", file, { shouldValidate: false });
+              }}
+              disabled={disabled}
+            />
           </Form.Group>
         </Col>
 

@@ -27,6 +27,10 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
+        // Invoice
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceItem> InvoiceItems { get; set; }
+
 
         // NEW:
         public DbSet<TaskItem> TaskItems { get; set; }
@@ -311,6 +315,7 @@ namespace SaoKim_ecommerce_BE.Data
 
 
                 // Invoices
+                base.OnModelCreating(modelBuilder);
                 modelBuilder.Entity<Invoice>(e =>
                 {
                     e.ToTable("invoices");
@@ -318,18 +323,39 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(x => x.Code).HasMaxLength(40).IsRequired();
                     e.HasIndex(x => x.Code).IsUnique();
 
+                    // Thông tin khách
+                    e.Property(x => x.CustomerId).HasColumnName("customer_id");
+                    e.Property(x => x.CustomerName).HasMaxLength(200);
                     e.Property(x => x.Email).HasMaxLength(200);
                     e.Property(x => x.Phone).HasMaxLength(50);
+
+                    // Link sang Order (nếu dùng 1–1)
+                    e.Property(x => x.OrderId).HasColumnName("order_id");
+
                     e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
 
                     e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                    e.Property(x => x.Discount).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Total).HasColumnType("numeric(18,2)");
 
                     // PDF columns
                     e.Property(x => x.PdfFileName).HasMaxLength(260);
                     e.Property(x => x.PdfOriginalName).HasMaxLength(260);
+
+                    // FK: User 1 - N Invoice (customer)
+                    e.HasOne(x => x.Customer)
+                     .WithMany(u => u.Invoices)
+                     .HasForeignKey(x => x.CustomerId)
+                     .OnDelete(DeleteBehavior.Restrict);
+
+                    // FK: Order 1 - 1 Invoice (tuỳ bạn dùng hay không)
+                    e.HasOne(x => x.Order)
+                     .WithOne(o => o.Invoice)
+                     .HasForeignKey<Invoice>(x => x.OrderId)
+                     .OnDelete(DeleteBehavior.Cascade);
                 });
+
 
 
                 modelBuilder.Entity<InvoiceItem>(e =>

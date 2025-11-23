@@ -6,15 +6,15 @@ import {
   faSearch,
   faEye,
   faTrash,
-  faMoneyBillWave,
   faDownload,
   faFilePdf,
   faWandMagicSparkles,
+  faPaperPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-Badge,
-Breadcrumb,
+  Badge,
+  Breadcrumb,
   Button,
   ButtonGroup,
   Card,
@@ -25,7 +25,7 @@ Breadcrumb,
   Row,
   Table,
   Pagination,
-Spinner,
+  Spinner,
 } from "@themesberg/react-bootstrap";
 import Modal from "react-bootstrap/Modal";
 import { useEffect, useState } from "react";
@@ -34,31 +34,28 @@ import StaffLayout from "../../../layouts/StaffLayout";
 import useInvoicesApi from "../api/useInvoices";
 
 export default function ManageInvoices() {
-  // filter/sort/paging
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState(""); // "", "Paid", "Pending", "Cancelled"
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("created");
   const [sortDir, setSortDir] = useState("asc");
 
-  // data
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // modal view
   const [viewing, setViewing] = useState(null);
+  const [sendingId, setSendingId] = useState(null);
 
   const {
     fetchInvoices,
     deleteInvoice,
-    updateStatus,
     getInvoice,
     getPdfBlob,
     deletePdf,
     generatePdf,
+    sendInvoiceEmail,
   } = useInvoicesApi();
 
   const debouncedSearch = useDebounce(search, 400);
@@ -72,15 +69,17 @@ export default function ManageInvoices() {
         pageSize: opts.pageSize ?? pageSize,
         sortBy: opts.sortBy ?? sortBy,
         sortDir: opts.sortDir ?? sortDir,
-        status: opts && "status" in opts ? opts.status : status,
       });
+
       setRows(res?.items ?? []);
       setTotal(res?.total ?? 0);
       setTotalPages(res?.totalPages ?? 1);
+
       if (res?.page && res.page !== page) setPage(res.page);
       if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
     } catch (e) {
       console.error(e);
+      alert("Không tải được danh sách hóa đơn");
     } finally {
       setLoading(false);
     }
@@ -89,7 +88,7 @@ export default function ManageInvoices() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, page, pageSize, sortBy, sortDir, status]);
+  }, [debouncedSearch, page, pageSize, sortBy, sortDir]);
 
   const renderStatus = (s) => {
     const v = String(s || "").toLowerCase();
@@ -110,45 +109,36 @@ export default function ManageInvoices() {
       setViewing(data);
     } catch (err) {
       console.error(err);
-      alert("Load invoice failed");
-    }
-  };
-
-  const markPaid = async (id) => {
-    try {
-      await updateStatus(id, "Paid");
-      await load();
-    } catch (err) {
-      console.error(err);
-      alert("Update status failed");
+      alert("Không tải được chi tiết hóa đơn");
     }
   };
 
   const onDelete = async (id) => {
-    if (!window.confirm("Delete this invoice?")) return;
+    if (!window.confirm("Xóa hóa đơn này?")) return;
     try {
       await deleteInvoice(id);
-      if (rows.length === 1 && page > 1) setPage((p) => p - 1);
-      else await load();
+      if (rows.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        await load();
+      }
     } catch (err) {
       console.error(err);
-      alert("Delete failed");
+      alert("Xóa hóa đơn thất bại");
     }
   };
 
-  // PDF: preview inline (mở tab mới) — getPdfBlob trả về Blob trực tiếp
   const onPreviewPdf = async (id) => {
     try {
-      const blob = await getPdfBlob(id, true); // inline=true
+      const blob = await getPdfBlob(id, true);
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener");
     } catch (err) {
       console.error(err);
-      alert("Preview PDF failed");
+      alert("Xem PDF thất bại");
     }
   };
 
-  // PDF: download — getPdfBlob trả về Blob trực tiếp
   const onDownloadPdf = async (id, code) => {
     try {
       const blob = await getPdfBlob(id);
@@ -160,36 +150,55 @@ export default function ManageInvoices() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert("Download PDF failed");
+      alert("Tải PDF thất bại");
     }
   };
 
-  // PDF: generate theo nghiệp vụ (Paid mới cho phép, và nếu chưa có PDF)
   const onGeneratePdf = async (id) => {
     try {
       await generatePdf(id);
       await load();
     } catch (err) {
       console.error(err);
-      alert("Generate PDF failed (invoice must be Paid)");
+      alert("Generate PDF thất bại (invoice phải ở trạng thái Paid)");
     }
   };
 
-  // PDF: delete
   const onDeletePdf = async (id) => {
-    if (!window.confirm("Delete attached PDF?")) return;
+    if (!window.confirm("Xóa file PDF đính kèm?")) return;
     try {
       await deletePdf(id);
       await load();
     } catch (err) {
       console.error(err);
-      alert("Delete PDF failed");
+      alert("Xóa PDF thất bại");
+    }
+  };
+
+  const onSendEmail = async (inv) => {
+    if (!inv.email) {
+      alert("Hóa đơn này không có email khách hàng.");
+      return;
+    }
+    if (!inv.hasPdf) {
+      alert("Hóa đơn chưa có PDF. Hãy generate PDF trước.");
+      return;
+    }
+
+    setSendingId(inv.id);
+    try {
+      await sendInvoiceEmail(inv.id);
+      alert("Đã gửi email hóa đơn cho khách hàng.");
+    } catch (err) {
+      console.error(err);
+      alert("Gửi email thất bại");
+    } finally {
+      setSendingId(null);
     }
   };
 
   return (
     <StaffLayout>
-      {/* Header */}
       <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
         <div className="d-block mb-4 mb-md-0">
           <Breadcrumb
@@ -197,18 +206,17 @@ export default function ManageInvoices() {
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
             <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/dashboard" }}>
-  <FontAwesomeIcon icon={faHome} />
-</Breadcrumb.Item>
+              <FontAwesomeIcon icon={faHome} />
+            </Breadcrumb.Item>
             <Breadcrumb.Item>Invoices</Breadcrumb.Item>
             <Breadcrumb.Item active>Manage Invoices</Breadcrumb.Item>
           </Breadcrumb>
           <h4>Manage Invoices</h4>
-          <p className="mb-0">Xem, lọc và tải hóa đơn điện tử.</p>
+          <p className="mb-0">Xem, lọc, tải và gửi hóa đơn điện tử cho khách.</p>
         </div>
         <div className="btn-toolbar mb-2 mb-md-0" />
       </div>
 
-      {/* Filters */}
       <div className="table-settings mb-4">
         <Row className="justify-content-between align-items-center">
           <Col xs={12} md={6} lg={5} xl={4}>
@@ -224,23 +232,8 @@ export default function ManageInvoices() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-              />  
+              />
             </InputGroup>
-          </Col>
-
-          <Col xs="auto" className="ps-md-0">
-            <Form.Select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All statuses</option>
-              <option value="Paid">Paid</option>
-              <option value="Pending">Pending</option>
-              <option value="Cancelled">Cancelled</option>
-            </Form.Select>
           </Col>
 
           <Col xs="auto" className="ps-md-0 text-end">
@@ -320,7 +313,6 @@ export default function ManageInvoices() {
         </Row>
       </div>
 
-      {/* Table */}
       <Card border="light" className="table-wrapper table-responsive shadow-sm">
         <Card.Body className="pt-0">
           <div className="d-flex justify-content-between align-items-center mb-2">
@@ -347,99 +339,109 @@ export default function ManageInvoices() {
               </tr>
             </thead>
             <tbody>
-              {(rows || []).map((i) => (
-                <tr key={i.id}>
-                  <td>{i.code}</td>
-                  <td>{i.customer}</td>
-                  <td>{i.email}</td>
-                  <td>{i.phone}</td>
-                  <td className="text-end">
-                    {(i.total ?? 0).toLocaleString("vi-VN")}đ
-                  </td>
-                  <td>{renderStatus(i.status)}</td>
-                  <td>{formatDate(i.created)}</td>
-                  <td className="text-end">
-                    <Button
-                      variant="outline-info"
-                      size="sm"
-                      className="me-2"
-                      title="View"
-                      onClick={() => openView(i.id)}
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </Button>
+              {(rows || []).map((i) => {
+                const canSend = Boolean(i.email && i.hasPdf);
+                const isSending = sendingId === i.id;
 
-                    <Button
-                      variant="outline-dark"
-                      size="sm"
-                      className="me-2"
-                      title="Preview PDF"
-                      onClick={() => onPreviewPdf(i.id)}
-                      disabled={!i.hasPdf}
-                    >
-                      <FontAwesomeIcon icon={faFilePdf} />
-                    </Button>
+                return (
+                  <tr key={i.id}>
+                    <td>{i.code}</td>
+                    <td>{i.customer}</td>
+                    <td>{i.email}</td>
+                    <td>{i.phone}</td>
+                    <td className="text-end">
+                      {(i.total ?? 0).toLocaleString("vi-VN")}đ
+                    </td>
+                    <td>{renderStatus(i.status)}</td>
+                    <td>{formatDate(i.created)}</td>
+                    <td className="text-end">
+                      <Button
+                        variant="outline-info"
+                        size="sm"
+                        className="me-2"
+                        title="View"
+                        onClick={() => openView(i.id)}
+                      >
+                        <FontAwesomeIcon icon={faEye} />
+                      </Button>
 
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      title="Generate PDF"
-                      onClick={() => onGeneratePdf(i.id)}
-                      disabled={
-                        String(i.status || "").toLowerCase() !== "paid" || i.hasPdf
-                      }
-                    >
-                      <FontAwesomeIcon icon={faWandMagicSparkles} />
-                    </Button>
+                      <Button
+                        variant="outline-dark"
+                        size="sm"
+                        className="me-2"
+                        title="Preview PDF"
+                        onClick={() => onPreviewPdf(i.id)}
+                        disabled={!i.hasPdf}
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      </Button>
 
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      className="me-2"
-                      title="Download PDF"
-                      onClick={() => onDownloadPdf(i.id, i.code)}
-                      disabled={!i.hasPdf}
-                    >
-                      <FontAwesomeIcon icon={faDownload} />
-                    </Button>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        title="Generate PDF"
+                        onClick={() => onGeneratePdf(i.id)}
+                        disabled={
+                          String(i.status || "").toLowerCase() !== "paid" ||
+                          i.hasPdf
+                        }
+                      >
+                        <FontAwesomeIcon icon={faWandMagicSparkles} />
+                      </Button>
 
-                    <Button
-                      variant="outline-success"
-                      size="sm"
-                      className="me-2"
-                      title="Mark Paid"
-                      onClick={() => markPaid(i.id)}
-                      disabled={String(i.status || "").toLowerCase() === "paid"}
-                    >
-                      <FontAwesomeIcon icon={faMoneyBillWave} />
-                    </Button>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        className="me-2"
+                        title="Download PDF"
+                        onClick={() => onDownloadPdf(i.id, i.code)}
+                        disabled={!i.hasPdf}
+                      >
+                        <FontAwesomeIcon icon={faDownload} />
+                      </Button>
 
-                    <Button
-                      variant="outline-warning"
-                      size="sm"
-                      className="me-2"
-                      title="Delete PDF"
-                      onClick={() => onDeletePdf(i.id)}
-                      disabled={!i.hasPdf}
-                    >
-                      <FontAwesomeIcon icon={faFilePdf} />
-                    </Button>
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        className="me-2"
+                        title="Send invoice via email"
+                        onClick={() => onSendEmail(i)}
+                        disabled={!canSend || isSending}
+                      >
+                        {isSending ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <FontAwesomeIcon icon={faPaperPlane} />
+                        )}
+                      </Button>
 
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      title="Delete Invoice"
-                      onClick={() => onDelete(i.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                      <Button
+                        variant="outline-warning"
+                        size="sm"
+                        className="me-2"
+                        title="Delete PDF"
+                        onClick={() => onDeletePdf(i.id)}
+                        disabled={!i.hasPdf}
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      </Button>
+
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        title="Delete Invoice"
+                        onClick={() => onDelete(i.id)}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     No data
                   </td>
                 </tr>
@@ -447,7 +449,6 @@ export default function ManageInvoices() {
             </tbody>
           </Table>
 
-          {/* Pagination */}
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>
               Page {page} / {totalPages}
@@ -475,8 +476,12 @@ export default function ManageInvoices() {
         </Card.Body>
       </Card>
 
-      {/* View modal */}
-      <Modal show={!!viewing} onHide={() => setViewing(null)} size="lg" centered>
+      <Modal
+        show={Boolean(viewing)}
+        onHide={() => setViewing(null)}
+        size="lg"
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Invoice Detail</Modal.Title>
         </Modal.Header>
@@ -495,7 +500,9 @@ export default function ManageInvoices() {
                 </Col>
                 <Col md={6}>
                   <div className="fw-bold">Status:</div>
-                  <div>{renderStatus(viewing.paymentStatus || viewing.status)}</div>
+                  <div>
+                    {renderStatus(viewing.paymentStatus || viewing.status)}
+                  </div>
                 </Col>
               </Row>
               <Row className="mb-3">
@@ -531,7 +538,8 @@ export default function ManageInvoices() {
                         {(it.unitPrice ?? 0).toLocaleString("vi-VN")}đ
                       </td>
                       <td className="text-end">
-                        {(it.lineTotal ??
+                        {(
+                          it.lineTotal ??
                           (it.qty || 0) * (it.unitPrice || 0)
                         ).toLocaleString("vi-VN")}
                         đ
@@ -580,7 +588,6 @@ export default function ManageInvoices() {
   );
 }
 
-/** debounce như các trang khác */
 function useDebounce(value, delay = 400) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -602,23 +609,34 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis key="s-ellipsis" disabled />);
+    if (start > 2) {
+      items.push(<Pagination.Ellipsis key="s-ellipsis" disabled />);
+    }
   }
+
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
+
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis key="e-ellipsis" disabled />);
+    if (end < total - 1) {
+      items.push(<Pagination.Ellipsis key="e-ellipsis" disabled />);
+    }
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}
       </Pagination.Item>
     );
   }
+
   return items;
 }
 
