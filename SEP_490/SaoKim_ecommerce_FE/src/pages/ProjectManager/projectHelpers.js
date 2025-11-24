@@ -19,31 +19,29 @@ const BADGE_TONE_CLASS = {
 };
 
 const numberFormatters = {
-  en: new Intl.NumberFormat("en-US"),
   vi: new Intl.NumberFormat("vi-VN"),
 };
 
 const dateLocales = {
-  en: "en-GB",
   vi: "vi-VN",
 };
 
-const formatBudget = (value, lang = "en") => {
+const formatBudget = (value, lang = "vi") => {
   if (typeof value !== "number" || Number.isNaN(value)) return "-";
-  const formatter = numberFormatters[lang] || numberFormatters.en;
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
   return `${formatter.format(value)} VND`;
 };
 
-const formatBudgetCompact = (value, lang = "en") => {
+const formatBudgetCompact = (value, lang = "vi") => {
   if (typeof value !== "number" || Number.isNaN(value)) return "0";
-  const formatter = numberFormatters[lang] || numberFormatters.en;
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
   return formatter.format(value);
 };
 
-const formatDate = (value, lang = "en") => {
+const formatDate = (value, lang = "vi") => {
   if (!value) return "-";
   try {
-    return new Date(value).toLocaleDateString(dateLocales[lang] || dateLocales.en);
+    return new Date(value).toLocaleDateString(dateLocales[lang] || dateLocales.vi);
   } catch {
     return "-";
   }

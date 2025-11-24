@@ -244,7 +244,7 @@ function ProjectDetail() {
   );
 
   const today = dayjs();
-  const monthLabel = month.locale(lang === "vi" ? "vi" : "en").format("MMMM YYYY");
+  const monthLabel = month.locale("vi").format("MMMM YYYY");
 
   const openCreateTask = () => {
     setEditingTask(null);
