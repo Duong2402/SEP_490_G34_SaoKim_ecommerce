@@ -16,7 +16,7 @@ const translations = {
         saveChanges: "Save changes",
       },
       status: {
-        loading: "Loading…",
+        loading: "Loading...",
         notFound: "Not found",
       },
       messages: {
@@ -66,7 +66,7 @@ const translations = {
         createCta: "Create a project",
       },
       list: {
-        loading: "Loading projects…",
+        loading: "Loading projects...",
       },
       form: {
         codeLabel: "Project code",
@@ -95,8 +95,7 @@ const translations = {
       },
       create: {
         title: "Create project",
-        subtitle:
-          "Capture the brief, team, dates, and budget to kick off this project with clarity.",
+        subtitle: "Capture the brief, team, dates, and budget to kick off this project with clarity.",
         success: "Project created successfully.",
         failure: "Unable to create project.",
       },
@@ -106,7 +105,7 @@ const translations = {
         subtitleFallback: "Update scope, budget, and milestones for this project.",
         success: "Project updated successfully.",
         failure: "Unable to update project.",
-        loading: "Loading project…",
+        loading: "Loading project...",
         notFoundTitle: "Project not found",
         notFoundSubtitle:
           "We could not find this project. It may have been removed or you do not have permission.",
@@ -127,7 +126,7 @@ const translations = {
         customerContactEmpty: "No contact provided.",
         description: "Description",
         descriptionEmpty: "No description provided.",
-        loadingProject: "Loading project…",
+        loadingProject: "Loading project...",
         notFoundTitle: "Project not found",
         notFoundSubtitle:
           "We could not find this project. It may have been removed or you do not have permission.",
@@ -151,7 +150,7 @@ const translations = {
         nextMonth: "Next month",
         searchPlaceholder: "Search tasks by name or owner",
         legendHint: "Click a cell to cycle Pending → Doing → Done → Delayed → Clear.",
-        loadingTasks: "Loading tasks…",
+        loadingTasks: "Loading tasks...",
         taskStatus: {
           Pending: "Pending",
           Doing: "Doing",
@@ -186,6 +185,10 @@ const translations = {
             startDate: "Choose a start date.",
             duration: "Duration must be at least one day.",
           },
+        },
+        messages: {
+          saveTaskFailure: "Unable to save task.",
+          updateDayFailure: "Failed to update day status.",
         },
       },
       messages: {
@@ -280,7 +283,7 @@ const translations = {
         codeLabel: "Mã dự án",
         codePlaceholder: "PRJ-2025-001",
         nameLabel: "Tên dự án *",
-        namePlaceholder: "Lắp đèn cho công ty ABC",
+        namePlaceholder: "Lắp đặt ánh sáng cho công ty ABC",
         customerLabel: "Khách hàng",
         customerPlaceholder: "Công ty Acme",
         contactLabel: "Liên hệ khách hàng",
@@ -291,19 +294,20 @@ const translations = {
         startLabel: "Ngày bắt đầu",
         endLabel: "Ngày kết thúc",
         descriptionLabel: "Mô tả",
-        descriptionPlaceholder: "Hạng mục chính, tiêu chí thành công và phạm vi.",
+        descriptionPlaceholder: "Hạng mục chính, tiêu chí thành công và phạm vi công việc.",
         reset: "Đặt lại",
         submitCreate: "Tạo dự án",
         submitUpdate: "Lưu thay đổi",
         validations: {
           name: "Vui lòng nhập tên dự án.",
           endDate: "Ngày kết thúc phải sau ngày bắt đầu.",
-          budget: "Ngân sách chỉ được chứa số.",
+          budget: "Ngân sách chỉ gồm số.",
         },
       },
       create: {
         title: "Tạo dự án",
-        subtitle: "Ghi lại yêu cầu, đội ngũ, thời gian và ngân sách để bắt đầu dự án rõ ràng.",
+        subtitle:
+          "Ghi lại yêu cầu, đội ngũ, thời gian và ngân sách để khởi động dự án rõ ràng.",
         success: "Tạo dự án thành công.",
         failure: "Không thể tạo dự án.",
       },
@@ -316,7 +320,7 @@ const translations = {
         loading: "Đang tải dự án...",
         notFoundTitle: "Không tìm thấy dự án",
         notFoundSubtitle:
-          "Không thể tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
+          "Không tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
         backToProjects: "Quay lại danh sách",
         viewDetails: "Xem chi tiết",
       },
@@ -337,7 +341,7 @@ const translations = {
         loadingProject: "Đang tải dự án...",
         notFoundTitle: "Không tìm thấy dự án",
         notFoundSubtitle:
-          "Không thể tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
+          "Không tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
         actions: {
           backToList: "Quay lại danh sách",
           addTask: "Thêm công việc",
@@ -346,7 +350,7 @@ const translations = {
           total: "Tổng số công việc",
           totalHint: "{{active}} đang hoạt động",
           completed: "Đã hoàn thành",
-          completedHint: "Đánh dấu đã xong",
+          completedHint: "Đã đánh dấu xong",
           delayed: "Chậm tiến độ",
           delayedHint: "Cần theo dõi",
           progress: "Tiến độ",
@@ -360,7 +364,7 @@ const translations = {
         legendHint: "Bấm vào ô để chuyển Pending → Doing → Done → Delayed → Xóa.",
         loadingTasks: "Đang tải công việc...",
         taskStatus: {
-          Pending: "Chờ thực hiện",
+          Pending: "Chưa thực hiện",
           Doing: "Đang làm",
           Done: "Hoàn thành",
           Delayed: "Trễ hạn",
@@ -393,6 +397,10 @@ const translations = {
             startDate: "Chọn ngày bắt đầu.",
             duration: "Thời lượng phải từ 1 ngày trở lên.",
           },
+        },
+        messages: {
+          saveTaskFailure: "Không thể lưu công việc.",
+          updateDayFailure: "Không cập nhật được trạng thái ngày.",
         },
       },
       messages: {

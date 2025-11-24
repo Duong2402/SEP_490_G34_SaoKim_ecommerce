@@ -880,6 +880,7 @@ function ProjectDetail() {
           {showMultiAddModal && (
             <MultiAddProjectProductsModal
               projectId={id}
+              existingProductIds={(products || []).map((item) => item.productId)}
               onClose={() => setShowMultiAddModal(false)}
               onSaved={loadProducts}
             />
@@ -991,7 +992,7 @@ function ProjectDetail() {
                               }
                             }}
                           >
-                            XÃ³a
+                            Xoá
                           </button>
                         </div>
                       </td>

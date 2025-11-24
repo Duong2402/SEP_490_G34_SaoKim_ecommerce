@@ -1,15 +1,20 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../api/products";
 import { ProjectProductAPI } from "../api/ProjectManager/project-products";
 import Portal from "./Portal";
 
-function MultiAddProjectProductsModal({ projectId, onClose, onSaved }) {
+function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onClose, onSaved }) {
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState([]);
   const [q, setQ] = useState("");
 
   const [sel, setSel] = useState({}); // { [id]: { quantity, unitPrice } }
   const [saving, setSaving] = useState(false);
+
+  const existingSet = useMemo(
+    () => new Set((existingProductIds || []).map((id) => Number(id))),
+    [existingProductIds],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -99,13 +104,44 @@ function MultiAddProjectProductsModal({ projectId, onClose, onSaved }) {
 
     if (!payloads.length) return alert("Số lượng phải lớn hơn 0.");
 
+    const dedupedPayloads = payloads.filter((p) => !existingSet.has(p.productId));
+    if (!dedupedPayloads.length) {
+      alert("Tất cả sản phẩm đã có trong dự án. Vui lòng chỉnh sửa trực tiếp trong danh sách.");
+      return;
+    }
+
     setSaving(true);
+    const skipped = [];
+    const failed = [];
+
     try {
-      for (const pl of payloads) {
-        await ProjectProductAPI.create(projectId, pl);
+      for (const pl of dedupedPayloads) {
+        try {
+          await ProjectProductAPI.create(projectId, pl);
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 409) {
+            skipped.push(pl.productId);
+            continue;
+          }
+          failed.push(pl.productId);
+        }
       }
+
       setSel({});
       await onSaved?.();
+
+      if (skipped.length || failed.length) {
+        const toName = (id) => all.find((p) => p.id === id)?.name || `#${id}`;
+        const skippedNames = skipped.map(toName).join(", ");
+        const failedNames = failed.map(toName).join(", ");
+        const messages = [];
+        if (skipped.length) messages.push(`Bỏ qua vì đã tồn tại: ${skippedNames}`);
+        if (failed.length) messages.push(`Lỗi khi thêm: ${failedNames}`);
+        alert(messages.join("\n"));
+      } else {
+        onClose?.();
+      }
     } catch (err) {
       console.error(err);
       alert("Thêm sản phẩm thất bại.");

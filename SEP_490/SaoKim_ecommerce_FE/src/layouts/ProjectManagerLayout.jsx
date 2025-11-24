@@ -1,5 +1,7 @@
-﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown, faKey, faRightFromBracket, faUserPen } from "@fortawesome/free-solid-svg-icons";
 import ProjectManagerSidebar from "../pages/ProjectManager/components/ProjectManagerSidebar";
 import "../styles/project-manager.css";
 
@@ -39,9 +41,11 @@ export default function ProjectManagerLayout() {
     const sync = () => setIdentity(getIdentity());
     window.addEventListener("storage", sync);
     window.addEventListener("localStorageChange", sync);
+    window.addEventListener("auth:changed", sync);
     return () => {
       window.removeEventListener("storage", sync);
       window.removeEventListener("localStorageChange", sync);
+      window.removeEventListener("auth:changed", sync);
     };
   }, []);
 
@@ -64,6 +68,7 @@ export default function ProjectManagerLayout() {
   const handleLogout = () => {
     if (!window.confirm("Bạn chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
     ["token", "role", "userEmail", "userName"].forEach((key) => localStorage.removeItem(key));
+    window.dispatchEvent(new Event("auth:changed"));
     navigate("/login", { replace: true });
   };
 
@@ -81,12 +86,12 @@ export default function ProjectManagerLayout() {
 
   return (
     <div className="pm-shell">
-      <aside className="pm-sidebar" aria-label="Điều hướng Project Manager">
+      <aside className="pm-sidebar" aria-label="Khu vực Project Manager">
         <div className="pm-sidebar__brand">
           <span className="pm-sidebar__mark">SK</span>
           <div className="pm-sidebar__title">
             <strong>Sao Kim Projects</strong>
-            <span>Khu vực Project Manager</span>
+            <span>Khu vực Quản lý dự án</span>
           </div>
         </div>
 
@@ -123,17 +128,21 @@ export default function ProjectManagerLayout() {
                   {identity.name || "Project Manager"}
                   <span>{identity.email}</span>
                 </span>
+                <FontAwesomeIcon icon={faChevronDown} />
               </button>
 
               {userMenuOpen && (
                 <div className="pm-user__dropdown" role="menu">
                   <button type="button" onClick={goToProfile}>
-                    Hồ sơ cá nhân
+                    <FontAwesomeIcon icon={faUserPen} className="me-2" />
+                    Cập nhật thông tin
                   </button>
                   <button type="button" onClick={goToChangePassword}>
+                    <FontAwesomeIcon icon={faKey} className="me-2" />
                     Đổi mật khẩu
                   </button>
                   <button type="button" onClick={handleLogout}>
+                    <FontAwesomeIcon icon={faRightFromBracket} className="me-2" />
                     Đăng xuất
                   </button>
                 </div>
@@ -149,4 +158,3 @@ export default function ProjectManagerLayout() {
     </div>
   );
 }
-
