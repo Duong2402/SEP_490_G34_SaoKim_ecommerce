@@ -1,4 +1,4 @@
-// src/pages/manager/products/EditProductForm.jsx
+// src/pages/staff-manager/products/EditProductForm.jsx
 import React from "react";
 import ProductForm from "./ProductForm";
 import useProductsApi from "../api/useProducts";
@@ -30,7 +30,7 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
   return (
     <ProductForm
       defaultValues={initial}
-      submitLabel="Update"
+      submitLabel="Cập nhật"
       onSubmit={handleSubmit}
       onCancel={onCancel}
     />

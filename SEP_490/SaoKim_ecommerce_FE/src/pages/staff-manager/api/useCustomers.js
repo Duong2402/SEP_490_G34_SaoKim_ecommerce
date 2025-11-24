@@ -32,13 +32,12 @@ export default function useCustomersApi() {
   async function handleJson(res, actionName) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error(`[${actionName}] error`, res.status, text);
-      throw new Error(`${actionName} failed (${res.status})`);
+      console.error(`[${actionName}] lỗi`, res.status, text);
+      throw new Error(`${actionName} thất bại (mã ${res.status})`);
     }
     return res.json();
   }
 
-  // Fetch customers (list)
   const fetchCustomers = async (params = {}) => {
     const qs = buildQuery(params);
     const res = await fetch(`${base}${qs}`, {
@@ -46,20 +45,18 @@ export default function useCustomersApi() {
       headers: withAuth(),
       credentials: "include",
     });
-    return handleJson(res, "Fetch customers");
+    return handleJson(res, "Tải danh sách khách hàng");
   };
 
-  // Get customer detail
   const getCustomerById = async (id) => {
     const res = await fetch(`${base}/${id}`, {
       method: "GET",
       headers: withAuth(),
       credentials: "include",
     });
-    return handleJson(res, "Get customer detail");
+    return handleJson(res, "Lấy chi tiết khách hàng");
   };
 
-  // Fetch customer orders (Recent Orders)
   const fetchCustomerOrders = async (id, params = {}) => {
     const qs = buildQuery(params);
     const res = await fetch(`${base}/${id}/orders${qs}`, {
@@ -67,10 +64,9 @@ export default function useCustomersApi() {
       headers: withAuth(),
       credentials: "include",
     });
-    return handleJson(res, "Fetch customer orders");
+    return handleJson(res, "Tải đơn hàng của khách");
   };
 
-  // Soft delete customer
   const deleteCustomer = async (id) => {
     const res = await fetch(`${base}/${id}`, {
       method: "DELETE",
@@ -80,14 +76,13 @@ export default function useCustomersApi() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[Delete customer] error", res.status, text);
-      throw new Error(`Delete customer failed (${res.status})`);
+      console.error("[Xóa khách hàng] lỗi", res.status, text);
+      throw new Error(`Xóa khách hàng thất bại (mã ${res.status})`);
     }
 
     return true;
   };
 
-  // Add customer note (Internal Notes)
   const addCustomerNote = async (id, content) => {
     const res = await fetch(`${base}/${id}/notes`, {
       method: "POST",
@@ -97,9 +92,9 @@ export default function useCustomersApi() {
       credentials: "include",
       body: JSON.stringify({ content }),
     });
-    return handleJson(res, "Add note");
+    return handleJson(res, "Thêm ghi chú");
   };
-  // Update customer note
+
   const updateCustomerNote = async (customerId, noteId, content) => {
     const res = await fetch(`${base}/${customerId}/notes/${noteId}`, {
       method: "PUT",
@@ -110,10 +105,9 @@ export default function useCustomersApi() {
       credentials: "include",
       body: JSON.stringify({ content }),
     });
-    return handleJson(res, "Update customer note");
+    return handleJson(res, "Cập nhật ghi chú");
   };
 
-  // Delete customer note
   const deleteCustomerNote = async (customerId, noteId) => {
     const res = await fetch(`${base}/${customerId}/notes/${noteId}`, {
       method: "DELETE",
@@ -125,35 +119,32 @@ export default function useCustomersApi() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[Delete customer note] error", res.status, text);
-      throw new Error(`Delete customer note failed (${res.status})`);
+      console.error("[Xóa ghi chú khách] lỗi", res.status, text);
+      throw new Error(`Xóa ghi chú thất bại (mã ${res.status})`);
     }
 
     return true;
   };
 
-  // Export Excel (.xlsx)
   const exportCustomers = async (params = {}) => {
     const qs = buildQuery(params);
     const res = await fetch(`${base}/export${qs}`, {
       method: "GET",
       headers: withAuth({
-        Accept:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
       credentials: "include",
     });
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[Export customers] error", res.status, text);
-      throw new Error(`Export customers failed (${res.status})`);
+      console.error("[Xuất khách hàng] lỗi", res.status, text);
+      throw new Error(`Xuất danh sách thất bại (mã ${res.status})`);
     }
 
     return res.blob();
   };
 
-  // Update order status
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`/api/staff/orders/${orderId}/status`, {
       method: "PATCH",
@@ -166,21 +157,20 @@ export default function useCustomersApi() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[Update order status] error", res.status, text);
-      throw new Error(`Update order status failed (${res.status})`);
+      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, text);
+      throw new Error(`Cập nhật trạng thái đơn thất bại (mã ${res.status})`);
     }
 
     return true;
   };
 
-  // Fetch items in an order
   const fetchOrderItems = async (orderId) => {
     const res = await fetch(`/api/staff/orders/${orderId}/items`, {
       method: "GET",
       headers: withAuth(),
       credentials: "include",
     });
-    return handleJson(res, "Fetch order items");
+    return handleJson(res, "Tải sản phẩm trong đơn");
   };
 
   return {

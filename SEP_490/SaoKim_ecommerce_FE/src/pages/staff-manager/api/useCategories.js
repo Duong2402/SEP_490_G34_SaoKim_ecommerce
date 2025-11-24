@@ -1,15 +1,15 @@
 export default function useCategoriesApi() {
-  const base = "/api/categories"; // route chuẩn bạn đã tạo ở backend
+  const base = "/api/categories";
 
   const getCategories = async () => {
     const res = await fetch(base);
-    if (!res.ok) throw new Error("Failed to load categories");
+    if (!res.ok) throw new Error("Không tải được danh mục");
     return await res.json(); // [{ id, name, slug }]
   };
 
   const getCategory = async (id) => {
     const res = await fetch(`${base}/${id}`);
-    if (!res.ok) throw new Error("Category not found");
+    if (!res.ok) throw new Error("Danh mục không tồn tại");
     return await res.json();
   };
 
@@ -21,7 +21,7 @@ export default function useCategoriesApi() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Create category failed");
+      throw new Error(err.message || "Tạo danh mục thất bại");
     }
     return await res.json();
   };
@@ -32,13 +32,13 @@ export default function useCategoriesApi() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Update category failed");
+    if (!res.ok) throw new Error("Cập nhật danh mục thất bại");
     return await res.json();
   };
 
   const deleteCategory = async (id) => {
     const res = await fetch(`${base}/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Delete category failed");
+    if (!res.ok) throw new Error("Xóa danh mục thất bại");
     return await res.json();
   };
 

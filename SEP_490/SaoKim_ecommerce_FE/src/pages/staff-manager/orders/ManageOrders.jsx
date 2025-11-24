@@ -16,10 +16,10 @@ import {
   Dropdown,
   Form,
   InputGroup,
-  Row,
-  Table,
   Pagination,
+  Row,
   Spinner,
+  Table,
 } from "@themesberg/react-bootstrap";
 import { Modal } from "react-bootstrap";
 import { useEffect, useState } from "react";
@@ -44,10 +44,8 @@ export default function ManageOrders() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
-  // modal xem sản phẩm
   const [showOrderItemsModal, setShowOrderItemsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
@@ -83,30 +81,21 @@ export default function ManageOrders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    debouncedSearch,
-    status,
-    createdFrom,
-    createdTo,
-    page,
-    pageSize,
-    sortBy,
-    sortDir,
-  ]);
+  }, [debouncedSearch, status, createdFrom, createdTo, page, pageSize, sortBy, sortDir]);
 
   const renderStatus = (s) => {
     const v = String(s || "").toLowerCase();
     if (v === "pending")
       return (
         <Badge bg="warning" text="dark">
-          Pending
+          Chờ xử lý
         </Badge>
       );
-    if (v === "shipping") return <Badge bg="info">Shipping</Badge>;
-    if (v === "paid") return <Badge bg="primary">Paid</Badge>;
-    if (v === "completed") return <Badge bg="success">Completed</Badge>;
-    if (v === "cancelled") return <Badge bg="secondary">Cancelled</Badge>;
-    return <Badge bg="secondary">{s || "Unknown"}</Badge>;
+    if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
+    if (v === "paid") return <Badge bg="primary">Đã thanh toán</Badge>;
+    if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
+    if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
+    return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
@@ -129,7 +118,7 @@ export default function ManageOrders() {
     setSelectedOrderItems([]);
 
     try {
-      const items = await fetchOrderItems(order.id); // dùng id
+      const items = await fetchOrderItems(order.id);
       setSelectedOrderItems(items);
     } catch (e) {
       console.error(e);
@@ -141,177 +130,166 @@ export default function ManageOrders() {
 
   return (
     <StaffLayout>
-      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
+      <div className="staff-page-header">
         <div>
           <Breadcrumb
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item
-              linkAs={Link}
-              linkProps={{ to: "/staff/manager-dashboard" }}
-            >
+            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-dashboard" }}>
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
-            <Breadcrumb.Item>Orders</Breadcrumb.Item>
-            <Breadcrumb.Item active>Manage Orders</Breadcrumb.Item>
+            <Breadcrumb.Item>Đơn hàng</Breadcrumb.Item>
+            <Breadcrumb.Item active>Quản lý đơn hàng</Breadcrumb.Item>
           </Breadcrumb>
 
-          <h4>Manage Orders</h4>
+          <h4 className="staff-page-title">Quản lý đơn hàng</h4>
+          <p className="staff-page-lead">Lọc, cập nhật trạng thái và theo dõi chi tiết đơn</p>
         </div>
       </div>
 
-      <Card className="mb-4 shadow-sm">
-        <Card.Body>
-          <Row className="g-3 align-items-end">
-            <Col md={4}>
-              <Form.Label>Search</Form.Label>
-              <InputGroup>
-                <InputGroup.Text>
-                  <FontAwesomeIcon icon={faSearch} />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="Order ID, customer, email, phone"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
+      <div className="staff-panel">
+        <Row className="g-3 align-items-end">
+          <Col md={4}>
+            <Form.Label>Tìm kiếm</Form.Label>
+            <InputGroup>
+              <InputGroup.Text>
+                <FontAwesomeIcon icon={faSearch} />
+              </InputGroup.Text>
+              <Form.Control
+                type="text"
+                placeholder="Mã đơn, khách, email, số điện thoại"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </InputGroup>
+          </Col>
+
+          <Col md={2}>
+            <Form.Label>Trạng thái</Form.Label>
+            <Form.Select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">Tất cả</option>
+              <option value="Pending">Chờ xử lý</option>
+              <option value="Shipping">Đang giao</option>
+              <option value="Paid">Đã thanh toán</option>
+              <option value="Completed">Hoàn tất</option>
+              <option value="Cancelled">Đã hủy</option>
+            </Form.Select>
+          </Col>
+
+          <Col md={2}>
+            <Form.Label>Từ ngày</Form.Label>
+            <DatePicker
+              selected={createdFrom}
+              onChange={(date) => {
+                setCreatedFrom(date);
+                setPage(1);
+              }}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="dd/MM/yyyy"
+              className="form-control"
+              isClearable
+            />
+          </Col>
+
+          <Col md={2}>
+            <Form.Label>Đến ngày</Form.Label>
+            <DatePicker
+              selected={createdTo}
+              onChange={(date) => {
+                setCreatedTo(date);
+                setPage(1);
+              }}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="dd/MM/yyyy"
+              className="form-control"
+              isClearable
+            />
+          </Col>
+
+          <Col md="auto" className="ms-auto">
+            <Dropdown as={ButtonGroup}>
+              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+                <FontAwesomeIcon icon={faCog} />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Header>Hiển thị</Dropdown.Header>
+                {[10, 20, 30, 50].map((n) => (
+                  <Dropdown.Item
+                    key={n}
+                    active={pageSize === n}
+                    onClick={() => {
+                      setPageSize(n);
+                      setPage(1);
+                    }}
+                  >
+                    {n} dòng
+                    {pageSize === n && <FontAwesomeIcon icon={faCheck} className="ms-2" />}
+                  </Dropdown.Item>
+                ))}
+
+                <Dropdown.Divider />
+                <Dropdown.Header>Sắp xếp</Dropdown.Header>
+
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("created");
+                    setSortDir("desc");
                     setPage(1);
                   }}
-                />
-              </InputGroup>
-            </Col>
-
-            <Col md={2}>
-              <Form.Label>Status</Form.Label>
-              <Form.Select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="all">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Shipping">Shipping</option>
-                <option value="Paid">Paid</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </Form.Select>
-            </Col>
-
-            <Col md={2}>
-              <Form.Label>Created from</Form.Label>
-              <DatePicker
-                selected={createdFrom}
-                onChange={(date) => {
-                  setCreatedFrom(date);
-                  setPage(1);
-                }}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="dd/MM/yyyy"
-                className="form-control"
-                isClearable
-              />
-            </Col>
-
-            <Col md={2}>
-              <Form.Label>Created to</Form.Label>
-              <DatePicker
-                selected={createdTo}
-                onChange={(date) => {
-                  setCreatedTo(date);
-                  setPage(1);
-                }}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="dd/MM/yyyy"
-                className="form-control"
-                isClearable
-              />
-            </Col>
-
-            <Col md="auto" className="ms-auto">
-              <Dropdown as={ButtonGroup}>
-                <Dropdown.Toggle
-                  split
-                  as={Button}
-                  variant="link"
-                  className="text-dark m-0 p-0"
                 >
-                  <FontAwesomeIcon icon={faCog} />
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  <Dropdown.Header>Show</Dropdown.Header>
-                  {[10, 20, 30, 50].map((n) => (
-                    <Dropdown.Item
-                      key={n}
-                      active={pageSize === n}
-                      onClick={() => {
-                        setPageSize(n);
-                        setPage(1);
-                      }}
-                    >
-                      {n}
-                      {pageSize === n && (
-                        <FontAwesomeIcon icon={faCheck} className="ms-2" />
-                      )}
-                    </Dropdown.Item>
-                  ))}
+                  Ngày tạo mới nhất
+                </Dropdown.Item>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("total");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
+                  Tổng tiền cao xuống thấp
+                </Dropdown.Item>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("status");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
+                  Trạng thái A → Z
+                </Dropdown.Item>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("customer");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
+                  Khách hàng A → Z
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </Col>
+        </Row>
+      </div>
 
-                  <Dropdown.Divider />
-                  <Dropdown.Header>Sort by</Dropdown.Header>
-
-                  <Dropdown.Item
-                    onClick={() => {
-                      setSortBy("created");
-                      setSortDir("desc");
-                      setPage(1);
-                    }}
-                  >
-                    Created ↓
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    onClick={() => {
-                      setSortBy("total");
-                      setSortDir("desc");
-                      setPage(1);
-                    }}
-                  >
-                    Total ↓
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    onClick={() => {
-                      setSortBy("status");
-                      setSortDir("asc");
-                      setPage(1);
-                    }}
-                  >
-                    Status ↑
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    onClick={() => {
-                      setSortBy("customer");
-                      setSortDir("asc");
-                      setPage(1);
-                    }}
-                  >
-                    Customer ↑
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-
-      <Card className="shadow-sm">
+      <Card className="staff-panel table-responsive">
         <Card.Body className="pt-0">
-          <div className="d-flex justify-content-between mb-2">
-            <div>Total: {total}</div>
+          <div className="staff-table__summary">
+            <div>Tổng số: {total}</div>
             {loading && (
               <div className="d-flex align-items-center gap-2">
                 <Spinner animation="border" size="sm" />
-                <span>Loading…</span>
+                <span>Đang tải...</span>
               </div>
             )}
           </div>
@@ -320,12 +298,12 @@ export default function ManageOrders() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th className="text-end">Actions</th>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th className="text-end">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -336,11 +314,10 @@ export default function ManageOrders() {
                   <td>
                     <div>{o.customerName}</div>
                     <div className="small text-muted">
-                      {o.customerEmail}{" "}
-                      {o.customerPhone && ` / ${o.customerPhone}`}
+                      {o.customerEmail} {o.customerPhone && ` / ${o.customerPhone}`}
                     </div>
                   </td>
-                  <td>{(o.total ?? 0).toLocaleString("vi-VN")}đ</td>
+                  <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
                   <td>{renderStatus(o.status)}</td>
                   <td>{formatDate(o.createdAt)}</td>
                   <td className="text-end">
@@ -350,7 +327,7 @@ export default function ManageOrders() {
                       className="me-2"
                       onClick={() => handleViewOrderItems(o)}
                     >
-                      View products
+                      Xem sản phẩm
                     </Button>
 
                     {o.status === "Pending" && (
@@ -358,13 +335,9 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-secondary"
                         disabled={updatingOrderId === o.id}
-                        onClick={() =>
-                          handleUpdateOrderStatus(o.id, "Shipping")
-                        }
+                        onClick={() => handleUpdateOrderStatus(o.id, "Shipping")}
                       >
-                        {updatingOrderId === o.id
-                          ? "Saving..."
-                          : "Mark Shipping"}
+                        {updatingOrderId === o.id ? "Đang lưu..." : "Chuyển giao hàng"}
                       </Button>
                     )}
 
@@ -373,11 +346,9 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-success"
                         disabled={updatingOrderId === o.id}
-                        onClick={() =>
-                          handleUpdateOrderStatus(o.id, "Paid")
-                        }
+                        onClick={() => handleUpdateOrderStatus(o.id, "Paid")}
                       >
-                        {updatingOrderId === o.id ? "Saving..." : "Mark Paid"}
+                        {updatingOrderId === o.id ? "Đang lưu..." : "Đánh dấu đã thu"}
                       </Button>
                     )}
 
@@ -386,13 +357,9 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-primary"
                         disabled={updatingOrderId === o.id}
-                        onClick={() =>
-                          handleUpdateOrderStatus(o.id, "Completed")
-                        }
+                        onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
                       >
-                        {updatingOrderId === o.id
-                          ? "Saving..."
-                          : "Mark Completed"}
+                        {updatingOrderId === o.id ? "Đang lưu..." : "Hoàn tất đơn"}
                       </Button>
                     )}
                   </td>
@@ -402,7 +369,7 @@ export default function ManageOrders() {
               {!loading && rows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center text-muted py-4">
-                    No data
+                    Chưa có dữ liệu
                   </td>
                 </tr>
               )}
@@ -411,55 +378,48 @@ export default function ManageOrders() {
 
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>
-              Page {page} / {totalPages}
+              Trang {page} / {totalPages}
             </div>
             <Pagination>
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
+              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
               {renderPageItems(page, totalPages, setPage)}
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
             </Pagination>
           </div>
         </Card.Body>
       </Card>
 
-      {/* Modal xem sản phẩm trong đơn hàng */}
       <Modal
         show={showOrderItemsModal}
         onHide={() => setShowOrderItemsModal(false)}
         size="lg"
+        dialogClassName="staff-modal"
       >
         <Modal.Header closeButton>
-          <Modal.Title>Products in order #{selectedOrder?.id}</Modal.Title>
+          <Modal.Title className="staff-modal__title">
+            Sản phẩm trong đơn #{selectedOrder?.id}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {loadingOrderItems ? (
             <div className="d-flex align-items-center gap-2 my-3">
               <Spinner animation="border" size="sm" />
-              <span>Loading products…</span>
+              <span>Đang tải sản phẩm...</span>
             </div>
           ) : selectedOrderItems.length > 0 ? (
             <Table hover responsive size="sm" className="mb-0">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Unit price</th>
-                  <th>Total</th>
+                  <th>Sản phẩm</th>
+                  <th>Số lượng</th>
+                  <th>Đơn giá</th>
+                  <th>Thành tiền</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,14 +428,14 @@ export default function ManageOrders() {
                     <td>{index + 1}</td>
                     <td>{item.productName}</td>
                     <td>{item.quantity}</td>
-                    <td>{(item.unitPrice ?? 0).toLocaleString("vi-VN")}đ</td>
-                    <td>{(item.lineTotal ?? 0).toLocaleString("vi-VN")}đ</td>
+                    <td>{(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td>{(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫</td>
                   </tr>
                 ))}
               </tbody>
             </Table>
           ) : (
-            <div className="text-muted">No products in this order</div>
+            <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
           )}
         </Modal.Body>
       </Modal>
@@ -514,25 +474,19 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2)
-      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item
-        key={p}
-        active={p === current}
-        onClick={() => onClick(p)}
-      >
+      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1)
-      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

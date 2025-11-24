@@ -25,13 +25,7 @@ function AddProductForm({ onCancel, onSuccess }) {
     onSuccess && onSuccess();
   };
 
-  return (
-    <ProductForm
-      submitLabel="Create"
-      onSubmit={handleCreate}
-      onCancel={onCancel}
-    />
-  );
+  return <ProductForm submitLabel="Thêm sản phẩm" onSubmit={handleCreate} onCancel={onCancel} />;
 }
 
 export default AddProductForm;
