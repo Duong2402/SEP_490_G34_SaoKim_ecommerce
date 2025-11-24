@@ -746,16 +746,27 @@ namespace SaoKim_ecommerce_BE.Controllers
                 query = query.Where(s => s.Note != null && s.Note.Contains(q.Source));
 
             if (q.FromDate.HasValue)
-                query = query.Where(s => s.ReceiptDate >= q.FromDate.Value);
+            {
+                var from = DateTime.SpecifyKind(q.FromDate.Value.Date, DateTimeKind.Local)
+                                    .ToUniversalTime();
+
+                query = query.Where(s => s.ReceiptDate >= from);
+            }
 
             if (q.ToDate.HasValue)
-                query = query.Where(s => s.ReceiptDate <= q.ToDate.Value);
+            {
+                var toExclusive = DateTime.SpecifyKind(q.ToDate.Value.Date.AddDays(1), DateTimeKind.Local)
+                                          .ToUniversalTime();
+
+                query = query.Where(s => s.ReceiptDate < toExclusive);
+            }
 
             var report = await query
                 .Select(s => new
                 {
                     s.Supplier,
                     s.ReceiptDate,
+                    s.Note, 
                     TotalItems = s.Items.Count,
                     TotalQuantity = s.Items.Sum(i => i.Quantity),
                     TotalValue = s.Items.Sum(i => i.Total)
@@ -773,6 +784,73 @@ namespace SaoKim_ecommerce_BE.Controllers
             var data = report?.Value as List<InboundReportDto>;
 
             return Ok(data);
+        }
+
+        [HttpGet("outbound-report")]
+        public async Task<IActionResult> GetOutboundReport([FromQuery] OutboundReportQuery q)
+        {
+            var query = _db.Dispatches
+                .Include(d => d.Items)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(q.Destination))
+            {
+                query = query.Where(d => d.Note != null && d.Note.Contains(q.Destination));
+            }
+
+            if (q.FromDate.HasValue)
+            {
+                var from = DateTime
+                    .SpecifyKind(q.FromDate.Value.Date, DateTimeKind.Local)
+                    .ToUniversalTime();
+                query = query.Where(d => d.DispatchDate >= from);
+            }
+
+            if (q.ToDate.HasValue)
+            {
+                var toExclusive = DateTime
+                    .SpecifyKind(q.ToDate.Value.Date.AddDays(1), DateTimeKind.Local)
+                    .ToUniversalTime();
+                query = query.Where(d => d.DispatchDate < toExclusive);
+            }
+
+            var list = await query.ToListAsync();
+
+            IEnumerable<DispatchBase> filtered = list;
+
+            if (!string.IsNullOrWhiteSpace(q.Customer))
+            {
+                filtered = filtered.Where(d =>
+                    d is RetailDispatch rd &&
+                    rd.CustomerName.Contains(q.Customer));
+            }
+
+            if (!string.IsNullOrWhiteSpace(q.Project))
+            {
+                filtered = filtered.Where(d =>
+                    d is ProjectDispatch pd &&
+                    pd.ProjectName.Contains(q.Project));
+            }
+
+            var report = filtered
+                .Select(d => new
+                {
+                    Customer = d is RetailDispatch rd
+                        ? rd.CustomerName
+                        : d is ProjectDispatch pd
+                            ? pd.ProjectName
+                            : d.ReferenceNo,
+
+                    IssueDate = d.DispatchDate,
+                    d.Note,
+                    TotalItems = d.Items.Count,
+                    TotalQuantity = d.Items.Sum(i => i.Quantity),
+                    TotalValue = d.Items.Sum(i => i.Total)
+                })
+                .OrderByDescending(x => x.IssueDate)
+                .ToList();
+
+            return Ok(report);
         }
 
         [AllowAnonymous]
@@ -1455,6 +1533,97 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { total, items });
         }
+
+        [HttpGet("inventory-report")]
+        public async Task<IActionResult> GetInventoryReport([FromQuery] InventoryListQuery q)
+        {
+            if (q.Page <= 0) q.Page = 1;
+            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
+
+            var query = _db.Products
+                .AsNoTracking()
+                .Where(p => p.Status == "Active");
+
+            if (!string.IsNullOrWhiteSpace(q.Search))
+            {
+                var s = q.Search.Trim().ToLower();
+                query = query.Where(p =>
+                    (p.ProductCode ?? "").ToLower().Contains(s) ||
+                    p.ProductName.ToLower().Contains(s));
+            }
+
+            var baseQuery =
+                from p in query
+                join th in _db.InventoryThresholds.AsNoTracking()
+                    on p.ProductID equals th.ProductId into thg
+                from th in thg.DefaultIfEmpty()
+                select new
+                {
+                    p.ProductID,
+                    p.ProductCode,
+                    p.ProductName,
+                    p.Quantity,
+                    p.Unit,
+                    MinStock = (int?)th.MinStock ?? 0
+                };
+
+            var queryWithStatus = baseQuery.Select(x => new
+            {
+                x.ProductID,
+                x.ProductCode,
+                x.ProductName,
+                x.Quantity,
+                x.Unit,
+                x.MinStock,
+                Status =
+                    x.MinStock <= 0
+                        ? "stock"               
+                    : x.Quantity <= 0
+                        ? "critical"            
+                    : x.Quantity < x.MinStock
+                        ? "alert"              
+                        : "stock"               
+            });
+
+            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
+            {
+                switch (q.Status)
+                {
+                    case "critical":
+                        queryWithStatus = queryWithStatus.Where(x => x.Status == "critical");
+                        break;
+                    case "alert":
+                        queryWithStatus = queryWithStatus.Where(x => x.Status == "alert");
+                        break;
+                    case "stock":
+                        queryWithStatus = queryWithStatus.Where(x => x.Status == "stock");
+                        break;
+                }
+            }
+
+            var total = await queryWithStatus.CountAsync();
+
+            var items = await queryWithStatus
+                .OrderBy(x => x.ProductName)
+                .ThenBy(x => x.ProductCode)
+                .Skip((q.Page - 1) * q.PageSize)
+                .Take(q.PageSize)
+                .Select(x => new
+                {
+                    productId = x.ProductID,
+                    productCode = x.ProductCode,
+                    productName = x.ProductName,
+                    onHand = x.Quantity,
+                    uomName = x.Unit,
+                    minStock = x.MinStock,
+                    status = x.Status,
+                    note = (string?)null
+                })
+                .ToListAsync();
+
+            return Ok(new { total, items });
+        }
+
 
         [HttpPatch("inventory/{productId:int}/min-stock")]
         public async Task<IActionResult> UpdateMinStock([FromRoute] int productId, [FromBody] UpdateMinStockDto dto)

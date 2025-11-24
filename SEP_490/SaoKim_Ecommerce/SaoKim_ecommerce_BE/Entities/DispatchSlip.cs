@@ -68,4 +68,13 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public DispatchBase? Dispatch { get; set; }
     }
+    public class OutboundReportQuery
+    {
+        public string? Customer { get; set; }
+        public string? Project { get; set; }
+        public string? Destination { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+    }
+
 }

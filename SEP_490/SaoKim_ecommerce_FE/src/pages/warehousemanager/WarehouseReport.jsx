@@ -6,6 +6,8 @@ import {
   faHome,
   faChartColumn,
   faArrowDown,
+  faArrowUp,
+  faBoxesStacked
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 
@@ -18,14 +20,20 @@ const REPORT_CARDS = [
     status: "ready",
     icon: faArrowDown,
   },
-  // Sau này bạn thêm các báo cáo khác ở đây
-  // {
-  //   title: "Báo cáo xuất kho",
-  //   description: "...",
-  //   link: "/warehouse-dashboard/warehouse-report/outbound-report",
-  //   status: "ready",
-  //   icon: faArrowUp,
-  // },
+  {
+    title: "Báo cáo xuất kho",
+    description: "Theo dõi chi tiết hàng xuất theo nhà cung cấp, dự án và nguồn hàng.",
+    link: "/warehouse-dashboard/warehouse-report/outbound-report",
+    status: "ready",
+    icon: faArrowUp,
+  },
+  {
+    title: "Báo cáo tồn kho",
+    description: "Tổng hợp tồn kho theo sản phẩm và trạng thái cảnh báo.",
+    link: "/warehouse-dashboard/warehouse-report/inventory-report",
+    status: "ready",
+    icon: faBoxesStacked,
+  },
 ];
 
 const WarehouseReport = () => {

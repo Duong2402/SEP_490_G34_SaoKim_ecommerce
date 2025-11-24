@@ -21,10 +21,13 @@ import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
 import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
+import OutboundReport from "./pages/warehousemanager/OutboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
 import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
 import WarehouseInventory from "./pages/warehousemanager/WarehouseInventory";
 import ProductTrace from "./pages/warehousemanager/ProductTrace";
+import InventoryReport from "./pages/warehousemanager/InventoryReport";
+
 
 // Projects module (cũ)
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
@@ -120,18 +123,21 @@ export default function App() {
               <Route path="trace" element={<ProductTrace />} />
               <Route path="warehouse-report" element={<WarehouseReport />} />
               <Route path="warehouse-report/inbound-report" element={<InboundReport />} />
+              <Route path="warehouse-report/outbound-report" element={<OutboundReport />} />
+              <Route path="warehouse-report/inventory-report" element={<InventoryReport />}
+              />
             </Route>
           </Route>
 
           {/* Staff protected group */}
-            <Route element={<ProtectedRoute allow={["staff"]} />}>
+          <Route element={<ProtectedRoute allow={["staff"]} />}>
             <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
             <Route path="/staff/manager-products" element={<ManageProduct />} />
             <Route path="/staff/manager-customers" element={<ManageCustomers />} />
             <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
             <Route path="/staff/manager-orders" element={<ManageOrders />} />
             <Route path="/staff/invoices" element={<ManageInvoices />} />
-            </Route>
+          </Route>
 
           {/* Projects (ngoài khu Manager) */}
           <Route path="/projects" element={<ProjectManagerLayout />}>
@@ -145,7 +151,7 @@ export default function App() {
 
           {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />
-          
+
 
           {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
@@ -180,7 +186,7 @@ export default function App() {
             <Route path="promotions" element={<ManagerPromotionList />} />
             <Route path="promotions/create" element={<ManagerPromotionCreate />} />
             <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
-            
+
             {/* Coupons cho Manager */}
             <Route path="coupons" element={<ManagerCouponList />} />
             <Route path="coupons/create" element={<ManagerCouponCreate />} />
