@@ -265,13 +265,13 @@ const WarehouseDashboard = () => {
 
       <div className="wm-grid-two">
         <section className="wm-surface">
-          <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-            <div>
-              <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
-              <p className="wm-subtle-text mb-0">
-                So sánh lượng nhập và xuất trong 6 ngày gần nhất.
-              </p>
-            </div>
+            <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+              <div>
+                <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
+                <p className="wm-subtle-text mb-0">
+                  So sánh lượng nhập và xuất trong 6 ngày gần nhất.
+                </p>
+              </div>
             <span className="wm-tag">
               <FontAwesomeIcon icon={faArrowTrendUp} />
               Dữ liệu thời gian thực

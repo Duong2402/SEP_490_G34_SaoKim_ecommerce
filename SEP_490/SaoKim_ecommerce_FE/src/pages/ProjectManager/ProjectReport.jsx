@@ -38,9 +38,7 @@ export default function ProjectReport() {
   const handleExportPdf = async () => {
     try {
       const blob = await ProjectAPI.getReportPdf(id);
-      const url = window.URL.createObjectURL(
-        new Blob([blob], { type: "application/pdf" })
-      );
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;
       a.download = `ProjectReport_${report?.code || id}.pdf`;
@@ -54,7 +52,7 @@ export default function ProjectReport() {
 
   if (loading) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel">Đang tải báo cáo...</div>
       </div>
     );
@@ -62,7 +60,7 @@ export default function ProjectReport() {
 
   if (!report) {
     return (
-      <div className="container">
+      <div className="pm-page">
         <div className="panel empty-state">
           <div className="empty-state-title">Không tìm thấy báo cáo</div>
           <div className="empty-state-subtitle">
@@ -97,16 +95,16 @@ export default function ProjectReport() {
   } = report;
 
   return (
-    <div className="container">
+    <div className="pm-page">
       <div className="panel">
-        <header className="page-header" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <header className="page-header">
           <div>
             <h1 className="page-title">Báo cáo dự án</h1>
             <p className="page-subtitle">
-              #{code || "-"} — {name} {customerName ? `· ${customerName}` : ""}
+              #{code || "-"} - {name} {customerName ? `• ${customerName}` : ""}
             </p>
           </div>
-          <div className="actions" style={{ display: "flex", gap: 8 }}>
+          <div className="actions">
             <button className="btn btn-outline" onClick={handleExportPdf}>
               Xuất PDF
             </button>
@@ -129,55 +127,47 @@ export default function ProjectReport() {
               </span>
             </div>
             <div className="project-overview__description">
-              {formatDate(startDate, lang)} — {formatDate(endDate, lang)}
+              {formatDate(startDate, lang)} - {formatDate(endDate, lang)}
             </div>
           </article>
 
           <article className="project-overview__card">
-            <div className="project-overview__label">Budget</div>
-            <div className="project-overview__value">
-              {formatBudget(budget, lang)}
-            </div>
+            <div className="project-overview__label">Ngân sách kế hoạch</div>
+            <div className="project-overview__value">{formatBudget(budget, lang)}</div>
             <div className="project-overview__description">Ngân sách được duyệt.</div>
           </article>
 
           <article className="project-overview__card">
-            <div className="project-overview__label">Completion</div>
+            <div className="project-overview__label">Mức hoàn thành</div>
             <div className="project-overview__value">{progressPercent}%</div>
             <div className="project-overview__description">
-              {formatNumber(taskCompleted)} hoàn thành · {formatNumber(taskActive)} đang làm ·{" "}
-              {formatNumber(taskDelayed)} trễ
+              {formatNumber(taskCompleted)} hoàn thành • {formatNumber(taskActive)} đang làm •{" "}
+              {formatNumber(taskDelayed)} trễ.
             </div>
           </article>
         </div>
 
         <section className="metrics-grid">
           <article className="metric-card">
-            <div className="metric-label">Revenue (Products)</div>
-            <div className="metric-value">
-              {formatBudget(totalProductAmount, lang)}
-            </div>
+            <div className="metric-label">Doanh thu (sản phẩm)</div>
+            <div className="metric-value">{formatBudget(totalProductAmount, lang)}</div>
             <div className="metric-trend">Tổng thành tiền sản phẩm</div>
           </article>
           <article className="metric-card">
-            <div className="metric-label">Other Expenses</div>
-            <div className="metric-value">
-              {formatBudget(totalOtherExpenses, lang)}
-            </div>
+            <div className="metric-label">Chi phí khác</div>
+            <div className="metric-value">{formatBudget(totalOtherExpenses, lang)}</div>
             <div className="metric-trend">Chi phí vận hành/triển khai</div>
           </article>
           <article className="metric-card">
-            <div className="metric-label">Actual (All-in)</div>
-            <div className="metric-value">
-              {formatBudget(actualAllIn, lang)}
-            </div>
+            <div className="metric-label">Thực chi (tổng)</div>
+            <div className="metric-value">{formatBudget(actualAllIn, lang)}</div>
             <div className="metric-trend">
-              SP {formatBudget(totalProductAmount, lang)} + CP{" "}
+              Sản phẩm {formatBudget(totalProductAmount, lang)} + Chi phí{" "}
               {formatBudget(totalOtherExpenses, lang)}
             </div>
           </article>
           <article className="metric-card">
-            <div className="metric-label">Variance</div>
+            <div className="metric-label">Chênh lệch</div>
             <div
               className="metric-value"
               style={{ color: variance < 0 ? "#dc2626" : "#16a34a" }}
@@ -189,21 +179,18 @@ export default function ProjectReport() {
             </div>
           </article>
           <article className="metric-card">
-            <div className="metric-label">Profit (approx)</div>
-            <div
-              className="metric-value"
-              style={{ color: profitApprox < 0 ? "#dc2626" : undefined }}
-            >
+            <div className="metric-label">Lợi nhuận (ước tính)</div>
+            <div className="metric-value" style={{ color: profitApprox < 0 ? "#dc2626" : undefined }}>
               {formatBudget(profitApprox, lang)}
             </div>
-            <div className="metric-trend">≈ Revenue − Other Expenses</div>
+            <div className="metric-trend">Doanh thu - Chi phí</div>
           </article>
         </section>
 
         <section className="panel" style={{ marginTop: 16 }}>
           <div className="project-section-header">
             <div>
-              <h2 className="project-section-title">Issues & Milestones</h2>
+              <h2 className="project-section-title">Vấn đề & cột mốc</h2>
               <p className="project-section-subtitle">
                 Các công việc chậm tiến độ và mốc cần chú ý.
               </p>
@@ -214,20 +201,15 @@ export default function ProjectReport() {
             <ul className="list">
               {issues.map((name, idx) => (
                 <li key={idx} className="list-item">
-                  <span
-                    className="badge-dot"
-                    style={{ background: "#f87171", marginRight: 8 }}
-                  />
+                  <span className="badge-dot" style={{ background: "#f87171", marginRight: 8 }} />
                   {name}
                 </li>
               ))}
             </ul>
           ) : (
             <div className="empty-state">
-              <div className="empty-state-title">Không có issue nào</div>
-              <div className="empty-state-subtitle">
-                Tất cả milestone đang đúng tiến độ.
-              </div>
+              <div className="empty-state-title">Không có vấn đề nào</div>
+              <div className="empty-state-subtitle">Tất cả mốc đang đúng tiến độ.</div>
             </div>
           )}
         </section>

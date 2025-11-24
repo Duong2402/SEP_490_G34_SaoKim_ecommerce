@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import { useLanguage } from "../../i18n/LanguageProvider.jsx";
@@ -83,7 +83,7 @@ export default function ProjectList() {
   }, [projects]);
 
   return (
-    <div className="container">
+    <div className="pm-page">
       <div className="panel">
         <header className="page-header">
           <div>
@@ -181,7 +181,7 @@ export default function ProjectList() {
                     </td>
                     <td>
                       {formatDate(project.startDate, lang)}
-                      {" — "}
+                      {" - "}
                       {formatDate(project.endDate, lang)}
                     </td>
                     <td>{formatBudget(project.budget, lang)}</td>
@@ -223,3 +223,5 @@ export default function ProjectList() {
     </div>
   );
 }
+
+
