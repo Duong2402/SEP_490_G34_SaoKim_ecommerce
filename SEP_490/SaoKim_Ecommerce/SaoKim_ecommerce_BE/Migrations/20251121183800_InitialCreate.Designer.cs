@@ -12,8 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    [Migration("20251117144906_InitCreate")]
-    partial class InitCreate
+    [Migration("20251121183800_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -52,11 +52,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("line1");
-
-                    b.Property<string>("Line2")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("line2");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -352,68 +347,96 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
                         .HasDefaultValueSql("NOW()");
 
                     b.Property<int?>("CustomerId")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
 
                     b.Property<string>("CustomerName")
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_name");
 
                     b.Property<decimal>("Discount")
-                        .HasColumnType("numeric");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount");
 
                     b.Property<int?>("DispatchId")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("dispatch_id");
 
                     b.Property<string>("Email")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
 
                     b.Property<string>("PdfFileName")
                         .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("pdf_file_name");
 
                     b.Property<string>("PdfOriginalName")
                         .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("pdf_original_name");
 
                     b.Property<long?>("PdfSize")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("pdf_size");
 
                     b.Property<DateTime?>("PdfUploadedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pdf_uploaded_at");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone");
 
                     b.Property<int?>("ProjectId")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("project_id");
 
                     b.Property<string>("ProjectName")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("project_name");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<decimal>("Subtotal")
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
 
                     b.Property<decimal>("Tax")
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax");
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("OrderId")
                         .IsUnique();
 
                     b.ToTable("invoices", (string)null);
@@ -428,34 +451,42 @@ namespace SaoKim_ecommerce_BE.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("InvoiceId")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("invoice_id");
 
                     b.Property<decimal>("LineTotal")
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_total");
 
                     b.Property<string>("OrderCode")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("order_code");
 
                     b.Property<int?>("ProductId")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("product_name");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 3)
-                        .HasColumnType("numeric(18,3)");
+                        .HasColumnType("numeric(18,3)")
+                        .HasColumnName("quantity");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_price");
 
                     b.Property<string>("Uom")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("uom");
 
                     b.HasKey("Id");
 
@@ -496,6 +527,40 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("orders");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.OrderItem", b =>
+                {
+                    b.Property<int>("OrderItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("order_item_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderItemId"));
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("OrderItemId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("order_items");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
@@ -1231,10 +1296,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(300)")
                         .HasColumnName("image");
 
-                    b.Property<bool>("IsBanned")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_banned");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1349,6 +1410,23 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Dispatch");
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
+                        .WithMany("Invoices")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Order", "Order")
+                        .WithOne("Invoice")
+                        .HasForeignKey("SaoKim_ecommerce_BE.Entities.Invoice", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.InvoiceItem", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Invoice", "Invoice")
@@ -1369,6 +1447,25 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.OrderItem", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Order", "Order")
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
@@ -1573,6 +1670,13 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Items");
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
+                {
+                    b.Navigation("Invoice");
+
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>
                 {
                     b.Navigation("ProjectProducts");
@@ -1607,6 +1711,8 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.User", b =>
                 {
+                    b.Navigation("Invoices");
+
                     b.Navigation("Notes");
 
                     b.Navigation("Orders");

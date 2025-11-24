@@ -7,9 +7,9 @@ import {
   InputGroup,
   Table,
   Button,
-  Alert,
   Badge,
 } from "@themesberg/react-bootstrap";
+import { Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -48,10 +48,11 @@ export default function DispatchCreate() {
 
   const [items, setItems] = useState([emptyItem()]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [fieldErrs, setFieldErrs] = useState({});
   const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
+
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -62,9 +63,7 @@ export default function DispatchCreate() {
         console.log("GET /api/products:", json);
 
         const payload = json.data ?? json;
-        const raw = Array.isArray(payload)
-          ? payload
-          : payload.items || [];
+        const raw = Array.isArray(payload) ? payload : payload.items || [];
 
         const normalized = raw
           .map((p) => ({
@@ -80,29 +79,48 @@ export default function DispatchCreate() {
       } catch (err) {
         console.error("[Load products] failed:", err);
         setProducts([]);
+        setToast({
+          type: "danger",
+          message: "Không thể tải danh mục sản phẩm.",
+        });
       }
     };
 
     loadProducts();
   }, []);
 
-  useEffect(() => {
+  uuseEffect(() => {
     const loadForType = async () => {
       try {
         if (type === "Sales") {
           const res = await apiFetch(`/api/warehousemanager/customers`);
           if (!res.ok) throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
           const data = await res.json();
-          setCustomers((data || []).map(c => ({ value: Number(c.id), label: `${c.id} - ${c.name}` })));
+          setCustomers(
+            (data || []).map((c) => ({
+              value: Number(c.id),
+              label: `${c.id} - ${c.name}`,
+            }))
+          );
         } else {
           const res = await apiFetch(`/api/warehousemanager/projects`);
           if (!res.ok) throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
           const data = await res.json();
-          setProjects((data || []).map(p => ({ value: Number(p.id), label: `${p.id} - ${p.name}` })));
+          setProjects(
+            (data || []).map((p) => ({
+              value: Number(p.id),
+              label: `${p.id} - ${p.name}`,
+            }))
+          );
         }
       } catch (err) {
         console.error("[Load list for type] failed:", err);
-        setCustomers([]); setProjects([]);
+        setCustomers([]);
+        setProjects([]);
+        setToast({
+          type: "danger",
+          message: "Không thể tải danh sách khách hàng / dự án.",
+        });
       }
     };
     loadForType();
@@ -111,9 +129,13 @@ export default function DispatchCreate() {
   }, [type]);
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
+    const totalQty = items.reduce(
+      (acc, it) => acc + Number(it.quantity || 0),
+      0
+    );
     const totalValue = items.reduce(
-      (acc, it) => acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      (acc, it) =>
+        acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     );
     return { totalQty, totalValue };
@@ -121,9 +143,13 @@ export default function DispatchCreate() {
 
   const addRow = () => setItems((prev) => [...prev, emptyItem()]);
   const removeRow = (idx) =>
-    setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
+    setItems((prev) =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)
+    );
   const patchItem = (idx, patch) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    );
 
   const findProductById = (val) => {
     const n = Number(val);
@@ -152,15 +178,26 @@ export default function DispatchCreate() {
     setItemErrs(iErrs);
 
     if (items.length === 0) {
-      setError("Cần ít nhất 1 dòng hàng.");
-    } else {
-      setError("");
+      setToast({
+        type: "warning",
+        message: "Cần ít nhất 1 dòng hàng.",
+      });
     }
 
-    return Object.keys(errs).length === 0 && Object.keys(iErrs).length === 0 && items.length > 0;
+    return (
+      Object.keys(errs).length === 0 &&
+      Object.keys(iErrs).length === 0 &&
+      items.length > 0
+    );
   };
 
-  const buildCreatePayloadAndUrl = ({ type, dispatchDate, note, selectedCustomer, selectedProject }) => {
+  const buildCreatePayloadAndUrl = ({
+    type,
+    dispatchDate,
+    note,
+    selectedCustomer,
+    selectedProject,
+  }) => {
     const urlBase = `/api/warehousemanager/dispatch-slips`;
     if (type === "Sales") {
       return {
@@ -184,11 +221,14 @@ export default function DispatchCreate() {
 
   const handleSave = async () => {
     const ok = validate();
-    console.log("[Validate result]", ok, { type, selectedCustomer, selectedProject });
+    console.log("[Validate result]", ok, {
+      type,
+      selectedCustomer,
+      selectedProject,
+    });
     if (!ok) return;
 
     setSaving(true);
-    setError("");
 
     try {
       const { url, body } = buildCreatePayloadAndUrl({
@@ -202,13 +242,7 @@ export default function DispatchCreate() {
       console.log("[Create Dispatch] URL:", url);
       console.log("[Create Dispatch] BODY:", body, {
         typeofCustomerId: typeof body.customerId,
-        typeofProjectId: typeof body.projectId
-      });
-
-      console.log("[Create Dispatch] URL:", url);
-      console.log("[Create Dispatch] BODY:", body, {
-        typeofCustomerId: typeof body.customerId,
-        typeofProjectId: typeof body.projectId
+        typeofProjectId: typeof body.projectId,
       });
 
       const resSlip = await apiFetch(url, {
@@ -219,11 +253,17 @@ export default function DispatchCreate() {
 
       if (!resSlip.ok) {
         const j = await resSlip.json().catch(() => ({}));
-        throw new Error(j?.message || `Lỗi tạo phiếu xuất (${resSlip.status})`);
+        throw new Error(
+          j?.message || `Lỗi tạo phiếu xuất (${resSlip.status})`
+        );
       }
 
       const created = await resSlip.json();
-      const newId = created?.id ?? created?.Id ?? created?.slip?.id ?? created?.Slip?.Id;
+      const newId =
+        created?.id ??
+        created?.Id ??
+        created?.slip?.id ??
+        created?.Slip?.Id;
 
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
@@ -248,13 +288,18 @@ export default function DispatchCreate() {
 
         if (!resItem.ok) {
           const j = await resItem.json().catch(() => ({}));
-          throw new Error(j?.message || `Lỗi thêm dòng hàng (SP ${itemPayload.productId})`);
+          throw new Error(
+            j?.message || `Lỗi thêm dòng hàng (SP ${itemPayload.productId})`
+          );
         }
       }
 
       navigate(`/warehouse-dashboard/dispatch-slips/${newId}/items`);
     } catch (e) {
-      setError(e.message || "Không thể tạo phiếu xuất.");
+      setToast({
+        type: "danger",
+        message: e.message || "Không thể tạo phiếu xuất.",
+      });
     } finally {
       setSaving(false);
     }
@@ -277,7 +322,8 @@ export default function DispatchCreate() {
           </div>
           <h1 className="wm-page-title">Tạo phiếu xuất kho</h1>
           <p className="wm-page-subtitle">
-            Chọn loại Sales/Project, nhập thông tin chung & thêm dòng hàng (chỉ từ danh mục sản phẩm).
+            Chọn loại Sales/Project, nhập thông tin chung & thêm dòng hàng
+            (chỉ từ danh mục sản phẩm).
           </p>
         </div>
 
@@ -285,7 +331,9 @@ export default function DispatchCreate() {
           <button
             type="button"
             className="wm-btn wm-btn--light"
-            onClick={() => navigate("/warehouse-dashboard/dispatch-slips")}
+            onClick={() =>
+              navigate("/warehouse-dashboard/dispatch-slips")
+            }
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
@@ -302,17 +350,13 @@ export default function DispatchCreate() {
         </div>
       </div>
 
-      {error && (
-        <Alert variant="danger" className="wm-surface">
-          {error}
-        </Alert>
-      )}
-
       <div className="wm-summary">
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng số lượng</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
-          <span className="wm-subtle-text">Không theo đơn vị cụ thể</span>
+          <span className="wm-subtle-text">
+            Không theo đơn vị cụ thể
+          </span>
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng giá trị</span>
@@ -324,7 +368,9 @@ export default function DispatchCreate() {
         <div className="wm-summary__card">
           <span className="wm-summary__label">Trạng thái</span>
           <span className="wm-summary__value">
-            <Badge bg="warning" text="dark">Nháp</Badge>
+            <Badge bg="warning" text="dark">
+              Nháp
+            </Badge>
           </span>
           <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
         </div>
@@ -465,16 +511,27 @@ export default function DispatchCreate() {
                         }
                         maxMenuHeight={200}
                         styles={{
-                          control: (base) => ({ ...base, minHeight: 45 }),
+                          control: (base) => ({
+                            ...base,
+                            minHeight: 45,
+                            borderColor: errs.productId ? "#dc3545" : base.borderColor,
+                            boxShadow: errs.productId
+                              ? "0 0 0 0.2rem rgba(220,53,69,.25)"
+                              : base.boxShadow,
+                            "&:hover": {
+                              ...base["&:hover"],
+                              borderColor: errs.productId ? "#dc3545" : base.borderColor,
+                            },
+                          }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
                           option: (base) => ({ ...base, padding: 10 }),
                         }}
                         menuPortalTarget={document.body}
                         menuPlacement="auto"
                       />
-                      <Form.Control.Feedback type="invalid">
-                        {errs.productId}
-                      </Form.Control.Feedback>
+                      {errs.productId && (
+                        <div className="invalid-feedback d-block">{errs.productId}</div>
+                      )}
                     </td>
 
                     <td>
@@ -531,6 +588,48 @@ export default function DispatchCreate() {
           </tbody>
         </Table>
       </div>
+
+      <ToastContainer
+        position="middle-center"
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 9999,
+        }}
+      >
+        {toast && (
+          <Toast
+            bg={
+              toast.type === "danger"
+                ? "danger"
+                : toast.type === "warning"
+                  ? "warning"
+                  : toast.type === "success"
+                    ? "success"
+                    : "light"
+            }
+            onClose={() => setToast(null)}
+            show={!!toast}
+            delay={3500}
+            autohide
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body
+              className={
+                toast.type === "danger" || toast.type === "warning"
+                  ? "text-white"
+                  : "text-dark"
+              }
+            >
+              {toast.message}
+            </Toast.Body>
+          </Toast>
+        )}
+      </ToastContainer>
     </WarehouseLayout>
   );
 }

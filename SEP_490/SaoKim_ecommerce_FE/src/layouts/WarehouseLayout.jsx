@@ -138,4 +138,3 @@ const WarehouseLayout = ({ children }) => {
 };
 
 export default WarehouseLayout;
-

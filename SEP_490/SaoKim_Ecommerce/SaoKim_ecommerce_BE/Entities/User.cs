@@ -64,14 +64,14 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("update_at")]
         public DateTime? UpdateAt { get; set; }
 
-        [Column("is_banned")]
-        public bool IsBanned { get; set; } = false;
-
         [Column("deleted_at")]
         public DateTime? DeletedAt { get; set; }
 
         public ICollection<Order> Orders { get; set; } = new List<Order>();
 
         public ICollection<CustomerNote> Notes { get; set; } = new List<CustomerNote>();
+
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+
     }
 }

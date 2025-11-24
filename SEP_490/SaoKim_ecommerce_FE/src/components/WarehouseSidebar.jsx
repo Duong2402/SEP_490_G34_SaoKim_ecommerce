@@ -90,4 +90,3 @@ const WarehouseSidebar = () => {
 };
 
 export default WarehouseSidebar;
-

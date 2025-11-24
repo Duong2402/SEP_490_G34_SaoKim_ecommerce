@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Breadcrumb,
   Card,
@@ -7,6 +7,7 @@ import {
   Row,
   Spinner,
   Form,
+  Badge,
 } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome } from "@fortawesome/free-solid-svg-icons";
@@ -15,6 +16,7 @@ import StaffLayout from "../../../layouts/StaffLayout";
 import useDashboardApi from "../api/useDashboard";
 
 export default function StaffDashboard() {
+  const navigate = useNavigate();
   const { getOverview, getRevenueByDay, getLatestOrders } = useDashboardApi();
 
   const [stats, setStats] = useState(null);
@@ -89,6 +91,21 @@ export default function StaffDashboard() {
       ? Math.max(...revenueData.map((x) => x.revenue || 0))
       : 0;
 
+  const renderStatusBadge = (s) => {
+    const v = String(s || "").toLowerCase();
+    if (v === "pending")
+      return (
+        <Badge bg="warning" text="dark">
+          Pending
+        </Badge>
+      );
+    if (v === "shipping") return <Badge bg="info">Shipping</Badge>;
+    if (v === "paid") return <Badge bg="primary">Paid</Badge>;
+    if (v === "completed") return <Badge bg="success">Completed</Badge>;
+    if (v === "cancelled") return <Badge bg="secondary">Cancelled</Badge>;
+    return <Badge bg="secondary">{s || "Unknown"}</Badge>;
+  };
+
   return (
     <StaffLayout>
       <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
@@ -115,9 +132,9 @@ export default function StaffDashboard() {
 
       {!loading && stats && (
         <>
-          {/* Summary cards */}
+          {/* Summary cards - row 1 */}
           <Row className="mb-4">
-            <Col md={4}>
+            <Col md={3}>
               <Card className="shadow-sm">
                 <Card.Body>
                   <div className="text-muted small">Total revenue</div>
@@ -128,7 +145,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={4}>
+            <Col md={3}>
               <Card className="shadow-sm">
                 <Card.Body>
                   <div className="text-muted small">Revenue last 7 days</div>
@@ -139,7 +156,18 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={4}>
+            <Col md={3}>
+              <Card className="shadow-sm">
+                <Card.Body>
+                  <div className="text-muted small">Revenue today</div>
+                  <div className="fs-3">
+                    {(stats.revenueToday || 0).toLocaleString("vi-VN")}đ
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col md={3}>
               <Card className="shadow-sm">
                 <Card.Body>
                   <div className="text-muted small">Orders today</div>
@@ -149,6 +177,7 @@ export default function StaffDashboard() {
             </Col>
           </Row>
 
+          {/* Summary cards - row 2 */}
           <Row className="mb-4">
             <Col md={4}>
               <Card className="shadow-sm">
@@ -257,6 +286,13 @@ export default function StaffDashboard() {
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <h5 className="mb-0">Latest Orders</h5>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={() => navigate("/staff/manager-orders")}
+                    >
+                      View all orders
+                    </button>
                   </div>
 
                   {loadingLatest && (
@@ -283,17 +319,14 @@ export default function StaffDashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {latestOrders.map((o) => (
+                          {latestOrders.map((o, idx) => (
                             <tr key={o.orderId}>
-                              <td>{o.orderId}</td>
+                              <td>{idx + 1}</td>
                               <td>{o.customerName}</td>
                               <td>
-                                {o.total
-                                  ? o.total.toLocaleString("vi-VN")
-                                  : 0}
-                                đ
+                                {(o.total ?? 0).toLocaleString("vi-VN")}đ
                               </td>
-                              <td>{o.status}</td>
+                              <td>{renderStatusBadge(o.status)}</td>
                               <td>{formatDate(o.createdAt)}</td>
                             </tr>
                           ))}

@@ -163,4 +163,3 @@ const InboundReport = () => {
 };
 
 export default InboundReport;
-

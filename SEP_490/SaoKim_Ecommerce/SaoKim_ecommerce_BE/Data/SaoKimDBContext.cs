@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Models;
 using System.Data;
+
 
 namespace SaoKim_ecommerce_BE.Data
 {
@@ -10,7 +12,7 @@ namespace SaoKim_ecommerce_BE.Data
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
         public DbSet<Product> Products => Set<Product>();
-        public DbSet<Category> Categories => Set<Category>();              // 🆕
+        public DbSet<Category> Categories => Set<Category>();              
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
@@ -22,7 +24,12 @@ namespace SaoKim_ecommerce_BE.Data
         //Customer
         public DbSet<CustomerNote> CustomerNotes { get; set; }
         public DbSet<StaffActionLog> StaffActionLogs { get; set; }
-        public DbSet<Order> Orders { get; set; }
+        public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
+        // Invoice
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceItem> InvoiceItems { get; set; }
 
 
         // NEW:
@@ -308,6 +315,7 @@ namespace SaoKim_ecommerce_BE.Data
 
 
                 // Invoices
+                base.OnModelCreating(modelBuilder);
                 modelBuilder.Entity<Invoice>(e =>
                 {
                     e.ToTable("invoices");
@@ -315,18 +323,39 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(x => x.Code).HasMaxLength(40).IsRequired();
                     e.HasIndex(x => x.Code).IsUnique();
 
+                    // Thông tin khách
+                    e.Property(x => x.CustomerId).HasColumnName("customer_id");
+                    e.Property(x => x.CustomerName).HasMaxLength(200);
                     e.Property(x => x.Email).HasMaxLength(200);
                     e.Property(x => x.Phone).HasMaxLength(50);
+
+                    // Link sang Order (nếu dùng 1–1)
+                    e.Property(x => x.OrderId).HasColumnName("order_id");
+
                     e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
 
                     e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                    e.Property(x => x.Discount).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Total).HasColumnType("numeric(18,2)");
 
                     // PDF columns
                     e.Property(x => x.PdfFileName).HasMaxLength(260);
                     e.Property(x => x.PdfOriginalName).HasMaxLength(260);
+
+                    // FK: User 1 - N Invoice (customer)
+                    e.HasOne(x => x.Customer)
+                     .WithMany(u => u.Invoices)
+                     .HasForeignKey(x => x.CustomerId)
+                     .OnDelete(DeleteBehavior.Restrict);
+
+                    // FK: Order 1 - 1 Invoice (tuỳ bạn dùng hay không)
+                    e.HasOne(x => x.Order)
+                     .WithOne(o => o.Invoice)
+                     .HasForeignKey<Invoice>(x => x.OrderId)
+                     .OnDelete(DeleteBehavior.Cascade);
                 });
+
 
 
                 modelBuilder.Entity<InvoiceItem>(e =>
@@ -381,7 +410,6 @@ namespace SaoKim_ecommerce_BE.Data
                      .OnDelete(DeleteBehavior.Cascade);
 
                     e.Property(a => a.Line1).HasMaxLength(200).IsRequired();
-                    e.Property(a => a.Line2).HasMaxLength(200);
                     e.Property(a => a.Ward).HasMaxLength(100);
                     e.Property(a => a.District).HasMaxLength(100);
                     e.Property(a => a.Province).HasMaxLength(100);

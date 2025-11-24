@@ -93,6 +93,8 @@ export default function Login() {
         to = "/manager";
       } else if (roleNorm === "project_manager") {
         to = "/projects";
+      } else if (roleNorm === "staff") {
+        to = "/staff/manager-dashboard";
       }
 
       navigate(to, { replace: true });
