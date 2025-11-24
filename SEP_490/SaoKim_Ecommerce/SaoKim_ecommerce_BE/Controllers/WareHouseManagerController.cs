@@ -766,7 +766,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 {
                     s.Supplier,
                     s.ReceiptDate,
-                    s.Note, 
+                    s.Note,
                     TotalItems = s.Items.Count,
                     TotalQuantity = s.Items.Sum(i => i.Quantity),
                     TotalValue = s.Items.Sum(i => i.Total)
@@ -1577,12 +1577,12 @@ namespace SaoKim_ecommerce_BE.Controllers
                 x.MinStock,
                 Status =
                     x.MinStock <= 0
-                        ? "stock"               
+                        ? "stock"
                     : x.Quantity <= 0
-                        ? "critical"            
+                        ? "critical"
                     : x.Quantity < x.MinStock
-                        ? "alert"              
-                        : "stock"               
+                        ? "alert"
+                        : "stock"
             });
 
             if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
@@ -1716,97 +1716,82 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(items);
         }
 
-        // GET /api/warehousemanager/trace/{id}
-        [HttpGet("trace/{id:int}")]
-        public async Task<IActionResult> GetTraceById([FromRoute] int id)
+        // GET /api/warehousemanager/trace/product/{productId}
+        [HttpGet("trace/product/{productId:int}")]
+        public async Task<IActionResult> GetProductTrace([FromRoute] int productId)
         {
-            var i = await _db.TraceIdentities
+            var product = await _db.Products
                 .AsNoTracking()
-                .Include(x => x.Product)
-                .Include(x => x.Events)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(p => p.ProductID == productId);
 
-            if (i == null) return NotFound();
+            if (product == null)
+                return NotFound(new { message = "Product not found" });
 
-            var payload = new
+            var inboundQuery =
+                from item in _db.ReceivingSlipItems
+                join slip in _db.ReceivingSlips on item.ReceivingSlipId equals slip.Id
+                where item.ProductId == productId
+                select new
+                {
+                    direction = "in",
+                    slipType = "receiving",
+                    refNo = slip.ReferenceNo,
+                    partner = slip.Supplier,
+                    date = slip.ReceiptDate,
+                    quantity = item.Quantity,
+                    uom = item.Uom,
+                    note = slip.Note,
+                    slipId = slip.Id
+                };
+
+            var salesOutboundQuery =
+                from item in _db.DispatchItems
+                join d in _db.Set<RetailDispatch>() on item.DispatchId equals d.Id
+                where item.ProductId == productId
+                select new
+                {
+                    direction = "out",
+                    slipType = "sales",
+                    refNo = d.ReferenceNo,
+                    partner = d.CustomerName,
+                    date = d.DispatchDate,
+                    quantity = item.Quantity,
+                    uom = item.Uom,
+                    note = d.Note,
+                    slipId = d.Id
+                };
+
+            var projectOutboundQuery =
+                from item in _db.DispatchItems
+                join d in _db.Set<ProjectDispatch>() on item.DispatchId equals d.Id
+                where item.ProductId == productId
+                select new
+                {
+                    direction = "out",
+                    slipType = "project",
+                    refNo = d.ReferenceNo,
+                    partner = d.ProjectName,
+                    date = d.DispatchDate,
+                    quantity = item.Quantity,
+                    uom = item.Uom,
+                    note = d.Note,
+                    slipId = d.Id
+                };
+
+            var movements = await inboundQuery
+                .Concat(salesOutboundQuery)
+                .Concat(projectOutboundQuery)
+                .OrderBy(m => m.date)
+                .ToListAsync();
+
+            return Ok(new
             {
-                id = i.Id,
-                serial = i.IdentityCode,
-                sku = i.Product!.ProductCode,
-                productName = i.Product!.ProductName,
-                status = i.Status,
-                project = i.ProjectName,
-                currentLocation = i.CurrentLocation,
-                timeline = i.Events
-                    .OrderBy(e => e.OccurredAt)
-                    .Select(e => new
-                    {
-                        time = e.OccurredAt,
-                        type = e.EventType,
-                        @ref = e.RefCode,
-                        actor = e.Actor,
-                        note = e.Note
-                    })
-                    .ToList()
-            };
-
-            return Ok(payload);
-        }
-
-        // POST /api/warehousemanager/trace/identities
-        [HttpPost("trace/identities")]
-        public async Task<IActionResult> CreateTraceIdentity([FromBody] CreateTraceIdentityDto dto)
-        {
-            if (string.IsNullOrWhiteSpace(dto.IdentityCode))
-                return BadRequest(new { message = "IdentityCode is required" });
-
-            var exists = await _db.TraceIdentities.AnyAsync(x => x.IdentityCode == dto.IdentityCode);
-            if (exists) return Conflict(new { message = "IdentityCode already exists" });
-
-            var product = await _db.Products.FindAsync(dto.ProductId);
-            if (product == null) return BadRequest(new { message = "Product not found" });
-
-            var identity = new TraceIdentity
-            {
-                IdentityCode = dto.IdentityCode.Trim(),
-                IdentityType = string.IsNullOrWhiteSpace(dto.IdentityType) ? "serial" : dto.IdentityType.Trim(),
-                ProductId = dto.ProductId,
-                ProjectName = dto.ProjectName,
-                CurrentLocation = dto.CurrentLocation,
-                Status = string.IsNullOrWhiteSpace(dto.Status) ? "Unknown" : dto.Status.Trim(),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _db.TraceIdentities.Add(identity);
-            await _db.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetTraceById), new { id = identity.Id }, new { identity.Id });
-        }
-
-        // POST /api/warehousemanager/trace/{id}/events
-        [HttpPost("trace/{id:int}/events")]
-        public async Task<IActionResult> AppendTraceEvent([FromRoute] int id, [FromBody] AppendTraceEventDto dto)
-        {
-            var identity = await _db.TraceIdentities.FirstOrDefaultAsync(x => x.Id == id);
-            if (identity == null) return NotFound(new { message = "Trace identity not found" });
-
-            var ev = new TraceEvent
-            {
-                TraceIdentityId = id,
-                EventType = string.IsNullOrWhiteSpace(dto.EventType) ? "import" : dto.EventType.Trim(),
-                OccurredAt = dto.OccurredAt ?? DateTime.UtcNow,
-                RefCode = dto.RefCode,
-                Actor = dto.Actor,
-                Note = dto.Note
-            };
-
-            _db.TraceEvents.Add(ev);
-
-            identity.UpdatedAt = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync();
-            return Ok(new { ev.Id });
+                productId = product.ProductID,
+                productCode = product.ProductCode,
+                productName = product.ProductName,
+                unit = product.Unit,
+                movements
+            });
         }
 
         [HttpPost("receiving-slips/export-selected")]

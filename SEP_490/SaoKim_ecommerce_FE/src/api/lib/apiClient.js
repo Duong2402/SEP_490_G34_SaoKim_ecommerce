@@ -1,7 +1,13 @@
 const API_BASE = "https://localhost:7278";
 
+const TOKEN_KEY = "token";
+
 export function getToken() {
-  return localStorage.getItem("token");
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export async function apiFetch(path, options = {}) {
@@ -14,7 +20,6 @@ export async function apiFetch(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  // Chỉ set Content-Type JSON khi KHÔNG phải FormData
   if (!isFormData && !headers["Content-Type"] && !headers["content-type"]) {
     headers["Content-Type"] = "application/json";
   }
