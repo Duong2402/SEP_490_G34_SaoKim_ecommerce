@@ -61,7 +61,7 @@ export default function ProjectOverview() {
           <div>
             <h1 className="page-title">Tổng quan dự án</h1>
             <p className="page-subtitle">
-              Ảnh nhanh sức khỏe danh mục, tiến độ và dòng tiền dự án.
+              Đánh nhanh sức khỏe danh mục, tiến độ và dòng tiền dự án.
             </p>
           </div>
           <div className="actions">
@@ -111,7 +111,7 @@ export default function ProjectOverview() {
               <div>
                 <h3 className="manager-panel__title">Dự án có rủi ro</h3>
                 <p className="manager-panel__subtitle">
-                  Quá hạn độ ưu tiên cao cần xử lý ngay.
+                  Quá hạn hoặc ưu tiên cao cần xử lý ngay.
                 </p>
               </div>
             </div>

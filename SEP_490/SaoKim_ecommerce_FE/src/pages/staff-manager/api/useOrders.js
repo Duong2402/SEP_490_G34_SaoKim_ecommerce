@@ -15,16 +15,14 @@ export default function useOrdersApi() {
   async function handleJson(res, actionName) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error(`[${actionName}] error`, res.status, text);
-      throw new Error(`${actionName} failed (${res.status})`);
+      console.error(`[${actionName}] lỗi`, res.status, text);
+      throw new Error(`${actionName} thất bại (mã ${res.status})`);
     }
     return res.json();
   }
 
-  // List orders
   const fetchOrders = async (params = {}) => {
     const cleaned = { ...params };
-    // KHÔNG gửi status=all lên backend
     if (cleaned.status === "all") {
       delete cleaned.status;
     }
@@ -33,10 +31,9 @@ export default function useOrdersApi() {
     const res = await fetch(`${base}${qs}`, {
       credentials: "include",
     });
-    return handleJson(res, "Fetch orders");
+    return handleJson(res, "Tải đơn hàng");
   };
 
-  // Update order status
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`${base}/${orderId}/status`, {
       method: "PATCH",
@@ -49,19 +46,18 @@ export default function useOrdersApi() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[Update order status] error", res.status, text);
-      throw new Error(`Update order status failed (${res.status})`);
+      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, text);
+      throw new Error(`Cập nhật trạng thái đơn thất bại (mã ${res.status})`);
     }
 
     return true;
   };
 
-  // Fetch items in an order
   const fetchOrderItems = async (orderId) => {
     const res = await fetch(`${base}/${orderId}/items`, {
       credentials: "include",
     });
-    return handleJson(res, "Fetch order items");
+    return handleJson(res, "Tải sản phẩm trong đơn");
   };
 
   return {

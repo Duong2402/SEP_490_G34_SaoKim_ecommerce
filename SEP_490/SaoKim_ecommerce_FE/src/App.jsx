@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { useEffect } from "react";
 import "./App.css";
-import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useLanguage } from "./i18n/LanguageProvider.jsx";
 import { clearToken } from "./api/lib/apiClient";
 
@@ -104,7 +103,6 @@ export default function App() {
 
   return (
     <div className="page-wrapper">
-      <LanguageSwitcher />
       <BrowserRouter>
         <Routes>
           {/* Public */}

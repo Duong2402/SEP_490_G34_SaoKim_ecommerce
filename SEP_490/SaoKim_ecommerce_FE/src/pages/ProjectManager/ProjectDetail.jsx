@@ -244,7 +244,7 @@ function ProjectDetail() {
   );
 
   const today = dayjs();
-  const monthLabel = month.locale(lang === "vi" ? "vi" : "en").format("MMMM YYYY");
+  const monthLabel = month.locale("vi").format("MMMM YYYY");
 
   const openCreateTask = () => {
     setEditingTask(null);
@@ -880,6 +880,7 @@ function ProjectDetail() {
           {showMultiAddModal && (
             <MultiAddProjectProductsModal
               projectId={id}
+              existingProductIds={(products || []).map((item) => item.productId)}
               onClose={() => setShowMultiAddModal(false)}
               onSaved={loadProducts}
             />
@@ -991,7 +992,7 @@ function ProjectDetail() {
                               }
                             }}
                           >
-                            XÃ³a
+                            Xoá
                           </button>
                         </div>
                       </td>

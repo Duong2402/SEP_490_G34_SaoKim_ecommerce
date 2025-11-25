@@ -1,15 +1,7 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
 import translations from "./translations";
 
 const DEFAULT_LANGUAGE = "vi";
-const STORAGE_KEY = "saokim-lang";
 
 const LanguageContext = createContext({
   lang: DEFAULT_LANGUAGE,
@@ -18,11 +10,6 @@ const LanguageContext = createContext({
   t: (key) => key,
   formatNumber: (value) => value,
 });
-
-const numberFormatters = {
-  en: new Intl.NumberFormat("en-US"),
-  vi: new Intl.NumberFormat("vi-VN"),
-};
 
 const getNestedValue = (obj, path) => {
   if (!obj) return undefined;
@@ -35,75 +22,44 @@ const interpolate = (template, params) => {
 };
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored && stored in translations) return stored;
-    } catch {
-      // ignore storage errors
-    }
-    return DEFAULT_LANGUAGE;
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, lang);
-    } catch {
-      // ignore storage errors
-    }
-  }, [lang]);
-
-  const setLanguage = useCallback((next) => {
-    if (next in translations) {
-      setLang(next);
-    }
-  }, []);
-
-  const toggleLanguage = useCallback(() => {
-    setLang((prev) => (prev === "en" ? "vi" : "en"));
-  }, []);
+  const lang = DEFAULT_LANGUAGE;
 
   const t = useCallback(
     (key, params) => {
-      const candidate = getNestedValue(translations[lang], key);
+      const candidate = getNestedValue(translations[DEFAULT_LANGUAGE], key);
       if (typeof candidate === "string") {
         return interpolate(candidate, params);
       }
-      const fallback = getNestedValue(translations.en, key);
-      if (typeof fallback === "string") {
-        return interpolate(fallback, params);
-      }
-      return key;
+      return typeof key === "string" ? interpolate(key, params) : key;
     },
-    [lang],
+    [],
   );
 
   const formatNumber = useCallback(
     (value, options = {}) => {
       if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
-      const formatter = numberFormatters[lang] || numberFormatters.en;
       if (options.style === "currency") {
-        return new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", {
+        return new Intl.NumberFormat("vi-VN", {
           style: "currency",
           currency: options.currency || "VND",
           maximumFractionDigits: options.maximumFractionDigits ?? 0,
           minimumFractionDigits: options.minimumFractionDigits ?? 0,
         }).format(value);
       }
-      return formatter.format(value);
+      return new Intl.NumberFormat("vi-VN").format(value);
     },
-    [lang],
+    [],
   );
 
   const value = useMemo(
     () => ({
       lang,
-      setLanguage,
-      toggleLanguage,
+      setLanguage: () => {},
+      toggleLanguage: () => {},
       t,
       formatNumber,
     }),
-    [lang, setLanguage, toggleLanguage, t, formatNumber],
+    [t, formatNumber],
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
