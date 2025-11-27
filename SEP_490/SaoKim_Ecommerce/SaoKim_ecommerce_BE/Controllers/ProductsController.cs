@@ -23,67 +23,110 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // GET: /api/products
-        //[Authorize] // Cho phép mọi user đã đăng nhập
+        //[Authorize]
         [HttpGet]
         [AllowAnonymous]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
-            [FromQuery] string? q,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] string? sortBy = "id",
-            [FromQuery] string? sortDir = "asc")
+    [FromQuery] string? q,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? sortBy = "id",
+    [FromQuery] string? sortDir = "asc")
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            IQueryable<Product> baseQuery = _db.Products
-                .AsNoTracking()
-                .Include(p => p.Category);
+            IQueryable<Product> productQuery = _db.Products.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = $"%{q.Trim()}%";
-                baseQuery = baseQuery.Where(p =>
+
+                productQuery = productQuery.Where(p =>
                     EF.Functions.ILike(p.ProductName, term) ||
                     EF.Functions.ILike(p.ProductCode, term) ||
-                    (p.Category != null && EF.Functions.ILike(p.Category.Name, term))
+                    p.ProductDetails.Any(d => d.Category != null &&
+                                              EF.Functions.ILike(d.Category.Name, term))
                 );
             }
 
-            var total = await baseQuery.CountAsync();
-
-            bool desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-            IQueryable<Product> ordered = (sortBy ?? string.Empty).ToLower() switch
-            {
-                "name" => desc ? baseQuery.OrderByDescending(p => p.ProductName) : baseQuery.OrderBy(p => p.ProductName),
-                "sku" => desc ? baseQuery.OrderByDescending(p => p.ProductCode) : baseQuery.OrderBy(p => p.ProductCode),
-                "category" => desc ? baseQuery.OrderByDescending(p => p.Category!.Name) : baseQuery.OrderBy(p => p.Category!.Name),
-                "price" => desc ? baseQuery.OrderByDescending(p => p.Price) : baseQuery.OrderBy(p => p.Price),
-                "stock" => desc ? baseQuery.OrderByDescending(p => p.Stock) : baseQuery.OrderBy(p => p.Stock),
-                "status" => desc ? baseQuery.OrderByDescending(p => p.Status) : baseQuery.OrderBy(p => p.Status),
-                "created" => desc ? baseQuery.OrderByDescending(p => p.Created) : baseQuery.OrderBy(p => p.Created),
-                _ => desc ? baseQuery.OrderByDescending(p => p.ProductID) : baseQuery.OrderBy(p => p.ProductID),
-            };
+            var total = await productQuery.CountAsync();
 
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            var query =
+                productQuery
+                    .Select(p => new
+                    {
+                        Product = p,
+                        Detail = p.ProductDetails
+                            .OrderByDescending(d => d.Id)
+                            .FirstOrDefault()
+                    });
+
+            var sortKey = (sortBy ?? "id").ToLowerInvariant();
+            var desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+
+            var ordered = sortKey switch
+            {
+                "name" => desc
+                    ? query.OrderByDescending(x => x.Product.ProductName)
+                    : query.OrderBy(x => x.Product.ProductName),
+
+                "sku" => desc
+                    ? query.OrderByDescending(x => x.Product.ProductCode)
+                    : query.OrderBy(x => x.Product.ProductCode),
+
+                "category" => desc
+                    ? query.OrderByDescending(x => x.Detail != null && x.Detail.Category != null
+                        ? x.Detail.Category.Name
+                        : null)
+                    : query.OrderBy(x => x.Detail != null && x.Detail.Category != null
+                        ? x.Detail.Category.Name
+                        : null),
+
+                "price" => desc
+                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Price : 0)
+                    : query.OrderBy(x => x.Detail != null ? x.Detail.Price : 0),
+
+                "stock" => desc
+                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Quantity : 0)
+                    : query.OrderBy(x => x.Detail != null ? x.Detail.Quantity : 0),
+
+                "status" => desc
+                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Status : null)
+                    : query.OrderBy(x => x.Detail != null ? x.Detail.Status : null),
+
+                "created" => desc
+                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.CreateAt : null)
+                    : query.OrderBy(x => x.Detail != null ? x.Detail.CreateAt : null),
+
+                _ => desc
+                    ? query.OrderByDescending(x => x.Product.ProductID)
+                    : query.OrderBy(x => x.Product.ProductID),
+            };
 
             var items = await ordered
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new
+                .Select(x => new
                 {
-                    id = p.ProductID,
-                    sku = p.ProductCode,
-                    name = p.ProductName,
-                    category = p.Category != null ? p.Category.Name : null,
-                    price = p.Price,
-                    unit = p.Unit,
-                    stock = p.Stock,
-                    status = p.Status,
-                    created = p.CreateAt ?? p.Date,
-                    image = p.Image != null ? $"{baseUrl}/images/{p.Image}" : null
+                    id = x.Product.ProductID,
+                    sku = x.Product.ProductCode,
+                    name = x.Product.ProductName,
+                    category = x.Detail != null && x.Detail.Category != null
+                        ? x.Detail.Category.Name
+                        : null,
+                    price = x.Detail != null ? x.Detail.Price : 0,
+                    unit = x.Detail != null ? x.Detail.Unit : null,
+                    stock = x.Detail != null ? x.Detail.Quantity : 0,
+                    status = x.Detail != null ? x.Detail.Status : null,
+                    created = x.Detail != null ? x.Detail.CreateAt : null,
+                    image = x.Detail != null && x.Detail.Image != null
+                        ? $"{baseUrl}/images/{x.Detail.Image}"
+                        : null
                 })
                 .ToListAsync();
 
@@ -99,51 +142,82 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
+
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-            var product = await _db.Products.AsNoTracking()
-                .Include(p => p.Category)
+            var product = await _db.Products
+                .AsNoTracking()
                 .Where(p => p.ProductID == id)
                 .Select(p => new
                 {
-                    id = p.ProductID,
-                    sku = p.ProductCode,
-                    name = p.ProductName,
-                    category = p.Category != null ? p.Category.Name : null,
-                    price = p.Price,
-                    stock = p.Stock,
-                    status = p.Status,
-                    created = p.Created,
-                    unit = p.Unit,
-                    quantity = p.Quantity,
-                    description = p.Description,
-                    supplier = p.Supplier,
-                    image = p.Image != null ? $"{baseUrl}/images/{p.Image}" : null,
-                    note = p.Note
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                })
+                .Select(x => new
+                {
+                    id = x.Product.ProductID,
+                    sku = x.Product.ProductCode,
+                    name = x.Product.ProductName,
+                    category = x.Detail != null && x.Detail.Category != null
+                        ? x.Detail.Category.Name
+                        : null,
+                    price = x.Detail != null ? x.Detail.Price : 0,
+                    stock = x.Detail != null ? x.Detail.Quantity : 0,
+                    status = x.Detail != null ? x.Detail.Status : null,
+                    created = x.Detail != null ? x.Detail.CreateAt : null,
+                    unit = x.Detail != null ? x.Detail.Unit : null,
+                    quantity = x.Detail != null ? x.Detail.Quantity : 0,
+                    description = x.Detail != null ? x.Detail.Description : null,
+                    supplier = x.Detail != null ? x.Detail.Supplier : null,
+                    image = x.Detail != null && x.Detail.Image != null
+                        ? $"{baseUrl}/images/{x.Detail.Image}"
+                        : null,
+                    note = x.Detail != null ? x.Detail.Note : null
                 })
                 .FirstOrDefaultAsync();
 
-            if (product == null) return NotFound(new { message = "Product not found" });
+            if (product == null)
+                return NotFound(new { message = "Product not found" });
 
-            var related = await _db.Products
+            var relatedQuery = _db.Products
                 .AsNoTracking()
-                .Where(x => x.Category!.Name == product.category && x.ProductID != id)
-                .OrderByDescending(x => x.CreateAt ?? x.Date)
+                .Where(p => p.ProductID != id);
+
+            if (!string.IsNullOrEmpty(product.category))
+            {
+                relatedQuery = relatedQuery
+                    .Where(p => p.ProductDetails.Any(d =>
+                        d.Category != null && d.Category.Name == product.category));
+            }
+
+            var related = await relatedQuery
+                .Select(p => new
+                {
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                })
+                .OrderByDescending(x => x.Detail != null ? x.Detail.CreateAt : null)
                 .Take(8)
                 .Select(x => new
                 {
-                    id = x.ProductID,
-                    name = x.ProductName,
-                    price = x.Price,
-                    image = x.Image != null ? $"{baseUrl}/images/{x.Image}" : null
+                    id = x.Product.ProductID,
+                    name = x.Product.ProductName,
+                    price = x.Detail != null ? x.Detail.Price : 0,
+                    image = x.Detail != null && x.Detail.Image != null
+                        ? $"{baseUrl}/images/{x.Detail.Image}"
+                        : null
                 })
                 .ToListAsync();
 
-            return Ok(new { product = product, related });
+            return Ok(new { product, related });
         }
 
         [HttpPost]
@@ -154,7 +228,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Kiểm tra SKU trùng
             var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.Sku);
             if (exists)
                 return Conflict(new { message = "Product code already exists" });
@@ -162,22 +235,14 @@ namespace SaoKim_ecommerce_BE.Controllers
             var product = new Product
             {
                 ProductCode = model.Sku,
-                ProductName = model.Name,
-                CategoryId = model.CategoryId,
-                Unit = model.Unit,
-                Price = model.Price,
-                Quantity = model.Quantity,
-                Stock = model.Stock,
-                Status = model.Active ? "Active" : "Inactive",
-                Description = model.Description,
-                Supplier = model.Supplier,
-                Note = model.Note,
-                CreateAt = DateTime.UtcNow,
-                Created = DateTime.UtcNow,
-                Date = DateTime.UtcNow,
+                ProductName = model.Name
             };
 
-            // Upload ảnh
+            _db.Products.Add(product);
+            await _db.SaveChangesAsync();
+
+            string? imageFileName = null;
+
             if (model.ImageFile != null && model.ImageFile.Length > 0)
             {
                 var uploadsFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
@@ -192,45 +257,88 @@ namespace SaoKim_ecommerce_BE.Controllers
                     await model.ImageFile.CopyToAsync(stream);
                 }
 
-                product.Image = fileName;
+                imageFileName = fileName;
             }
 
-            _db.Products.Add(product);
+            var now = DateTime.UtcNow;
+
+            var detail = new ProductDetail
+            {
+                ProductID = product.ProductID,
+                CategoryId = model.CategoryId,
+                Unit = model.Unit,
+                Price = model.Price,
+                Quantity = model.Quantity, 
+                Status = model.Active ? "Active" : "Inactive",
+                Description = model.Description,
+                Supplier = model.Supplier,
+                Note = model.Note,
+                Image = imageFileName,
+                CreateAt = now,            };
+
+            _db.ProductDetails.Add(detail);
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = product.ProductID }, product);
+            return CreatedAtAction(nameof(GetById), new { id = product.ProductID }, new
+            {
+                id = product.ProductID,
+                sku = product.ProductCode,
+                name = product.ProductName
+            });
         }
+
 
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] UpdateProductDto model)
         {
-            var existing = await _db.Products.FindAsync(id);
-            if (existing == null)
+            var product = await _db.Products
+                .Include(p => p.ProductDetails)
+                .FirstOrDefaultAsync(p => p.ProductID == id);
+
+            if (product == null)
                 return NotFound(new { message = "Product not found" });
 
-            existing.ProductCode = model.Sku;
-            existing.ProductName = model.Name;
-            existing.CategoryId = model.CategoryId;
-            existing.Unit = model.Unit;
-            existing.Price = model.Price;
-            existing.Quantity = model.Quantity;
-            existing.Stock = model.Stock;
-            existing.Status = model.Active ? "Active" : "Inactive";
-            existing.Description = model.Description;
-            existing.Supplier = model.Supplier;
-            existing.Note = model.Note;
-            existing.UpdateAt = DateTime.UtcNow;
-            existing.UpdateBy = model.UpdateBy;
+            product.ProductCode = model.Sku;
+            product.ProductName = model.Name;
+
+            var detail = product.ProductDetails
+                .OrderByDescending(d => d.Id)
+                .FirstOrDefault();
+
+            var now = DateTime.UtcNow;
+
+            if (detail == null)
+            {
+                detail = new ProductDetail
+                {
+                    ProductID = product.ProductID,
+                    CreateAt = now,
+                    CreateBy = model.UpdateBy ?? "system"
+                };
+                _db.ProductDetails.Add(detail);
+            }
+
+            // 3. Update detail fields
+            detail.CategoryId = model.CategoryId;
+            detail.Unit = model.Unit;
+            detail.Price = model.Price;
+            detail.Quantity = model.Quantity; 
+            detail.Status = model.Active ? "Active" : "Inactive";
+            detail.Description = model.Description;
+            detail.Supplier = model.Supplier;
+            detail.Note = model.Note;
+            detail.UpdateAt = now;
+            detail.UpdateBy = model.UpdateBy;
 
             if (model.ImageFile != null && model.ImageFile.Length > 0)
             {
                 var uploadsFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "images");
                 Directory.CreateDirectory(uploadsFolder);
 
-                if (!string.IsNullOrEmpty(existing.Image))
+                if (!string.IsNullOrEmpty(detail.Image))
                 {
-                    var oldPath = Path.Combine(uploadsFolder, existing.Image);
+                    var oldPath = Path.Combine(uploadsFolder, detail.Image);
                     if (System.IO.File.Exists(oldPath))
                         System.IO.File.Delete(oldPath);
                 }
@@ -244,12 +352,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                     await model.ImageFile.CopyToAsync(stream);
                 }
 
-                existing.Image = fileName;
+                detail.Image = fileName;
             }
 
             await _db.SaveChangesAsync();
+
             return Ok(new { message = "Product updated successfully" });
         }
+
 
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
@@ -282,80 +392,115 @@ namespace SaoKim_ecommerce_BE.Controllers
             var cutoff = DateTime.UtcNow.AddDays(-NewWithinDays);
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-            var featured = await _db.Products
+            var productWithDetail = _db.Products
                 .AsNoTracking()
-                .Include(p => p.Category)
-                .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
-                .OrderByDescending(p => p.CreateAt ?? p.Date)
+                .Select(p => new
+                {
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                });
+
+            var featuredQuery = productWithDetail
+                .Where(x =>
+                    x.Detail != null &&
+                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
+                    x.Detail.Quantity > 0);
+
+            var featured = await featuredQuery
+                .OrderByDescending(x => x.Detail!.CreateAt)
                 .Take(8)
-                .Select(p => new
+                .Select(x => new
                 {
-                    id = p.ProductID,
-                    name = p.ProductName,
-                    price = p.Price,
-                    image = p.Image != null ? $"{baseUrl}/images/{p.Image}" : null,
-                    description = p.Description,
-                    category = p.Category != null ? p.Category.Name : null,
-                    createAt = p.CreateAt ?? p.Date,
-                    quantity = p.Quantity
+                    id = x.Product.ProductID,
+                    name = x.Product.ProductName,
+                    price = x.Detail!.Price,
+                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
+                    description = x.Detail.Description,
+                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
+                    createAt = x.Detail.CreateAt,
+                    quantity = x.Detail.Quantity
                 })
                 .ToListAsync();
 
-            var newArrivals = await _db.Products
-                .AsNoTracking()
-                .Include(p => p.Category)
-                .Where(p => (p.Status == "Active" || p.Status == null))
-                .Where(p => (p.CreateAt ?? p.Date) >= cutoff)
-                .OrderByDescending(p => p.CreateAt ?? p.Date)
+            var newArrivalsQuery = productWithDetail
+                .Where(x =>
+                    x.Detail != null &&
+                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
+                    x.Detail.CreateAt >= cutoff);
+
+            var newArrivals = await newArrivalsQuery
+                .OrderByDescending(x => x.Detail!.CreateAt)
                 .Take(12)
-                .Select(p => new
+                .Select(x => new
                 {
-                    id = p.ProductID,
-                    name = p.ProductName,
-                    price = p.Price,
-                    image = p.Image != null ? $"{baseUrl}/images/{p.Image}" : null,
-                    description = p.Description,
-                    category = p.Category != null ? p.Category.Name : null,
-                    createAt = p.CreateAt ?? p.Date,
-                    quantity = p.Quantity
+                    id = x.Product.ProductID,
+                    name = x.Product.ProductName,
+                    price = x.Detail!.Price,
+                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
+                    description = x.Detail.Description,
+                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
+                    createAt = x.Detail.CreateAt,
+                    quantity = x.Detail.Quantity
                 })
                 .ToListAsync();
 
-            var q = _db.Products.AsNoTracking()
-                .Include(p => p.Category)
-                .Where(p => p.Status == "Active" || p.Status == null);
+            var q = productWithDetail
+                .Where(x =>
+                    x.Detail != null &&
+                    (x.Detail.Status == "Active" || x.Detail.Status == null));
 
             if (!string.IsNullOrWhiteSpace(Keyword))
             {
-                var kw = $"%{Keyword.Trim()}%";
-                q = q.Where(p => EF.Functions.ILike(p.ProductName, kw));
+                var kw = Keyword.Trim();
+                q = q.Where(x => x.Product.ProductName.Contains(kw));
             }
 
             if (!string.IsNullOrWhiteSpace(Category))
             {
-                var cat = Category.Trim();
-                q = q.Where(p => p.Category != null && p.Category.Name.ToLower() == cat.ToLower());
+                var catLower = Category.Trim().ToLower();
+                q = q.Where(x =>
+                    x.Detail!.Category != null &&
+                    x.Detail.Category.Name.ToLower() == catLower);
             }
 
-            q = SortBy switch
-            {
-                "price_asc" => q.OrderBy(p => p.Price).ThenByDescending(p => p.CreateAt ?? p.Date),
-                "price_desc" => q.OrderByDescending(p => p.Price).ThenByDescending(p => p.CreateAt ?? p.Date),
-                _ => q.OrderByDescending(p => p.CreateAt ?? p.Date)
-            };
+            var sortKey = (SortBy ?? "new").ToLowerInvariant();
+            var sorted = q;
 
-            var totalItems = await q.CountAsync();
-            var items = await q.Skip((Page - 1) * PageSize).Take(PageSize)
-                .Select(p => new
+            if (sortKey == "price_asc")
+            {
+                sorted = sorted
+                    .OrderBy(x => x.Detail!.Price)
+                    .ThenByDescending(x => x.Detail!.CreateAt);
+            }
+            else if (sortKey == "price_desc")
+            {
+                sorted = sorted
+                    .OrderByDescending(x => x.Detail!.Price)
+                    .ThenByDescending(x => x.Detail!.CreateAt);
+            }
+            else 
+            {
+                sorted = sorted
+                    .OrderByDescending(x => x.Detail!.CreateAt);
+            }
+
+            var totalItems = await sorted.CountAsync();
+
+            var items = await sorted
+                .Skip((Page - 1) * PageSize)
+                .Take(PageSize)
+                .Select(x => new
                 {
-                    id = p.ProductID,
-                    name = p.ProductName,
-                    price = p.Price,
-                    image = p.Image != null ? $"{baseUrl}/images/{p.Image}" : null,
-                    description = p.Description,
-                    category = p.Category != null ? p.Category.Name : null,
-                    createAt = p.CreateAt ?? p.Date,
-                    quantity = p.Quantity
+                    id = x.Product.ProductID,
+                    name = x.Product.ProductName,
+                    price = x.Detail!.Price,
+                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
+                    description = x.Detail.Description,
+                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
+                    createAt = x.Detail.CreateAt,
+                    quantity = x.Detail.Quantity
                 })
                 .ToListAsync();
 
@@ -373,5 +518,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
             });
         }
+
     }
 }

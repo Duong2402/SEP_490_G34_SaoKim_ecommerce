@@ -9,12 +9,12 @@ import {
   Badge,
   Form,
   InputGroup,
-  Dropdown,
   Table,
   Spinner,
   ProgressBar,
 } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import Dropdown from "react-bootstrap/Dropdown";
 import {
   faHome,
   faSearch,
@@ -48,7 +48,7 @@ const statusLabel = (s) => {
 };
 
 const getStatus = (item) => {
-  const q = Number(item.onHand || 0);
+  const q = Number(item.closingQty ?? item.onHand ?? 0);
   const m = Number(item.minStock || 0);
   if (m <= 0) return "stock";
   if (q <= 0) return "critical";
@@ -63,7 +63,13 @@ export default function InventoryReport() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("detail"); // detail | overview
+  const [viewMode, setViewMode] = useState("detail");
+  const STATUS_OPTIONS = [
+    { value: "all", label: "Tất cả trạng thái" },
+    { value: "stock", label: "Đủ hàng" },
+    { value: "alert", label: "Cần theo dõi" },
+    { value: "critical", label: "Thiếu hàng" },
+  ];
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -95,9 +101,15 @@ export default function InventoryReport() {
           minStock: x.minStock ?? x.MinStock ?? 0,
           status: x.status ?? x.Status ?? null,
           note: x.note ?? x.Note ?? "",
+          openingQty: x.openingQty ?? 0,
+          inboundQty: x.inboundQty ?? 0,
+          outboundQty: x.outboundQty ?? 0,
+          closingQty: x.closingQty ?? x.onHand ?? 0,
         };
         item.effectiveStatus = item.status ?? getStatus(item);
-        item.gap = Number(item.onHand || 0) - Number(item.minStock || 0);
+        item.gap =
+          Number(item.closingQty ?? item.onHand ?? 0) -
+          Number(item.minStock || 0);
         return item;
       });
 
@@ -159,7 +171,7 @@ export default function InventoryReport() {
     const criticalPercent = (critical / totalWithStatus) * 100;
 
     const totalStock = rows.reduce(
-      (acc, x) => acc + Number(x.onHand || 0),
+      (acc, x) => acc + Number(x.closingQty ?? x.onHand ?? 0),
       0
     );
 
@@ -186,7 +198,7 @@ export default function InventoryReport() {
       const st = r.effectiveStatus ?? getStatus(r);
       if (!groups[st]) return;
       groups[st].skuCount += 1;
-      groups[st].totalStock += Number(r.onHand || 0);
+      groups[st].totalStock += Number(r.closingQty ?? r.onHand ?? 0);
     });
 
     return Object.values(groups);
@@ -202,7 +214,7 @@ export default function InventoryReport() {
   const topCritical = useMemo(() => {
     return [...rows]
       .filter((r) => (r.effectiveStatus ?? getStatus(r)) === "critical")
-      .sort((a, b) => a.gap - b.gap) 
+      .sort((a, b) => a.gap - b.gap)
       .slice(0, 5);
   }, [rows]);
 
@@ -240,18 +252,16 @@ export default function InventoryReport() {
           <div className="btn-group" role="group">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "detail" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "detail" ? "active" : ""
+                }`}
               onClick={() => setViewMode("detail")}
             >
               Chi tiết theo sản phẩm
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "overview" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "overview" ? "active" : ""
+                }`}
               onClick={() => setViewMode("overview")}
             >
               Tổng quan & top sản phẩm
@@ -401,14 +411,17 @@ export default function InventoryReport() {
       </div>
 
       {viewMode === "overview" ? (
-        <div className="d-grid gap-3" style={{ gridTemplateColumns: "2fr 3fr" }}>
+        <div
+          className="d-grid gap-3"
+          style={{ gridTemplateColumns: "2fr 3fr" }}
+        >
           <div className="wm-surface wm-table wm-scroll">
             <Table responsive hover className="mb-0">
               <thead>
                 <tr>
                   <th>Trạng thái</th>
                   <th>Số SKU</th>
-                  <th>Tổng tồn</th>
+                  <th>Tổng tồn cuối kỳ</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,7 +447,7 @@ export default function InventoryReport() {
                     <tr>
                       <th>#</th>
                       <th>Sản phẩm</th>
-                      <th>Tồn</th>
+                      <th>Tồn cuối kỳ</th>
                       <th>Định mức</th>
                       <th>Dư so với định mức</th>
                     </tr>
@@ -452,7 +465,7 @@ export default function InventoryReport() {
                           </div>
                         </td>
                         <td>
-                          {r.onHand} {r.uomName}
+                          {r.closingQty ?? r.onHand} {r.uomName}
                         </td>
                         <td>{r.minStock}</td>
                         <td>+{r.gap}</td>
@@ -473,7 +486,7 @@ export default function InventoryReport() {
                     <tr>
                       <th>#</th>
                       <th>Sản phẩm</th>
-                      <th>Tồn</th>
+                      <th>Tồn cuối kỳ</th>
                       <th>Định mức</th>
                       <th>Thiếu so với định mức</th>
                     </tr>
@@ -491,7 +504,7 @@ export default function InventoryReport() {
                           </div>
                         </td>
                         <td>
-                          {r.onHand} {r.uomName}
+                          {r.closingQty ?? r.onHand} {r.uomName}
                         </td>
                         <td>{r.minStock}</td>
                         <td>{r.gap}</td>
@@ -511,7 +524,10 @@ export default function InventoryReport() {
                 <th>#</th>
                 <th>Mã sản phẩm</th>
                 <th>Tên sản phẩm</th>
-                <th>Tồn kho</th>
+                <th>Tồn đầu kỳ</th>
+                <th>Nhập trong kỳ</th>
+                <th>Xuất trong kỳ</th>
+                <th>Tồn cuối kỳ</th>
                 <th>Định mức tối thiểu</th>
                 <th>Chênh lệch</th>
                 <th>Trạng thái</th>
@@ -521,13 +537,13 @@ export default function InventoryReport() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="wm-empty">
+                  <td colSpan={11} className="wm-empty">
                     <Spinner animation="border" size="sm" /> Đang tải...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="wm-empty">
+                  <td colSpan={11} className="wm-empty">
                     Không có dữ liệu phù hợp.
                   </td>
                 </tr>
@@ -545,10 +561,19 @@ export default function InventoryReport() {
                         {r.productCode || "-"}
                       </td>
                       <td>{r.productName}</td>
+
+                      <td>{r.openingQty}</td>
+
+                      <td>{r.inboundQty}</td>
+
+                      <td>{r.outboundQty}</td>
+
                       <td>
-                        {r.onHand} {r.uomName}
+                        {r.closingQty} {r.uomName}
                       </td>
+
                       <td>{r.minStock}</td>
+
                       <td
                         className={
                           r.gap < 0 ? "text-danger fw-semibold" : ""
@@ -556,6 +581,7 @@ export default function InventoryReport() {
                       >
                         {r.gap > 0 ? `+${r.gap}` : r.gap}
                       </td>
+
                       <td>{statusLabel(st)}</td>
                       <td>{r.note || ""}</td>
                     </tr>

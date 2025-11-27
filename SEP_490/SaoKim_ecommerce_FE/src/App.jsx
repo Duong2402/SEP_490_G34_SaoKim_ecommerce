@@ -1,8 +1,6 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import { useEffect } from "react";
 import "./App.css";
 import { useLanguage } from "./i18n/LanguageProvider.jsx";
-import { clearToken } from "./api/lib/apiClient";
 
 
 // Auth & commons
@@ -97,9 +95,6 @@ import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
 export default function App() {
   const { t } = useLanguage();
 
-  useEffect(() => {
-    clearToken();
-  }, []);
 
   return (
     <div className="page-wrapper">

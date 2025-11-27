@@ -16,37 +16,50 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<HomeProductsDto> GetHomeAsync(ProductQueryParams query)
         {
-            var featured = await _db.Products
+            var productWithDetail = _db.Products
                 .AsNoTracking()
-                .Where(p => (p.Status == "Active" || p.Status == null) && p.Quantity > 0)
-                .OrderByDescending(p => p.CreateAt ?? p.Date)
-                .Take(8)
-                .Select(p => new ProductListItemDto
+                .Select(p => new
                 {
-                    Id = p.ProductID,
-                    Name = p.ProductName,
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                });
+
+            var featured = await productWithDetail
+                .Where(x =>
+                    x.Detail != null &&
+                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
+                    x.Detail.Quantity > 0)
+                .OrderByDescending(x => x.Detail!.CreateAt)
+                .Take(8)
+                .Select(x => new ProductListItemDto
+                {
+                    Id = x.Product.ProductID,
+                    Name = x.Product.ProductName,
                     Slug = null,
-                    Price = p.Price,
-                    ThumbnailUrl = p.Image,
-                    CreatedAt = p.CreateAt ?? p.Date,  
-                    Stock = p.Quantity                   
+                    Price = x.Detail!.Price,
+                    ThumbnailUrl = x.Detail.Image,
+                    CreatedAt = x.Detail.CreateAt,
+                    Stock = x.Detail.Quantity
                 })
                 .ToListAsync();
 
-            var newArrivals = await _db.Products
-                .AsNoTracking()
-                .Where(p => p.Status == "Active" || p.Status == null)
-                .OrderByDescending(p => p.CreateAt ?? p.Date)
+            var newArrivals = await productWithDetail
+                .Where(x =>
+                    x.Detail != null &&
+                    (x.Detail.Status == "Active" || x.Detail.Status == null))
+                .OrderByDescending(x => x.Detail!.CreateAt)
                 .Take(12)
-                .Select(p => new ProductListItemDto
+                .Select(x => new ProductListItemDto
                 {
-                    Id = p.ProductID,
-                    Name = p.ProductName,
+                    Id = x.Product.ProductID,
+                    Name = x.Product.ProductName,
                     Slug = null,
-                    Price = p.Price,
-                    ThumbnailUrl = p.Image,
-                    CreatedAt = p.CreateAt ?? p.Date,
-                    Stock = p.Quantity
+                    Price = x.Detail!.Price,
+                    ThumbnailUrl = x.Detail.Image,
+                    CreatedAt = x.Detail.CreateAt,
+                    Stock = x.Detail.Quantity
                 })
                 .ToListAsync();
 
@@ -65,20 +78,38 @@ namespace SaoKim_ecommerce_BE.Services
             query.Page = Math.Max(1, query.Page);
             query.PageSize = Math.Clamp(query.PageSize, 1, 60);
 
-            var q = _db.Products.AsNoTracking()
-                .Where(p => p.Status == "Active" || p.Status == null);
+            var q = _db.Products
+                .AsNoTracking()
+                .Select(p => new
+                {
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                });
+
+            q = q.Where(x =>
+                x.Detail != null &&
+                (x.Detail.Status == "Active" || x.Detail.Status == null));
 
             if (!string.IsNullOrWhiteSpace(query.Keyword))
             {
                 var kw = query.Keyword.Trim();
-                q = q.Where(p => EF.Functions.Like(p.ProductName, $"%{kw}%"));
+                q = q.Where(x => EF.Functions.Like(x.Product.ProductName, $"%{kw}%"));
             }
 
             q = query.SortBy switch
             {
-                "price_asc" => q.OrderBy(p => p.Price).ThenByDescending(p => p.CreateAt ?? p.Date),
-                "price_desc" => q.OrderByDescending(p => p.Price).ThenByDescending(p => p.CreateAt ?? p.Date),
-                _ => q.OrderByDescending(p => p.CreateAt ?? p.Date)
+                "price_asc" => q
+                    .OrderBy(x => x.Detail!.Price)
+                    .ThenByDescending(x => x.Detail!.CreateAt),
+
+                "price_desc" => q
+                    .OrderByDescending(x => x.Detail!.Price)
+                    .ThenByDescending(x => x.Detail!.CreateAt),
+
+                _ => q
+                    .OrderByDescending(x => x.Detail!.CreateAt)
             };
 
             var total = await q.CountAsync();
@@ -86,15 +117,15 @@ namespace SaoKim_ecommerce_BE.Services
             var items = await q
                 .Skip((query.Page - 1) * query.PageSize)
                 .Take(query.PageSize)
-                .Select(p => new ProductListItemDto
+                .Select(x => new ProductListItemDto
                 {
-                    Id = p.ProductID,
-                    Name = p.ProductName,
+                    Id = x.Product.ProductID,
+                    Name = x.Product.ProductName,
                     Slug = null,
-                    Price = p.Price,
-                    ThumbnailUrl = p.Image,
-                    CreatedAt = p.CreateAt ?? p.Date,
-                    Stock = p.Quantity
+                    Price = x.Detail!.Price,
+                    ThumbnailUrl = x.Detail.Image,
+                    CreatedAt = x.Detail.CreateAt,
+                    Stock = x.Detail.Quantity
                 })
                 .ToListAsync();
 
@@ -106,5 +137,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Items = items
             };
         }
+
     }
 }

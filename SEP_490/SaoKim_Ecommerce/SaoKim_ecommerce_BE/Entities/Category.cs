@@ -24,6 +24,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("created")]
         public DateTime? Created { get; set; } = DateTime.UtcNow;
 
-        public ICollection<Product> Products { get; set; } = new List<Product>();
+        public ICollection<ProductDetail> ProductDetails { get; set; }
     }
 }

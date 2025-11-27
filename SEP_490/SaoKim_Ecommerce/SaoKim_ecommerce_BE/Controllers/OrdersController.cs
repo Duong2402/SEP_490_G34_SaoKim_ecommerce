@@ -13,7 +13,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // khách đặt hàng phải đăng nhập
+    [Authorize] 
     public class OrdersController : ControllerBase
     {
         private readonly SaoKimDBContext _context;
@@ -25,7 +25,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             _logger = logger;
         }
 
-        // POST /api/orders  -> FE gọi khi bấm Thanh toán
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateOrderRequest request)
         {
@@ -37,12 +36,10 @@ namespace SaoKim_ecommerce_BE.Controllers
                 if (request.Items == null || request.Items.Count == 0)
                     return BadRequest(new { message = "Order must have at least 1 item" });
 
-                // LẤY EMAIL TỪ TOKEN (giống như UsersController.GetMe)
                 var email = User.Identity?.Name;
                 if (string.IsNullOrEmpty(email))
                     return Unauthorized("Không xác định được người dùng từ token");
 
-                // TÌM USER THEO EMAIL
                 var user = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => u.Email == email);
@@ -50,32 +47,41 @@ namespace SaoKim_ecommerce_BE.Controllers
                 if (user == null)
                     return Unauthorized("Không tìm thấy user tương ứng với token");
 
-                // Lấy danh sách product liên quan từ DB
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
-                var products = await _context.Products
-                    .Where(p => productIds.Contains(p.ProductID))
+
+                if (productIds.Count == 0)
+                    return BadRequest(new { message = "Order must have at least 1 valid product" });
+
+                var details = await _context.ProductDetails
+                    .Where(d => productIds.Contains(d.ProductID))
+                    .GroupBy(d => d.ProductID)
+                    .Select(g => g.OrderByDescending(d => d.Id).First())
                     .ToListAsync();
 
-                if (products.Count != productIds.Count)
-                    return BadRequest(new { message = "Some products not found" });
+                if (details.Count != productIds.Count)
+                    return BadRequest(new { message = "Some products not found or have no details" });
 
-                // Tính lại total từ DB (không tin vào FE)
-                decimal totalFromDb = 0;
-                var orderItems = request.Items.Select(i =>
+                var detailDict = details.ToDictionary(d => d.ProductID, d => d);
+
+                decimal totalFromDb = 0m;
+                var orderItems = new List<OrderItem>();
+
+                foreach (var i in request.Items)
                 {
-                    var product = products.First(p => p.ProductID == i.ProductId);
+                    if (!detailDict.TryGetValue(i.ProductId, out var detail))
+                        return BadRequest(new { message = $"Product {i.ProductId} not found" });
 
-                    var unitPrice = product.Price; // dùng giá Product.Price
+                    var unitPrice = detail.Price; 
                     var lineTotal = unitPrice * i.Quantity;
                     totalFromDb += lineTotal;
 
-                    return new OrderItem
+                    orderItems.Add(new OrderItem
                     {
                         ProductId = i.ProductId,
                         Quantity = i.Quantity,
                         UnitPrice = unitPrice
-                    };
-                }).ToList();
+                    });
+                }
 
                 var order = new Order
                 {
@@ -89,7 +95,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
-                // trả về order id + total để FE hiển thị
                 return Ok(new
                 {
                     order.OrderId,
@@ -104,6 +109,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return StatusCode(500, new { message = "Lỗi server khi tạo đơn hàng", detail = ex.Message });
             }
         }
+
 
         // GET /api/orders  (khách xem đơn của chính mình)
         [HttpGet]

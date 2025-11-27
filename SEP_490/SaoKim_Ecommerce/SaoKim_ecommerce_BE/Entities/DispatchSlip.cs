@@ -54,7 +54,7 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Required, MaxLength(200)]
         public string ProductName { get; set; } = string.Empty;
-        public int ProductId { get; set; }
+        public int? ProductId { get; set; }
 
         [MaxLength(50)]
         public string Uom { get; set; } = "pcs";

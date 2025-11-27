@@ -89,7 +89,7 @@ export default function DispatchCreate() {
     loadProducts();
   }, []);
 
-  uuseEffect(() => {
+  useEffect(() => {
     const loadForType = async () => {
       try {
         if (type === "Sales") {

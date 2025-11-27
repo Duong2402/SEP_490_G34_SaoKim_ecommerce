@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     /// <inheritdoc />
-    public partial class InitCreate : Migration
+    public partial class TestDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -83,6 +83,20 @@ namespace SaoKim_ecommerce_BE.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_InventoryThresholds", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "products",
+                columns: table => new
+                {
+                    product_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    product_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    product_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_products", x => x.product_id);
                 });
 
             migrationBuilder.CreateTable(
@@ -177,42 +191,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "products",
-                columns: table => new
-                {
-                    product_id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    product_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    product_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    category_id = table.Column<int>(type: "integer", nullable: true),
-                    unit = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    price = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    quantity = table.Column<int>(type: "integer", nullable: false),
-                    stock = table.Column<int>(type: "integer", nullable: false),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
-                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    supplier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    created = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_products", x => x.product_id);
-                    table.ForeignKey(
-                        name: "FK_products_categories_category_id",
-                        column: x => x.category_id,
-                        principalTable: "categories",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "dispatch_item",
                 columns: table => new
                 {
@@ -220,7 +198,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     dispatch_id = table.Column<int>(type: "integer", nullable: false),
                     ProductName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    ProductId = table.Column<int>(type: "integer", nullable: false),
+                    ProductId = table.Column<int>(type: "integer", nullable: true),
                     Uom = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "pcs"),
                     Quantity = table.Column<int>(type: "integer", precision: 18, scale: 3, nullable: false),
                     UnitPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
@@ -276,6 +254,70 @@ namespace SaoKim_ecommerce_BE.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "product_details",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    product_id = table.Column<int>(type: "integer", nullable: false),
+                    category_id = table.Column<int>(type: "integer", nullable: true),
+                    unit = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    price = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    quantity = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    supplier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_product_details", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_product_details_categories_category_id",
+                        column: x => x.category_id,
+                        principalTable: "categories",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_product_details_products_product_id",
+                        column: x => x.product_id,
+                        principalTable: "products",
+                        principalColumn: "product_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TraceIdentities",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    IdentityCode = table.Column<string>(type: "text", nullable: false),
+                    IdentityType = table.Column<string>(type: "text", nullable: false),
+                    ProductId = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    CurrentLocation = table.Column<string>(type: "text", nullable: true),
+                    ProjectName = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TraceIdentities", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TraceIdentities_products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "products",
+                        principalColumn: "product_id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "project_expenses",
                 columns: table => new
                 {
@@ -299,67 +341,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         principalTable: "Projects",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "project_tasks",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Assignee = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    StartDate = table.Column<DateTime>(type: "date", nullable: false),
-                    DurationDays = table.Column<int>(type: "integer", nullable: false),
-                    ProjectId = table.Column<int>(type: "integer", nullable: false),
-                    DependsOnTaskId = table.Column<int>(type: "integer", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_project_tasks", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_project_tasks_Projects_ProjectId",
-                        column: x => x.ProjectId,
-                        principalTable: "Projects",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_project_tasks_project_tasks_DependsOnTaskId",
-                        column: x => x.DependsOnTaskId,
-                        principalTable: "project_tasks",
-                        principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "users",
-                columns: table => new
-                {
-                    user_id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    password = table.Column<string>(type: "text", nullable: false),
-                    role_id = table.Column<int>(type: "integer", nullable: false),
-                    phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    address = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
-                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
-                    dob = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_users", x => x.user_id);
-                    table.ForeignKey(
-                        name: "FK_users_role_role_id",
-                        column: x => x.role_id,
-                        principalTable: "role",
-                        principalColumn: "role_id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -393,6 +374,35 @@ namespace SaoKim_ecommerce_BE.Migrations
                         principalTable: "products",
                         principalColumn: "product_id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "project_tasks",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Assignee = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
+                    StartDate = table.Column<DateTime>(type: "date", nullable: false),
+                    DurationDays = table.Column<int>(type: "integer", nullable: false),
+                    ProjectId = table.Column<int>(type: "integer", nullable: false),
+                    DependsOnTaskId = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_project_tasks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_project_tasks_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_project_tasks_project_tasks_DependsOnTaskId",
+                        column: x => x.DependsOnTaskId,
+                        principalTable: "project_tasks",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -455,29 +465,59 @@ namespace SaoKim_ecommerce_BE.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TraceIdentities",
+                name: "users",
+                columns: table => new
+                {
+                    user_id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    password = table.Column<string>(type: "text", nullable: false),
+                    role_id = table.Column<int>(type: "integer", nullable: false),
+                    phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    address = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    image = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
+                    dob = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    create_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    create_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_by = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    update_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_users", x => x.user_id);
+                    table.ForeignKey(
+                        name: "FK_users_role_role_id",
+                        column: x => x.role_id,
+                        principalTable: "role",
+                        principalColumn: "role_id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TraceEvents",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    IdentityCode = table.Column<string>(type: "text", nullable: false),
-                    IdentityType = table.Column<string>(type: "text", nullable: false),
-                    ProductId = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
-                    CurrentLocation = table.Column<string>(type: "text", nullable: true),
-                    ProjectName = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    TraceIdentityId = table.Column<int>(type: "integer", nullable: false),
+                    EventType = table.Column<string>(type: "text", nullable: false),
+                    OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    RefCode = table.Column<string>(type: "text", nullable: true),
+                    Actor = table.Column<string>(type: "text", nullable: true),
+                    Note = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TraceIdentities", x => x.Id);
+                    table.PrimaryKey("PK_TraceEvents", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_TraceIdentities_products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "products",
-                        principalColumn: "product_id",
-                        onDelete: ReferentialAction.Restrict);
+                        name: "FK_TraceEvents_TraceIdentities_TraceIdentityId",
+                        column: x => x.TraceIdentityId,
+                        principalTable: "TraceIdentities",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -627,30 +667,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         column: x => x.user_id,
                         principalTable: "users",
                         principalColumn: "user_id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TraceEvents",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    TraceIdentityId = table.Column<int>(type: "integer", nullable: false),
-                    EventType = table.Column<string>(type: "text", nullable: false),
-                    OccurredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    RefCode = table.Column<string>(type: "text", nullable: true),
-                    Actor = table.Column<string>(type: "text", nullable: true),
-                    Note = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TraceEvents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TraceEvents_TraceIdentities_TraceIdentityId",
-                        column: x => x.TraceIdentityId,
-                        principalTable: "TraceIdentities",
-                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -826,6 +842,16 @@ namespace SaoKim_ecommerce_BE.Migrations
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_product_details_category_id",
+                table: "product_details",
+                column: "category_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_product_details_product_id",
+                table: "product_details",
+                column: "product_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_product_reviews_product_id",
                 table: "product_reviews",
                 column: "product_id");
@@ -840,11 +866,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                 name: "IX_product_reviews_user_id",
                 table: "product_reviews",
                 column: "user_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_products_category_id",
-                table: "products",
-                column: "category_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_products_product_code",
@@ -986,6 +1007,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                 name: "order_items");
 
             migrationBuilder.DropTable(
+                name: "product_details");
+
+            migrationBuilder.DropTable(
                 name: "product_reviews");
 
             migrationBuilder.DropTable(
@@ -1022,6 +1046,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                 name: "invoices");
 
             migrationBuilder.DropTable(
+                name: "categories");
+
+            migrationBuilder.DropTable(
                 name: "project_tasks");
 
             migrationBuilder.DropTable(
@@ -1044,9 +1071,6 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             migrationBuilder.DropTable(
                 name: "users");
-
-            migrationBuilder.DropTable(
-                name: "categories");
 
             migrationBuilder.DropTable(
                 name: "role");

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Breadcrumb, Badge, Form, InputGroup, Dropdown, Button, Table, Spinner } from "@themesberg/react-bootstrap";
+import { Breadcrumb, Badge, Form, InputGroup, Button, Table, Spinner } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -11,6 +11,7 @@ import {
   faArrowLeft,
   faSave,
 } from "@fortawesome/free-solid-svg-icons";
+import Dropdown from "react-bootstrap/Dropdown";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
@@ -42,7 +43,13 @@ export default function WarehouseInventory() {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-
+  const statusFilterLabel =
+    {
+      all: "Tất cả trạng thái",
+      stock: "Đủ hàng",
+      alert: "Cần theo dõi",
+      critical: "Thiếu hàng",
+    }[statusFilter] || "Tất cả trạng thái";
   const locations = useMemo(() => {
     const set = new Set(rows.map(r => r.locationName).filter(Boolean));
     return ["all", ...Array.from(set)];
@@ -309,27 +316,29 @@ export default function WarehouseInventory() {
 
         <div className="wm-toolbar__actions">
           <Dropdown>
-            <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {{
-                all: "Tất cả trạng thái",
-                stock: "Đủ hàng",
-                alert: "Cần theo dõi",
-                critical: "Thiếu hàng",
-              }[statusFilter]}
+            <Dropdown.Toggle
+              variant="link"
+              className="wm-btn wm-btn--light"
+            >
+              {statusFilterLabel}
             </Dropdown.Toggle>
             <Dropdown.Menu align="end">
-              {["all", "stock", "alert", "critical"].map(st => (
+              {["all", "stock", "alert", "critical"].map((st) => (
                 <Dropdown.Item
                   key={st}
                   active={statusFilter === st}
-                  onClick={() => { setPage(1); setStatusFilter(st); }}
+                  onClick={() => {
+                    setStatusFilter(st);
+                  }}
                 >
-                  {{
-                    all: "Tất cả trạng thái",
-                    stock: "Đủ hàng",
-                    alert: "Cần theo dõi",
-                    critical: "Thiếu hàng",
-                  }[st]}
+                  {
+                    {
+                      all: "Tất cả trạng thái",
+                      stock: "Đủ hàng",
+                      alert: "Cần theo dõi",
+                      critical: "Thiếu hàng",
+                    }[st]
+                  }
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>

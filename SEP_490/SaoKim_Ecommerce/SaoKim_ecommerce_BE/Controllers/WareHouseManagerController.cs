@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.DTOs.WarehouseManagerDTOs;
@@ -129,12 +130,92 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // POST /api/warehousemanager/receiving-slips
-        [HttpPost("receiving-slips")]
+        //[HttpPost("receiving-slips")]
 
+        //public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
+        //{
+        //    if (string.IsNullOrWhiteSpace(dto.Supplier))
+        //        return BadRequest(new { message = "Supplier is required" });
+        //    if (dto.Items == null || dto.Items.Count == 0)
+        //        return BadRequest(new { message = "At least one item is required" });
+
+        //    var slip = new ReceivingSlip
+        //    {
+        //        Supplier = dto.Supplier.Trim(),
+        //        ReceiptDate = dto.ReceiptDate,
+        //        Note = dto.Note?.Trim(),
+        //        Status = ReceivingSlipStatus.Draft,
+        //        Items = new List<ReceivingSlipItem>()
+        //    };
+
+        //    foreach (var i in dto.Items)
+        //    {
+        //        var uom = await _db.UnitOfMeasures
+        //.FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
+
+        //        if (uom == null)
+        //            return BadRequest(new { message = "UOM not found" });
+
+        //        int? productId = i.ProductId;
+
+        //        if (productId == null || productId == 0)
+        //        {
+        //            var newProduct = new Product
+        //            {
+        //                ProductName = i.ProductName.Trim(),
+        //                Unit = uom.Name,
+        //                Price = i.UnitPrice,
+        //                Status = "Active"
+        //            };
+        //            _db.Products.Add(newProduct);
+        //            await _db.SaveChangesAsync();
+        //            productId = newProduct.ProductID;
+        //        }
+
+        //        slip.Items.Add(new ReceivingSlipItem
+        //        {
+        //            ProductId = productId.Value,
+        //            ProductName = i.ProductName.Trim(),
+        //            ProductCode = productId.HasValue
+        //                ? (await _db.Products.Where(p => p.ProductID == productId.Value)
+        //                    .Select(p => p.ProductCode).FirstOrDefaultAsync())
+        //                : null,
+        //            Uom = uom.Name,
+        //            Quantity = i.Quantity,
+        //            UnitPrice = i.UnitPrice,
+        //            Total = i.Quantity * i.UnitPrice
+        //        });
+        //    }
+
+        //    _db.ReceivingSlips.Add(slip);
+        //    await _db.SaveChangesAsync();
+
+        //    slip.ReferenceNo = $"RCV-{slip.Id:D3}";
+        //    await _db.SaveChangesAsync();
+
+        //    await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+        //    {
+        //        action = "created",
+        //        slip.Id,
+        //        slip.ReferenceNo,
+        //        slip.Supplier,
+        //        slip.ReceiptDate,
+        //        slip.Status,
+        //        slip.CreatedAt,
+        //        slip.ConfirmedAt
+        //    });
+
+        //    return CreatedAtAction(nameof(GetReceivingSlipItems),
+        //        new { id = slip.Id },
+        //        new { slip.Id, slip.ReferenceNo });
+        //}
+
+        [HttpPost("receiving-slips")]
         public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Supplier))
                 return BadRequest(new { message = "Supplier is required" });
+
             if (dto.Items == null || dto.Items.Count == 0)
                 return BadRequest(new { message = "At least one item is required" });
 
@@ -150,35 +231,25 @@ namespace SaoKim_ecommerce_BE.Controllers
             foreach (var i in dto.Items)
             {
                 var uom = await _db.UnitOfMeasures
-        .FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
+                    .FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
 
                 if (uom == null)
-                    return BadRequest(new { message = "UOM not found" });
+                    return BadRequest(new { message = $"UOM '{i.Uom}' not found" });
 
-                int? productId = i.ProductId;
+                if (!i.ProductId.HasValue || i.ProductId.Value <= 0)
+                    return BadRequest(new { message = "Product is required" });
 
-                if (productId == null || productId == 0)
-                {
-                    var newProduct = new Product
-                    {
-                        ProductName = i.ProductName.Trim(),
-                        Unit = uom.Name,
-                        Price = i.UnitPrice,
-                        Status = "Active"
-                    };
-                    _db.Products.Add(newProduct);
-                    await _db.SaveChangesAsync();
-                    productId = newProduct.ProductID;
-                }
+                var product = await _db.Products
+                    .FirstOrDefaultAsync(p => p.ProductID == i.ProductId.Value);
+
+                if (product == null)
+                    return BadRequest(new { message = $"Product with id {i.ProductId.Value} not found" });
 
                 slip.Items.Add(new ReceivingSlipItem
                 {
-                    ProductId = productId.Value,
-                    ProductName = i.ProductName.Trim(),
-                    ProductCode = productId.HasValue
-                        ? (await _db.Products.Where(p => p.ProductID == productId.Value)
-                            .Select(p => p.ProductCode).FirstOrDefaultAsync())
-                        : null,
+                    ProductId = i.ProductId.Value,
+                    ProductName = product.ProductName,
+                    ProductCode = product.ProductCode,
                     Uom = uom.Name,
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
@@ -247,40 +318,42 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var item = await _db.ReceivingSlipItems
                 .Include(i => i.ReceivingSlip)
-                .Include(i => i.Product)
                 .FirstOrDefaultAsync(i => i.Id == itemId);
 
-            if (item is null) return NotFound(new { message = "Item not found" });
+            if (item is null)
+                return NotFound(new { message = "Sản phẩm không tìm thấy" });
 
             if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be modified" });
+                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
 
             if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest(new { message = "ProductName is required" });
+                return BadRequest(new { message = "Tên sản phẩm là bắt buộc" });
             if (dto.Quantity <= 0)
-                return BadRequest(new { message = "Quantity must be > 0" });
+                return BadRequest(new { message = "Số lượng phải lớn hơn 0" });
             if (dto.UnitPrice < 0)
-                return BadRequest(new { message = "UnitPrice cannot be negative" });
+                return BadRequest(new { message = "Giá trị sản phẩm phải lớn hơn 0" });
 
             var uom = await _db.UnitOfMeasures
-                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+                .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
 
             if (uom == null)
                 return BadRequest(new { message = "Đơn vị tính không hợp lệ" });
 
-            Product? product = null;
+            Product product;
+            ProductDetail detail;
 
             if (dto.ProductId.HasValue && dto.ProductId.Value != 0)
             {
-                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                product = await _db.Products
+                    .Include(p => p.ProductDetails)
+                    .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+
                 if (product == null)
                 {
                     product = new Product
                     {
                         ProductName = dto.ProductName.Trim(),
-                        Unit = uom.Name,
-                        Price = dto.UnitPrice,
-                        Status = "Active"
+                        ProductCode = string.Empty 
                     };
                     _db.Products.Add(product);
                     await _db.SaveChangesAsync();
@@ -288,15 +361,39 @@ namespace SaoKim_ecommerce_BE.Controllers
                     product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                     _db.Products.Update(product);
                     await _db.SaveChangesAsync();
+
+                    detail = new ProductDetail
+                    {
+                        ProductID = product.ProductID,
+                        Unit = uom.Name,
+                        Price = dto.UnitPrice,
+                        Status = "Active",
+                        Quantity = 0,
+                        CreateAt = DateTime.UtcNow,
+                        CreateBy = "warehouse-manager"
+                    };
+                    _db.ProductDetails.Add(detail);
+                    await _db.SaveChangesAsync();
                 }
                 else
                 {
                     product.ProductName = dto.ProductName.Trim();
-                    product.Unit = uom.Name;
-                    product.Price = dto.UnitPrice;
-
                     product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                     _db.Products.Update(product);
+
+                    detail = product.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault() ?? new ProductDetail { ProductID = product.ProductID };
+
+                    if (detail.Id == 0)
+                        _db.ProductDetails.Add(detail);
+
+                    detail.Unit = uom.Name;
+                    detail.Price = dto.UnitPrice;
+                    detail.Status = "Active";
+                    detail.UpdateAt = DateTime.UtcNow;
+                    detail.UpdateBy = "warehouse-manager";
+
                     await _db.SaveChangesAsync();
                 }
             }
@@ -305,9 +402,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product = new Product
                 {
                     ProductName = dto.ProductName.Trim(),
-                    Unit = uom.Name,
-                    Price = dto.UnitPrice,
-                    Status = "Active"
+                    ProductCode = string.Empty
                 };
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
@@ -315,12 +410,25 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                 _db.Products.Update(product);
                 await _db.SaveChangesAsync();
+
+                detail = new ProductDetail
+                {
+                    ProductID = product.ProductID,
+                    Unit = uom.Name,
+                    Price = dto.UnitPrice,
+                    Status = "Active",
+                    Quantity = 0,
+                    CreateAt = DateTime.UtcNow,
+                    CreateBy = "warehouse-manager"
+                };
+                _db.ProductDetails.Add(detail);
+                await _db.SaveChangesAsync();
             }
 
             item.ProductId = product.ProductID;
             item.ProductName = product.ProductName;
             item.ProductCode = product.ProductCode;
-            item.Uom = product.Unit;
+            item.Uom = uom.Name;
             item.Quantity = dto.Quantity;
             item.UnitPrice = dto.UnitPrice;
             item.Total = dto.Quantity * dto.UnitPrice;
@@ -357,25 +465,26 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
         [HttpPost("receiving-slips/{id:int}/items")]
         public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
         {
             var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
             if (slip is null)
-                return NotFound(new { message = "Receiving slip not found" });
+                return NotFound(new { message = "Phiếu xuất không tồn tại" });
 
             if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be modified" });
+                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
 
             if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest(new { message = "ProductName is required" });
+                return BadRequest(new { message = "Tên sản phẩm là bắt buộc" });
             if (dto.Quantity <= 0)
-                return BadRequest(new { message = "Quantity must be > 0" });
+                return BadRequest(new { message = "Số lượng phải lớn hơn 0" });
             if (dto.UnitPrice < 0)
-                return BadRequest(new { message = "UnitPrice cannot be negative" });
+                return BadRequest(new { message = "Giá trị sản phẩm phải lớn hơn 0" });
 
             var uom = await _db.UnitOfMeasures
-                   .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
+                .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
 
             if (uom == null)
                 return BadRequest(new { message = "UOM not found" });
@@ -384,21 +493,35 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (dto.ProductId.HasValue)
             {
-                product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                product = await _db.Products
+                    .Include(p => p.ProductDetails)
+                    .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+
                 if (product == null)
                 {
                     product = new Product
                     {
                         ProductName = dto.ProductName.Trim(),
-                        Unit = uom.Name,
-                        Price = dto.UnitPrice,
-                        Status = "Active"
+                        ProductCode = string.Empty
                     };
                     _db.Products.Add(product);
                     await _db.SaveChangesAsync();
 
                     product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                     _db.Products.Update(product);
+                    await _db.SaveChangesAsync();
+
+                    var detail = new ProductDetail
+                    {
+                        ProductID = product.ProductID,
+                        Unit = uom.Name,
+                        Price = dto.UnitPrice,
+                        Status = "Active",
+                        Quantity = 0,
+                        CreateAt = DateTime.UtcNow,
+                        CreateBy = "system"
+                    };
+                    _db.ProductDetails.Add(detail);
                     await _db.SaveChangesAsync();
                 }
             }
@@ -407,9 +530,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product = new Product
                 {
                     ProductName = dto.ProductName.Trim(),
-                    Unit = uom.Name,
-                    Price = dto.UnitPrice,
-                    Status = "Active"
+                    ProductCode = string.Empty
                 };
                 _db.Products.Add(product);
                 await _db.SaveChangesAsync();
@@ -417,15 +538,28 @@ namespace SaoKim_ecommerce_BE.Controllers
                 product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                 _db.Products.Update(product);
                 await _db.SaveChangesAsync();
+
+                var detail = new ProductDetail
+                {
+                    ProductID = product.ProductID,
+                    Unit = uom.Name,
+                    Price = dto.UnitPrice,
+                    Status = "Active",
+                    Quantity = 0,
+                    CreateAt = DateTime.UtcNow,
+                    CreateBy = "system"
+                };
+                _db.ProductDetails.Add(detail);
+                await _db.SaveChangesAsync();
             }
 
             var newItem = new ReceivingSlipItem
             {
                 ReceivingSlipId = id,
-                ProductId = product.ProductID,
+                ProductId = product!.ProductID,
                 ProductName = product.ProductName,
                 ProductCode = product.ProductCode,
-                Uom = product.Unit,
+                Uom = uom.Name,                    
                 Quantity = dto.Quantity,
                 UnitPrice = dto.UnitPrice,
                 Total = dto.Quantity * dto.UnitPrice
@@ -464,6 +598,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
         {
@@ -471,10 +606,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .Include(i => i.ReceivingSlip)
                 .FirstOrDefaultAsync(i => i.Id == itemId);
 
-            if (item is null) return NotFound(new { message = "Item not found" });
+            if (item is null) return NotFound(new { message = "Phiếu không tồn tại" });
 
             if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be modified" });
+                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
+
             var slipId = item.ReceivingSlipId;
             _db.ReceivingSlipItems.Remove(item);
             await _db.SaveChangesAsync();
@@ -488,23 +624,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // DELETE /api/warehousemanager/receiving-slips/{id}
-        [HttpDelete("receiving-slips/{id:int}")]
-        public async Task<IActionResult> DeleteReceivingSlip([FromRoute] int id)
-        {
-            var slip = await _db.ReceivingSlips.FindAsync(id);
-            if (slip == null) return NotFound();
-            if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be deleted" });
-            slip.IsDeleted = true;
-            await _db.SaveChangesAsync();
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-            {
-                action = "deleted",
-                slip.Id
-            });
-            return Ok(new { message = "Phiếu đã được đưa vào thùng rác." });
-        }
-
         [HttpPost("receiving-slips/import")]
         public async Task<IActionResult> ImportReceivingSlips(IFormFile file)
         {
@@ -547,15 +666,16 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 foreach (var i in g)
                 {
-                    var product = await _db.Products.FirstOrDefaultAsync(p => p.ProductName == i.ProductName);
+                    var product = await _db.Products
+                        .Include(p => p.ProductDetails)
+                        .FirstOrDefaultAsync(p => p.ProductName == i.ProductName);
+
                     if (product == null)
                     {
                         product = new Product
                         {
                             ProductName = i.ProductName,
-                            Unit = string.IsNullOrWhiteSpace(i.Uom) ? "unit" : i.Uom,
-                            Price = i.UnitPrice,
-                            Status = "Active"
+                            ProductCode = string.Empty 
                         };
                         _db.Products.Add(product);
                         await _db.SaveChangesAsync();
@@ -563,14 +683,35 @@ namespace SaoKim_ecommerce_BE.Controllers
                         product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
                         _db.Products.Update(product);
                         await _db.SaveChangesAsync();
+
+                        var detail = new ProductDetail
+                        {
+                            ProductID = product.ProductID,
+                            Unit = string.IsNullOrWhiteSpace(i.Uom) ? "unit" : i.Uom,
+                            Price = i.UnitPrice,
+                            Status = "Active",
+                            Quantity = 0,
+                            CreateAt = DateTime.UtcNow,
+                            CreateBy = "system"
+                        };
+                        _db.ProductDetails.Add(detail);
+                        await _db.SaveChangesAsync();
                     }
+
+                    var latestDetail = product.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault();
+
+                    var uomName = !string.IsNullOrWhiteSpace(i.Uom)
+                        ? i.Uom
+                        : latestDetail?.Unit ?? "unit";
 
                     slip.Items.Add(new ReceivingSlipItem
                     {
                         ProductId = product.ProductID,
                         ProductName = product.ProductName,
                         ProductCode = product.ProductCode,
-                        Uom = product.Unit,
+                        Uom = uomName,
                         Quantity = i.Quantity,
                         UnitPrice = i.UnitPrice,
                         Total = i.Quantity * i.UnitPrice
@@ -595,6 +736,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
 
+
         // POST /api/warehousemanager/receiving-slips/{id}/confirm
         [HttpPost("receiving-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmReceivingSlip([FromRoute] int id)
@@ -607,33 +749,64 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (slip is null) return NotFound();
             if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be confirmed" });
-            if (slip.Items == null || slip.Items.Count == 0)
-                return BadRequest(new { message = "Receiving slip has no items" });
-            if (slip.Items.Any(i => i.ProductId == null))
-                return BadRequest(new { message = "All items must have ProductId before confirming" });
+                return Conflict(new { message = "Chỉ bản nháp mới được xác thực" });
 
+            if (slip.Items == null || slip.Items.Count == 0)
+                return BadRequest(new { message = "Phiếu nhập không có sản phẩm để xác nhận" });
+
+            if (slip.Items.Any(i => i.ProductId == null))
+                return BadRequest(new { message = "Tất cả sản phẩm phải có productID" });
 
             var qtyByProduct = slip.Items
                 .GroupBy(i => i.ProductId!.Value)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
             var productIds = qtyByProduct.Keys.ToList();
+
             var products = await _db.Products
                 .Where(p => productIds.Contains(p.ProductID))
                 .ToDictionaryAsync(p => p.ProductID);
 
             var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
             if (missing.Count > 0)
-                return BadRequest(new { message = "Some ProductIds not found", missing });
+                return BadRequest(new { message = "Một vài ID sản phẩm không tìm thấy!", missing });
+
+            var details = await _db.ProductDetails
+                .Where(d => productIds.Contains(d.ProductID))
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
 
             foreach (var kv in qtyByProduct)
             {
-                products[kv.Key].Quantity += kv.Value;
+                var productId = kv.Key;
+                var addedQty = kv.Value;
+
+                var detail = details.FirstOrDefault(d => d.ProductID == productId);
+                if (detail == null)
+                {
+                    detail = new ProductDetail
+                    {
+                        ProductID = productId,
+                        Quantity = addedQty,
+                        Status = "Active",
+                        CreateAt = now,
+                        CreateBy = "system"
+                    };
+
+                    _db.ProductDetails.Add(detail);
+                    details.Add(detail);
+                }
+                else
+                {
+                    detail.Quantity += addedQty;
+                    detail.UpdateAt = now;
+                    detail.UpdateBy = "system";
+                }
             }
 
             slip.Status = ReceivingSlipStatus.Confirmed;
-            slip.ConfirmedAt = DateTime.UtcNow;
+            slip.ConfirmedAt = now;
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
@@ -660,6 +833,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
         [HttpPost("dispatch-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmDispatchSlip([FromRoute] int id)
         {
@@ -671,40 +845,65 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (slip == null) return NotFound();
             if (slip.Status != DispatchStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be confirmed" });
+                return Conflict(new { message = "Chỉ bản nháp mới được xác thực" });
             if (slip.Items == null || slip.Items.Count == 0)
-                return BadRequest(new { message = "Dispatch slip has no items" });
+                return BadRequest(new { message = "Phiếu xuất không có sản phẩm để xác nhận" });
             if (slip.Items.Any(i => i.ProductId == null))
-                return BadRequest(new { message = "All items must have ProductId before confirming" });
+                return BadRequest(new { message = "Tất cả sản phẩm phải có productID" });
 
             var qtyByProduct = slip.Items
-                .GroupBy(i => i.ProductId)
+                .GroupBy(i => i.ProductId!.Value)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
             var productIds = qtyByProduct.Keys.ToList();
+
             var products = await _db.Products
                 .Where(p => productIds.Contains(p.ProductID))
                 .ToDictionaryAsync(p => p.ProductID);
 
             var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
             if (missing.Count > 0)
-                return BadRequest(new { message = "Some ProductIds not found", missing });
+                return BadRequest(new { message = "Một vài ID sản phẩm không tìm thấy!", missing });
+
+            var details = await _db.ProductDetails
+                .Where(d => productIds.Contains(d.ProductID))
+                .ToDictionaryAsync(d => d.ProductID);
 
             var insufficient = qtyByProduct
-                .Where(kv => products[kv.Key].Quantity < kv.Value)
-                .Select(kv => new { kv.Key, Required = kv.Value, Available = products[kv.Key].Quantity })
+                .Where(kv =>
+                {
+                    var productId = kv.Key;
+                    var required = kv.Value;
+                    return !details.TryGetValue(productId, out var detail) || detail.Quantity < required;
+                })
+                .Select(kv =>
+                {
+                    var productId = kv.Key;
+                    var required = kv.Value;
+                    var available = details.TryGetValue(productId, out var detail) ? detail.Quantity : 0;
+                    return new { ProductId = productId, Required = required, Available = available };
+                })
                 .ToList();
 
             if (insufficient.Count > 0)
-                return BadRequest(new { message = "Insufficient stock for some products", insufficient });
+                return BadRequest(new { message = "Không đủ hàng cho một số sản phẩm", insufficient });
+
+            var now = DateTime.UtcNow;
 
             foreach (var kv in qtyByProduct)
             {
-                products[kv.Key].Quantity -= kv.Value;
+                var productId = kv.Key;
+                var deductedQty = kv.Value;
+
+                var detail = details[productId];
+
+                detail.Quantity -= deductedQty;
+                detail.UpdateAt = now;
+                detail.UpdateBy = "system";
             }
 
             slip.Status = DispatchStatus.Confirmed;
-            slip.ConfirmedAt = DateTime.UtcNow;
+            slip.ConfirmedAt = now;
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
@@ -910,7 +1109,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-            // Chuẩn hóa query chung cho Sales + Project
             var sales = _db.Set<RetailDispatch>()
                 .Select(x => new
                 {
@@ -941,14 +1139,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var query = sales.Concat(projects).AsQueryable();
 
-            // Lọc theo type
             if (!string.IsNullOrWhiteSpace(q.Type) &&
                 !q.Type.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(x => x.Type == q.Type);
             }
 
-            // Search
             if (!string.IsNullOrWhiteSpace(q.Search))
             {
                 var s = q.Search.Trim().ToLower();
@@ -1066,8 +1262,8 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("total-stock")]
         public async Task<IActionResult> GetTotalStock()
         {
-            var totalStock = await _db.Products
-                .SumAsync(p => p.Quantity);
+            var totalStock = await _db.ProductDetails
+                .SumAsync(d => d.Quantity);
 
             return Ok(new { totalStock });
         }
@@ -1470,18 +1666,21 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-            var query = _db.Products.AsNoTracking().Where(p => p.Status == "Active");
+            var productQuery = _db.Products.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(q.Search))
             {
                 var s = q.Search.Trim().ToLower();
-                query = query.Where(p =>
+                productQuery = productQuery.Where(p =>
                     (p.ProductCode ?? "").ToLower().Contains(s) ||
                     p.ProductName.ToLower().Contains(s));
             }
 
             var baseQuery =
-                from p in query
+                from p in productQuery
+                join d in _db.ProductDetails.AsNoTracking()
+                    on p.ProductID equals d.ProductID into dg
+                from d in dg.DefaultIfEmpty()
                 join th in _db.InventoryThresholds.AsNoTracking()
                     on p.ProductID equals th.ProductId into thg
                 from th in thg.DefaultIfEmpty()
@@ -1490,23 +1689,31 @@ namespace SaoKim_ecommerce_BE.Controllers
                     p.ProductID,
                     p.ProductCode,
                     p.ProductName,
-                    p.Quantity,
-                    p.Unit,
-                    MinStock = (int?)th.MinStock ?? 0
+                    Quantity = d != null ? d.Quantity : 0,
+                    Unit = d != null ? d.Unit : null,
+                    MinStock = (int?)th.MinStock ?? 0,
+                    DetailStatus = d != null ? d.Status : null
                 };
+
+            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
 
             if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
             {
                 switch (q.Status)
                 {
                     case "critical":
-                        baseQuery = baseQuery.Where(x => x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
+                        baseQuery = baseQuery.Where(x =>
+                            x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
                         break;
+
                     case "alert":
-                        baseQuery = baseQuery.Where(x => x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
+                        baseQuery = baseQuery.Where(x =>
+                            x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
                         break;
+
                     case "stock":
-                        baseQuery = baseQuery.Where(x => x.MinStock == 0 || x.Quantity >= x.MinStock);
+                        baseQuery = baseQuery.Where(x =>
+                            x.MinStock == 0 || x.Quantity >= x.MinStock);
                         break;
                 }
             }
@@ -1540,20 +1747,24 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-            var query = _db.Products
-                .AsNoTracking()
-                .Where(p => p.Status == "Active");
+            var from = q.DateFrom ?? DateTime.MinValue;
+            var to = q.DateTo ?? DateTime.UtcNow;
+
+            var productQuery = _db.Products.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(q.Search))
             {
                 var s = q.Search.Trim().ToLower();
-                query = query.Where(p =>
+                productQuery = productQuery.Where(p =>
                     (p.ProductCode ?? "").ToLower().Contains(s) ||
                     p.ProductName.ToLower().Contains(s));
             }
 
             var baseQuery =
-                from p in query
+                from p in productQuery
+                join d in _db.ProductDetails.AsNoTracking()
+                    on p.ProductID equals d.ProductID into dg
+                from d in dg.DefaultIfEmpty()
                 join th in _db.InventoryThresholds.AsNoTracking()
                     on p.ProductID equals th.ProductId into thg
                 from th in thg.DefaultIfEmpty()
@@ -1562,10 +1773,13 @@ namespace SaoKim_ecommerce_BE.Controllers
                     p.ProductID,
                     p.ProductCode,
                     p.ProductName,
-                    p.Quantity,
-                    p.Unit,
-                    MinStock = (int?)th.MinStock ?? 0
+                    Quantity = d != null ? d.Quantity : 0,           
+                    Unit = d != null ? d.Unit : null,
+                    MinStock = (int?)th.MinStock ?? 0,
+                    DetailStatus = d != null ? d.Status : null
                 };
+
+            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
 
             var queryWithStatus = baseQuery.Select(x => new
             {
@@ -1603,27 +1817,119 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var total = await queryWithStatus.CountAsync();
 
-            var items = await queryWithStatus
+            var pageData = await queryWithStatus
                 .OrderBy(x => x.ProductName)
                 .ThenBy(x => x.ProductCode)
                 .Skip((q.Page - 1) * q.PageSize)
                 .Take(q.PageSize)
-                .Select(x => new
-                {
-                    productId = x.ProductID,
-                    productCode = x.ProductCode,
-                    productName = x.ProductName,
-                    onHand = x.Quantity,
-                    uomName = x.Unit,
-                    minStock = x.MinStock,
-                    status = x.Status,
-                    note = (string?)null
-                })
                 .ToListAsync();
+
+            var productIds = pageData.Select(x => x.ProductID).ToList();
+            if (productIds.Count == 0)
+            {
+                return Ok(new
+                {
+                    total,
+                    items = Array.Empty<object>()
+                });
+            }
+
+            var inboundBase =
+                from item in _db.ReceivingSlipItems.AsNoTracking()
+                join slip in _db.ReceivingSlips.AsNoTracking()
+                    on item.ReceivingSlipId equals slip.Id
+                where item.ProductId != null
+                      && productIds.Contains(item.ProductId.Value)
+                      && slip.Status == ReceivingSlipStatus.Confirmed
+                select new
+                {
+                    ProductId = item.ProductId!.Value,
+                    slip.ReceiptDate,
+                    item.Quantity
+                };
+
+            var inboundBeforeList = await inboundBase
+                .Where(x => x.ReceiptDate < from)
+                .GroupBy(x => x.ProductId)
+                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
+                .ToListAsync();
+
+            // Nhập trong kỳ
+            var inboundPeriodList = await inboundBase
+                .Where(x => x.ReceiptDate >= from && x.ReceiptDate <= to)
+                .GroupBy(x => x.ProductId)
+                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
+                .ToListAsync();
+
+            var inboundBeforeDict = inboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
+            var inboundPeriodDict = inboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
+
+            var outboundBase =
+                from item in _db.DispatchItems.AsNoTracking()
+                join slip in _db.Dispatches.AsNoTracking()
+                    on item.DispatchId equals slip.Id
+                where item.ProductId != null
+                      && productIds.Contains(item.ProductId.Value)
+                      && slip.Status == DispatchStatus.Confirmed
+                select new
+                {
+                    ProductId = item.ProductId!.Value,
+                    slip.DispatchDate,
+                    item.Quantity
+                };
+
+            var outboundBeforeList = await outboundBase
+                .Where(x => x.DispatchDate < from)
+                .GroupBy(x => x.ProductId)
+                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
+                .ToListAsync();
+
+            var outboundPeriodList = await outboundBase
+                .Where(x => x.DispatchDate >= from && x.DispatchDate <= to)
+                .GroupBy(x => x.ProductId)
+                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
+                .ToListAsync();
+
+            var outboundBeforeDict = outboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
+            var outboundPeriodDict = outboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
+
+            var items = pageData
+                .Select(x =>
+                {
+                    var productId = x.ProductID;
+
+                    var inBefore = inboundBeforeDict.TryGetValue(productId, out var ib) ? ib : 0;
+                    var outBefore = outboundBeforeDict.TryGetValue(productId, out var ob) ? ob : 0;
+
+                    var inboundPeriod = inboundPeriodDict.TryGetValue(productId, out var ip) ? ip : 0;
+                    var outboundPeriod = outboundPeriodDict.TryGetValue(productId, out var op) ? op : 0;
+
+                    var opening = inBefore - outBefore;
+                    var closing = opening + inboundPeriod - outboundPeriod;
+
+                    return new
+                    {
+                        productId = x.ProductID,
+                        productCode = x.ProductCode,
+                        productName = x.ProductName,
+
+                        onHand = x.Quantity,
+
+                        uomName = x.Unit,
+                        minStock = x.MinStock,
+                        status = x.Status,
+                        note = (string?)null,
+
+                        openingQty = opening,          
+                        inboundQty = inboundPeriod,    
+                        outboundQty = outboundPeriod,  
+                        closingQty = closing           
+                    };
+                })
+                .ToList();
 
             return Ok(new { total, items });
         }
-
 
         [HttpPatch("inventory/{productId:int}/min-stock")]
         public async Task<IActionResult> UpdateMinStock([FromRoute] int productId, [FromBody] UpdateMinStockDto dto)
@@ -1720,11 +2026,22 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("trace/product/{productId:int}")]
         public async Task<IActionResult> GetProductTrace([FromRoute] int productId)
         {
-            var product = await _db.Products
+            var productInfo = await _db.Products
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ProductID == productId);
+                .Where(p => p.ProductID == productId)
+                .Select(p => new
+                {
+                    p.ProductID,
+                    p.ProductCode,
+                    p.ProductName,
+                    Unit = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .Select(d => d.Unit)
+                        .FirstOrDefault()
+                })
+                .FirstOrDefaultAsync();
 
-            if (product == null)
+            if (productInfo == null)
                 return NotFound(new { message = "Product not found" });
 
             var inboundQuery =
@@ -1786,10 +2103,10 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new
             {
-                productId = product.ProductID,
-                productCode = product.ProductCode,
-                productName = product.ProductName,
-                unit = product.Unit,
+                productId = productInfo.ProductID,
+                productCode = productInfo.ProductCode,
+                productName = productInfo.ProductName,
+                unit = productInfo.Unit,  
                 movements
             });
         }

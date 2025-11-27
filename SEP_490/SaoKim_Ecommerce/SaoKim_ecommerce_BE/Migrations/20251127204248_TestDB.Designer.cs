@@ -12,8 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    [Migration("20251124045513_InitCreate")]
-    partial class InitCreate
+    [Migration("20251127204248_TestDB")]
+    partial class TestDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -281,7 +281,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("dispatch_id");
 
-                    b.Property<int>("ProductId")
+                    b.Property<int?>("ProductId")
                         .HasColumnType("integer");
 
                     b.Property<string>("ProductName")
@@ -572,6 +572,35 @@ namespace SaoKim_ecommerce_BE.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProductID"));
 
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("product_code");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("product_name");
+
+                    b.HasKey("ProductID");
+
+                    b.HasIndex("ProductCode")
+                        .IsUnique();
+
+                    b.ToTable("products", (string)null);
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProductDetail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
                     b.Property<int?>("CategoryId")
                         .HasColumnType("integer")
                         .HasColumnName("category_id");
@@ -586,14 +615,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("create_by");
-
-                    b.Property<DateTime?>("Created")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -614,17 +635,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("price");
 
-                    b.Property<string>("ProductCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("product_code");
-
-                    b.Property<string>("ProductName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("product_name");
+                    b.Property<int>("ProductID")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer")
@@ -634,10 +647,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("status");
-
-                    b.Property<int>("Stock")
-                        .HasColumnType("integer")
-                        .HasColumnName("stock");
 
                     b.Property<string>("Supplier")
                         .HasMaxLength(200)
@@ -658,15 +667,14 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("update_by");
 
-                    b.HasKey("ProductID");
+                    b.HasKey("Id");
 
                     b.HasIndex("CategoryId")
-                        .HasDatabaseName("IX_products_category_id");
+                        .HasDatabaseName("IX_product_details_category_id");
 
-                    b.HasIndex("ProductCode")
-                        .IsUnique();
+                    b.HasIndex("ProductID");
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("product_details", (string)null);
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>
@@ -1468,14 +1476,22 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProductDetail", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.Category", "Category")
-                        .WithMany("Products")
+                        .WithMany("ProductDetails")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Product", "Product")
+                        .WithMany("ProductDetails")
+                        .HasForeignKey("ProductID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectExpense", b =>
@@ -1657,7 +1673,7 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
                 {
-                    b.Navigation("Products");
+                    b.Navigation("ProductDetails");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.DispatchBase", b =>
@@ -1675,6 +1691,11 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Invoice");
 
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>
+                {
+                    b.Navigation("ProductDetails");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>
