@@ -117,7 +117,7 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
       </div>
 
       <div className="manager-form__field">
-        <label>Ngân sách (VND)</label>
+        <label>Giá trị dự án (VND)</label>
         <input
           name="budget"
           value={values.budget}

@@ -19,9 +19,13 @@ export const ProjectAPI = {
   remove: (id) => http.delete(`/Projects/${id}`),
 
   // Báo cáo dự án (JSON & PDF)
-  getReport: (id) => http.get(`/projects/${id}/report`),
+  getReport: (id) => http.get(`/projects/${id}/report`, { params: { lang: "vi" } }),
   getReportPdf: (id) =>
-    http.get(`/projects/${id}/report/pdf`, { responseType: "blob" }),
+    http.get(`/projects/${id}/report/pdf`, {
+      responseType: "blob",
+      params: { lang: "vi" },
+      headers: { "Accept-Language": "vi" },
+    }),
 };
 
 // Nhóm API cho Tasks thuộc Project

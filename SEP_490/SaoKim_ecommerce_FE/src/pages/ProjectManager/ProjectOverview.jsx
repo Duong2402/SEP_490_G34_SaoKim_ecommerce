@@ -2,11 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
-import { formatBudget, formatDate, getStatusBadgeClass, getStatusLabel } from "./projectHelpers";
+import { formatBudget, formatDate, getStatusBadgeClass, getStatusLabel, formatNumber } from "./projectHelpers";
 
 export default function ProjectOverview() {
-  const { t, lang, formatNumber } = useLanguage();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +72,7 @@ export default function ProjectOverview() {
           </div>
         </header>
 
-        <section className="metrics-grid">
+                        <section className="metrics-grid">
           <article className="metric-card">
             <div className="metric-label">Tổng dự án</div>
             <div className="metric-value">{formatNumber(metrics.total) || "0"}</div>
@@ -85,14 +83,13 @@ export default function ProjectOverview() {
             <div className="metric-label">Đang triển khai</div>
             <div className="metric-value">{formatNumber(metrics.inProgress) || "0"}</div>
             <div className="metric-trend">
-              Nháp: {formatNumber(metrics.draft) || "0"} • Hoàn tất:{" "}
-              {formatNumber(metrics.delivered) || "0"}
+              Nháp: {formatNumber(metrics.draft) || "0"} - Hoàn tất: {formatNumber(metrics.delivered) || "0"}
             </div>
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">Ngân sách kế hoạch</div>
-            <div className="metric-value">{formatBudget(metrics.budget, lang)}</div>
+            <div className="metric-label">Giá trị dự án kế hoạch</div>
+            <div className="metric-value">{formatBudget(metrics.budget)}</div>
             <div className="metric-trend">
               {formatNumber(metrics.overdue) || "0"} dự án có nguy cơ quá hạn
             </div>
@@ -106,7 +103,7 @@ export default function ProjectOverview() {
         </section>
 
         <div className="manager-grid-two">
-          <section className="manager-panel">
+                    <section className="manager-panel">
             <div className="manager-panel__header">
               <div>
                 <h3 className="manager-panel__title">Dự án có rủi ro</h3>
@@ -134,11 +131,11 @@ export default function ProjectOverview() {
                       <tr key={p.id}>
                         <td>{p.code || "-"}</td>
                         <td>{p.name}</td>
-                        <td>{formatDate(p.endDate, lang)}</td>
+                        <td>{formatDate(p.endDate)}</td>
                         <td>
                           <span className={getStatusBadgeClass(p.status)}>
                             <span className="badge-dot" />
-                            {getStatusLabel(p.status, t)}
+                            {getStatusLabel(p.status)}
                           </span>
                         </td>
                         <td style={{ textAlign: "right" }}>
@@ -154,12 +151,14 @@ export default function ProjectOverview() {
             ) : (
               <div className="empty-state">
                 <div className="empty-state-title">Không có rủi ro nào</div>
-                <div className="empty-state-subtitle">Tất cả dự án đang trong tầm kiểm soát.</div>
+                <div className="empty-state-subtitle">
+                  Tất cả dự án đang trong tầm kiểm soát.
+                </div>
               </div>
             )}
           </section>
 
-          <section className="manager-panel">
+                    <section className="manager-panel">
             <div className="manager-panel__header">
               <div>
                 <h3 className="manager-panel__title">Dự án mới cập nhật</h3>
@@ -184,16 +183,16 @@ export default function ProjectOverview() {
                     <div>
                       <strong>{p.name}</strong>
                       <div style={{ color: "var(--pm-muted)", fontSize: 13 }}>
-                        Mã: {p.code || "-"} • Khách: {p.customerName || "Chưa có"}
+                        Mã: {p.code || "-"} | Khách: {p.customerName || "Chưa có"}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div className={getStatusBadgeClass(p.status)} style={{ display: "inline-flex" }}>
                         <span className="badge-dot" />
-                        {getStatusLabel(p.status, t)}
+                        {getStatusLabel(p.status)}
                       </div>
                       <div style={{ color: "var(--pm-muted)", fontSize: 13 }}>
-                        Hạn: {formatDate(p.endDate, lang)}
+                        Hạn: {formatDate(p.endDate)}
                       </div>
                     </div>
                   </li>

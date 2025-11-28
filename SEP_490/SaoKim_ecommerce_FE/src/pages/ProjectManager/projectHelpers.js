@@ -1,9 +1,9 @@
 const PROJECT_STATUSES = [
-  { value: "Draft", labelKey: "projects.statusLabels.Draft", tone: "neutral" },
-  { value: "InProgress", labelKey: "projects.statusLabels.InProgress", tone: "warning" },
-  { value: "Delivered", labelKey: "projects.statusLabels.Delivered", tone: "success" },
-  { value: "Done", labelKey: "projects.statusLabels.Done", tone: "success" },
-  { value: "Cancelled", labelKey: "projects.statusLabels.Cancelled", tone: "danger" },
+  { value: "Draft", label: "Bản nháp", tone: "neutral" },
+  { value: "InProgress", label: "Đang thực hiện", tone: "warning" },
+  { value: "Delivered", label: "Đã bàn giao", tone: "success" },
+  { value: "Done", label: "Hoàn thành", tone: "success" },
+  { value: "Cancelled", label: "Đã hủy", tone: "danger" },
 ];
 
 const STATUS_LOOKUP = PROJECT_STATUSES.reduce((acc, status) => {
@@ -24,6 +24,12 @@ const numberFormatters = {
 
 const dateLocales = {
   vi: "vi-VN",
+};
+
+const formatNumber = (value, lang = "vi") => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
+  return formatter.format(value);
 };
 
 const formatBudget = (value, lang = "vi") => {
@@ -54,10 +60,7 @@ const getStatusBadgeClass = (status) => {
   return BADGE_TONE_CLASS[meta.tone] ?? BADGE_TONE_CLASS.neutral;
 };
 
-const getStatusLabel = (status, t) => {
-  const meta = getStatusMeta(status);
-  return t(meta.labelKey);
-};
+const getStatusLabel = (status) => getStatusMeta(status).label;
 
 export {
   PROJECT_STATUSES,
@@ -66,6 +69,7 @@ export {
   formatBudget,
   formatBudgetCompact,
   formatDate,
+  formatNumber,
   getStatusMeta,
   getStatusBadgeClass,
   getStatusLabel,

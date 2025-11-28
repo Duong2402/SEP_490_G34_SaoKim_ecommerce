@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import ProjectForm from "./ProjectForm";
 
 export default function ProjectCreate() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
-  const { t } = useLanguage();
 
   const handleSubmit = async (payload) => {
     try {
@@ -16,11 +14,11 @@ export default function ProjectCreate() {
       const body = res || {};
       const created = body.data ?? body;
       const newId = created?.id;
-      alert(t("projects.create.success"));
+      alert("Tạo dự án thành công.");
       navigate(newId ? `/projects/${newId}` : "/projects");
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || t("projects.create.failure"));
+      alert(err?.response?.data?.message || "Không thể tạo dự án.");
     } finally {
       setSaving(false);
     }
@@ -31,12 +29,14 @@ export default function ProjectCreate() {
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">{t("projects.create.title")}</h1>
-            <p className="page-subtitle">{t("projects.create.subtitle")}</p>
+            <h1 className="page-title">Tạo dự án</h1>
+            <p className="page-subtitle">
+              Ghi lại yêu cầu, đội ngũ, thời gian và giá trị dự án để khởi động dự án rõ ràng.
+            </p>
           </div>
           <div className="actions">
             <Link to="/projects" className="btn btn-ghost">
-              {t("common.actions.cancel")}
+              Hủy
             </Link>
           </div>
         </header>

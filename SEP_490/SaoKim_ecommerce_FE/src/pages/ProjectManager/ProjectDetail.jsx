@@ -1,5 +1,5 @@
 ﻿// src/pages/ProjectManager/ProjectDetail.jsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
@@ -7,12 +7,12 @@ import "dayjs/locale/vi";
 import { ProjectAPI, TaskAPI } from "../../api/ProjectManager/projects";
 import { ProjectProductAPI } from "../../api/ProjectManager/project-products";
 import { ProjectExpenseAPI } from "../../api/ProjectManager/project-expenses";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   formatBudget,
   formatDate,
   getStatusBadgeClass,
   getStatusLabel,
+  formatNumber,
 } from "./projectHelpers";
 import AddEditProjectProductModal from "../../components/AddEditProjectProductModal.jsx";
 import MultiAddProjectProductsModal from "../../components/MultiAddProjectProductsModal.jsx";
@@ -41,6 +41,86 @@ const DEFAULT_CELL_COLOR = "rgba(148,163,184,0.12)";
 
 const toUIStatus = (value) => BE_TO_UI[value] || "Pending";
 const toBEStatus = (value) => UI_TO_BE[value] || "New";
+const lang = "vi";
+
+const COPY = {
+  "common.actions.edit": "Chỉnh sửa",
+  "common.actions.cancel": "Hủy",
+  "common.status.loading": "Đang tải...",
+  "projects.detail.actions.addTask": "Thêm công việc",
+  "projects.detail.actions.backToList": "Quay lại danh sách",
+  "projects.detail.budget": "Giá trị dự án",
+  "projects.detail.budgetHint": "Giá trị dự án dự kiến cho toàn bộ dự án.",
+  "projects.detail.customer": "Khách hàng",
+  "projects.detail.customerContactEmpty": "Chưa có thông tin liên hệ.",
+  "projects.detail.customerEmpty": "Chưa có khách hàng.",
+  "projects.detail.description": "Mô tả",
+  "projects.detail.descriptionEmpty": "Chưa có mô tả.",
+  "projects.detail.legendHint":
+    "Bấm vào ô để chuyển luân phiên: Chưa thực hiện -> Đang làm -> Hoàn thành -> Trễ hạn -> Xóa.",
+  "projects.detail.loadingProject": "Đang tải dự án...",
+  "projects.detail.loadingTasks": "Đang tải công việc...",
+  "projects.detail.messages.saveTaskFailure": "Không thể lưu công việc.",
+  "projects.detail.messages.updateDayFailure": "Không cập nhật được trạng thái ngày.",
+  "projects.detail.metrics.completed": "Đã hoàn thành",
+  "projects.detail.metrics.completedHint": "Đã đánh dấu xong",
+  "projects.detail.metrics.delayed": "Chậm tiến độ",
+  "projects.detail.metrics.delayedHint": "Cần theo dõi",
+  "projects.detail.metrics.progress": "Tiến độ",
+  "projects.detail.metrics.progressHint": "Dựa trên công việc đã hoàn thành",
+  "projects.detail.metrics.total": "Tổng số công việc",
+  "projects.detail.metrics.totalHint": "{{active}} đang hoạt động",
+  "projects.detail.nextMonth": "Tháng sau",
+  "projects.detail.noStatus": "Chưa có trạng thái",
+  "projects.detail.notFoundSubtitle":
+    "Không tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
+  "projects.detail.notFoundTitle": "Không tìm thấy dự án",
+  "projects.detail.previousMonth": "Tháng trước",
+  "projects.detail.searchPlaceholder": "Tìm công việc theo tên hoặc người phụ trách",
+  "projects.detail.subtitle": "Mã dự án {{code}}.",
+  "projects.detail.subtitleFallback": "Xem chi tiết thời gian, người phụ trách và giá trị dự án.",
+  "projects.detail.taskDuration": "{{count}} ngày",
+  "projects.detail.taskEmptySubtitle": "Thêm công việc để lập kế hoạch và phân công người phụ trách.",
+  "projects.detail.taskEmptyTitle": "Chưa có công việc",
+  "projects.detail.taskModal.assignee": "Người phụ trách",
+  "projects.detail.taskModal.cancel": "Hủy",
+  "projects.detail.taskModal.create": "Tạo công việc",
+  "projects.detail.taskModal.createTitle": "Tạo công việc",
+  "projects.detail.taskModal.duration": "Thời lượng (ngày)",
+  "projects.detail.taskModal.editTitle": "Chỉnh sửa công việc",
+  "projects.detail.taskModal.name": "Tên công việc",
+  "projects.detail.taskModal.startDate": "Ngày bắt đầu",
+  "projects.detail.taskModal.update": "Lưu thay đổi",
+  "projects.detail.taskModal.validations.duration": "Thời lượng phải từ 1 ngày trở lên.",
+  "projects.detail.taskModal.validations.name": "Vui lòng nhập tên công việc.",
+  "projects.detail.taskModal.validations.startDate": "Chọn ngày bắt đầu.",
+  "projects.detail.taskTable.assignee": "Phụ trách",
+  "projects.detail.taskTable.duration": "Thời lượng",
+  "projects.detail.taskTable.name": "Công việc",
+  "projects.detail.taskTable.overallStatus": "Trạng thái chung",
+  "projects.detail.taskTable.start": "Ngày bắt đầu",
+  "projects.detail.tasksSubtitle": "Quản lý phân công và cập nhật theo từng ngày trong tháng.",
+  "projects.detail.tasksTitle": "Lịch công việc",
+  "projects.detail.timeline": "Tiến độ",
+  "projects.detail.timelineHint": "Kéo dài khoảng {{days}} ngày.",
+  "projects.detail.unassigned": "Chưa phân công",
+  "projects.detail.untitledTask": "Chưa đặt tên",
+  "projects.detail.taskStatus.Pending": "Chưa thực hiện",
+  "projects.detail.taskStatus.Doing": "Đang làm",
+  "projects.detail.taskStatus.Done": "Hoàn thành",
+  "projects.detail.taskStatus.Delayed": "Trễ hạn",
+};
+
+const interpolate = (template, params) =>
+  typeof template === "string" && params
+    ? template.replace(/\{\{(\w+)\}\}/g, (_, key) => (key in params ? params[key] : ""))
+    : template;
+
+const t = (key, params) => {
+  const value = COPY[key];
+  if (typeof value === "string") return interpolate(value, params);
+  return key;
+};
 
 const normalizeTaskFromAPI = (raw) => ({
   ...raw,
@@ -58,18 +138,33 @@ const getOverallStatusUI = (task) => {
   return last?.status || "Pending";
 };
 
-const buildDefaultForm = (referenceMonth) => ({
-  name: "",
-  assignee: "",
-  startDate: referenceMonth.format("YYYY-MM-DD"),
-  durationDays: "1",
-});
+const isInTaskRange = (task, dateObj) => {
+  if (!task?.startDate || !task?.durationDays) return false;
+  const start = dayjs(task.startDate);
+  if (!start.isValid()) return false;
+  const duration = Number(task.durationDays) || 0;
+  if (duration < 1) return false;
+  const end = start.add(duration - 1, "day");
+  return (dateObj.isSame(start, "day") || dateObj.isSame(end, "day")) || (dateObj.isAfter(start, "day") && dateObj.isBefore(end, "day"));
+};
+
+const buildDefaultForm = (referenceMonth) => {
+  const today = dayjs().startOf("day");
+  const start = referenceMonth.isBefore(today, "day") ? today : referenceMonth;
+  return {
+    name: "",
+    assignee: "",
+    startDate: start.format("YYYY-MM-DD"),
+    durationDays: "1",
+  };
+};
 
 const LEGEND_ITEMS = ["Pending", "Doing", "Done", "Delayed"];
+const DAY_HEADERS = ["Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy", "CN"];
 
 function ProjectDetail() {
   const { id } = useParams();
-  const { t, lang, formatNumber } = useLanguage();
+  const timelineRef = useRef(null);
 
   const [project, setProject] = useState(null);
   const [loadingProject, setLoadingProject] = useState(true);
@@ -85,6 +180,10 @@ function ProjectDetail() {
   const [form, setForm] = useState(buildDefaultForm(dayjs().startOf("month")));
   const [formErrors, setFormErrors] = useState({});
   const [savingTask, setSavingTask] = useState(false);
+  const [showRangePicker, setShowRangePicker] = useState(false);
+  const [rangeStart, setRangeStart] = useState(dayjs().format("YYYY-MM-DD"));
+  const [rangeEnd, setRangeEnd] = useState(dayjs().add(6, "day").format("YYYY-MM-DD"));
+  const [dayPickerTask, setDayPickerTask] = useState(null);
 
   // --- ProjectProducts state ---
   const [products, setProducts] = useState([]);
@@ -247,6 +346,10 @@ function ProjectDetail() {
   const monthLabel = month.locale("vi").format("MMMM YYYY");
 
   const openCreateTask = () => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm công việc.");
+      return;
+    }
     setEditingTask(null);
     setForm(buildDefaultForm(month));
     setFormErrors({});
@@ -254,6 +357,10 @@ function ProjectDetail() {
   };
 
   const openEditTask = (task) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể chỉnh sửa công việc.");
+      return;
+    }
     setEditingTask(task);
     setForm({
       name: task.name ?? "",
@@ -287,11 +394,17 @@ function ProjectDetail() {
 
   const validateForm = useCallback(() => {
     const errors = {};
+    const today = dayjs().startOf("day");
     if (!form.name.trim()) {
       errors.name = t("projects.detail.taskModal.validations.name");
     }
     if (!form.startDate) {
       errors.startDate = t("projects.detail.taskModal.validations.startDate");
+    } else {
+      const start = dayjs(form.startDate);
+      if (!start.isValid() || start.isBefore(today, "day")) {
+        errors.startDate = "Ngày bắt đầu phải từ hôm nay trở đi.";
+      }
     }
     const durationValue = Number.parseInt(form.durationDays, 10);
     if (!Number.isFinite(durationValue) || durationValue < 1) {
@@ -328,7 +441,116 @@ function ProjectDetail() {
     }
   };
 
+  const scrollToDay = useCallback(
+    (day) => {
+      if (!timelineRef.current) return;
+      const target = typeof day === "string" ? day : day.format("YYYY-MM-DD");
+      const el = timelineRef.current.querySelector(`[data-date="${target}"]`);
+      if (el) {
+        const container = timelineRef.current;
+        const left = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
+        container.scrollTo({ left: Math.max(left, 0), behavior: "smooth" });
+      }
+    },
+    [timelineRef],
+  );
+
+  const handleDeleteTask = async (taskId) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể xóa công việc.");
+      return;
+    }
+    if (!window.confirm("Bạn chắc chắn muốn xóa công việc này?")) return;
+    try {
+      await TaskAPI.remove(id, taskId);
+      await loadTasks();
+    } catch (error) {
+      console.error(error);
+      alert("Không thể xóa công việc.");
+    }
+  };
+
+  // --- Product guards ---
+  const openAddProduct = () => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa sản phẩm.");
+      return;
+    }
+    setEditingProduct(null);
+    setShowAddProductModal(true);
+  };
+
+  const openEditProduct = (item) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa sản phẩm.");
+      return;
+    }
+    setEditingProduct(item);
+    setShowAddProductModal(true);
+  };
+
+  const handleDeleteProduct = async (item) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể xóa sản phẩm.");
+      return;
+    }
+    if (!window.confirm("Bạn chắc chắn muốn xóa sản phẩm này?")) return;
+    try {
+      await ProjectProductAPI.remove(id, item.id);
+      await loadProducts();
+    } catch (err) {
+      console.error(err);
+      alert("Xóa thất bại!");
+    }
+  };
+
+  const openMultiAddProducts = () => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm sản phẩm.");
+      return;
+    }
+    setShowMultiAddModal(true);
+  };
+
+  // --- Expense guards ---
+  const openAddExpense = () => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa chi phí.");
+      return;
+    }
+    setEditingExpense(null);
+    setShowExpenseModal(true);
+  };
+
+  const openEditExpense = (expense) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa chi phí.");
+      return;
+    }
+    setEditingExpense(expense);
+    setShowExpenseModal(true);
+  };
+
+  const handleDeleteExpense = async (expense) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể xóa chi phí.");
+      return;
+    }
+    if (!window.confirm("Bạn chắc chắn muốn xóa khoản chi này?")) return;
+    try {
+      await ProjectExpenseAPI.remove(id, expense.id);
+      await loadExpenses();
+    } catch (err) {
+      console.error(err);
+      alert("Xóa thất bại!");
+    }
+  };
+
   const handleCellClick = async (task, dateKey) => {
+    if (isProjectDone) {
+      alert("Dự án đã hoàn thành, không thể cập nhật trạng thái công việc.");
+      return;
+    }
     const taskIndex = tasks.findIndex((entry) => entry.id === task.id);
     if (taskIndex < 0) return;
 
@@ -360,6 +582,9 @@ function ProjectDetail() {
 
     nextTasks[taskIndex] = nextTask;
     setTasks(nextTasks);
+    if (dayPickerTask?.id === nextTask.id) {
+      setDayPickerTask(nextTask);
+    }
 
     const payload = {
       name: nextTask.name ?? "",
@@ -388,6 +613,30 @@ function ProjectDetail() {
 
   const goToPreviousMonth = () => setMonth((current) => current.subtract(1, "month"));
   const goToNextMonth = () => setMonth((current) => current.add(1, "month"));
+  const goToToday = () => {
+    const todayDate = dayjs();
+    if (todayDate.isSame(month, "month")) {
+      scrollToDay(todayDate);
+    } else {
+      setMonth(todayDate.startOf("month"));
+      setTimeout(() => scrollToDay(todayDate), 50);
+    }
+  };
+  const goToEndOfMonth = () => {
+    const end = month.endOf("month");
+    scrollToDay(end);
+  };
+
+  const applyRangeSelection = () => {
+    const start = dayjs(rangeStart);
+    const end = dayjs(rangeEnd);
+    if (!start.isValid() || !end.isValid() || end.isBefore(start, "day")) {
+      alert("Khoảng ngày không hợp lệ.");
+      return;
+    }
+    setMonth(start.startOf("month"));
+    setShowRangePicker(false);
+  };
 
   const totalProductCost = useMemo(
     () => products.reduce((sum, p) => sum + (Number(p.total) || 0), 0),
@@ -434,6 +683,8 @@ function ProjectDetail() {
     ? t("projects.detail.subtitle", { code: project.code })
     : t("projects.detail.subtitleFallback");
 
+  const isProjectDone = project.status === "Done";
+
   return (
     <div className="pm-page">
       <div className="project-detail">
@@ -444,7 +695,7 @@ function ProjectDetail() {
                 {project.code ? <span className="project-hero__code">#{project.code}</span> : null}
                 <span className={getStatusBadgeClass(project.status)}>
                   <span className="badge-dot" />
-                  {getStatusLabel(project.status, t)}
+                  {getStatusLabel(project.status)}
                 </span>
               </div>
               <h1 className="project-hero__title">{project.name}</h1>
@@ -579,25 +830,25 @@ function ProjectDetail() {
               <p className="project-section-subtitle">{t("projects.detail.tasksSubtitle")}</p>
             </div>
             <div className="project-task-controls">
-              <div className="project-task-month">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon"
-                  onClick={goToPreviousMonth}
-                  aria-label={t("projects.detail.previousMonth")}
-                >
-                  ‹
-                </button>
-                <div className="project-task-month__label">{monthLabel}</div>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon"
-                  onClick={goToNextMonth}
-                  aria-label={t("projects.detail.nextMonth")}
-                >
-                  ›
-                </button>
-              </div>
+                <div className="project-task-month">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    onClick={goToPreviousMonth}
+                    aria-label={t("projects.detail.previousMonth")}
+                  >
+                    ‹
+                  </button>
+                  <div className="project-task-month__label">{monthLabel}</div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    onClick={goToNextMonth}
+                    aria-label={t("projects.detail.nextMonth")}
+                  >
+                    ›
+                  </button>
+                </div>
               <div className="project-task-search">
                 <input
                   className="input"
@@ -608,124 +859,189 @@ function ProjectDetail() {
                   aria-label={t("projects.detail.searchPlaceholder")}
                 />
               </div>
+              <div>
+                <button type="button" className="btn btn-primary" onClick={openCreateTask}>
+                  + Thêm công việc
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="task-legend">
-            {LEGEND_ITEMS.map((status) => (
-              <span key={status} className="task-legend__item">
-                <span
-                  className="task-legend__swatch"
-                  style={{ background: STATUS_COLORS[status] }}
-                />
-                {t(`projects.detail.taskStatus.${status}`)}
-              </span>
-            ))}
-          </div>
-          <p className="project-section-subtitle">{t("projects.detail.legendHint")}</p>
+          {showRangePicker &&
+            createPortal(
+              <div className="pm-modal" onClick={() => setShowRangePicker(false)}>
+                <div
+                  className="pm-modal__dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="task-range-picker"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ maxWidth: 480 }}
+                >
+                  <div className="pm-modal__header">
+                    <div>
+                      <h3 id="task-range-picker" className="pm-modal__title">
+                        Chọn ngày theo dõi
+                      </h3>
+                      <p className="pm-modal__subtitle">
+                        Chọn khoảng ngày để nhảy nhanh tới dải thời gian cần xem.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="pm-modal__close"
+                      aria-label="Đóng"
+                      onClick={() => setShowRangePicker(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="pm-modal__body">
+                    <div className="pm-modal__grid" style={{ marginBottom: 12 }}>
+                      <div className="pm-field">
+                        <label className="pm-field__label">Từ ngày</label>
+                        <input
+                          type="date"
+                          className="input"
+                          value={rangeStart}
+                          onChange={(e) => setRangeStart(e.target.value)}
+                        />
+                      </div>
+                      <div className="pm-field">
+                        <label className="pm-field__label">Đến ngày</label>
+                        <input
+                          type="date"
+                          className="input"
+                          value={rangeEnd}
+                          onChange={(e) => setRangeEnd(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                      {[7, 15, 30].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => {
+                            const start = dayjs();
+                            setRangeStart(start.format("YYYY-MM-DD"));
+                            setRangeEnd(start.add(days - 1, "day").format("YYYY-MM-DD"));
+                          }}
+                        >
+                          {days} ngày
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pm-modal__footer">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setShowRangePicker(false)}
+                    >
+                      Hủy
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={applyRangeSelection}>
+                      Chọn ngày
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
 
           {loadingTasks ? (
             <div className="loading-state">{t("projects.detail.loadingTasks")}</div>
           ) : sortedTasks.length ? (
-            <div className="gantt">
-              <div className="gantt-header">
-                <div className="col col-name">{t("projects.detail.taskTable.name")}</div>
-                <div className="col col-assignee">
-                  {t("projects.detail.taskTable.assignee")}
-                </div>
-                <div className="col col-start">{t("projects.detail.taskTable.start")}</div>
-                <div className="col col-dur">{t("projects.detail.taskTable.duration")}</div>
-                <div className="col col-status">
-                  {t("projects.detail.taskTable.overallStatus")}
-                </div>
-                <div className="col col-days">
-                  <div className="g-days" style={{ gridTemplateColumns: columnsTemplate }}>
-                    {daysInView.map((date) => {
-                      const isWeekend = date.day() === 0 || date.day() === 6;
-                      const isToday = date.isSame(today, "day");
-                      const classNames = ["g-day-h"];
-                      if (isWeekend) classNames.push("is-weekend");
-                      if (isToday) classNames.push("is-today");
+            <div className="table-responsive">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Công việc</th>
+                    <th>Phụ trách</th>
+                    <th>Bắt đầu</th>
+                    <th>Kết thúc</th>
+                    <th>Trạng thái</th>
+                    <th style={{ width: 140, textAlign: "right" }}>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedTasks
+                    .filter((task) => {
+                      const start = dayjs(task.startDate);
+                      const duration = Number(task.durationDays) || 0;
+                      const end = duration > 0 ? start.add(duration - 1, "day") : start;
+                      const from = dayjs(rangeStart);
+                      const to = dayjs(rangeEnd);
+                      if (!from.isValid() || !to.isValid()) return true;
+                      const overlaps =
+                        (start.isSame(from, "day") || start.isAfter(from, "day")) &&
+                        (start.isSame(to, "day") || start.isBefore(to, "day"));
+                      const endInside =
+                        (end.isSame(from, "day") || end.isAfter(from, "day")) &&
+                        (end.isSame(to, "day") || end.isBefore(to, "day"));
+                      const spanCoversRange =
+                        start.isBefore(from, "day") && end.isAfter(to, "day");
+                      return overlaps || endInside || spanCoversRange;
+                    })
+                    .map((task) => {
+                      const overall = getOverallStatusUI(task);
+                      const start = dayjs(task.startDate);
+                      const duration = Number(task.durationDays) || 0;
+                      const end = duration > 0 ? start.add(duration - 1, "day") : start;
+                      const displayName = task.name || t("projects.detail.untitledTask");
+                      const assignee = task.assignee || t("projects.detail.unassigned");
                       return (
-                        <div key={date.format("YYYY-MM-DD")} className={classNames.join(" ")}>
-                          {date.format("D")}
-                        </div>
+                        <tr key={task.id}>
+                          <td>{displayName}</td>
+                          <td>{assignee}</td>
+                          <td>{formatDate(task.startDate, lang)}</td>
+                          <td>{formatDate(end, lang)}</td>
+                          <td>
+                            <span className={getStatusBadgeClass(overall)}>
+                              <span className="badge-dot" />
+                              {t(`projects.detail.taskStatus.${overall}`)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <div
+                              style={{
+                                display: "inline-flex",
+                                gap: 6,
+                                justifyContent: "flex-end",
+                                alignItems: "center",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-compact"
+                                onClick={() => openEditTask(task)}
+                              >
+                                {t("common.actions.edit")}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-compact"
+                                onClick={() => setDayPickerTask(task)}
+                              >
+                                Chọn ngày
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-compact"
+                                style={{ color: "#dc2626" }}
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })}
-                  </div>
-                </div>
-              </div>
-
-              {sortedTasks.map((task) => {
-                const overall = getOverallStatusUI(task);
-                const startLabel = formatDate(task.startDate, lang);
-                const durationLabel =
-                  Number.isFinite(Number(task.durationDays)) && Number(task.durationDays) > 0
-                    ? t("projects.detail.taskDuration", {
-                        count: Number.parseInt(task.durationDays, 10),
-                      })
-                    : "-";
-                const displayName = task.name || t("projects.detail.untitledTask");
-                const assignee = task.assignee || t("projects.detail.unassigned");
-
-                return (
-                  <div key={task.id} className="gantt-row">
-                    <div className="col col-name">
-                      <div className="task-title">{displayName}</div>
-                      <div className="task-meta__actions">
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-compact"
-                          onClick={() => openEditTask(task)}
-                        >
-                          {t("common.actions.edit")}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="col col-assignee">{assignee}</div>
-                    <div className="col col-start">{startLabel}</div>
-                    <div className="col col-dur">{durationLabel}</div>
-                    <div className="col col-status">
-                      <span className="task-status-chip">
-                        {t(`projects.detail.taskStatus.${overall}`)}
-                      </span>
-                    </div>
-
-                    <div className="col col-days">
-                      <div className="g-days" style={{ gridTemplateColumns: columnsTemplate }}>
-                        {daysInView.map((date) => {
-                          const key = date.format("YYYY-MM-DD");
-                          const dayEntry = task.days?.find((entry) => entry.date === key);
-                          const isWeekend = date.day() === 0 || date.day() === 6;
-                          const isToday = date.isSame(today, "day");
-                          const classNames = ["g-cell"];
-                          if (isWeekend) classNames.push("is-weekend");
-                          if (isToday) classNames.push("is-today");
-                          if (dayEntry) classNames.push("has-value");
-                          return (
-                            <div
-                              key={key}
-                              className={classNames.join(" ")}
-                              style={{
-                                backgroundColor: dayEntry
-                                  ? STATUS_COLORS[dayEntry.status] || DEFAULT_CELL_COLOR
-                                  : undefined,
-                              }}
-                              onClick={() => handleCellClick(task, key)}
-                              title={
-                                dayEntry
-                                  ? t(`projects.detail.taskStatus.${dayEntry.status}`)
-                                  : t("projects.detail.noStatus")
-                              }
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="empty-state">
@@ -740,6 +1056,129 @@ function ProjectDetail() {
           )}
         </section>
 
+        {dayPickerTask &&
+          createPortal(
+            <div className="pm-modal" onClick={() => setDayPickerTask(null)}>
+              <div
+                className="pm-modal__dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="task-day-picker"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: 520 }}
+              >
+                <div className="pm-modal__header">
+                  <div>
+                    <h3 id="task-day-picker" className="pm-modal__title">
+                      Chọn ngày theo dõi - {dayPickerTask.name || "Không tên"}
+                    </h3>
+                    <p className="pm-modal__subtitle">
+                      Nhấp vào ngày để chuyển trạng thái: Chưa thực hiện → Đang làm → Hoàn thành → Trễ hạn → Xóa.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="pm-modal__close"
+                    aria-label="Đóng"
+                    onClick={() => setDayPickerTask(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="pm-modal__body">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      onClick={goToPreviousMonth}
+                      aria-label={t("projects.detail.previousMonth")}
+                    >
+                      ‹
+                    </button>
+                    <div className="project-task-month__label">{monthLabel}</div>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      onClick={goToNextMonth}
+                      aria-label={t("projects.detail.nextMonth")}
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, textAlign: "center", marginBottom: 6 }}>
+                    {DAY_HEADERS.map((d) => (
+                      <div key={d} style={{ fontWeight: 600, color: "#0f172a" }}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+                    {(() => {
+                      const startMonth = month.startOf("month");
+                      const leading = (startMonth.day() + 6) % 7; // Monday-first offset
+                      const blanks = Array.from({ length: leading }, (_, i) => (
+                        <div key={`blank-${i}`} />
+                      ));
+                      const dayCells = daysInView.map((date) => {
+                        const key = date.format("YYYY-MM-DD");
+                        const dayEntry = dayPickerTask.days?.find((entry) => entry.date === key);
+                        const inRange = isInTaskRange(dayPickerTask, date);
+                        const statusColor = dayEntry ? STATUS_COLORS[dayEntry.status] || DEFAULT_CELL_COLOR : undefined;
+                        const bg = statusColor || (inRange ? "rgba(59,130,246,0.10)" : "#fff");
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            data-date={key}
+                            onClick={() => handleCellClick(dayPickerTask, key)}
+                            title={
+                              dayEntry
+                                ? t(`projects.detail.taskStatus.${dayEntry.status}`)
+                                : t("projects.detail.noStatus")
+                            }
+                            style={{
+                              height: 64,
+                              borderRadius: 12,
+                              border: "1px solid #e2e8f0",
+                              background: bg,
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                              color: "#0f172a",
+                            }}
+                          >
+                            <div style={{ fontWeight: 600 }}>{date.format("D")}</div>
+                            <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                              {dayEntry ? t(`projects.detail.taskStatus.${dayEntry.status}`) : "Trống"}
+                            </div>
+                          </button>
+                        );
+                      });
+                      return [...blanks, ...dayCells];
+                    })()}
+                  </div>
+                </div>
+                <div className="pm-modal__footer">
+                  <button type="button" className="btn" onClick={() => setDayPickerTask(null)}>
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
+
         {/* ---- PROJECT PRODUCTS ---- */}
         <section className="panel">
           <div className="project-section-header">
@@ -753,17 +1192,14 @@ function ProjectDetail() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => setShowMultiAddModal(true)}
+                onClick={openMultiAddProducts}
               >
                 + Thêm nhiều sản phẩm
               </button>
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => {
-                  setEditingProduct(null);
-                  setShowAddProductModal(true);
-                }}
+                onClick={openAddProduct}
               >
                 + Thêm sản phẩm
               </button>
@@ -801,26 +1237,14 @@ function ProjectDetail() {
                         <div className="table-actions">
                           <button
                             className="btn btn-outline btn-sm"
-                            onClick={() => {
-                              setEditingProduct(item);
-                              setShowAddProductModal(true);
-                            }}
+                            onClick={() => openEditProduct(item)}
                           >
                             Sửa
                           </button>
                           <button
                             className="btn btn-ghost btn-sm"
                             style={{ color: "#dc2626" }}
-                            onClick={async () => {
-                              if (!window.confirm("Bạn chắc chắn muốn xóa sản phẩm này?")) return;
-                              try {
-                                await ProjectProductAPI.remove(id, item.id);
-                                await loadProducts();
-                              } catch (err) {
-                                console.error(err);
-                                alert("Xóa thất bại!");
-                              }
-                            }}
+                            onClick={() => handleDeleteProduct(item)}
                           >
                             Xóa
                           </button>
@@ -889,7 +1313,7 @@ function ProjectDetail() {
         <section className="panel" style={{ marginTop: 16 }}>
           <div className="project-section-header">
             <div>
-              <h2 className="project-section-title">Chi phí dự án</h2>
+              <h2 className="project-section-title">Hạch toán</h2>
               <p className="project-section-subtitle">
                 Quản lý các khoản chi liên quan đến dự án (mua hàng phụ trợ, vận chuyển, lắp đặt, v.v.).
               </p>
@@ -898,7 +1322,7 @@ function ProjectDetail() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => { setEditingExpense(null); setShowExpenseModal(true); }}
+                onClick={openAddExpense}
               >
                 + Thêm chi phí
               </button>
@@ -913,11 +1337,11 @@ function ProjectDetail() {
             marginBottom: 12
           }}>
             <div className="project-overview__card">
-              <div className="project-overview__label">Kế hoạch (ngân sách)</div>
+              <div className="project-overview__label">Kế hoạch (giá trị dự án)</div>
               <div className="project-overview__value">
                 {formatBudget(project.budget, lang)}
               </div>
-              <div className="project-overview__description">Ngân sách đã duyệt.</div>
+              <div className="project-overview__description">Giá trị dự án đã duyệt.</div>
             </div>
             <div className="project-overview__card">
               <div className="project-overview__label">Thực tế (tổng)</div>
@@ -937,7 +1361,7 @@ function ProjectDetail() {
                 {formatBudget(variance, lang)}
               </div>
               <div className="project-overview__description">
-                {variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách"}
+                {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
               </div>
             </div>
           </div>
@@ -974,7 +1398,7 @@ function ProjectDetail() {
                         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                           <button
                             className="btn btn-outline btn-sm"
-                            onClick={() => { setEditingExpense(e); setShowExpenseModal(true); }}
+                            onClick={() => openEditExpense(e)}
                           >
                             Sửa
                           </button>

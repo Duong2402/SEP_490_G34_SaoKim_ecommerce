@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
-import { useLanguage } from "./i18n/LanguageProvider.jsx";
 
 
 // Auth & commons
@@ -93,9 +92,6 @@ import ManagerEmployeeCreate from "./pages/manager/employees/ManagerEmployeeCrea
 import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
 
 export default function App() {
-  const { t } = useLanguage();
-
-
   return (
     <div className="page-wrapper">
       <BrowserRouter>
@@ -201,7 +197,7 @@ export default function App() {
           {/* 404 */}
           <Route
             path="*"
-            element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>}
+            element={<div style={{ padding: 24 }}>Không tìm thấy trang.</div>}
           />
         </Routes>
       </BrowserRouter>

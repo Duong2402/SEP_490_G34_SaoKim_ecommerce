@@ -4,6 +4,14 @@ import { ProjectProductAPI } from "../api/ProjectManager/project-products";
 import ProductSelector from "./ProductSelector";
 import Portal from "./Portal";
 
+const formatVnd = (value) => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("vi-VN");
+};
+
+const parseNumber = (value) => Number(String(value || "").replace(/\D/g, "") || 0);
+
 function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
   const [form, setForm] = useState({
     productId: "",
@@ -19,7 +27,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
       setForm({
         productId: product.productId,
         quantity: product.quantity,
-        unitPrice: product.unitPrice,
+        unitPrice: formatVnd(product.unitPrice),
         note: product.note || "",
       });
       setPickedProduct({
@@ -36,6 +44,11 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "unitPrice") {
+      const digits = value.replace(/\D/g, "");
+      setForm((prev) => ({ ...prev, [name]: formatVnd(digits) }));
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -46,7 +59,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         ...prev,
         productId: p.id,
         unitPrice:
-          prev.unitPrice === "" || prev.unitPrice == null ? (p.price ?? "") : prev.unitPrice,
+          prev.unitPrice === "" || prev.unitPrice == null ? formatVnd(p.price ?? "") : prev.unitPrice,
       }));
     } else {
       setForm((prev) => ({ ...prev, productId: "", unitPrice: "" }));
@@ -60,7 +73,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
       if (product?.id) {
         await ProjectProductAPI.update(projectId, product.id, {
           quantity: Number(form.quantity),
-          unitPrice: Number(form.unitPrice ?? 0),
+          unitPrice: parseNumber(form.unitPrice),
           note: form.note || null,
         });
       } else {
@@ -72,7 +85,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         await ProjectProductAPI.create(projectId, {
           productId: Number(form.productId),
           quantity: Number(form.quantity),
-          unitPrice: form.unitPrice === "" ? undefined : Number(form.unitPrice),
+          unitPrice: form.unitPrice === "" ? undefined : parseNumber(form.unitPrice),
           note: form.note || null,
         });
       }
@@ -151,12 +164,12 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                     id="pp-price"
                     name="unitPrice"
                     className="input"
-                    type="number"
-                    min="0"
-                    step="1"
+                    type="text"
+                    inputMode="numeric"
                     value={form.unitPrice}
                     onChange={handleChange}
                     placeholder="Bỏ trống để dùng giá sản phẩm"
+                    style={{ textAlign: "right" }}
                   />
                   <span className="pm-field__hint">Có thể bỏ trống để lấy giá mặc định.</span>
                 </div>

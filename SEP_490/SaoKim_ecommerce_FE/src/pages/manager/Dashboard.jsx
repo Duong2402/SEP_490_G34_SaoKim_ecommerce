@@ -138,7 +138,7 @@ export default function ManagerDashboard() {
               <div>
                 <h2 className="manager-panel__title">Dự án trọng điểm</h2>
                 <p className="manager-panel__subtitle">
-                  Tình trạng triển khai và ngân sách tổng hợp của các dự án.
+                  Tình trạng triển khai và giá trị dự án tổng hợp của các dự án.
                 </p>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function ManagerDashboard() {
             </div>
 
             <div className="manager-summary-grid" style={{ marginTop: 18 }}>
-              <SummaryCard label="Tổng ngân sách" value={formatCurrency(projects.totalBudget)} />
+              <SummaryCard label="Tổng giá trị dự án" value={formatCurrency(projects.totalBudget)} />
               <SummaryCard
                 label="Chi phí sản phẩm"
                 value={formatCurrency(projects.totalProductCost)}

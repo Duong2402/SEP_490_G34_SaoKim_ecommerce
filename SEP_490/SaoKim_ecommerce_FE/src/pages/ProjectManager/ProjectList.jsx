@@ -1,7 +1,6 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   PROJECT_STATUSES,
   formatBudget,
@@ -9,10 +8,10 @@ import {
   formatDate,
   getStatusBadgeClass,
   getStatusLabel,
+  formatNumber,
 } from "./projectHelpers";
 
 export default function ProjectList() {
-  const { t, lang, formatNumber } = useLanguage();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -38,7 +37,7 @@ export default function ProjectList() {
   }, [load]);
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(t("common.notifications.confirmDelete"));
+    const confirmed = window.confirm("Bạn có chắc muốn xóa dự án này?");
     if (!confirmed) return;
 
     try {
@@ -46,7 +45,7 @@ export default function ProjectList() {
       await load();
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || t("projects.messages.deleteFailure"));
+      alert(err?.response?.data?.message || "Không thể xóa dự án");
     }
   };
 
@@ -59,8 +58,7 @@ export default function ProjectList() {
         project.code?.toLowerCase().includes(term) ||
         project.customerName?.toLowerCase().includes(term);
 
-      const matchesStatus =
-        statusFilter === "all" || project.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
 
       return matchesTerm && matchesStatus;
     });
@@ -76,7 +74,7 @@ export default function ProjectList() {
     const completed = projects.filter((p) => p.status === "Done").length;
     const budget = projects.reduce(
       (sum, project) => sum + (typeof project.budget === "number" ? project.budget : 0),
-      0
+      0,
     );
 
     return { total, active, completed, budget };
@@ -87,88 +85,89 @@ export default function ProjectList() {
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">{t("projects.title")}</h1>
-            <p className="page-subtitle">{t("projects.subtitle")}</p>
+            <h1 className="page-title">Dự án</h1>
+            <p className="page-subtitle">
+              Theo dõi tình trạng, giá trị dự án và tiến độ giao hàng ở một nơi.
+            </p>
           </div>
-
           <div className="actions">
-            <button type="button" className="btn btn-outline" onClick={load} disabled={loading}>
-              {t("common.actions.refresh")}
+            <button type="button" className="btn btn-ghost" onClick={load}>
+              Làm mới
             </button>
             <Link to="/projects/create" className="btn btn-primary">
-              {t("projects.actions.new")}
+              + Tạo dự án
             </Link>
           </div>
         </header>
 
         <section className="metrics-grid">
           <article className="metric-card">
-            <div className="metric-label">{t("projects.metrics.total")}</div>
-            <div className="metric-value">{formatNumber(metrics.total) || "0"}</div>
+            <div className="metric-label">Tổng dự án</div>
+            <div className="metric-value">{formatNumber(projects.length) || "0"}</div>
             <div className="metric-trend">
-              {t("projects.metrics.totalHint", { count: formatNumber(metrics.active) || "0" })}
+              Đang hoạt động: {formatNumber(metrics.active) || "0"}
             </div>
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">{t("projects.metrics.completed")}</div>
+            <div className="metric-label">Hoàn thành</div>
             <div className="metric-value">{formatNumber(metrics.completed) || "0"}</div>
-            <div className="metric-trend">{t("projects.metrics.completedHint")}</div>
+            <div className="metric-trend">Dự án đã bàn giao</div>
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">{t("projects.metrics.budget")}</div>
-            <div className="metric-value">{formatBudgetCompact(metrics.budget, lang)}</div>
-            <div className="metric-trend">{t("projects.metrics.budgetHint")}</div>
+            <div className="metric-label">Giá trị dự án</div>
+            <div className="metric-value">{formatBudgetCompact(metrics.budget, "vi")}</div>
+            <div className="metric-trend">Tổng giá trị của các dự án</div>
           </article>
         </section>
 
-        <div className="filters-row">
+        <div className="project-actions">
           <input
-            className="input"
             type="search"
-            placeholder={t("common.placeholders.searchProjects")}
+            className="input"
+            placeholder="Tìm theo tên, mã hoặc khách hàng"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            aria-label={t("common.placeholders.searchProjects")}
+            aria-label="Tìm dự án"
           />
           <select
             className="select"
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            aria-label={t("projects.filters.allStatuses")}
+            aria-label="Lọc trạng thái"
           >
-            <option value="all">{t("projects.filters.allStatuses")}</option>
+            <option value="all">Tất cả trạng thái</option>
             {PROJECT_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>
-                {getStatusLabel(status.value, t)}
+                {getStatusLabel(status.value)}
               </option>
             ))}
           </select>
         </div>
 
         {loading ? (
-          <div className="loading-state">{t("projects.list.loading")}</div>
+          <div className="loading-state">Đang tải dự án...</div>
         ) : filteredProjects.length ? (
           <div className="table-responsive">
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t("projects.table.code")}</th>
-                  <th>{t("projects.table.name")}</th>
-                  <th>{t("projects.table.customer")}</th>
-                  <th>{t("projects.table.status")}</th>
-                  <th>{t("projects.table.timeline")}</th>
-                  <th>{t("projects.table.budget")}</th>
-                  <th>{t("projects.table.actions")}</th>
+                  <th>Mã</th>
+                  <th>Tên</th>
+                  <th>Khách hàng</th>
+                  <th>Trạng thái</th>
+                  <th>Tiến độ</th>
+                  <th>Giá trị dự án</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
-              <tbody>
+                  <tbody>
                 {filteredProjects.map((project) => (
                   <tr key={project.id}>
                     <td>
-                      <Link className="link" to={`/projects/${project.id}`}>
-                        {project.code || "-"}
+                      <Link to={`/projects/${project.id}`} className="link">
+                        {project.code}
                       </Link>
                     </td>
                     <td>{project.name}</td>
@@ -176,32 +175,29 @@ export default function ProjectList() {
                     <td>
                       <span className={getStatusBadgeClass(project.status)}>
                         <span className="badge-dot" />
-                        {getStatusLabel(project.status, t)}
+                        {getStatusLabel(project.status)}
                       </span>
                     </td>
                     <td>
-                      {formatDate(project.startDate, lang)}
-                      {" - "}
-                      {formatDate(project.endDate, lang)}
+                      {project.startDate
+                        ? `${formatDate(project.startDate, "vi")} - ${formatDate(project.endDate, "vi")}`
+                        : "-"}
                     </td>
-                    <td>{formatBudget(project.budget, lang)}</td>
-                    <td>
-                      <div className="table-actions">
-                        <Link to={`/projects/${project.id}`} className="btn btn-ghost">
-                          {t("common.actions.view")}
+                    <td>{formatBudget(project.budget, "vi")}</td>
+                    <td className="table-actions">
+                      <div className="table-actions__buttons">
+                        <Link to={`/projects/${project.id}`} className="btn btn-ghost btn-sm">
+                          Xem
                         </Link>
-                        <Link to={`/projects/${project.id}/edit`} className="btn btn-outline">
-                          {t("common.actions.edit")}
-                        </Link>
-                        <Link to={`/projects/${project.id}/report`} className="btn btn-outline">
-                          Báo cáo
+                        <Link to={`/projects/${project.id}/edit`} className="btn btn-outline btn-sm">
+                          Chỉnh sửa
                         </Link>
                         <button
                           type="button"
-                          className="btn btn-ghost btn-danger"
+                          className="btn btn-ghost btn-sm"
                           onClick={() => handleDelete(project.id)}
                         >
-                          {t("common.actions.delete")}
+                          Xóa
                         </button>
                       </div>
                     </td>
@@ -212,10 +208,12 @@ export default function ProjectList() {
           </div>
         ) : (
           <div className="empty-state">
-            <div className="empty-state-title">{t("projects.table.emptyTitle")}</div>
-            <div className="empty-state-subtitle">{t("projects.table.emptySubtitle")}</div>
+            <div className="empty-state-title">Chưa có dự án</div>
+            <div className="empty-state-subtitle">
+              Tạo dự án đầu tiên để theo dõi mốc thời gian, giá trị dự án và tiến độ giao hàng.
+            </div>
             <Link to="/projects/create" className="btn btn-primary">
-              {t("projects.table.createCta")}
+              Tạo dự án
             </Link>
           </div>
         )}
@@ -223,5 +221,3 @@ export default function ProjectList() {
     </div>
   );
 }
-
-
