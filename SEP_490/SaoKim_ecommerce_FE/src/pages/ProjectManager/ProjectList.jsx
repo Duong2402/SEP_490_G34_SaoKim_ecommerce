@@ -162,10 +162,14 @@ export default function ProjectList() {
                   <th>Thao tác</th>
                 </tr>
               </thead>
-              <tbody>
+                  <tbody>
                 {filteredProjects.map((project) => (
                   <tr key={project.id}>
-                    <td>{project.code}</td>
+                    <td>
+                      <Link to={`/projects/${project.id}`} className="link">
+                        {project.code}
+                      </Link>
+                    </td>
                     <td>{project.name}</td>
                     <td>{project.customerName || "-"}</td>
                     <td>

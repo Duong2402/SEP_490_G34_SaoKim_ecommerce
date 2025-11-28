@@ -3,11 +3,12 @@ import axios from "axios";
 
 const isProd = import.meta.env.PROD;
 
-// Dev: gọi tới "/api" để đi qua proxy; Prod: dùng VITE_API_BASE_URL
+// Dev: gọi tới "/api" đi qua proxy; Prod: dùng VITE_API_BASE_URL
 const http = axios.create({
-  baseURL: isProd
-    ? (import.meta.env.VITE_API_BASE_URL || "/")
-    : "/api",
+  baseURL: isProd ? import.meta.env.VITE_API_BASE_URL || "/" : "/api",
+  headers: {
+    "Accept-Language": "vi",
+  },
   // withCredentials: true, // bật nếu backend xác thực bằng cookie
   timeout: 15000,
 });
@@ -31,7 +32,7 @@ http.interceptors.request.use(
     if (token) cfg.headers.Authorization = `Bearer ${token}`;
     return cfg;
   },
-  (err) => Promise.reject(err)
+  (err) => Promise.reject(err),
 );
 
 http.interceptors.response.use(
@@ -42,21 +43,18 @@ http.interceptors.response.use(
       try {
         ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
       } catch {}
-      // Cho header và các nơi khác sync lại
       window.dispatchEvent(new Event("auth:changed"));
-      // Đưa về login, nhớ giữ lại redirect nếu cần
       const here = window.location.pathname + window.location.search + window.location.hash;
       const loginUrl = `/login?redirect=${encodeURIComponent(here)}`;
       if (window.location.pathname !== "/login") {
         window.location.assign(loginUrl);
       }
     }
-    // Log gọn gàng
     const msg = err?.response?.data || err.message || "Network error";
     // eslint-disable-next-line no-console
     console.error("[HTTP]", status || "ERR", msg);
     return Promise.reject(err);
-  }
+  },
 );
 
 export default http;
