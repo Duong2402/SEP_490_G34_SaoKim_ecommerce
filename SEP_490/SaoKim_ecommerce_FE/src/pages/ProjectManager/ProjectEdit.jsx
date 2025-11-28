@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import ProjectForm from "./ProjectForm";
 
 export default function ProjectEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useLanguage();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,7 +18,7 @@ export default function ProjectEdit() {
         setDetail(body.data ?? body ?? null);
       } catch (err) {
         console.error(err);
-        alert(t("projects.messages.loadFailure"));
+        alert("Không thể tải chi tiết dự án.");
       } finally {
         setLoading(false);
       }
@@ -42,11 +40,11 @@ export default function ProjectEdit() {
         budget: payload.budget,
         description: payload.description,
       });
-      alert(t("projects.edit.success"));
+      alert("Cập nhật dự án thành công.");
       navigate("/projects");
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || t("projects.edit.failure"));
+      alert(err?.response?.data?.message || "Không thể cập nhật dự án.");
     } finally {
       setSaving(false);
     }
@@ -55,7 +53,7 @@ export default function ProjectEdit() {
   if (loading) {
     return (
       <div className="pm-page">
-        <div className="panel loading-state">{t("projects.edit.loading")}</div>
+        <div className="panel loading-state">Đang tải dự án...</div>
       </div>
     );
   }
@@ -64,10 +62,12 @@ export default function ProjectEdit() {
     return (
       <div className="pm-page">
         <div className="panel empty-state">
-          <div className="empty-state-title">{t("projects.edit.notFoundTitle")}</div>
-          <div className="empty-state-subtitle">{t("projects.edit.notFoundSubtitle")}</div>
+          <div className="empty-state-title">Không tìm thấy dự án</div>
+          <div className="empty-state-subtitle">
+            Không tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.
+          </div>
           <Link to="/projects" className="btn btn-primary">
-            {t("projects.edit.backToProjects")}
+            Quay lại danh sách
           </Link>
         </div>
       </div>
@@ -75,23 +75,23 @@ export default function ProjectEdit() {
   }
 
   const subtitle = detail.code
-    ? t("projects.edit.subtitle", { code: detail.code })
-    : t("projects.edit.subtitleFallback");
+    ? `Cập nhật phạm vi, giá trị dự án và mốc thời gian cho ${detail.code}.`
+    : "Cập nhật phạm vi, giá trị dự án và mốc thời gian cho dự án này.";
 
   return (
     <div className="pm-page">
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">{t("projects.edit.title")}</h1>
+            <h1 className="page-title">Chỉnh sửa dự án</h1>
             <p className="page-subtitle">{subtitle}</p>
           </div>
           <div className="actions">
             <Link to={`/projects/${id}`} className="btn btn-outline">
-              {t("projects.edit.viewDetails")}
+              Xem chi tiết
             </Link>
             <Link to="/projects" className="btn btn-ghost">
-              {t("common.actions.cancel")}
+              Hủy
             </Link>
           </div>
         </header>

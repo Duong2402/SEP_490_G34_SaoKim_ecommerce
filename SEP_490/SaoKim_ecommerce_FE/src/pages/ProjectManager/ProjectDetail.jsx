@@ -7,12 +7,12 @@ import "dayjs/locale/vi";
 import { ProjectAPI, TaskAPI } from "../../api/ProjectManager/projects";
 import { ProjectProductAPI } from "../../api/ProjectManager/project-products";
 import { ProjectExpenseAPI } from "../../api/ProjectManager/project-expenses";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   formatBudget,
   formatDate,
   getStatusBadgeClass,
   getStatusLabel,
+  formatNumber,
 } from "./projectHelpers";
 import AddEditProjectProductModal from "../../components/AddEditProjectProductModal.jsx";
 import MultiAddProjectProductsModal from "../../components/MultiAddProjectProductsModal.jsx";
@@ -41,6 +41,86 @@ const DEFAULT_CELL_COLOR = "rgba(148,163,184,0.12)";
 
 const toUIStatus = (value) => BE_TO_UI[value] || "Pending";
 const toBEStatus = (value) => UI_TO_BE[value] || "New";
+const lang = "vi";
+
+const COPY = {
+  "common.actions.edit": "Chỉnh sửa",
+  "common.actions.cancel": "Hủy",
+  "common.status.loading": "Đang tải...",
+  "projects.detail.actions.addTask": "Thêm công việc",
+  "projects.detail.actions.backToList": "Quay lại danh sách",
+  "projects.detail.budget": "Giá trị dự án",
+  "projects.detail.budgetHint": "Giá trị dự án dự kiến cho toàn bộ dự án.",
+  "projects.detail.customer": "Khách hàng",
+  "projects.detail.customerContactEmpty": "Chưa có thông tin liên hệ.",
+  "projects.detail.customerEmpty": "Chưa có khách hàng.",
+  "projects.detail.description": "Mô tả",
+  "projects.detail.descriptionEmpty": "Chưa có mô tả.",
+  "projects.detail.legendHint":
+    "Bấm vào ô để chuyển luân phiên: Chưa thực hiện -> Đang làm -> Hoàn thành -> Trễ hạn -> Xóa.",
+  "projects.detail.loadingProject": "Đang tải dự án...",
+  "projects.detail.loadingTasks": "Đang tải công việc...",
+  "projects.detail.messages.saveTaskFailure": "Không thể lưu công việc.",
+  "projects.detail.messages.updateDayFailure": "Không cập nhật được trạng thái ngày.",
+  "projects.detail.metrics.completed": "Đã hoàn thành",
+  "projects.detail.metrics.completedHint": "Đã đánh dấu xong",
+  "projects.detail.metrics.delayed": "Chậm tiến độ",
+  "projects.detail.metrics.delayedHint": "Cần theo dõi",
+  "projects.detail.metrics.progress": "Tiến độ",
+  "projects.detail.metrics.progressHint": "Dựa trên công việc đã hoàn thành",
+  "projects.detail.metrics.total": "Tổng số công việc",
+  "projects.detail.metrics.totalHint": "{{active}} đang hoạt động",
+  "projects.detail.nextMonth": "Tháng sau",
+  "projects.detail.noStatus": "Chưa có trạng thái",
+  "projects.detail.notFoundSubtitle":
+    "Không tìm thấy dự án này. Có thể dự án đã bị xóa hoặc bạn không có quyền truy cập.",
+  "projects.detail.notFoundTitle": "Không tìm thấy dự án",
+  "projects.detail.previousMonth": "Tháng trước",
+  "projects.detail.searchPlaceholder": "Tìm công việc theo tên hoặc người phụ trách",
+  "projects.detail.subtitle": "Mã dự án {{code}}.",
+  "projects.detail.subtitleFallback": "Xem chi tiết thời gian, người phụ trách và giá trị dự án.",
+  "projects.detail.taskDuration": "{{count}} ngày",
+  "projects.detail.taskEmptySubtitle": "Thêm công việc để lập kế hoạch và phân công người phụ trách.",
+  "projects.detail.taskEmptyTitle": "Chưa có công việc",
+  "projects.detail.taskModal.assignee": "Người phụ trách",
+  "projects.detail.taskModal.cancel": "Hủy",
+  "projects.detail.taskModal.create": "Tạo công việc",
+  "projects.detail.taskModal.createTitle": "Tạo công việc",
+  "projects.detail.taskModal.duration": "Thời lượng (ngày)",
+  "projects.detail.taskModal.editTitle": "Chỉnh sửa công việc",
+  "projects.detail.taskModal.name": "Tên công việc",
+  "projects.detail.taskModal.startDate": "Ngày bắt đầu",
+  "projects.detail.taskModal.update": "Lưu thay đổi",
+  "projects.detail.taskModal.validations.duration": "Thời lượng phải từ 1 ngày trở lên.",
+  "projects.detail.taskModal.validations.name": "Vui lòng nhập tên công việc.",
+  "projects.detail.taskModal.validations.startDate": "Chọn ngày bắt đầu.",
+  "projects.detail.taskTable.assignee": "Phụ trách",
+  "projects.detail.taskTable.duration": "Thời lượng",
+  "projects.detail.taskTable.name": "Công việc",
+  "projects.detail.taskTable.overallStatus": "Trạng thái chung",
+  "projects.detail.taskTable.start": "Ngày bắt đầu",
+  "projects.detail.tasksSubtitle": "Quản lý phân công và cập nhật theo từng ngày trong tháng.",
+  "projects.detail.tasksTitle": "Lịch công việc",
+  "projects.detail.timeline": "Tiến độ",
+  "projects.detail.timelineHint": "Kéo dài khoảng {{days}} ngày.",
+  "projects.detail.unassigned": "Chưa phân công",
+  "projects.detail.untitledTask": "Chưa đặt tên",
+  "projects.detail.taskStatus.Pending": "Chưa thực hiện",
+  "projects.detail.taskStatus.Doing": "Đang làm",
+  "projects.detail.taskStatus.Done": "Hoàn thành",
+  "projects.detail.taskStatus.Delayed": "Trễ hạn",
+};
+
+const interpolate = (template, params) =>
+  typeof template === "string" && params
+    ? template.replace(/\{\{(\w+)\}\}/g, (_, key) => (key in params ? params[key] : ""))
+    : template;
+
+const t = (key, params) => {
+  const value = COPY[key];
+  if (typeof value === "string") return interpolate(value, params);
+  return key;
+};
 
 const normalizeTaskFromAPI = (raw) => ({
   ...raw,
@@ -69,7 +149,6 @@ const LEGEND_ITEMS = ["Pending", "Doing", "Done", "Delayed"];
 
 function ProjectDetail() {
   const { id } = useParams();
-  const { t, lang, formatNumber } = useLanguage();
 
   const [project, setProject] = useState(null);
   const [loadingProject, setLoadingProject] = useState(true);
@@ -444,7 +523,7 @@ function ProjectDetail() {
                 {project.code ? <span className="project-hero__code">#{project.code}</span> : null}
                 <span className={getStatusBadgeClass(project.status)}>
                   <span className="badge-dot" />
-                  {getStatusLabel(project.status, t)}
+                  {getStatusLabel(project.status)}
                 </span>
               </div>
               <h1 className="project-hero__title">{project.name}</h1>

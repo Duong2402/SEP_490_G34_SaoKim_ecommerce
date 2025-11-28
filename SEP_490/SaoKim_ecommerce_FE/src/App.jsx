@@ -197,7 +197,7 @@ export default function App() {
           {/* 404 */}
           <Route
             path="*"
-            element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>}
+            element={<div style={{ padding: 24 }}>Không tìm thấy trang.</div>}
           />
         </Routes>
       </BrowserRouter>

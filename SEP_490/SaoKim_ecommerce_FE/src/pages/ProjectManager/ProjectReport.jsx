@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
 import {
   formatBudget,
   formatDate,
   getStatusBadgeClass,
   getStatusLabel,
+  formatNumber,
 } from "./projectHelpers";
 
 export default function ProjectReport() {
   const { id } = useParams();
-  const { t, lang, formatNumber } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
 
@@ -101,7 +100,7 @@ export default function ProjectReport() {
           <div>
             <h1 className="page-title">Báo cáo dự án</h1>
             <p className="page-subtitle">
-              #{code || "-"} - {name} {customerName ? `• ${customerName}` : ""}
+              #{code || "-"} - {name} {customerName ? `· ${customerName}` : ""}
             </p>
           </div>
           <div className="actions">
@@ -123,17 +122,17 @@ export default function ProjectReport() {
             <div className="project-overview__value">
               <span className={getStatusBadgeClass(status)}>
                 <span className="badge-dot" />
-                {getStatusLabel(status, t)}
+                {getStatusLabel(status)}
               </span>
             </div>
             <div className="project-overview__description">
-              {formatDate(startDate, lang)} - {formatDate(endDate, lang)}
+              {formatDate(startDate)} - {formatDate(endDate)}
             </div>
           </article>
 
           <article className="project-overview__card">
             <div className="project-overview__label">Giá trị dự án kế hoạch</div>
-            <div className="project-overview__value">{formatBudget(budget, lang)}</div>
+            <div className="project-overview__value">{formatBudget(budget)}</div>
             <div className="project-overview__description">Giá trị dự án được duyệt.</div>
           </article>
 
@@ -141,7 +140,7 @@ export default function ProjectReport() {
             <div className="project-overview__label">Mức hoàn thành</div>
             <div className="project-overview__value">{progressPercent}%</div>
             <div className="project-overview__description">
-              {formatNumber(taskCompleted)} hoàn thành • {formatNumber(taskActive)} đang làm •{" "}
+              {formatNumber(taskCompleted)} hoàn thành · {formatNumber(taskActive)} đang làm ·{" "}
               {formatNumber(taskDelayed)} trễ.
             </div>
           </article>
@@ -150,20 +149,19 @@ export default function ProjectReport() {
         <section className="metrics-grid">
           <article className="metric-card">
             <div className="metric-label">Doanh thu (sản phẩm)</div>
-            <div className="metric-value">{formatBudget(totalProductAmount, lang)}</div>
+            <div className="metric-value">{formatBudget(totalProductAmount)}</div>
             <div className="metric-trend">Tổng thành tiền sản phẩm</div>
           </article>
           <article className="metric-card">
             <div className="metric-label">Chi phí khác</div>
-            <div className="metric-value">{formatBudget(totalOtherExpenses, lang)}</div>
+            <div className="metric-value">{formatBudget(totalOtherExpenses)}</div>
             <div className="metric-trend">Chi phí vận hành/triển khai</div>
           </article>
           <article className="metric-card">
             <div className="metric-label">Thực chi (tổng)</div>
-            <div className="metric-value">{formatBudget(actualAllIn, lang)}</div>
+            <div className="metric-value">{formatBudget(actualAllIn)}</div>
             <div className="metric-trend">
-              Sản phẩm {formatBudget(totalProductAmount, lang)} + Chi phí{" "}
-              {formatBudget(totalOtherExpenses, lang)}
+              Sản phẩm {formatBudget(totalProductAmount)} + Chi phí {formatBudget(totalOtherExpenses)}
             </div>
           </article>
           <article className="metric-card">
@@ -172,7 +170,7 @@ export default function ProjectReport() {
               className="metric-value"
               style={{ color: variance < 0 ? "#dc2626" : "#16a34a" }}
             >
-              {formatBudget(variance, lang)}
+              {formatBudget(variance)}
             </div>
             <div className="metric-trend">
               {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
@@ -181,7 +179,7 @@ export default function ProjectReport() {
           <article className="metric-card">
             <div className="metric-label">Lợi nhuận (ước tính)</div>
             <div className="metric-value" style={{ color: profitApprox < 0 ? "#dc2626" : undefined }}>
-              {formatBudget(profitApprox, lang)}
+              {formatBudget(profitApprox)}
             </div>
             <div className="metric-trend">Doanh thu - Chi phí</div>
           </article>
@@ -192,24 +190,24 @@ export default function ProjectReport() {
             <div>
               <h2 className="project-section-title">Vấn đề & cột mốc</h2>
               <p className="project-section-subtitle">
-                Các công việc chậm tiến độ và mốc cần chú ý.
+                Các công việc chậm tiến độ và mục cần chú ý.
               </p>
             </div>
           </div>
 
           {Array.isArray(issues) && issues.length ? (
             <ul className="list">
-              {issues.map((name, idx) => (
+              {issues.map((item, idx) => (
                 <li key={idx} className="list-item">
                   <span className="badge-dot" style={{ background: "#f87171", marginRight: 8 }} />
-                  {name}
+                  {item}
                 </li>
               ))}
             </ul>
           ) : (
             <div className="empty-state">
               <div className="empty-state-title">Không có vấn đề nào</div>
-              <div className="empty-state-subtitle">Tất cả mốc đang đúng tiến độ.</div>
+              <div className="empty-state-subtitle">Tất cả mục đang đúng tiến độ.</div>
             </div>
           )}
         </section>
