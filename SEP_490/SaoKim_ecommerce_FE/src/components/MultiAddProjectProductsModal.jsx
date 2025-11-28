@@ -4,6 +4,13 @@ import { ProjectProductAPI } from "../api/ProjectManager/project-products";
 import Portal from "./Portal";
 
 function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onClose, onSaved }) {
+  const formatVnd = (value) => {
+    const digits = String(value ?? "").replace(/\D/g, "");
+    if (!digits) return "";
+    return Number(digits).toLocaleString("vi-VN");
+  };
+  const parseNumber = (value) => Number(String(value || "").replace(/\D/g, "") || 0);
+
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState([]);
   const [q, setQ] = useState("");
@@ -98,7 +105,8 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
       .map(([productId, v]) => ({
         productId: Number(productId),
         quantity: Number(v.quantity || 0),
-        unitPrice: v.unitPrice === "" || v.unitPrice === null ? undefined : Number(v.unitPrice),
+        unitPrice:
+          v.unitPrice === "" || v.unitPrice === null ? undefined : Number(v.unitPrice || 0),
       }))
       .filter((x) => x.quantity > 0);
 
@@ -247,13 +255,12 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
                               <td style={{ textAlign: "right" }}>
                                 {isChecked ? (
                                   <input
-                                    type="number"
-                                    min={0}
-                                    step={1000}
+                                    type="text"
+                                    inputMode="numeric"
                                     className="input"
                                     style={{ maxWidth: 140, textAlign: "right" }}
-                                    value={sel[p.id]?.unitPrice ?? p.price ?? 0}
-                                    onChange={(e) => setPrice(p.id, Number(e.target.value))}
+                                    value={formatVnd(sel[p.id]?.unitPrice ?? p.price ?? 0)}
+                                    onChange={(e) => setPrice(p.id, parseNumber(e.target.value))}
                                   />
                                 ) : (
                                   "-"
