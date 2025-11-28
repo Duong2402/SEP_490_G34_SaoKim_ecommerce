@@ -33,7 +33,7 @@ const translations = {
     },
     projects: {
       title: "Dự án",
-      subtitle: "Theo dõi tình trạng, ngân sách và tiến độ giao hàng ở một nơi.",
+      subtitle: "Theo dõi tình trạng, giá trị dự án và tiến độ giao hàng ở một nơi.",
       actions: {
         new: "+ Tạo dự án",
         create: "Tạo dự án",
@@ -47,7 +47,7 @@ const translations = {
         totalHint: "{{count}} đang hoạt động",
         completed: "Hoàn thành",
         completedHint: "Dự án đã bàn giao",
-        budget: "Ngân sách dự kiến",
+        budget: "Giá trị dự án dự kiến",
         budgetHint: "Tổng giá trị của các dự án",
       },
       table: {
@@ -56,11 +56,11 @@ const translations = {
         customer: "Khách hàng",
         status: "Trạng thái",
         timeline: "Tiến độ",
-        budget: "Ngân sách",
+        budget: "Giá trị dự án",
         actions: "Thao tác",
         emptyTitle: "Chưa có dự án",
         emptySubtitle:
-          "Tạo dự án đầu tiên để theo dõi mốc thời gian, ngân sách và tiến độ giao hàng.",
+          "Tạo dự án đầu tiên để theo dõi mốc thời gian, giá trị dự án và tiến độ giao hàng.",
         createCta: "Tạo dự án",
       },
       list: {
@@ -76,7 +76,7 @@ const translations = {
         contactLabel: "Liên hệ khách hàng",
         contactPlaceholder: "contact@acme.co",
         statusLabel: "Trạng thái",
-        budgetLabel: "Ngân sách (VND)",
+        budgetLabel: "Giá trị dự án (VND)",
         budgetPlaceholder: "120.000.000",
         startLabel: "Ngày bắt đầu",
         endLabel: "Ngày kết thúc",
@@ -88,20 +88,20 @@ const translations = {
         validations: {
           name: "Vui lòng nhập tên dự án.",
           endDate: "Ngày kết thúc phải sau ngày bắt đầu.",
-          budget: "Ngân sách chỉ gồm số.",
+          budget: "Giá trị dự án chỉ gồm số.",
         },
       },
       create: {
         title: "Tạo dự án",
         subtitle:
-          "Ghi lại yêu cầu, đội ngũ, thời gian và ngân sách để khởi động dự án rõ ràng.",
+          "Ghi lại yêu cầu, đội ngũ, thời gian và giá trị dự án để khởi động dự án rõ ràng.",
         success: "Tạo dự án thành công.",
         failure: "Không thể tạo dự án.",
       },
       edit: {
         title: "Chỉnh sửa dự án",
-        subtitle: "Cập nhật phạm vi, ngân sách và mốc thời gian cho {{code}}.",
-        subtitleFallback: "Cập nhật phạm vi, ngân sách và mốc thời gian cho dự án này.",
+        subtitle: "Cập nhật phạm vi, giá trị dự án và mốc thời gian cho {{code}}.",
+        subtitleFallback: "Cập nhật phạm vi, giá trị dự án và mốc thời gian cho dự án này.",
         success: "Cập nhật dự án thành công.",
         failure: "Không thể cập nhật dự án.",
         loading: "Đang tải dự án...",
@@ -113,12 +113,12 @@ const translations = {
       },
       detail: {
         subtitle: "Mã dự án {{code}}.",
-        subtitleFallback: "Xem chi tiết thời gian, người phụ trách và ngân sách.",
+        subtitleFallback: "Xem chi tiết thời gian, người phụ trách và giá trị dự án.",
         status: "Trạng thái",
         timeline: "Tiến độ",
         timelineHint: "Kéo dài khoảng {{days}} ngày.",
-        budget: "Ngân sách",
-        budgetHint: "Ngân sách dự kiến cho toàn bộ dự án.",
+        budget: "Giá trị dự án",
+        budgetHint: "Giá trị dự án dự kiến cho toàn bộ dự án.",
         customer: "Khách hàng",
         customerContact: "Liên hệ khách hàng",
         customerEmpty: "Chưa có khách hàng.",

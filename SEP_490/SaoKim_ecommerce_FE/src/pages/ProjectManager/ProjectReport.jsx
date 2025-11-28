@@ -132,9 +132,9 @@ export default function ProjectReport() {
           </article>
 
           <article className="project-overview__card">
-            <div className="project-overview__label">Ngân sách kế hoạch</div>
+            <div className="project-overview__label">Giá trị dự án kế hoạch</div>
             <div className="project-overview__value">{formatBudget(budget, lang)}</div>
-            <div className="project-overview__description">Ngân sách được duyệt.</div>
+            <div className="project-overview__description">Giá trị dự án được duyệt.</div>
           </article>
 
           <article className="project-overview__card">
@@ -175,7 +175,7 @@ export default function ProjectReport() {
               {formatBudget(variance, lang)}
             </div>
             <div className="metric-trend">
-              {variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách"}
+              {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
             </div>
           </article>
           <article className="metric-card">

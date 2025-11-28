@@ -889,7 +889,7 @@ function ProjectDetail() {
         <section className="panel" style={{ marginTop: 16 }}>
           <div className="project-section-header">
             <div>
-              <h2 className="project-section-title">Chi phí dự án</h2>
+              <h2 className="project-section-title">Hạch toán</h2>
               <p className="project-section-subtitle">
                 Quản lý các khoản chi liên quan đến dự án (mua hàng phụ trợ, vận chuyển, lắp đặt, v.v.).
               </p>
@@ -913,11 +913,11 @@ function ProjectDetail() {
             marginBottom: 12
           }}>
             <div className="project-overview__card">
-              <div className="project-overview__label">Kế hoạch (ngân sách)</div>
+              <div className="project-overview__label">Kế hoạch (giá trị dự án)</div>
               <div className="project-overview__value">
                 {formatBudget(project.budget, lang)}
               </div>
-              <div className="project-overview__description">Ngân sách đã duyệt.</div>
+              <div className="project-overview__description">Giá trị dự án đã duyệt.</div>
             </div>
             <div className="project-overview__card">
               <div className="project-overview__label">Thực tế (tổng)</div>
@@ -937,7 +937,7 @@ function ProjectDetail() {
                 {formatBudget(variance, lang)}
               </div>
               <div className="project-overview__description">
-                {variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách"}
+                {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
               </div>
             </div>
           </div>

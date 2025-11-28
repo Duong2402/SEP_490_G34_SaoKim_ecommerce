@@ -91,7 +91,7 @@ export default function ProjectOverview() {
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">Ngân sách kế hoạch</div>
+            <div className="metric-label">Giá trị dự án kế hoạch</div>
             <div className="metric-value">{formatBudget(metrics.budget, lang)}</div>
             <div className="metric-trend">
               {formatNumber(metrics.overdue) || "0"} dự án có nguy cơ quá hạn
