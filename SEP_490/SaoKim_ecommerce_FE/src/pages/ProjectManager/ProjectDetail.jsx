@@ -19,7 +19,7 @@ import MultiAddProjectProductsModal from "../../components/MultiAddProjectProduc
 import AddEditProjectExpenseModal from "../../components/AddEditProjectExpenseModal.jsx";
 
 const UI_TO_BE = {
-              
+
   Doing: "InProgress",
   Done: "Done",
   Delayed: "Delayed",
@@ -126,9 +126,9 @@ const normalizeTaskFromAPI = (raw) => ({
   ...raw,
   days: Array.isArray(raw?.days)
     ? raw.days.map((entry) => ({
-        date: dayjs(entry.date).format("YYYY-MM-DD"),
-        status: toUIStatus(entry.status),
-      }))
+      date: dayjs(entry.date).format("YYYY-MM-DD"),
+      status: toUIStatus(entry.status),
+    }))
     : [],
 });
 
@@ -708,7 +708,7 @@ function ProjectDetail() {
               <Link to={`/projects/${id}/edit`} className="btn btn-outline">
                 {t("common.actions.edit")}
               </Link>
-              
+
               <Link to={`/projects/${id}/report`} className="btn btn-outline">
                 Xem báo cáo
               </Link>
@@ -830,25 +830,25 @@ function ProjectDetail() {
               <p className="project-section-subtitle">{t("projects.detail.tasksSubtitle")}</p>
             </div>
             <div className="project-task-controls">
-                <div className="project-task-month">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon"
-                    onClick={goToPreviousMonth}
-                    aria-label={t("projects.detail.previousMonth")}
-                  >
-                    ‹
-                  </button>
-                  <div className="project-task-month__label">{monthLabel}</div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon"
-                    onClick={goToNextMonth}
-                    aria-label={t("projects.detail.nextMonth")}
-                  >
-                    ›
-                  </button>
-                </div>
+              <div className="project-task-month">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon"
+                  onClick={goToPreviousMonth}
+                  aria-label={t("projects.detail.previousMonth")}
+                >
+                  ‹
+                </button>
+                <div className="project-task-month__label">{monthLabel}</div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon"
+                  onClick={goToNextMonth}
+                  aria-label={t("projects.detail.nextMonth")}
+                >
+                  ›
+                </button>
+              </div>
               <div className="project-task-search">
                 <input
                   className="input"
@@ -1329,7 +1329,7 @@ function ProjectDetail() {
             </div>
           </div>
 
-                    {/* Summary Budget vs Actual (All-in) */}
+          {/* Summary Budget vs Actual (All-in) */}
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, minmax(220px, 1fr))",
@@ -1405,16 +1405,7 @@ function ProjectDetail() {
                           <button
                             className="btn btn-ghost btn-sm"
                             style={{ color: "#dc2626" }}
-                            onClick={async () => {
-                              if (!window.confirm("Xóa khoản chi này?")) return;
-                              try {
-                                await ProjectExpenseAPI.remove(id, e.id);
-                                await loadExpenses();
-                              } catch (err) {
-                                console.error(err);
-                                alert("Xóa thất bại!");
-                              }
-                            }}
+                            onClick={() => handleDeleteExpense(e)}
                           >
                             Xoá
                           </button>
@@ -1442,7 +1433,7 @@ function ProjectDetail() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => { setEditingExpense(null); setShowExpenseModal(true); }}
+                onClick={openAddExpense}
               >
                 + Thêm chi phí
               </button>
@@ -1502,16 +1493,16 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
             e.preventDefault();
             onSubmit();
           }}
-          >
-            <div className="pm-modal__header">
-              <div>
-                <h2 id="task-modal-title" className="pm-modal__title">
-                  {title}
-                </h2>
-                <p className="pm-modal__subtitle">
-                  Khai báo công việc, người phụ trách và thời gian thực hiện.
-                </p>
-              </div>
+        >
+          <div className="pm-modal__header">
+            <div>
+              <h2 id="task-modal-title" className="pm-modal__title">
+                {title}
+              </h2>
+              <p className="pm-modal__subtitle">
+                Khai báo công việc, người phụ trách và thời gian thực hiện.
+              </p>
+            </div>
             <button
               type="button"
               onClick={onClose}
