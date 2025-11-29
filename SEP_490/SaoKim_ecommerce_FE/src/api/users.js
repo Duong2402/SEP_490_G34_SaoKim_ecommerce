@@ -1,4 +1,5 @@
 import http from "./http";
+
 const createFormData = (data) => {
   const fd = new FormData();
   Object.keys(data || {}).forEach((k) => {
@@ -17,24 +18,27 @@ export const UserAPI = {
 
   getById: (id) => http.get(`/users/${id}`),
 
-  // Nếu có upload ảnh 
+  // Nếu có upload ảnh
   create: (data) => {
     const formData = createFormData(data);
-    return http.post("/users", createFormData(data)); 
+    return http.post("/users", formData);
   },
 
   update: (id, data) => {
     const formData = createFormData(data);
-    return http.put(`/users/${id}`, createFormData(data));
+    return http.put(`/users/${id}`, formData);
   },
 
   remove: (id) => http.delete(`/users/${id}`),
 
-  // Lấy danh sách role 
+  // Lấy danh sách role
   getRoles: () => http.get("/users/roles"),
 
   // Tiện ích thêm nếu cần
   getMe: () => http.get("/users/me"),
   updateMe: (data) => http.put("/users/me", createFormData(data)),
   setStatus: (id, status) => http.put(`/users/${id}`, { status }),
+
+  // NEW: danh sách Project Manager cho dropdown
+  getProjectManagers: () => http.get("/users/project-managers"),
 };

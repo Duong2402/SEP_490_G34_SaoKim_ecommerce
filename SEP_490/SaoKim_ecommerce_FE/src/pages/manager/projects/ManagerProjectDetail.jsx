@@ -12,7 +12,7 @@ const STATUS_LABELS = {
 };
 
 const formatCurrency = (value) => {
-  if (value == null) return "0 ₫";
+  if (value == null) return "0 ₫";
   return Number(value).toLocaleString("vi-VN") + " ₫";
 };
 
@@ -59,7 +59,9 @@ export default function ManagerProjectDetail() {
           expPayload?.Items ??
           [];
         setExpenses(Array.isArray(expenseItems) ? expenseItems : []);
-        setTotalExpense(Number(expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0));
+        setTotalExpense(
+          Number(expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0)
+        );
       } catch (err) {
         console.error(err);
         if (mounted) setError("Không thể tải dữ liệu dự án.");
@@ -75,7 +77,11 @@ export default function ManagerProjectDetail() {
   }, [id]);
 
   if (loading) {
-    return <div className="manager-panel manager-empty">Đang tải thông tin dự án...</div>;
+    return (
+      <div className="manager-panel manager-empty">
+        Đang tải thông tin dự án...
+      </div>
+    );
   }
 
   if (error || !project) {
@@ -131,11 +137,21 @@ export default function ManagerProjectDetail() {
           <OverviewCard
             label="Ngày kết thúc"
             value={
-              project.endDate ? new Date(project.endDate).toLocaleDateString("vi-VN") : "-"
+              project.endDate
+                ? new Date(project.endDate).toLocaleDateString("vi-VN")
+                : "-"
             }
           />
+          <OverviewCard
+            label="PM phụ trách"
+            value={project.projectManagerName || "-"}
+          />
           <OverviewCard label="Người tạo" value={project.createdBy || "-"} />
-          <OverviewCard label="Ghi chú" value={project.description || "-"} full />
+          <OverviewCard
+            label="Ghi chú"
+            value={project.description || "-"}
+            full
+          />
         </div>
       </section>
 
@@ -150,7 +166,9 @@ export default function ManagerProjectDetail() {
         </div>
         <div className="manager-table__wrapper">
           {products.length === 0 ? (
-            <div className="manager-table__empty">Chưa có sản phẩm nào được gán.</div>
+            <div className="manager-table__empty">
+              Chưa có sản phẩm nào được gán.
+            </div>
           ) : (
             <table className="manager-table">
               <thead>
@@ -183,13 +201,16 @@ export default function ManagerProjectDetail() {
           <div>
             <h2 className="manager-panel__title">Chi phí phát sinh</h2>
             <p className="manager-panel__subtitle">
-              Tổng chi phí thực tế: <strong>{formatCurrency(totalExpense)}</strong>
+              Tổng chi phí thực tế:{" "}
+              <strong>{formatCurrency(totalExpense)}</strong>
             </p>
           </div>
         </div>
         <div className="manager-table__wrapper">
           {expenses.length === 0 ? (
-            <div className="manager-table__empty">Chưa có khoản chi phí nào.</div>
+            <div className="manager-table__empty">
+              Chưa có khoản chi phí nào.
+            </div>
           ) : (
             <table className="manager-table">
               <thead>
@@ -205,7 +226,11 @@ export default function ManagerProjectDetail() {
                 {expenses.map((expense) => (
                   <tr key={expense.id}>
                     <td>
-                      {expense.date ? new Date(expense.date).toLocaleDateString("vi-VN") : "-"}
+                      {expense.date
+                        ? new Date(
+                            expense.date
+                          ).toLocaleDateString("vi-VN")
+                        : "-"}
                     </td>
                     <td>{expense.category ?? "-"}</td>
                     <td>{expense.vendor ?? "-"}</td>
@@ -228,7 +253,10 @@ function StatusBadge({ value }) {
   if (value === "Draft") className += " manager-status--pending";
   if (value === "Cancelled") className += " manager-status--danger";
   return (
-    <span className={className} style={{ marginTop: 8, display: "inline-flex" }}>
+    <span
+      className={className}
+      style={{ marginTop: 8, display: "inline-flex" }}
+    >
       <span className="manager-status__dot" aria-hidden="true" />
       {STATUS_LABELS[value] ?? value}
     </span>

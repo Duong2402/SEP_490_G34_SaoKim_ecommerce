@@ -290,7 +290,14 @@ namespace SaoKim_ecommerce_BE.Data
 
                     e.Property(p => p.StartDate).HasColumnType("date");
                     e.Property(p => p.EndDate).HasColumnType("date");
+
+                    // 1 User (PM) - N Projects
+                    e.HasOne(p => p.ProjectManager)
+                     .WithMany(u => u.ManagedProjects)
+                     .HasForeignKey(p => p.ProjectManagerId)
+                     .OnDelete(DeleteBehavior.Restrict);
                 });
+
 
                 modelBuilder.Entity<TaskItem>(e =>
                 {

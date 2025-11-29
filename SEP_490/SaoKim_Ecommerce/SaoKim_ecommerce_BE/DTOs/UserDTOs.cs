@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
@@ -41,6 +41,11 @@ namespace SaoKim_ecommerce_BE.DTOs
         public bool IsDefault { get; set; }
     }
 
+    // NEW: DTO cho dropdown Project Manager
+    public class ProjectManagerOptionDTO
+    {
+        public int Id { get; set; }              // user_id
+        public string Name { get; set; } = "";   // tên hiển thị
+        public string Email { get; set; } = "";  // email PM
+    }
 }
-
-
