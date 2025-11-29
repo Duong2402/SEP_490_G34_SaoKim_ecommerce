@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;   // NEW
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -14,7 +15,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET /api/users  
         [HttpGet]
-        [AllowAnonymous]    
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q,
             [FromQuery] string? role,
@@ -72,6 +73,28 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+        // NEW: GET /api/users/project-managers
+        // dùng cho Manager lấy danh sách PM làm dropdown
+        [HttpGet("project-managers")]
+        [AllowAnonymous] // nếu muốn chỉ Manager gọi được thì đổi sang [Authorize]
+        public async Task<IActionResult> GetProjectManagers()
+        {
+            var pms = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.Role)
+                .Where(u => u.Role != null && u.Role.Name == "project_manager")
+                .OrderBy(u => u.Name)
+                .Select(u => new ProjectManagerOptionDTO
+                {
+                    Id = u.UserID,
+                    Name = u.Name,
+                    Email = u.Email
+                })
+                .ToListAsync();
+
+            return Ok(pms);
+        }
+
         // GET /api/users/{id}
         [HttpGet("{id:int}")]
         [AllowAnonymous]
@@ -90,7 +113,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 name = u.Name,
                 email = u.Email,
                 phone = u.PhoneNumber,
-                role = u.Role != null ? u.Role.Name : null,   
+                role = u.Role != null ? u.Role.Name : null,
                 status = u.Status,
                 address = u.Address,
                 dob = u.DOB,
@@ -132,12 +155,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             public string? PhoneNumber { get; set; }
             public string? Status { get; set; }
             public DateTime? Dob { get; set; }
-            public int? RoleId { get; set; }    
+            public int? RoleId { get; set; }
         }
 
         // GET /api/users/roles 
         [HttpGet("roles")]
-        [AllowAnonymous]    
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoles()
         {
             var roles = await _db.Roles

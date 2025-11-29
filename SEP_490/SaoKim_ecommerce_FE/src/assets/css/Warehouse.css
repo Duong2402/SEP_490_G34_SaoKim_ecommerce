@@ -164,16 +164,16 @@
 }
 
 .warehouse-topbar__subtitle {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--wm-muted);
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
 .warehouse-topbar__title {
-  font-size: 1.4rem;
+  font-size: var(--heading-lg);
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   color: var(--wm-text);
 }
 
@@ -367,9 +367,9 @@
 }
 
 .wm-page-title {
-  font-size: 1.8rem;
+  font-size: var(--heading-lg);
   margin: 0;
-  font-weight: 650;
+  font-weight: var(--weight-medium);
   color: var(--wm-text);
 }
 
@@ -377,6 +377,7 @@
   margin: 8px 0 0;
   max-width: 560px;
   color: var(--wm-muted);
+  font-size: var(--text-base);
 }
 
 .wm-page-actions {
@@ -703,7 +704,8 @@
 }
 
 .wm-trace-list__title {
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   color: var(--wm-text);
 }
 
@@ -826,7 +828,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
   color: var(--wm-text);
   margin-bottom: 6px;
 }

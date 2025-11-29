@@ -18,10 +18,12 @@ export default function ManagerProjectEdit() {
         setLoading(true);
         setError("");
         const res = await ProjectAPI.getById(id);
-        if (mounted) setDetail(res?.data ?? res ?? null);
+        const body = res?.data?.data ?? res?.data ?? res ?? null;
+        if (mounted) setDetail(body);
       } catch (err) {
         console.error(err);
-        if (mounted) setError("Không tìm thấy dự án hoặc đã có lỗi xảy ra.");
+        if (mounted)
+          setError("Không tìm thấy dự án hoặc đã có lỗi xảy ra.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -35,15 +37,8 @@ export default function ManagerProjectEdit() {
     try {
       setSubmitting(true);
       const payload = {
+        ...values,
         id: Number(id),
-        name: values.name,
-        customerName: values.customerName,
-        customerContact: values.customerContact,
-        status: values.status,
-        startDate: values.startDate || null,
-        endDate: values.endDate || null,
-        budget: values.budget ? Number(values.budget) : null,
-        description: values.description,
       };
       await ProjectAPI.update(id, payload);
       navigate(`/manager/projects/${id}`);
@@ -56,7 +51,11 @@ export default function ManagerProjectEdit() {
   }
 
   if (loading) {
-    return <div className="manager-panel manager-empty">Đang tải dữ liệu dự án...</div>;
+    return (
+      <div className="manager-panel manager-empty">
+        Đang tải dữ liệu dự án...
+      </div>
+    );
   }
 
   if (error || !detail) {
@@ -73,7 +72,8 @@ export default function ManagerProjectEdit() {
         <div>
           <h2 className="manager-panel__title">Cập nhật dự án</h2>
           <p className="manager-panel__subtitle">
-            Điều chỉnh thông tin để phản ánh đúng tiến độ và cam kết với khách hàng.
+            Điều chỉnh thông tin để phản ánh đúng tiến độ và cam kết với khách
+            hàng.
           </p>
         </div>
       </div>

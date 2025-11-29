@@ -34,7 +34,13 @@ export default function ManagerEmployeeList() {
         role: roleFilter !== "all" ? roleFilter : undefined,
       };
       const data = await ManagerEmployeeAPI.getAll(params);
-      setEmployees(data?.items ?? []);
+      const allItems = data?.items ?? [];
+      // Filter out Customer, Admin, Manager
+      const filteredItems = allItems.filter((emp) => {
+        const r = (emp.role || "").toLowerCase();
+        return !["customer", "admin", "manager"].includes(r);
+      });
+      setEmployees(filteredItems);
       setTotalItems(data?.total ?? 0);
       setTotalPages(data?.totalPages ?? 0);
     } catch (err) {
@@ -55,7 +61,12 @@ export default function ManagerEmployeeList() {
     const loadRoles = async () => {
       try {
         const data = await ManagerEmployeeAPI.getRoles();
-        setRoles(Array.isArray(data) ? data : []);
+        const allRoles = Array.isArray(data) ? data : [];
+        setRoles(
+          allRoles.filter(
+            (r) => !["customer", "admin", "manager"].includes((r.name || "").toLowerCase())
+          )
+        );
       } catch (err) {
         console.error("Failed to load roles:", err);
         setRoles([]);

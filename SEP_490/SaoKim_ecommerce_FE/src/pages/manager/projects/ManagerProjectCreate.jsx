@@ -10,16 +10,8 @@ export default function ManagerProjectCreate() {
   async function handleSubmit(values) {
     try {
       setSubmitting(true);
-      const payload = {
-        name: values.name,
-        customerName: values.customerName,
-        customerContact: values.customerContact,
-        status: values.status,
-        startDate: values.startDate || null,
-        endDate: values.endDate || null,
-        budget: values.budget ? Number(values.budget) : null,
-        description: values.description,
-      };
+      // values đã có: name, customerName, ..., budget (number), projectManagerId (number|null)
+      const payload = { ...values };
       const res = await ProjectAPI.create(payload);
       const newId = res?.data?.data?.id ?? res?.data?.id;
       navigate(`/manager/projects/${newId}`);

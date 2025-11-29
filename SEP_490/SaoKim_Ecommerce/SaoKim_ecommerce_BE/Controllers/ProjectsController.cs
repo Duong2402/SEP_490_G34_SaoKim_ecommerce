@@ -2,6 +2,7 @@
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Models;
 using SaoKim_ecommerce_BE.Services;
+using System.Security.Claims;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -12,7 +13,20 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly IProjectService _service;
         public ProjectsController(IProjectService service) => _service = service;
 
-        // [Authorize(Roles="PM")] // bật khi có auth
+        private static bool IsPm(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return false;
+            var r = role.Trim().ToLowerInvariant();
+            return r == "project_manager" || r == "projectmanager" || r == "project manager" || r == "pm";
+        }
+
+        private static bool IsManager(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return false;
+            var r = role.Trim().ToLowerInvariant();
+            return r == "manager" || r == "admin";
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateProjectDTO dto)
         {
@@ -36,14 +50,37 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var res = await _service.GetByIdAsync(id);
-            if (res == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
-            return Ok(ApiResponse<ProjectResponseDTO>.Ok(res));
+            var project = await _service.GetByIdAsync(id);
+            if (project == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
+
+            var role = User?.FindFirstValue(ClaimTypes.Role);
+            var userIdStr = User?.FindFirstValue("UserId");
+
+            if (IsPm(role))
+            {
+                if (!int.TryParse(userIdStr, out var userId))
+                    return Forbid();
+
+                // PM chỉ xem được project của chính mình
+                if (!project.ProjectManagerId.HasValue || project.ProjectManagerId.Value != userId)
+                    return Forbid();
+            }
+
+            return Ok(ApiResponse<ProjectResponseDTO>.Ok(project));
         }
 
         [HttpGet]
         public async Task<IActionResult> Query([FromQuery] ProjectQuery q)
         {
+            var role = User?.FindFirstValue(ClaimTypes.Role);
+            var userIdStr = User?.FindFirstValue("UserId");
+
+            if (IsPm(role) && int.TryParse(userIdStr, out var userId))
+            {
+                // PM chỉ thấy project được assign, override mọi filter client gửi
+                q.ProjectManagerId = userId;
+            }
+
             var res = await _service.QueryAsync(q);
             return Ok(ApiResponse<PagedResult<ProjectResponseDTO>>.Ok(res));
         }
@@ -52,6 +89,27 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProjectDTO dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var role = User?.FindFirstValue(ClaimTypes.Role);
+            var userIdStr = User?.FindFirstValue("UserId");
+
+            // Lấy project hiện tại để check quyền + giữ nguyên PM nếu cần
+            var existing = await _service.GetByIdAsync(id);
+            if (existing == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
+
+            if (IsPm(role))
+            {
+                if (!int.TryParse(userIdStr, out var userId))
+                    return Forbid();
+
+                // PM chỉ được sửa project của mình
+                if (!existing.ProjectManagerId.HasValue || existing.ProjectManagerId.Value != userId)
+                    return Forbid();
+
+                // PM không được đổi PM của dự án
+                dto.ProjectManagerId = existing.ProjectManagerId;
+            }
+
             try
             {
                 var res = await _service.UpdateAsync(id, dto, User?.Identity?.Name);
@@ -67,6 +125,12 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
+            var role = User?.FindFirstValue(ClaimTypes.Role);
+
+            // Chỉ Manager/Admin được xóa
+            if (!IsManager(role))
+                return Forbid();
+
             var ok = await _service.DeleteAsync(id);
             if (!ok) return NotFound(ApiResponse<string>.Fail("Project not found"));
             return Ok(ApiResponse<string>.Ok("Deleted"));

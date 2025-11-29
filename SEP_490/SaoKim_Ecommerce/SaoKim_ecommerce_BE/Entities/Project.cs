@@ -35,6 +35,12 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? CreatedBy { get; set; }
 
+        // NEW: gán PM cho project
+        public int? ProjectManagerId { get; set; }
+
+        [ForeignKey(nameof(ProjectManagerId))]
+        public User? ProjectManager { get; set; }
+
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 
         public ICollection<ProjectProduct> ProjectProducts { get; set; } = new List<ProjectProduct>();
