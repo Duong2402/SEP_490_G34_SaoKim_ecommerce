@@ -89,8 +89,8 @@ export default function ManagerProjectDetail() {
   return (
     <div className="manager-section">
       <section className="manager-panel">
-        <div className="manager-panel__header">
-          <div>
+        <div className="manager-panel__header manager-overview__header">
+          <div className="manager-overview__title">
             <p className="manager-panel__subtitle">Mã dự án: {project.code}</p>
             <h2 className="manager-panel__title">{project.name}</h2>
             <StatusBadge value={project.status} />
@@ -112,11 +112,15 @@ export default function ManagerProjectDetail() {
           </div>
         </div>
 
-        <div className="manager-grid-two">
-          <InfoItem label="Khách hàng" value={project.customerName} />
-          <InfoItem label="Liên hệ" value={project.customerContact} />
-          <InfoItem label="Giá trị dự án" value={formatCurrency(project.budget)} />
-          <InfoItem
+        <div className="manager-overview-grid">
+          <OverviewCard label="Khách hàng" value={project.customerName} />
+          <OverviewCard label="Liên hệ" value={project.customerContact} />
+          <OverviewCard
+            label="Giá trị dự án"
+            value={formatCurrency(project.budget)}
+            highlight
+          />
+          <OverviewCard
             label="Ngày bắt đầu"
             value={
               project.startDate
@@ -124,23 +128,15 @@ export default function ManagerProjectDetail() {
                 : "-"
             }
           />
-          <InfoItem
+          <OverviewCard
             label="Ngày kết thúc"
             value={
               project.endDate ? new Date(project.endDate).toLocaleDateString("vi-VN") : "-"
             }
           />
-          <InfoItem label="Người tạo" value={project.createdBy || "-"} />
+          <OverviewCard label="Người tạo" value={project.createdBy || "-"} />
+          <OverviewCard label="Ghi chú" value={project.description || "-"} full />
         </div>
-
-        {project.description && (
-          <div style={{ marginTop: 18 }}>
-            <div className="manager-card__label" style={{ marginBottom: 6 }}>
-              Ghi chú
-            </div>
-            <p className="manager-panel__subtitle">{project.description}</p>
-          </div>
-        )}
       </section>
 
       <section className="manager-panel">
@@ -226,15 +222,6 @@ export default function ManagerProjectDetail() {
   );
 }
 
-function InfoItem({ label, value }) {
-  return (
-    <div>
-      <div className="manager-card__label">{label}</div>
-      <div className="manager-card__value">{value || "-"}</div>
-    </div>
-  );
-}
-
 function StatusBadge({ value }) {
   if (!value) return null;
   let className = "manager-status";
@@ -245,5 +232,17 @@ function StatusBadge({ value }) {
       <span className="manager-status__dot" aria-hidden="true" />
       {STATUS_LABELS[value] ?? value}
     </span>
+  );
+}
+
+function OverviewCard({ label, value, highlight = false, full = false }) {
+  let className = "manager-overview-card";
+  if (highlight) className += " manager-overview-card--highlight";
+  if (full) className += " manager-overview-card--full";
+  return (
+    <div className={className}>
+      <div className="manager-overview-card__label">{label}</div>
+      <div className="manager-overview-card__value">{value || "-"}</div>
+    </div>
   );
 }

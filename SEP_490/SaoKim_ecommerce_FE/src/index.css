@@ -1,7 +1,18 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap");
+
 :root {
   /* Typography */
   --font-sans: "Inter", "Be Vietnam Pro", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-heading: "Be Vietnam Pro", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --heading-xl: clamp(22px, 3vw, 26px);
+  --heading-lg: 20px;
+  --heading-md: 16px;
+  --text-base: 15px;
+  --text-sm: 14px;
+  --text-xs: 12px;
+  --weight-bold: 700;
+  --weight-semibold: 600;
+  --weight-medium: 500;
 
   /* Brand palette */
   --primary-50: #ecf4fb;

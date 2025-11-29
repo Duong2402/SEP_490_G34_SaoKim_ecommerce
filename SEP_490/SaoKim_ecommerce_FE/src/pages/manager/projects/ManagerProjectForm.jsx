@@ -8,6 +8,18 @@ const STATUS_OPTIONS = [
   { value: "Cancelled", label: "Đã hủy" },
 ];
 
+const formatBudgetInput = (raw) => {
+  if (raw == null) return "";
+  const digits = String(raw).replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const number = Number(digits);
+  if (Number.isNaN(number)) return "";
+  return number.toLocaleString("vi-VN");
+};
+
+const normalizeBudgetValue = (formatted) =>
+  formatted ? Number(String(formatted).replace(/[^\d]/g, "")) : null;
+
 export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
   const [values, setValues] = useState({
     name: "",
@@ -29,7 +41,7 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
         status: initialValues.status ?? "Draft",
         startDate: initialValues.startDate ? initialValues.startDate.substring(0, 10) : "",
         endDate: initialValues.endDate ? initialValues.endDate.substring(0, 10) : "",
-        budget: initialValues.budget ?? "",
+        budget: formatBudgetInput(initialValues.budget),
         description: initialValues.description ?? "",
       });
     }
@@ -37,12 +49,19 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === "budget") {
+      setValues((prev) => ({ ...prev, budget: formatBudgetInput(value) }));
+      return;
+    }
     setValues((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onSubmit(values);
+    await onSubmit({
+      ...values,
+      budget: normalizeBudgetValue(values.budget),
+    });
   };
 
   return (
