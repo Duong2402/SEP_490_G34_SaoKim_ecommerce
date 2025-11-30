@@ -56,14 +56,14 @@ export default function InboundReport() {
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Không thể tải báo cáo nhập kho");
+        throw new Error(err.message || "Không thể tải báo cáo nhập kho.");
       }
 
       const data = await res.json();
       setRows(Array.isArray(data) ? data : []);
       setPage(1);
     } catch (error) {
-      console.error(error);
+      console.error("Lỗi khi tải báo cáo nhập kho:", error);
       setNotify(error.message || "Có lỗi khi tải báo cáo.");
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ export default function InboundReport() {
     connection.off("ReceivingSlipsUpdated");
 
     connection.on("ReceivingSlipsUpdated", (payload) => {
-      console.log("ReceivingSlipsUpdated (InboundReport):", payload);
+      console.log("Nhận sự kiện ReceivingSlipsUpdated (InboundReport):", payload);
       loadData();
     });
 
@@ -86,10 +86,10 @@ export default function InboundReport() {
       connection
         .start()
         .then(() => {
-          console.log("SignalR connected (InboundReport)");
+          console.log("Đã kết nối SignalR cho InboundReport");
         })
         .catch((err) => {
-          console.error("SignalR connection error (InboundReport):", err);
+          console.error("Lỗi kết nối SignalR cho InboundReport:", err);
           setNotify("Không thể kết nối realtime tới máy chủ.");
         });
     }
@@ -248,8 +248,9 @@ export default function InboundReport() {
           <div className="btn-group me-3" role="group">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "slips" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "slips" ? "active" : ""
+              }`}
               onClick={() => {
                 setViewMode("slips");
                 setPage(1);
@@ -259,8 +260,9 @@ export default function InboundReport() {
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "suppliers" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "suppliers" ? "active" : ""
+              }`}
               onClick={() => {
                 setViewMode("suppliers");
                 setPage(1);
@@ -316,13 +318,15 @@ export default function InboundReport() {
                 <div>
                   <div className="fw-semibold">{s.supplier}</div>
                   <small className="text-muted">
-                    {s.slipsCount} phiếu • {formatNumber(s.totalQuantity)} đơn vị
+                    {s.slipsCount} phiếu •{" "}
+                    {formatNumber(s.totalQuantity)} đơn vị
                   </small>
                 </div>
                 <Badge bg={idx === 0 ? "success" : "info"}>
-                  {((s.totalQuantity /
-                    (summary.totalQty || 1)) *
-                    100).toFixed(1)}
+                  {(
+                    (s.totalQuantity / (summary.totalQty || 1)) *
+                    100
+                  ).toFixed(1)}
                   %
                 </Badge>
               </li>
@@ -526,8 +530,9 @@ export default function InboundReport() {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >

@@ -103,7 +103,7 @@ const WarehouseDashboard = () => {
           totalInbound: data.thisWeek,
         }));
       } catch (err) {
-        console.error("Failed to fetch weekly inbound:", err);
+        console.error("Không thể tải thống kê phiếu nhập trong tuần:", err);
         setNotify(
           err.message || "Không thể tải thống kê phiếu nhập trong tuần."
         );
@@ -128,7 +128,7 @@ const WarehouseDashboard = () => {
           totalOutbound: data.thisWeek,
         }));
       } catch (err) {
-        console.error("Failed to fetch weekly outbound:", err);
+        console.error("Không thể tải thống kê phiếu xuất trong tuần:", err);
         setNotify(
           err.message || "Không thể tải thống kê phiếu xuất trong tuần."
         );
@@ -153,7 +153,7 @@ const WarehouseDashboard = () => {
           totalStock: dataStock.totalStock,
         }));
       } catch (err) {
-        console.error("Failed to fetch total stock:", err);
+        console.error("Không thể tải tổng tồn kho:", err);
         setNotify(err.message || "Không thể tải tổng tồn kho.");
       }
     };

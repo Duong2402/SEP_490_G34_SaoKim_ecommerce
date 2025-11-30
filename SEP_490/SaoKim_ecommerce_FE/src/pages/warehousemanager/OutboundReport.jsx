@@ -86,10 +86,10 @@ export default function OutboundReport() {
       connection
         .start()
         .then(() => {
-          console.log("SignalR connected (OutboundReport)");
+          console.log("SignalR đã kết nối (OutboundReport)");
         })
         .catch((err) => {
-          console.error("SignalR connection error (OutboundReport):", err);
+          console.error("SignalR mất kết nối (OutboundReport):", err);
           setNotify("Không thể kết nối realtime tới máy chủ.");
         });
     }

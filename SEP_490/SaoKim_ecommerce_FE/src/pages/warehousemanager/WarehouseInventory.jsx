@@ -50,6 +50,7 @@ export default function WarehouseInventory() {
       alert: "Cần theo dõi",
       critical: "Thiếu hàng",
     }[statusFilter] || "Tất cả trạng thái";
+
   const locations = useMemo(() => {
     const set = new Set(rows.map(r => r.locationName).filter(Boolean));
     return ["all", ...Array.from(set)];
@@ -97,7 +98,6 @@ export default function WarehouseInventory() {
     }
   };
 
-
   const load = async () => {
     setLoading(true);
     try {
@@ -108,8 +108,10 @@ export default function WarehouseInventory() {
         ...(locationFilter !== "all" ? { location: locationFilter } : {}),
         ...(statusFilter !== "all" ? { status: statusFilter } : {}),
       });
+
       const res = await apiFetch(`/api/warehousemanager/inventory?` + params.toString());
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Lỗi tải tồn kho (HTTP ${res.status})`);
+
       const data = await res.json();
       const items = (data.items || []).map(x => ({
         productId: x.productId ?? x.id ?? x.ProductId ?? x.ProductID,
@@ -126,7 +128,7 @@ export default function WarehouseInventory() {
       setRows(items);
       setTotal(data.total ?? items.length);
     } catch (e) {
-      console.error(e);
+      console.error("Lỗi khi tải dữ liệu tồn kho:", e);
     } finally {
       setLoading(false);
     }
@@ -151,8 +153,8 @@ export default function WarehouseInventory() {
     if (connection.state === signalR.HubConnectionState.Disconnected) {
       connection
         .start()
-        .then(() => console.log("SignalR connected in WarehouseInventory"))
-        .catch(err => console.error("Inventory SignalR connection error:", err));
+        .then(() => console.log("Đã kết nối SignalR cho màn hình tồn kho"))
+        .catch(err => console.error("Lỗi kết nối SignalR tồn kho:", err));
     }
 
     return () => {
@@ -163,7 +165,6 @@ export default function WarehouseInventory() {
   useEffect(() => { load(); }, [page, search, locationFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
 
   const [editingMin, setEditingMin] = useState({});
   const [savingMin, setSavingMin] = useState({});
@@ -186,7 +187,7 @@ export default function WarehouseInventory() {
       });
 
       if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
+        let msg = `Lỗi lưu định mức (HTTP ${res.status})`;
         try {
           const t = await res.text();
           if (t) msg += ` - ${t}`;
@@ -207,7 +208,6 @@ export default function WarehouseInventory() {
       setSavingMin(prev => ({ ...prev, [pid]: false }));
     }
   };
-
 
   return (
     <WarehouseLayout>
@@ -274,6 +274,7 @@ export default function WarehouseInventory() {
           </button>
         </div>
       </div>
+
       <div className="wm-stat-grid">
         <div className="wm-stat-card">
           <div className="wm-stat-card__icon"><FontAwesomeIcon icon={faBoxesStacked} /></div>
@@ -331,14 +332,12 @@ export default function WarehouseInventory() {
                     setStatusFilter(st);
                   }}
                 >
-                  {
-                    {
-                      all: "Tất cả trạng thái",
-                      stock: "Đủ hàng",
-                      alert: "Cần theo dõi",
-                      critical: "Thiếu hàng",
-                    }[st]
-                  }
+                  {{
+                    all: "Tất cả trạng thái",
+                    stock: "Đủ hàng",
+                    alert: "Cần theo dõi",
+                    critical: "Thiếu hàng",
+                  }[st]}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
@@ -361,9 +360,17 @@ export default function WarehouseInventory() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="wm-empty"><Spinner animation="border" size="sm" /> Đang tải...</td></tr>
+              <tr>
+                <td colSpan={7} className="wm-empty">
+                  <Spinner animation="border" size="sm" /> Đang tải...
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="wm-empty">Không có dữ liệu phù hợp.</td></tr>
+              <tr>
+                <td colSpan={7} className="wm-empty">
+                  Không có dữ liệu phù hợp.
+                </td>
+              </tr>
             ) : (
               rows.map((r, idx) => {
                 const st = r.status ?? getStatus(r);
@@ -419,20 +426,42 @@ export default function WarehouseInventory() {
       <div className="d-flex justify-content-between align-items-center mt-3">
         <div>Tổng: {total} sản phẩm • Trang {page}/{totalPages}</div>
         <div className="btn-group">
-          <button className="btn btn-outline-secondary" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
             Trước
           </button>
+
           {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter(p => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
-            .reduce((acc, p, idx, arr) => { if (idx && p - arr[idx - 1] > 1) acc.push("..."); acc.push(p); return acc; }, [])
-            .map((p, i) => p === "..." ? (
-              <button key={`gap-${i}`} className="btn btn-outline-light" disabled>...</button>
-            ) : (
-              <button key={p} className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`} onClick={() => setPage(p)}>
-                {p}
-              </button>
-            ))}
-          <button className="btn btn-outline-secondary" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
+            .reduce((acc, p, idx, arr) => {
+              if (idx && p - arr[idx - 1] > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, i) =>
+              p === "..." ? (
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
+                  ...
+                </button>
+              ) : (
+                <button
+                  key={p}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+          <button
+            className="btn btn-outline-secondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
             Sau
           </button>
         </div>

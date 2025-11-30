@@ -60,7 +60,7 @@ export default function DispatchCreate() {
         const res = await apiFetch(`/api/products`);
 
         const json = await res.json();
-        console.log("GET /api/products:", json);
+        console.log("Kết quả gọi GET /api/products:", json);
 
         const payload = json.data ?? json;
         const raw = Array.isArray(payload) ? payload : payload.items || [];
@@ -74,10 +74,10 @@ export default function DispatchCreate() {
           }))
           .filter((p) => p.id != null && p.name);
 
-        console.log("Products normalized:", normalized);
+        console.log("Danh sách sản phẩm sau chuẩn hóa:", normalized);
         setProducts(normalized);
       } catch (err) {
-        console.error("[Load products] failed:", err);
+        console.error("[Tải danh mục sản phẩm] lỗi:", err);
         setProducts([]);
         setToast({
           type: "danger",
@@ -94,7 +94,8 @@ export default function DispatchCreate() {
       try {
         if (type === "Sales") {
           const res = await apiFetch(`/api/warehousemanager/customers`);
-          if (!res.ok) throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
+          if (!res.ok)
+            throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
           const data = await res.json();
           setCustomers(
             (data || []).map((c) => ({
@@ -104,7 +105,8 @@ export default function DispatchCreate() {
           );
         } else {
           const res = await apiFetch(`/api/warehousemanager/projects`);
-          if (!res.ok) throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
+          if (!res.ok)
+            throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
           const data = await res.json();
           setProjects(
             (data || []).map((p) => ({
@@ -114,7 +116,7 @@ export default function DispatchCreate() {
           );
         }
       } catch (err) {
-        console.error("[Load list for type] failed:", err);
+        console.error("[Tải khách hàng / dự án] lỗi:", err);
         setCustomers([]);
         setProjects([]);
         setToast({
@@ -171,8 +173,8 @@ export default function DispatchCreate() {
     items.forEach((it, idx) => {
       const e = {};
       if (!it.productId) e.productId = "Chọn sản phẩm.";
-      if (!(Number(it.quantity) > 0)) e.quantity = "Số lượng > 0.";
-      if (Number(it.unitPrice) < 0) e.unitPrice = "Đơn giá >= 0.";
+      if (!(Number(it.quantity) > 0)) e.quantity = "Số lượng phải > 0.";
+      if (Number(it.unitPrice) < 0) e.unitPrice = "Đơn giá phải ≥ 0.";
       if (Object.keys(e).length) iErrs[idx] = e;
     });
     setItemErrs(iErrs);
@@ -221,7 +223,7 @@ export default function DispatchCreate() {
 
   const handleSave = async () => {
     const ok = validate();
-    console.log("[Validate result]", ok, {
+    console.log("[Kết quả validate phiếu xuất]", ok, {
       type,
       selectedCustomer,
       selectedProject,
@@ -239,8 +241,8 @@ export default function DispatchCreate() {
         selectedProject,
       });
 
-      console.log("[Create Dispatch] URL:", url);
-      console.log("[Create Dispatch] BODY:", body, {
+      console.log("[Tạo phiếu xuất] URL:", url);
+      console.log("[Tạo phiếu xuất] Dữ liệu gửi lên:", body, {
         typeofCustomerId: typeof body.customerId,
         typeofProjectId: typeof body.projectId,
       });
@@ -322,8 +324,8 @@ export default function DispatchCreate() {
           </div>
           <h1 className="wm-page-title">Tạo phiếu xuất kho</h1>
           <p className="wm-page-subtitle">
-            Chọn loại Sales/Project, nhập thông tin chung & thêm dòng hàng
-            (chỉ từ danh mục sản phẩm).
+            Chọn loại phiếu (Xuất bán / Xuất dự án), nhập thông tin chung và
+            thêm dòng hàng từ danh mục sản phẩm.
           </p>
         </div>
 
@@ -372,25 +374,29 @@ export default function DispatchCreate() {
               Nháp
             </Badge>
           </span>
-          <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
+          <span className="wm-subtle-text">Sẽ là Nháp khi tạo</span>
         </div>
       </div>
 
       <div className="wm-surface mb-3">
         <div className="row">
           <div className="col-md-3 mb-3">
-            <Form.Label>Loại phiếu <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Loại phiếu <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Select
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
-              <option value="Sales">Sales</option>
-              <option value="Project">Project</option>
+              <option value="Sales">Xuất bán</option>
+              <option value="Project">Xuất dự án</option>
             </Form.Select>
           </div>
 
           <div className="col-md-3 mb-3">
-            <Form.Label>Ngày xuất <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Ngày xuất <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               type="date"
               value={dispatchDate}
@@ -404,7 +410,9 @@ export default function DispatchCreate() {
 
           {type === "Sales" ? (
             <div className="col-md-6 mb-3">
-              <Form.Label>Khách hàng <span className="text-danger">*</span></Form.Label>
+              <Form.Label>
+                Khách hàng <span className="text-danger">*</span>
+              </Form.Label>
               <Select
                 options={customers}
                 value={selectedCustomer}
@@ -419,12 +427,16 @@ export default function DispatchCreate() {
                 menuPlacement="auto"
               />
               {fieldErrs.customerName && (
-                <div className="invalid-feedback d-block">{fieldErrs.customerName}</div>
+                <div className="invalid-feedback d-block">
+                  {fieldErrs.customerName}
+                </div>
               )}
             </div>
           ) : (
             <div className="col-md-6 mb-3">
-              <Form.Label>Dự án <span className="text-danger">*</span></Form.Label>
+              <Form.Label>
+                Dự án <span className="text-danger">*</span>
+              </Form.Label>
               <Select
                 options={projects}
                 value={selectedProject}
@@ -439,7 +451,9 @@ export default function DispatchCreate() {
                 menuPlacement="auto"
               />
               {fieldErrs.projectName && (
-                <div className="invalid-feedback d-block">{fieldErrs.projectName}</div>
+                <div className="invalid-feedback d-block">
+                  {fieldErrs.projectName}
+                </div>
               )}
             </div>
           )}
@@ -475,38 +489,49 @@ export default function DispatchCreate() {
               <th style={{ minWidth: 120 }}>Số lượng</th>
               <th style={{ minWidth: 140 }}>Đơn giá</th>
               <th style={{ minWidth: 160 }}>Thành tiền</th>
-              <th className="text-end" style={{ width: 100 }}>Thao tác</th>
+              <th className="text-end" style={{ width: 100 }}>
+                Thao tác
+              </th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="wm-empty">Chưa có dòng hàng.</td>
+                <td colSpan={7} className="wm-empty">
+                  Chưa có dòng hàng.
+                </td>
               </tr>
             ) : (
               items.map((it, idx) => {
                 const errs = itemErrs[idx] || {};
-                const lineTotal = Number(it.quantity || 0) * Number(it.unitPrice || 0);
+                const lineTotal =
+                  Number(it.quantity || 0) * Number(it.unitPrice || 0);
 
                 return (
                   <tr key={idx}>
                     <td>{idx + 1}</td>
                     <td>
                       <Select
-                        options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
+                        options={products.map((p) => ({
+                          value: p.id,
+                          label: `${p.id} - ${p.name}`,
+                        }))}
                         value={
                           products.find((p) => p.id === it.productId)
                             ? {
-                              value: it.productId,
-                              label: `${it.productId} - ${findProductById(it.productId)?.name}`,
-                            }
+                                value: it.productId,
+                                label: `${it.productId} - ${
+                                  findProductById(it.productId)?.name
+                                }`,
+                              }
                             : null
                         }
                         onChange={(option) =>
                           patchItem(idx, {
                             productId: option?.value || "",
                             uom: findProductById(option?.value)?.unit || "",
-                            unitPrice: findProductById(option?.value)?.price || 0,
+                            unitPrice:
+                              findProductById(option?.value)?.price || 0,
                           })
                         }
                         maxMenuHeight={200}
@@ -514,13 +539,17 @@ export default function DispatchCreate() {
                           control: (base) => ({
                             ...base,
                             minHeight: 45,
-                            borderColor: errs.productId ? "#dc3545" : base.borderColor,
+                            borderColor: errs.productId
+                              ? "#dc3545"
+                              : base.borderColor,
                             boxShadow: errs.productId
                               ? "0 0 0 0.2rem rgba(220,53,69,.25)"
                               : base.boxShadow,
                             "&:hover": {
                               ...base["&:hover"],
-                              borderColor: errs.productId ? "#dc3545" : base.borderColor,
+                              borderColor: errs.productId
+                                ? "#dc3545"
+                                : base.borderColor,
                             },
                           }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
@@ -530,7 +559,9 @@ export default function DispatchCreate() {
                         menuPlacement="auto"
                       />
                       {errs.productId && (
-                        <div className="invalid-feedback d-block">{errs.productId}</div>
+                        <div className="invalid-feedback d-block">
+                          {errs.productId}
+                        </div>
                       )}
                     </td>
 
@@ -544,7 +575,9 @@ export default function DispatchCreate() {
                           type="number"
                           min={1}
                           value={it.quantity}
-                          onChange={(e) => patchItem(idx, { quantity: e.target.value })}
+                          onChange={(e) =>
+                            patchItem(idx, { quantity: e.target.value })
+                          }
                           isInvalid={!!errs.quantity}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -558,7 +591,9 @@ export default function DispatchCreate() {
                         type="number"
                         min={0}
                         value={it.unitPrice}
-                        onChange={(e) => patchItem(idx, { unitPrice: e.target.value })}
+                        onChange={(e) =>
+                          patchItem(idx, { unitPrice: e.target.value })
+                        }
                         isInvalid={!!errs.unitPrice}
                       />
                       <Form.Control.Feedback type="invalid">
@@ -567,7 +602,7 @@ export default function DispatchCreate() {
                     </td>
 
                     <td className="fw-semibold">
-                      {lineTotal.toLocaleString("vi-VN")} VNĐ
+                      {lineTotal.toLocaleString("vi-VN")} đ
                     </td>
 
                     <td className="text-end">
@@ -576,7 +611,11 @@ export default function DispatchCreate() {
                         size="sm"
                         onClick={() => removeRow(idx)}
                         disabled={items.length === 1}
-                        title={items.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng"}
+                        title={
+                          items.length === 1
+                            ? "Cần ít nhất 1 dòng"
+                            : "Xóa dòng"
+                        }
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </Button>
@@ -605,10 +644,10 @@ export default function DispatchCreate() {
               toast.type === "danger"
                 ? "danger"
                 : toast.type === "warning"
-                  ? "warning"
-                  : toast.type === "success"
-                    ? "success"
-                    : "light"
+                ? "warning"
+                : toast.type === "success"
+                ? "success"
+                : "light"
             }
             onClose={() => setToast(null)}
             show={!!toast}
