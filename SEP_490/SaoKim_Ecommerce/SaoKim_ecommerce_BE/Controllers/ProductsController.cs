@@ -16,6 +16,10 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         private readonly IWebHostEnvironment _env;
+
+        // trạng thái "đang luân chuyển" lưu trong DB
+        private const string ProductStatusProcessing = "Processing";
+
         public ProductsController(SaoKimDBContext db, IWebHostEnvironment env)
         {
             _db = db;
@@ -23,17 +27,16 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // GET: /api/products
-        //[Authorize]
         [HttpGet]
         [AllowAnonymous]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAll(
-    [FromQuery] string? q,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] string? sortBy = "id",
-    [FromQuery] string? sortDir = "asc")
+            [FromQuery] string? q,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? sortBy = "id",
+            [FromQuery] string? sortDir = "asc")
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -142,7 +145,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(payload));
         }
 
-
+        // GET: /api/products/{id}
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
@@ -220,6 +223,61 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { product, related });
         }
 
+        // PATCH: /api/products/{id}/status
+        [HttpPatch("{id:int}/status")]
+        [Authorize(Roles = "Staff")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateProductStatusRequest req)
+        {
+            var newStatusRaw = (req.Status ?? "").Trim();
+
+            if (string.IsNullOrEmpty(newStatusRaw))
+            {
+                return BadRequest(new { message = "Trạng thái mới không được để trống." });
+            }
+
+            // cho phép 3 trạng thái
+            var allowed = new[] { "Active", "Inactive", ProductStatusProcessing };
+
+            var canonicalStatus = allowed
+                .FirstOrDefault(s => s.Equals(newStatusRaw, StringComparison.OrdinalIgnoreCase));
+
+            if (canonicalStatus == null)
+            {
+                return BadRequest(new { message = "Trạng thái không hợp lệ." });
+            }
+
+            var product = await _db.Products
+                .Include(p => p.ProductDetails)
+                .FirstOrDefaultAsync(p => p.ProductID == id);
+
+            if (product == null)
+            {
+                return NotFound(new { message = "Product not found" });
+            }
+
+            var detail = product.ProductDetails
+                .OrderByDescending(d => d.Id)
+                .FirstOrDefault();
+
+            if (detail == null)
+            {
+                return BadRequest(new { message = "Product chưa có thông tin chi tiết để cập nhật trạng thái." });
+            }
+
+            detail.Status = canonicalStatus;
+            detail.UpdateAt = DateTime.UtcNow;
+            detail.UpdateBy = User?.Identity?.Name ?? "system";
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Status updated successfully",
+                status = detail.Status
+            });
+        }
+
+        // POST: /api/products
         [HttpPost]
         [AllowAnonymous]
         // [Authorize(Roles = "Admin")]
@@ -268,13 +326,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                 CategoryId = model.CategoryId,
                 Unit = model.Unit,
                 Price = model.Price,
-                Quantity = model.Quantity, 
+                Quantity = model.Quantity,
                 Status = model.Active ? "Active" : "Inactive",
                 Description = model.Description,
                 Supplier = model.Supplier,
                 Note = model.Note,
                 Image = imageFileName,
-                CreateAt = now,            };
+                CreateAt = now,
+            };
 
             _db.ProductDetails.Add(detail);
             await _db.SaveChangesAsync();
@@ -287,7 +346,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-
+        // PUT: /api/products/{id}
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, [FromForm] UpdateProductDto model)
@@ -319,11 +378,10 @@ namespace SaoKim_ecommerce_BE.Controllers
                 _db.ProductDetails.Add(detail);
             }
 
-            // 3. Update detail fields
             detail.CategoryId = model.CategoryId;
             detail.Unit = model.Unit;
             detail.Price = model.Price;
-            detail.Quantity = model.Quantity; 
+            detail.Quantity = model.Quantity;
             detail.Status = model.Active ? "Active" : "Inactive";
             detail.Description = model.Description;
             detail.Supplier = model.Supplier;
@@ -360,17 +418,34 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "Product updated successfully" });
         }
 
-
+        // DELETE: /api/products/{id}
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Staff")]
         public async Task<IActionResult> Delete(int id)
         {
-            var existing = await _db.Products.FindAsync(id);
-            if (existing == null)
+            var product = await _db.Products
+                .Include(p => p.ProductDetails)
+                .FirstOrDefaultAsync(p => p.ProductID == id);
+
+            if (product == null)
                 return NotFound(new { message = "Product not found" });
 
-            _db.Products.Remove(existing);
+            var latestDetail = product.ProductDetails
+                .OrderByDescending(d => d.Id)
+                .FirstOrDefault();
+
+            if (latestDetail != null &&
+                string.Equals(latestDetail.Status, ProductStatusProcessing, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    message = "Sản phẩm đang ở trạng thái xử lý/luân chuyển, không được phép xóa."
+                });
+            }
+
+            _db.Products.Remove(product);
             await _db.SaveChangesAsync();
+
             return Ok(new { message = "Product deleted successfully" });
         }
 
@@ -480,7 +555,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     .OrderByDescending(x => x.Detail!.Price)
                     .ThenByDescending(x => x.Detail!.CreateAt);
             }
-            else 
+            else
             {
                 sorted = sorted
                     .OrderByDescending(x => x.Detail!.CreateAt);
@@ -518,6 +593,5 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
             });
         }
-
     }
 }

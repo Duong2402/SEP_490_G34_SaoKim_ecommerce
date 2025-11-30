@@ -50,6 +50,7 @@ export default function useProductsApi() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
+    // list dùng proxy /api/products từ FE
     const res = await fetch(`/api/products?${params.toString()}`);
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -160,6 +161,30 @@ export default function useProductsApi() {
     [request]
   );
 
+  // PATCH /api/Products/{id}/status
+  const updateProductStatus = useCallback(
+    async (id, status) => {
+      if (id == null) throw new Error("Thiếu mã sản phẩm");
+      if (!status) throw new Error("Thiếu trạng thái mới");
+
+      const body = JSON.stringify({ status });
+
+      const result = await request(`/api/Products/${id}/status`, {
+        method: "PATCH",
+        body,
+      });
+
+      setProducts((prev) =>
+        prev.map((p) =>
+          (p.productID ?? p.id) === id ? { ...p, status, ...(result || {}) } : p
+        )
+      );
+
+      return result;
+    },
+    [request]
+  );
+
   const emptyProduct = useMemo(
     () => ({
       productID: 0,
@@ -194,6 +219,7 @@ export default function useProductsApi() {
     createProduct,
     updateProduct,
     deleteProduct,
+    updateProductStatus,
     setProducts,
     emptyProduct,
   };

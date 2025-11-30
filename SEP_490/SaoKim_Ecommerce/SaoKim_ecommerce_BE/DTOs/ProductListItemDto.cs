@@ -1,4 +1,4 @@
-﻿namespace SaoKim_ecommerce_BE.DTOs
+﻿﻿namespace SaoKim_ecommerce_BE.DTOs
 {
     public class PagedResult<T>
     {
