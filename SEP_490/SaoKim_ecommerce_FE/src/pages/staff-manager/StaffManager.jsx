@@ -48,7 +48,7 @@ export default function ManageProduct() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingTable, setLoadingTable] = useState(false);
 
-  const { fetchProducts, deleteProduct } = useProductsApi();
+  const { fetchProducts, deleteProduct, updateProductStatus } = useProductsApi();
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async (opts) => {
@@ -94,13 +94,50 @@ export default function ManageProduct() {
     }
   };
 
+  const normalizeStatus = (status) =>
+    String(status || "").trim().toLowerCase();
+
   const renderStatus = (status) => {
-    const isActive = String(status || "").toLowerCase() === "active" || status === true;
+    const s = normalizeStatus(status);
+
+    if (s === "active") {
+      return (
+        <Badge bg="success" text="white">
+          Đang hiển thị
+        </Badge>
+      );
+    }
+
+    if (s === "inactive") {
+      return (
+        <Badge bg="secondary" text="white">
+          Ngừng bán
+        </Badge>
+      );
+    }
+
+    if (s === "processing") {
+      return (
+        <Badge bg="warning" text="dark">
+          Đang luân chuyển
+        </Badge>
+      );
+    }
+
     return (
-      <Badge bg={isActive ? "success" : "secondary"} text={isActive ? "white" : undefined}>
-        {isActive ? "Đang hiển thị" : "Ngừng bán"}
+      <Badge bg="light" text="dark">
+        {status || "Không xác định"}
       </Badge>
     );
+  };
+
+  const handleChangeStatus = async (product, newStatus) => {
+    try {
+      await updateProductStatus(product.id, newStatus);
+      await load();
+    } catch (err) {
+      alert("Cập nhật trạng thái thất bại: " + (err.message || err));
+    }
   };
 
   return (
@@ -111,18 +148,27 @@ export default function ManageProduct() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-dashboard" }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Sản phẩm</Breadcrumb.Item>
             <Breadcrumb.Item active>Quản lý sản phẩm</Breadcrumb.Item>
           </Breadcrumb>
           <h4 className="staff-page-title">Quản lý sản phẩm</h4>
-          <p className="staff-page-lead">Tạo, chỉnh sửa và duy trì danh mục hàng hóa</p>
+          <p className="staff-page-lead">
+            Tạo, chỉnh sửa và duy trì danh mục hàng hóa
+          </p>
         </div>
 
         <div className="staff-panel__actions">
-          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowCreate(true)}
+          >
             <FontAwesomeIcon icon={faPlus} className="me-2" />
             Thêm sản phẩm
           </Button>
@@ -148,7 +194,12 @@ export default function ManageProduct() {
 
           <Col xs="auto" className="text-end">
             <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+              <Dropdown.Toggle
+                split
+                as={Button}
+                variant="link"
+                className="text-dark m-0 p-0"
+              >
                 <span className="icon icon-sm icon-gray">
                   <FontAwesomeIcon icon={faCog} />
                 </span>
@@ -253,55 +304,91 @@ export default function ManageProduct() {
               </tr>
             </thead>
             <tbody>
-              {(rows || []).map((p) => (
-                <tr key={p.id}>
-                  <td>{p.id}</td>
-                  <td>
-                    {p.image ? (
-                      <img
-                        src={p.image}
-                        alt={p.name}
-                        style={{
-                          width: 48,
-                          height: 48,
-                          objectFit: "cover",
-                          borderRadius: 8,
-                          border: "1px solid #e0e0e0",
-                          backgroundColor: "#f8f9fa",
+              {(rows || []).map((p) => {
+                const statusNorm = normalizeStatus(p.status);
+                const isProcessing = statusNorm === "processing";
+
+                return (
+                  <tr key={p.id}>
+                    <td>{p.id}</td>
+                    <td>
+                      {p.image ? (
+                        <img
+                          src={p.image}
+                          alt={p.name}
+                          style={{
+                            width: 48,
+                            height: 48,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            border: "1px solid #e0e0e0",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        />
+                      ) : (
+                        <span className="text-muted small">Chưa có ảnh</span>
+                      )}
+                    </td>
+                    <td>{p.sku}</td>
+                    <td>{p.name}</td>
+                    <td>{p.category}</td>
+                    <td className="text-end">
+                      {(p.price ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
+                    <td>{renderStatus(p.status)}</td>
+                    <td className="text-end">
+                      {/* Nút đổi trạng thái */}
+                      {isProcessing ? (
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          className="me-2"
+                          title="Mở bán lại sản phẩm này"
+                          onClick={() => handleChangeStatus(p, "Active")}
+                        >
+                          Mở bán lại
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          className="me-2"
+                          title="Đưa sản phẩm vào trạng thái xử lý / luân chuyển"
+                          onClick={() => handleChangeStatus(p, "Processing")}
+                        >
+                          Đưa vào xử lý
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        title="Chỉnh sửa"
+                        onClick={() => setEditing(p)}
+                      >
+                        <FontAwesomeIcon icon={faEdit} />
+                      </Button>
+
+                      <Button
+                        variant={isProcessing ? "outline-secondary" : "outline-danger"}
+                        size="sm"
+                        title={
+                          isProcessing
+                            ? "Không thể xóa khi sản phẩm đang ở trạng thái xử lý / luân chuyển"
+                            : "Xóa sản phẩm"
+                        }
+                        disabled={isProcessing}
+                        onClick={() => {
+                          if (!isProcessing) setDeleting(p);
                         }}
-                      />
-                    ) : (
-                      <span className="text-muted small">Chưa có ảnh</span>
-                    )}
-                  </td>
-                  <td>{p.sku}</td>
-                  <td>{p.name}</td>
-                  <td>{p.category}</td>
-                  <td className="text-end">
-                    {(p.price ?? 0).toLocaleString("vi-VN")} ₫
-                  </td>
-                  <td>{renderStatus(p.status)}</td>
-                  <td className="text-end">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      title="Chỉnh sửa"
-                      onClick={() => setEditing(p)}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      title="Xóa sản phẩm"
-                      onClick={() => setDeleting(p)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {!loadingTable && rows.length === 0 && (
                 <tr>
@@ -318,20 +405,36 @@ export default function ManageProduct() {
               Trang {page} / {totalPages}
             </div>
             <Pagination className="mb-0">
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
+              <Pagination.Prev
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
               {renderPageItems(page, totalPages, (p) => setPage(p))}
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
-              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
+              <Pagination.Last
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              />
             </Pagination>
           </div>
 
-          <Modal show={showCreate} onHide={() => setShowCreate(false)} centered dialogClassName="staff-modal">
+          <Modal
+            show={showCreate}
+            onHide={() => setShowCreate(false)}
+            centered
+            dialogClassName="staff-modal"
+          >
             <Modal.Header closeButton>
-              <Modal.Title className="staff-modal__title">Thêm sản phẩm</Modal.Title>
+              <Modal.Title className="staff-modal__title">
+                Thêm sản phẩm
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <AddProductForm
@@ -344,9 +447,16 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
-          <Modal show={!!editing} onHide={() => setEditing(null)} centered dialogClassName="staff-modal">
+          <Modal
+            show={!!editing}
+            onHide={() => setEditing(null)}
+            centered
+            dialogClassName="staff-modal"
+          >
             <Modal.Header closeButton>
-              <Modal.Title className="staff-modal__title">Chỉnh sửa sản phẩm</Modal.Title>
+              <Modal.Title className="staff-modal__title">
+                Chỉnh sửa sản phẩm
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {editing && (
@@ -358,7 +468,8 @@ export default function ManageProduct() {
                     category: editing.category,
                     price: editing.price,
                     stock: editing.stock,
-                    active: editing.status === "Active" || editing.active,
+                    active:
+                      editing.status === "Active" || editing.active === true,
                   }}
                   onCancel={() => setEditing(null)}
                   onSuccess={() => {
@@ -420,19 +531,25 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}
