@@ -9,8 +9,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faSearch,
-  faArrowRight,
-  faClock,
   faCircleInfo,
   faArrowDown,
   faArrowUp,
@@ -20,7 +18,6 @@ import Select from "react-select";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
 
-// ánh xạ loại sự kiện
 const EVENT_TYPE_META = {
   import: {
     label: "Nhập kho",
@@ -48,17 +45,15 @@ function getEventMeta(typeRaw) {
 export default function ProductTrace() {
   const { productId: routeProductId } = useParams();
 
-  const [trace, setTrace] = useState(null); // { productId, productCode, productName, unit, movements }
+  const [trace, setTrace] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // state cho select sản phẩm
   const [productOptions, setProductOptions] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [selectedProductOption, setSelectedProductOption] = useState(null);
 
-  // load list sản phẩm cho react-select
   const loadProductOptions = async (searchText = "") => {
     setProductsLoading(true);
     try {
@@ -75,8 +70,7 @@ export default function ProductTrace() {
       );
 
       if (!res.ok) {
-        // nếu lỗi thì thôi, không phá UI chính
-        console.error("Load products failed", res.status);
+        console.error("Tải sản phẩm không thành công", res.status);
         return;
       }
 
@@ -89,7 +83,7 @@ export default function ProductTrace() {
       }));
       setProductOptions(opts);
     } catch (e) {
-      console.error(e);
+      console.error("Lỗi tải danh sách sản phẩm cho truy xuất:", e);
     } finally {
       setProductsLoading(false);
     }
@@ -110,9 +104,7 @@ export default function ProductTrace() {
         try {
           const errBody = await res.json();
           if (errBody?.message) msg = errBody.message;
-        } catch {
-          // ignore
-        }
+        } catch { }
         throw new Error(msg);
       }
 
@@ -125,8 +117,8 @@ export default function ProductTrace() {
             m.direction === "in"
               ? "import"
               : m.direction === "out"
-              ? "export"
-              : "other";
+                ? "export"
+                : "other";
 
           return {
             ...m,
@@ -137,7 +129,7 @@ export default function ProductTrace() {
             }),
           };
         })
-        .sort((a, b) => a.timeObj - b.timeObj); // tăng dần theo thời gian
+        .sort((a, b) => a.timeObj - b.timeObj);
 
       const newTrace = {
         ...data,
@@ -147,36 +139,29 @@ export default function ProductTrace() {
       setTrace(newTrace);
       setSelectedIndex(0);
 
-      // đồng bộ lại option đang chọn cho react-select
       setSelectedProductOption({
         value: newTrace.productId,
-        label: `${newTrace.productCode || "Chưa có SKU"} • ${
-          newTrace.productName
-        }`,
+        label: `${newTrace.productCode || "Chưa có SKU"} • ${newTrace.productName
+          }`,
       });
     } catch (e) {
-      console.error(e);
+      console.error("Lỗi tải dữ liệu truy xuất:", e);
       setError(e.message || "Không tải được dữ liệu truy xuất.");
     } finally {
       setLoading(false);
     }
   };
 
-  // load lần đầu list sản phẩm
   useEffect(() => {
     loadProductOptions("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // nếu có productId trên URL thì fetch trace
   useEffect(() => {
     if (routeProductId) {
       fetchTrace(routeProductId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeProductId]);
 
-  // tính summary
   const summary = useMemo(() => {
     if (!trace || !trace.movements?.length) return null;
 
@@ -205,6 +190,13 @@ export default function ProductTrace() {
     trace && trace.movements && trace.movements.length
       ? trace.movements[Math.min(selectedIndex, trace.movements.length - 1)]
       : null;
+
+  const formatSlipType = (slipType) => {
+    if (slipType === "receiving") return "Phiếu nhập kho";
+    if (slipType === "sales") return "Phiếu xuất bán lẻ";
+    if (slipType === "project") return "Phiếu xuất dự án";
+    return "Phiếu khác";
+  };
 
   return (
     <WarehouseLayout>
@@ -254,7 +246,6 @@ export default function ProductTrace() {
                   }
                 }}
                 onInputChange={(inputValue) => {
-                  // load lại list khi người dùng gõ
                   loadProductOptions(inputValue);
                   return inputValue;
                 }}
@@ -262,22 +253,19 @@ export default function ProductTrace() {
             </div>
           </div>
         </div>
-        {error && (
-          <div className="text-danger small ms-3">{error}</div>
-        )}
+        {error && <div className="text-danger small ms-3">{error}</div>}
       </div>
 
-      <div className="wm-grid-two">
-        {/* Danh sách phiếu bên trái */}
-        <section className="wm-surface">
+      <div className="wm-grid-two wm-grid-two--trace">
+        <section className="wm-surface wm-trace-list-card">
           <div className="d-flex align-items-center justify-content-between mb-3">
             <h2 className="wm-section-title mb-0">Lịch sử phiếu</h2>
             <span className="wm-subtle-text">
               {loading
                 ? "Đang tải..."
                 : trace
-                ? `${trace.movements.length} phiếu`
-                : "Chưa chọn sản phẩm"}
+                  ? `${trace.movements.length} phiếu`
+                  : "Chưa chọn sản phẩm"}
             </span>
           </div>
 
@@ -295,14 +283,7 @@ export default function ProductTrace() {
                 const meta = getEventMeta(m.type);
                 const isActive = idx === selectedIndex;
 
-                const slipTypeText =
-                  m.slipType === "receiving"
-                    ? "Phiếu nhập"
-                    : m.slipType === "sales"
-                    ? "Phiếu bán lẻ"
-                    : m.slipType === "project"
-                    ? "Phiếu dự án"
-                    : "Phiếu khác";
+                const slipTypeText = formatSlipType(m.slipType);
 
                 return (
                   <ListGroup.Item
@@ -310,6 +291,7 @@ export default function ProductTrace() {
                     action
                     active={isActive}
                     onClick={() => setSelectedIndex(idx)}
+                    className="wm-trace-list__item"
                   >
                     <div className="wm-trace-list__row">
                       <div>
@@ -320,7 +302,7 @@ export default function ProductTrace() {
                           {meta.label} • {m.timeText}
                         </div>
                         <div className="small text-muted mt-1">
-                          Đối tác: {m.partner || "-"} • Số lượng: {m.quantity}{" "}
+                          Đối tác : {m.partner || "-"} • Số lượng: {m.quantity}{" "}
                           {m.uom || ""}
                         </div>
                       </div>
@@ -347,8 +329,7 @@ export default function ProductTrace() {
           </ListGroup>
         </section>
 
-        {/* Chi tiết bên phải */}
-        <section className="wm-surface">
+        <section className="wm-surface wm-trace-detail-card">
           {trace ? (
             <>
               <header className="wm-trace-header">
@@ -361,87 +342,101 @@ export default function ProductTrace() {
                     Đơn vị tính: {trace.unit || "-"}
                   </p>
                   {summary && (
-                    <p className="wm-subtle-text mb-0 mt-1">
-                      Từ: {summary.firstTime} đến {summary.lastTime} •{" "}
-                      {summary.count} phiếu • Nhập: {summary.totalIn} • Xuất:{" "}
-                      {summary.totalOut} • Tồn theo phiếu: {summary.balance}
-                    </p>
+                    <div className="wm-trace-summary mt-2">
+                      <div className="wm-trace-summary__line">
+                        <span className="wm-trace-summary__label">Từ : </span>
+                        <span className="wm-trace-summary__value">
+                          {summary.firstTime
+                            ? summary.firstTime.split(",")[0]
+                            : "-"}
+                        </span>
+
+                        <span className="wm-trace-summary__label ms-3">Đến : </span>
+                        <span className="wm-trace-summary__value">
+                          {summary.lastTime
+                            ? summary.lastTime.split(",")[0]
+                            : "-"}
+                        </span>
+                      </div>
+
+                      <div className="wm-trace-summary__line">
+                        <span className="wm-trace-summary__label">Tổng số phiếu : </span>
+                        <span className="wm-trace-summary__value">{summary.count}</span>
+
+                        <span className="wm-trace-summary__label ms-3">Nhập : </span>
+                        <span className="wm-trace-summary__value">{summary.totalIn}</span>
+
+                        <span className="wm-trace-summary__label ms-3">Xuất : </span>
+                        <span className="wm-trace-summary__value">{summary.totalOut}</span>
+                      </div>
+
+                      <div className="wm-trace-summary__line">
+                        <span className="wm-trace-summary__label">Tồn theo phiếu : </span>
+                        <span className="wm-trace-summary__value">{summary.balance}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               </header>
 
-              {/* Legend */}
-              <div className="wm-trace-legend mb-3">
-                <span className="fw-semibold me-2">
-                  Cách đọc lịch sử:
-                </span>
-                <span className="small text-muted">
-                  Mỗi dòng là một phiếu nhập hoặc xuất có chứa sản phẩm này. Bên
-                  dưới là dòng thời gian theo thứ tự thời gian phát sinh.
-                </span>
-              </div>
-
-              {/* Timeline chi tiết các phiếu */}
-              <div className="wm-timeline">
-                {trace.movements.length ? (
-                  trace.movements.map((m, idx) => {
-                    const meta = getEventMeta(m.type);
-                    const slipTypeText =
-                      m.slipType === "receiving"
-                        ? "Phiếu nhập kho"
-                        : m.slipType === "sales"
-                        ? "Phiếu bán lẻ"
-                        : m.slipType === "project"
-                        ? "Phiếu xuất dự án"
-                        : "Phiếu khác";
-
-                    return (
-                      <div
-                        key={`${m.direction}-${m.slipType}-${m.refNo}-tl-${idx}`}
-                        className="wm-timeline__item"
-                      >
-                        <div
-                          className={
-                            "wm-timeline__icon " + meta.className
-                          }
+              {selectedMovement ? (
+                <div className="wm-trace-detail">
+                  <div className="wm-trace-detail__header-row">
+                    <div className="wm-trace-detail__main">
+                      <div className="wm-trace-detail__badge-row">
+                        <Badge
+                          bg={selectedMovement.direction === "in" ? "success" : "danger"}
                         >
-                          <FontAwesomeIcon icon={meta.icon} />
-                        </div>
-                        <div className="wm-timeline__body">
-                          <div className="wm-timeline__time">
-                            <FontAwesomeIcon icon={faClock} />
-                            {m.timeText}
-                          </div>
-                          <div className="wm-timeline__title">
-                            <FontAwesomeIcon icon={faArrowRight} />
-                            <span className="fw-semibold ms-2">
-                              {meta.label} • {slipTypeText}
-                            </span>
-                            {m.refNo && (
-                              <span className="ms-2">
-                                – Số phiếu: {m.refNo}
-                              </span>
-                            )}
-                          </div>
-                          <div className="wm-timeline__meta">
-                            <span>
-                              Đối tác: {m.partner || "-"}
-                            </span>
-                            <span>
-                              Số lượng: {m.quantity} {m.uom || ""}
-                            </span>
-                            <span>Ghi chú: {m.note || "-"}</span>
-                          </div>
-                        </div>
+                          {selectedMovement.direction === "in" ? "Nhập kho" : "Xuất kho"}
+                        </Badge>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="wm-empty">
-                    Sản phẩm chưa có lịch sử phiếu nào.
+                      <div className="wm-trace-detail__title">
+                        <span className="ms-2 fw-semibold">
+                          {formatSlipType(selectedMovement.slipType)}
+                        </span>
+                        {selectedMovement.refNo && (
+                          <span className="ms-2 text-muted">
+                            – Số phiếu: {selectedMovement.refNo}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div className="wm-trace-detail__grid">
+                    <div className="wm-trace-detail__item">
+                      <span className="wm-trace-detail__label">Đối tác : </span>
+                      <span className="wm-trace-detail__value">
+                        {selectedMovement.partner || "-"}
+                      </span>
+                    </div>
+                    <div className="wm-trace-detail__item">
+                      <span className="wm-trace-detail__label">
+                        Số lượng theo phiếu -
+                      </span>
+                      <span className="wm-trace-detail__value">
+                        - {selectedMovement.quantity} {selectedMovement.uom || ""}
+                      </span>
+                    </div>
+                    <div className="wm-trace-detail__item">
+                      <span className="wm-trace-detail__label">Loại phiếu : </span>
+                      <span className="wm-trace-detail__value">
+                        {getEventMeta(selectedMovement.type).label}
+                      </span>
+                    </div>
+                    <div className="wm-trace-detail__item wm-trace-detail__item--note">
+                      <span className="wm-trace-detail__label">Ghi chú : </span>
+                      <span className="wm-trace-detail__value">
+                        {selectedMovement.note || "Không có ghi chú."}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="wm-empty mt-3">
+                  Sản phẩm chưa có lịch sử phiếu nào.
+                </div>
+              )}
             </>
           ) : (
             <div className="wm-empty">

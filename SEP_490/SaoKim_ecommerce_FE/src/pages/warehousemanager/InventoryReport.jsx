@@ -64,6 +64,7 @@ export default function InventoryReport() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState("detail");
+
   const STATUS_OPTIONS = [
     { value: "all", label: "Tất cả trạng thái" },
     { value: "stock", label: "Đủ hàng" },
@@ -85,7 +86,7 @@ export default function InventoryReport() {
         `/api/warehousemanager/inventory-report?${params.toString()}`
       );
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        throw new Error(`Lỗi HTTP ${res.status}`);
       }
 
       const data = await res.json();
@@ -116,7 +117,7 @@ export default function InventoryReport() {
       setRows(items);
       setTotal(data.total ?? items.length);
     } catch (err) {
-      console.error("Load inventory report error:", err);
+      console.error("Lỗi tải báo cáo tồn kho:", err);
     } finally {
       setLoading(false);
     }
@@ -132,7 +133,7 @@ export default function InventoryReport() {
     connection.off("InventoryUpdated");
 
     connection.on("InventoryUpdated", (payload) => {
-      console.log("InventoryUpdated (InventoryReport):", payload);
+      console.log("Sự kiện InventoryUpdated (InventoryReport):", payload);
       loadData();
     });
 
@@ -140,10 +141,10 @@ export default function InventoryReport() {
       connection
         .start()
         .then(() => {
-          console.log("SignalR connected in InventoryReport");
+          console.log("Đã kết nối SignalR trong InventoryReport");
         })
         .catch((err) => {
-          console.error("Inventory SignalR connection error:", err);
+          console.error("Lỗi kết nối SignalR trong InventoryReport:", err);
         });
     }
 
@@ -252,16 +253,18 @@ export default function InventoryReport() {
           <div className="btn-group" role="group">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "detail" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "detail" ? "active" : ""
+              }`}
               onClick={() => setViewMode("detail")}
             >
               Chi tiết theo sản phẩm
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "overview" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "overview" ? "active" : ""
+              }`}
               onClick={() => setViewMode("overview")}
             >
               Tổng quan & top sản phẩm
@@ -395,14 +398,12 @@ export default function InventoryReport() {
                     setStatusFilter(st);
                   }}
                 >
-                  {
-                    {
-                      all: "Tất cả trạng thái",
-                      stock: "Đủ hàng",
-                      alert: "Cần theo dõi",
-                      critical: "Thiếu hàng",
-                    }[st]
-                  }
+                  {{
+                    all: "Tất cả trạng thái",
+                    stock: "Đủ hàng",
+                    alert: "Cần theo dõi",
+                    critical: "Thiếu hàng",
+                  }[st]}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>

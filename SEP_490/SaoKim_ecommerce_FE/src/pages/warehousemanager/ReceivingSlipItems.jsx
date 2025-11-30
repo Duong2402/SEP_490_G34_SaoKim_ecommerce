@@ -226,9 +226,9 @@ const ReceivingSlipItems = () => {
     if (connection.state === signalR.HubConnectionState.Disconnected) {
       connection
         .start()
-        .then(() => console.log("SignalR connected in ReceivingSlipItems"))
+        .then(() => console.log("SignalR đã kết nối trong ReceivingSlipItems"))
         .catch((err) => {
-          console.error("SignalR connection error:", err);
+          console.error("SignalR mất kết nối:", err);
           setNotify("Không thể kết nối realtime tới máy chủ.");
         });
     }

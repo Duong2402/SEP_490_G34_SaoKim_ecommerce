@@ -2,12 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.DTOs.WarehouseManagerDTOs;
-using SaoKim_ecommerce_BE.Entities;
-using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
 
@@ -22,262 +18,50 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly IHubContext<ReceivingHub> _receivingHub;
         private readonly IHubContext<DispatchHub> _dispatchHub;
         private readonly IHubContext<InventoryHub> _inventoryHub;
+        private readonly IReceivingService _receivingService;
+        private readonly IDispatchService _dispatchService;
+        private readonly IWarehouseReportService _warehouseReportService;
+
+
         public WarehouseManagerController(SaoKimDBContext db, IHubContext<ReceivingHub> receivingHub,
-            IHubContext<DispatchHub> dispatchHub, IHubContext<InventoryHub> inventoryHub)
+            IHubContext<DispatchHub> dispatchHub, IHubContext<InventoryHub> inventoryHub,
+            IReceivingService receivingService,
+            IDispatchService dispatchService,
+            IWarehouseReportService warehouseReportService)
         {
             _db = db;
             _receivingHub = receivingHub;
             _dispatchHub = dispatchHub;
             _inventoryHub = inventoryHub;
+            _receivingService = receivingService;
+            _dispatchService = dispatchService;
+            _warehouseReportService = warehouseReportService;
         }
 
-        // GET /api/warehousemanager/receiving-slips
         [HttpGet("receiving-slips")]
         public async Task<IActionResult> GetReceivingSlipList([FromQuery] ReceivingSlipListQuery q)
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
-
-            var query = _db.ReceivingSlips
-                .Where(x => !x.IsDeleted)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q.Search))
-            {
-                var s = q.Search.Trim().ToLower();
-                query = query.Where(x =>
-                    x.Supplier.ToLower().Contains(s) ||
-                    x.ReferenceNo.ToLower().Contains(s));
-            }
-
-            if (q.DateFrom.HasValue) query = query.Where(x => x.ReceiptDate >= q.DateFrom.Value);
-            if (q.DateTo.HasValue) query = query.Where(x => x.ReceiptDate <= q.DateTo.Value);
-            if (q.Status.HasValue) query = query.Where(x => x.Status == q.Status.Value);
-
-            var total = await query.CountAsync();
-
-            var desc = string.Equals(q.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-            IQueryable<ReceivingSlip> ordered;
-
-            if (!string.IsNullOrWhiteSpace(q.SortBy))
-            {
-                switch (q.SortBy)
-                {
-                    case "referenceNo":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.ReferenceNo).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.ReferenceNo).ThenBy(x => x.Id);
-                        break;
-
-                    case "supplier":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.Supplier).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.Supplier).ThenBy(x => x.Id);
-                        break;
-
-                    case "receiptDate":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.ReceiptDate).ThenBy(x => x.Id);
-                        break;
-
-                    case "status":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.Status).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.Status).ThenBy(x => x.Id);
-                        break;
-
-                    case "createdAt":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
-                        break;
-
-                    case "confirmedAt":
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.ConfirmedAt).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.ConfirmedAt).ThenBy(x => x.Id);
-                        break;
-
-                    default:
-                        ordered = desc
-                            ? query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id)
-                            : query.OrderBy(x => x.ReceiptDate).ThenBy(x => x.Id);
-                        break;
-                }
-            }
-            else
-            {
-                ordered = query.OrderByDescending(x => x.ReceiptDate).ThenByDescending(x => x.Id);
-            }
-
-            var items = await ordered
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.ReferenceNo,
-                    x.Supplier,
-                    x.ReceiptDate,
-                    x.Status,
-                    x.CreatedAt,
-                    x.ConfirmedAt
-                })
-                .ToListAsync();
-
-            return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
+            var result = await _receivingService.GetReceivingSlipListAsync(q);
+            return Ok(result);
         }
-
-        // POST /api/warehousemanager/receiving-slips
-        //[HttpPost("receiving-slips")]
-
-        //public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
-        //{
-        //    if (string.IsNullOrWhiteSpace(dto.Supplier))
-        //        return BadRequest(new { message = "Supplier is required" });
-        //    if (dto.Items == null || dto.Items.Count == 0)
-        //        return BadRequest(new { message = "At least one item is required" });
-
-        //    var slip = new ReceivingSlip
-        //    {
-        //        Supplier = dto.Supplier.Trim(),
-        //        ReceiptDate = dto.ReceiptDate,
-        //        Note = dto.Note?.Trim(),
-        //        Status = ReceivingSlipStatus.Draft,
-        //        Items = new List<ReceivingSlipItem>()
-        //    };
-
-        //    foreach (var i in dto.Items)
-        //    {
-        //        var uom = await _db.UnitOfMeasures
-        //.FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
-
-        //        if (uom == null)
-        //            return BadRequest(new { message = "UOM not found" });
-
-        //        int? productId = i.ProductId;
-
-        //        if (productId == null || productId == 0)
-        //        {
-        //            var newProduct = new Product
-        //            {
-        //                ProductName = i.ProductName.Trim(),
-        //                Unit = uom.Name,
-        //                Price = i.UnitPrice,
-        //                Status = "Active"
-        //            };
-        //            _db.Products.Add(newProduct);
-        //            await _db.SaveChangesAsync();
-        //            productId = newProduct.ProductID;
-        //        }
-
-        //        slip.Items.Add(new ReceivingSlipItem
-        //        {
-        //            ProductId = productId.Value,
-        //            ProductName = i.ProductName.Trim(),
-        //            ProductCode = productId.HasValue
-        //                ? (await _db.Products.Where(p => p.ProductID == productId.Value)
-        //                    .Select(p => p.ProductCode).FirstOrDefaultAsync())
-        //                : null,
-        //            Uom = uom.Name,
-        //            Quantity = i.Quantity,
-        //            UnitPrice = i.UnitPrice,
-        //            Total = i.Quantity * i.UnitPrice
-        //        });
-        //    }
-
-        //    _db.ReceivingSlips.Add(slip);
-        //    await _db.SaveChangesAsync();
-
-        //    slip.ReferenceNo = $"RCV-{slip.Id:D3}";
-        //    await _db.SaveChangesAsync();
-
-        //    await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-        //    {
-        //        action = "created",
-        //        slip.Id,
-        //        slip.ReferenceNo,
-        //        slip.Supplier,
-        //        slip.ReceiptDate,
-        //        slip.Status,
-        //        slip.CreatedAt,
-        //        slip.ConfirmedAt
-        //    });
-
-        //    return CreatedAtAction(nameof(GetReceivingSlipItems),
-        //        new { id = slip.Id },
-        //        new { slip.Id, slip.ReferenceNo });
-        //}
 
         [HttpPost("receiving-slips")]
         public async Task<IActionResult> CreateReceivingSlip([FromBody] ReceivingSlipCreateDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.Supplier))
-                return BadRequest(new { message = "Supplier is required" });
-
-            if (dto.Items == null || dto.Items.Count == 0)
-                return BadRequest(new { message = "At least one item is required" });
-
-            var slip = new ReceivingSlip
+            try
             {
-                Supplier = dto.Supplier.Trim(),
-                ReceiptDate = dto.ReceiptDate,
-                Note = dto.Note?.Trim(),
-                Status = ReceivingSlipStatus.Draft,
-                Items = new List<ReceivingSlipItem>()
-            };
+                var slip = await _receivingService.CreateReceivingSlipAsync(dto);
 
-            foreach (var i in dto.Items)
-            {
-                var uom = await _db.UnitOfMeasures
-                    .FirstOrDefaultAsync(u => u.Name == i.Uom && u.Status == "Active");
-
-                if (uom == null)
-                    return BadRequest(new { message = $"UOM '{i.Uom}' not found" });
-
-                if (!i.ProductId.HasValue || i.ProductId.Value <= 0)
-                    return BadRequest(new { message = "Product is required" });
-
-                var product = await _db.Products
-                    .FirstOrDefaultAsync(p => p.ProductID == i.ProductId.Value);
-
-                if (product == null)
-                    return BadRequest(new { message = $"Product with id {i.ProductId.Value} not found" });
-
-                slip.Items.Add(new ReceivingSlipItem
-                {
-                    ProductId = i.ProductId.Value,
-                    ProductName = product.ProductName,
-                    ProductCode = product.ProductCode,
-                    Uom = uom.Name,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    Total = i.Quantity * i.UnitPrice
-                });
+                return CreatedAtAction(
+                    nameof(GetReceivingSlipItems),
+                    new { id = slip.Id },
+                    new { slip.Id, slip.ReferenceNo }
+                );
             }
-
-            _db.ReceivingSlips.Add(slip);
-            await _db.SaveChangesAsync();
-
-            slip.ReferenceNo = $"RCV-{slip.Id:D3}";
-            await _db.SaveChangesAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            catch (ArgumentException ex)
             {
-                action = "created",
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Supplier,
-                slip.ReceiptDate,
-                slip.Status,
-                slip.CreatedAt,
-                slip.ConfirmedAt
-            });
-
-            return CreatedAtAction(nameof(GetReceivingSlipItems),
-                new { id = slip.Id },
-                new { slip.Id, slip.ReferenceNo });
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("receiving-slips/{id:int}/items")]
@@ -288,7 +72,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (slip == null)
-                return NotFound(new { message = "Receiving slip not found" });
+                return NotFound(new { message = "Phiếu nhập không tồn tại" });
 
             var items = slip.Items
                 .OrderBy(i => i.Id)
@@ -314,132 +98,15 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpPut("receiving-items/{itemId:int}")]
-        public async Task<IActionResult> UpdateReceivingSlipItem([FromRoute] int itemId, [FromBody] ReceivingSlipItemDto dto)
+        public async Task<IActionResult> UpdateReceivingSlipItem(
+    [FromRoute] int itemId,
+    [FromBody] ReceivingSlipItemDto dto)
         {
-            var item = await _db.ReceivingSlipItems
-                .Include(i => i.ReceivingSlip)
-                .FirstOrDefaultAsync(i => i.Id == itemId);
-
-            if (item is null)
-                return NotFound(new { message = "Sản phẩm không tìm thấy" });
-
-            if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
-
-            if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest(new { message = "Tên sản phẩm là bắt buộc" });
-            if (dto.Quantity <= 0)
-                return BadRequest(new { message = "Số lượng phải lớn hơn 0" });
-            if (dto.UnitPrice < 0)
-                return BadRequest(new { message = "Giá trị sản phẩm phải lớn hơn 0" });
-
-            var uom = await _db.UnitOfMeasures
-                .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
-
-            if (uom == null)
-                return BadRequest(new { message = "Đơn vị tính không hợp lệ" });
-
-            Product product;
-            ProductDetail detail;
-
-            if (dto.ProductId.HasValue && dto.ProductId.Value != 0)
+            try
             {
-                product = await _db.Products
-                    .Include(p => p.ProductDetails)
-                    .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                var item = await _receivingService.UpdateReceivingSlipItemAsync(itemId, dto);
 
-                if (product == null)
-                {
-                    product = new Product
-                    {
-                        ProductName = dto.ProductName.Trim(),
-                        ProductCode = string.Empty 
-                    };
-                    _db.Products.Add(product);
-                    await _db.SaveChangesAsync();
-
-                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                    _db.Products.Update(product);
-                    await _db.SaveChangesAsync();
-
-                    detail = new ProductDetail
-                    {
-                        ProductID = product.ProductID,
-                        Unit = uom.Name,
-                        Price = dto.UnitPrice,
-                        Status = "Active",
-                        Quantity = 0,
-                        CreateAt = DateTime.UtcNow,
-                        CreateBy = "warehouse-manager"
-                    };
-                    _db.ProductDetails.Add(detail);
-                    await _db.SaveChangesAsync();
-                }
-                else
-                {
-                    product.ProductName = dto.ProductName.Trim();
-                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                    _db.Products.Update(product);
-
-                    detail = product.ProductDetails
-                        .OrderByDescending(d => d.Id)
-                        .FirstOrDefault() ?? new ProductDetail { ProductID = product.ProductID };
-
-                    if (detail.Id == 0)
-                        _db.ProductDetails.Add(detail);
-
-                    detail.Unit = uom.Name;
-                    detail.Price = dto.UnitPrice;
-                    detail.Status = "Active";
-                    detail.UpdateAt = DateTime.UtcNow;
-                    detail.UpdateBy = "warehouse-manager";
-
-                    await _db.SaveChangesAsync();
-                }
-            }
-            else
-            {
-                product = new Product
-                {
-                    ProductName = dto.ProductName.Trim(),
-                    ProductCode = string.Empty
-                };
-                _db.Products.Add(product);
-                await _db.SaveChangesAsync();
-
-                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                _db.Products.Update(product);
-                await _db.SaveChangesAsync();
-
-                detail = new ProductDetail
-                {
-                    ProductID = product.ProductID,
-                    Unit = uom.Name,
-                    Price = dto.UnitPrice,
-                    Status = "Active",
-                    Quantity = 0,
-                    CreateAt = DateTime.UtcNow,
-                    CreateBy = "warehouse-manager"
-                };
-                _db.ProductDetails.Add(detail);
-                await _db.SaveChangesAsync();
-            }
-
-            item.ProductId = product.ProductID;
-            item.ProductName = product.ProductName;
-            item.ProductCode = product.ProductCode;
-            item.Uom = uom.Name;
-            item.Quantity = dto.Quantity;
-            item.UnitPrice = dto.UnitPrice;
-            item.Total = dto.Quantity * dto.UnitPrice;
-
-            await _db.SaveChangesAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
-            {
-                action = "updated",
-                slipId = item.ReceivingSlipId,
-                item = new
+                return Ok(new
                 {
                     item.Id,
                     item.ProductId,
@@ -449,130 +116,33 @@ namespace SaoKim_ecommerce_BE.Controllers
                     item.Quantity,
                     item.UnitPrice,
                     item.Total
-                }
-            });
-
-            return Ok(new
+                });
+            }
+            catch (KeyNotFoundException ex)
             {
-                item.Id,
-                item.ProductId,
-                item.ProductName,
-                item.ProductCode,
-                item.Uom,
-                item.Quantity,
-                item.UnitPrice,
-                item.Total
-            });
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
 
         [HttpPost("receiving-slips/{id:int}/items")]
-        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
+        public async Task<IActionResult> CreateReceivingSlipItem(
+    [FromRoute] int id,
+    [FromBody] ReceivingSlipItemDto dto)
         {
-            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
-            if (slip is null)
-                return NotFound(new { message = "Phiếu xuất không tồn tại" });
-
-            if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
-
-            if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest(new { message = "Tên sản phẩm là bắt buộc" });
-            if (dto.Quantity <= 0)
-                return BadRequest(new { message = "Số lượng phải lớn hơn 0" });
-            if (dto.UnitPrice < 0)
-                return BadRequest(new { message = "Giá trị sản phẩm phải lớn hơn 0" });
-
-            var uom = await _db.UnitOfMeasures
-                .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
-
-            if (uom == null)
-                return BadRequest(new { message = "UOM not found" });
-
-            Product? product = null;
-
-            if (dto.ProductId.HasValue)
+            try
             {
-                product = await _db.Products
-                    .Include(p => p.ProductDetails)
-                    .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId.Value);
+                var newItem = await _receivingService.CreateReceivingSlipItemAsync(id, dto);
 
-                if (product == null)
-                {
-                    product = new Product
-                    {
-                        ProductName = dto.ProductName.Trim(),
-                        ProductCode = string.Empty
-                    };
-                    _db.Products.Add(product);
-                    await _db.SaveChangesAsync();
-
-                    product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                    _db.Products.Update(product);
-                    await _db.SaveChangesAsync();
-
-                    var detail = new ProductDetail
-                    {
-                        ProductID = product.ProductID,
-                        Unit = uom.Name,
-                        Price = dto.UnitPrice,
-                        Status = "Active",
-                        Quantity = 0,
-                        CreateAt = DateTime.UtcNow,
-                        CreateBy = "system"
-                    };
-                    _db.ProductDetails.Add(detail);
-                    await _db.SaveChangesAsync();
-                }
-            }
-            else
-            {
-                product = new Product
-                {
-                    ProductName = dto.ProductName.Trim(),
-                    ProductCode = string.Empty
-                };
-                _db.Products.Add(product);
-                await _db.SaveChangesAsync();
-
-                product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                _db.Products.Update(product);
-                await _db.SaveChangesAsync();
-
-                var detail = new ProductDetail
-                {
-                    ProductID = product.ProductID,
-                    Unit = uom.Name,
-                    Price = dto.UnitPrice,
-                    Status = "Active",
-                    Quantity = 0,
-                    CreateAt = DateTime.UtcNow,
-                    CreateBy = "system"
-                };
-                _db.ProductDetails.Add(detail);
-                await _db.SaveChangesAsync();
-            }
-
-            var newItem = new ReceivingSlipItem
-            {
-                ReceivingSlipId = id,
-                ProductId = product!.ProductID,
-                ProductName = product.ProductName,
-                ProductCode = product.ProductCode,
-                Uom = uom.Name,                    
-                Quantity = dto.Quantity,
-                UnitPrice = dto.UnitPrice,
-                Total = dto.Quantity * dto.UnitPrice
-            };
-
-            _db.ReceivingSlipItems.Add(newItem);
-            await _db.SaveChangesAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
-            {
-                action = "created",
-                slipId = id,
-                item = new
+                return Ok(new
                 {
                     newItem.Id,
                     newItem.ProductId,
@@ -582,473 +152,173 @@ namespace SaoKim_ecommerce_BE.Controllers
                     newItem.Quantity,
                     newItem.UnitPrice,
                     newItem.Total
-                }
-            });
-
-            return Ok(new
+                });
+            }
+            catch (KeyNotFoundException ex)
             {
-                newItem.Id,
-                newItem.ProductId,
-                newItem.ProductName,
-                newItem.ProductCode,
-                newItem.Uom,
-                newItem.Quantity,
-                newItem.UnitPrice,
-                newItem.Total
-            });
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
-
 
         [HttpDelete("receiving-items/{itemId:int}")]
         public async Task<IActionResult> DeleteReceivingSlipItem([FromRoute] int itemId)
         {
-            var item = await _db.ReceivingSlipItems
-                .Include(i => i.ReceivingSlip)
-                .FirstOrDefaultAsync(i => i.Id == itemId);
-
-            if (item is null) return NotFound(new { message = "Phiếu không tồn tại" });
-
-            if (item.ReceivingSlip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa" });
-
-            var slipId = item.ReceivingSlipId;
-            _db.ReceivingSlipItems.Remove(item);
-            await _db.SaveChangesAsync();
-            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            try
             {
-                action = "deleted",
-                slipId = slipId,
-                itemId = item.Id
-            });
-            return NoContent();
+                var result = await _receivingService.DeleteReceivingSlipItemAsync(itemId);
+
+                await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+                {
+                    action = "deleted",
+                    slipId = result.SlipId,
+                    itemId = result.ItemId
+                });
+
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống khi xóa dòng sản phẩm." });
+            }
         }
 
-        // DELETE /api/warehousemanager/receiving-slips/{id}
         [HttpPost("receiving-slips/import")]
         public async Task<IActionResult> ImportReceivingSlips(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "Vui lòng chọn file Excel hợp lệ." });
 
-            using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
-
-            using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
-            var worksheet = workbook.Worksheets.First();
-
-            var rows = worksheet.RangeUsed().RowsUsed().Skip(1);
-
-            var data = rows.Select(r => new
+            try
             {
-                Supplier = r.Cell(1).GetString(),
-                ReceiptDate = ExcelHelper.ParseExcelDate(r.Cell(2)),
-                Note = r.Cell(3).GetString(),
-                ProductName = r.Cell(4).GetString(),
-                Uom = r.Cell(5).GetString(),
-                Quantity = ExcelHelper.SafeInt(r.Cell(6).GetDouble()),
-                UnitPrice = ExcelHelper.SafeDecimal(r.Cell(7).GetDouble())
-            }).ToList();
+                using var stream = new MemoryStream();
+                await file.CopyToAsync(stream);
 
-            var grouped = data
-                .GroupBy(x => new { x.Supplier, x.ReceiptDate })
-                .ToList();
+                var count = await _receivingService.ImportReceivingSlipsAsync(stream, "warehouse-manager");
 
-            foreach (var g in grouped)
-            {
-                var slip = new ReceivingSlip
+                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
                 {
-                    Supplier = g.Key.Supplier,
-                    ReceiptDate = g.Key.ReceiptDate,
-                    Note = g.First().Note,
-                    Status = ReceivingSlipStatus.Draft,
-                    Items = new List<ReceivingSlipItem>()
-                };
+                    action = "imported",
+                    count
+                });
 
-                foreach (var i in g)
-                {
-                    var product = await _db.Products
-                        .Include(p => p.ProductDetails)
-                        .FirstOrDefaultAsync(p => p.ProductName == i.ProductName);
-
-                    if (product == null)
-                    {
-                        product = new Product
-                        {
-                            ProductName = i.ProductName,
-                            ProductCode = string.Empty 
-                        };
-                        _db.Products.Add(product);
-                        await _db.SaveChangesAsync();
-
-                        product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
-                        _db.Products.Update(product);
-                        await _db.SaveChangesAsync();
-
-                        var detail = new ProductDetail
-                        {
-                            ProductID = product.ProductID,
-                            Unit = string.IsNullOrWhiteSpace(i.Uom) ? "unit" : i.Uom,
-                            Price = i.UnitPrice,
-                            Status = "Active",
-                            Quantity = 0,
-                            CreateAt = DateTime.UtcNow,
-                            CreateBy = "system"
-                        };
-                        _db.ProductDetails.Add(detail);
-                        await _db.SaveChangesAsync();
-                    }
-
-                    var latestDetail = product.ProductDetails
-                        .OrderByDescending(d => d.Id)
-                        .FirstOrDefault();
-
-                    var uomName = !string.IsNullOrWhiteSpace(i.Uom)
-                        ? i.Uom
-                        : latestDetail?.Unit ?? "unit";
-
-                    slip.Items.Add(new ReceivingSlipItem
-                    {
-                        ProductId = product.ProductID,
-                        ProductName = product.ProductName,
-                        ProductCode = product.ProductCode,
-                        Uom = uomName,
-                        Quantity = i.Quantity,
-                        UnitPrice = i.UnitPrice,
-                        Total = i.Quantity * i.UnitPrice
-                    });
-                }
-
-                _db.ReceivingSlips.Add(slip);
-                await _db.SaveChangesAsync();
-
-                slip.ReferenceNo = $"RCV-{slip.Id:D3}";
-                _db.ReceivingSlips.Update(slip);
-                await _db.SaveChangesAsync();
+                return Ok(new { message = $"Đã nhập {count} phiếu thành công!" });
             }
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            catch (ArgumentException ex)
             {
-                action = "imported",
-                count = grouped.Count
-            });
-
-            return Ok(new { message = $"Đã nhập {grouped.Count} phiếu thành công!" });
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi import phiếu nhập kho." });
+            }
         }
 
-
-
-        // POST /api/warehousemanager/receiving-slips/{id}/confirm
         [HttpPost("receiving-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmReceivingSlip([FromRoute] int id)
         {
-            await using var tx = await _db.Database.BeginTransactionAsync();
-
-            var slip = await _db.ReceivingSlips
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (slip is null) return NotFound();
-            if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Chỉ bản nháp mới được xác thực" });
-
-            if (slip.Items == null || slip.Items.Count == 0)
-                return BadRequest(new { message = "Phiếu nhập không có sản phẩm để xác nhận" });
-
-            if (slip.Items.Any(i => i.ProductId == null))
-                return BadRequest(new { message = "Tất cả sản phẩm phải có productID" });
-
-            var qtyByProduct = slip.Items
-                .GroupBy(i => i.ProductId!.Value)
-                .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-
-            var productIds = qtyByProduct.Keys.ToList();
-
-            var products = await _db.Products
-                .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID);
-
-            var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
-            if (missing.Count > 0)
-                return BadRequest(new { message = "Một vài ID sản phẩm không tìm thấy!", missing });
-
-            var details = await _db.ProductDetails
-                .Where(d => productIds.Contains(d.ProductID))
-                .ToListAsync();
-
-            var now = DateTime.UtcNow;
-
-            foreach (var kv in qtyByProduct)
+            try
             {
-                var productId = kv.Key;
-                var addedQty = kv.Value;
+                var result = await _receivingService.ConfirmReceivingSlipAsync(id);
 
-                var detail = details.FirstOrDefault(d => d.ProductID == productId);
-                if (detail == null)
+                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
                 {
-                    detail = new ProductDetail
-                    {
-                        ProductID = productId,
-                        Quantity = addedQty,
-                        Status = "Active",
-                        CreateAt = now,
-                        CreateBy = "system"
-                    };
+                    action = "confirmed",
+                    result.Id,
+                    result.ReferenceNo,
+                    result.Supplier,
+                    result.ReceiptDate,
+                    result.Status,
+                    result.CreatedAt,
+                    result.ConfirmedAt
+                });
 
-                    _db.ProductDetails.Add(detail);
-                    details.Add(detail);
-                }
-                else
-                {
-                    detail.Quantity += addedQty;
-                    detail.UpdateAt = now;
-                    detail.UpdateBy = "system";
-                }
+                return Ok(result);
+
             }
-
-            slip.Status = ReceivingSlipStatus.Confirmed;
-            slip.ConfirmedAt = now;
-
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            catch (KeyNotFoundException)
             {
-                action = "confirmed",
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Supplier,
-                slip.ReceiptDate,
-                slip.Status,
-                slip.CreatedAt,
-                slip.ConfirmedAt
-            });
-
-            return Ok(new
+                return NotFound(new { message = "Phiếu nhập không tồn tại." });
+            }
+            catch (InvalidOperationException ex)
             {
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Status,
-                slip.ConfirmedAt,
-                affectedProducts = qtyByProduct.Select(kv => new { ProductId = kv.Key, AddedQty = kv.Value })
-            });
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi xác nhận phiếu nhập." });
+            }
         }
 
 
         [HttpPost("dispatch-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmDispatchSlip([FromRoute] int id)
         {
-            await using var tx = await _db.Database.BeginTransactionAsync();
-
-            var slip = await _db.Dispatches
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (slip == null) return NotFound();
-            if (slip.Status != DispatchStatus.Draft)
-                return Conflict(new { message = "Chỉ bản nháp mới được xác thực" });
-            if (slip.Items == null || slip.Items.Count == 0)
-                return BadRequest(new { message = "Phiếu xuất không có sản phẩm để xác nhận" });
-            if (slip.Items.Any(i => i.ProductId == null))
-                return BadRequest(new { message = "Tất cả sản phẩm phải có productID" });
-
-            var qtyByProduct = slip.Items
-                .GroupBy(i => i.ProductId!.Value)
-                .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-
-            var productIds = qtyByProduct.Keys.ToList();
-
-            var products = await _db.Products
-                .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID);
-
-            var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
-            if (missing.Count > 0)
-                return BadRequest(new { message = "Một vài ID sản phẩm không tìm thấy!", missing });
-
-            var details = await _db.ProductDetails
-                .Where(d => productIds.Contains(d.ProductID))
-                .ToDictionaryAsync(d => d.ProductID);
-
-            var insufficient = qtyByProduct
-                .Where(kv =>
-                {
-                    var productId = kv.Key;
-                    var required = kv.Value;
-                    return !details.TryGetValue(productId, out var detail) || detail.Quantity < required;
-                })
-                .Select(kv =>
-                {
-                    var productId = kv.Key;
-                    var required = kv.Value;
-                    var available = details.TryGetValue(productId, out var detail) ? detail.Quantity : 0;
-                    return new { ProductId = productId, Required = required, Available = available };
-                })
-                .ToList();
-
-            if (insufficient.Count > 0)
-                return BadRequest(new { message = "Không đủ hàng cho một số sản phẩm", insufficient });
-
-            var now = DateTime.UtcNow;
-
-            foreach (var kv in qtyByProduct)
+            try
             {
-                var productId = kv.Key;
-                var deductedQty = kv.Value;
+                var result = await _dispatchService.ConfirmDispatchSlipAsync(id);
 
-                var detail = details[productId];
+                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                {
+                    action = "confirmed",
+                    result.Id,
+                    result.Status,
+                    result.ConfirmedAt
+                });
 
-                detail.Quantity -= deductedQty;
-                detail.UpdateAt = now;
-                detail.UpdateBy = "system";
+                return Ok(result);
             }
-
-            slip.Status = DispatchStatus.Confirmed;
-            slip.ConfirmedAt = now;
-
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            catch (KeyNotFoundException ex)
             {
-                action = "confirmed",
-                slip.Id,
-                slip.Status,
-                slip.ConfirmedAt
-            });
-
-            return Ok(new
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Status,
-                slip.ConfirmedAt,
-                affectedProducts = qtyByProduct.Select(kv => new { ProductId = kv.Key, DeductedQty = kv.Value })
-            });
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-
-        // GET /api/warehousemanager/inbound-report
         [HttpGet("inbound-report")]
         public async Task<IActionResult> GetInboundReport([FromQuery] InboundReportQuery q)
         {
-            var query = _db.ReceivingSlips
-                .Include(s => s.Items)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q.Supplier))
-                query = query.Where(s => s.Supplier.Contains(q.Supplier));
-
-            if (!string.IsNullOrWhiteSpace(q.Project))
-                query = query.Where(s => s.Note != null && s.Note.Contains(q.Project));
-
-            if (!string.IsNullOrWhiteSpace(q.Source))
-                query = query.Where(s => s.Note != null && s.Note.Contains(q.Source));
-
-            if (q.FromDate.HasValue)
-            {
-                var from = DateTime.SpecifyKind(q.FromDate.Value.Date, DateTimeKind.Local)
-                                    .ToUniversalTime();
-
-                query = query.Where(s => s.ReceiptDate >= from);
-            }
-
-            if (q.ToDate.HasValue)
-            {
-                var toExclusive = DateTime.SpecifyKind(q.ToDate.Value.Date.AddDays(1), DateTimeKind.Local)
-                                          .ToUniversalTime();
-
-                query = query.Where(s => s.ReceiptDate < toExclusive);
-            }
-
-            var report = await query
-                .Select(s => new
-                {
-                    s.Supplier,
-                    s.ReceiptDate,
-                    s.Note,
-                    TotalItems = s.Items.Count,
-                    TotalQuantity = s.Items.Sum(i => i.Quantity),
-                    TotalValue = s.Items.Sum(i => i.Total)
-                })
-                .OrderByDescending(x => x.ReceiptDate)
-                .ToListAsync();
-
+            var report = await _warehouseReportService.GetInboundReportAsync(q);
             return Ok(report);
         }
 
         [HttpGet("inbound-report/export")]
         public async Task<IActionResult> ExportInboundReport([FromQuery] InboundReportQuery q)
         {
-            var report = await GetInboundReport(q) as OkObjectResult;
-            var data = report?.Value as List<InboundReportDto>;
-
+            var data = await _warehouseReportService.GetInboundReportAsync(q);
             return Ok(data);
         }
 
         [HttpGet("outbound-report")]
         public async Task<IActionResult> GetOutboundReport([FromQuery] OutboundReportQuery q)
         {
-            var query = _db.Dispatches
-                .Include(d => d.Items)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q.Destination))
-            {
-                query = query.Where(d => d.Note != null && d.Note.Contains(q.Destination));
-            }
-
-            if (q.FromDate.HasValue)
-            {
-                var from = DateTime
-                    .SpecifyKind(q.FromDate.Value.Date, DateTimeKind.Local)
-                    .ToUniversalTime();
-                query = query.Where(d => d.DispatchDate >= from);
-            }
-
-            if (q.ToDate.HasValue)
-            {
-                var toExclusive = DateTime
-                    .SpecifyKind(q.ToDate.Value.Date.AddDays(1), DateTimeKind.Local)
-                    .ToUniversalTime();
-                query = query.Where(d => d.DispatchDate < toExclusive);
-            }
-
-            var list = await query.ToListAsync();
-
-            IEnumerable<DispatchBase> filtered = list;
-
-            if (!string.IsNullOrWhiteSpace(q.Customer))
-            {
-                filtered = filtered.Where(d =>
-                    d is RetailDispatch rd &&
-                    rd.CustomerName.Contains(q.Customer));
-            }
-
-            if (!string.IsNullOrWhiteSpace(q.Project))
-            {
-                filtered = filtered.Where(d =>
-                    d is ProjectDispatch pd &&
-                    pd.ProjectName.Contains(q.Project));
-            }
-
-            var report = filtered
-                .Select(d => new
-                {
-                    Customer = d is RetailDispatch rd
-                        ? rd.CustomerName
-                        : d is ProjectDispatch pd
-                            ? pd.ProjectName
-                            : d.ReferenceNo,
-
-                    IssueDate = d.DispatchDate,
-                    d.Note,
-                    TotalItems = d.Items.Count,
-                    TotalQuantity = d.Items.Sum(i => i.Quantity),
-                    TotalValue = d.Items.Sum(i => i.Total)
-                })
-                .OrderByDescending(x => x.IssueDate)
-                .ToList();
-
+            var report = await _warehouseReportService.GetOutboundReportAsync(q);
             return Ok(report);
         }
 
@@ -1056,534 +326,257 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("download-template")]
         public IActionResult DownloadTemplate()
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "templates", "receiving_template.xlsx");
+            var templatePath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "templates",
+                "receiving_template.xlsx"
+            );
 
-            if (!System.IO.File.Exists(filePath))
+            if (!System.IO.File.Exists(templatePath))
             {
                 return NotFound(new { message = "Không tìm thấy file mẫu Excel." });
             }
 
-            var fileBytes = System.IO.File.ReadAllBytes(filePath);
-            var fileName = "receiving_template.xlsx";
+            var fileBytes = System.IO.File.ReadAllBytes(templatePath);
 
             return File(
                 fileBytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                fileName
+                Path.GetFileName(templatePath)
             );
         }
 
         [HttpPatch("receiving-slips/{id:int}")]
         public async Task<IActionResult> UpdateSupplier([FromRoute] int id, [FromBody] SupplierUpdateDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.Supplier))
-                return BadRequest(new { message = "Supplier cannot be empty" });
-
-            var slip = await _db.ReceivingSlips.FindAsync(id);
-            if (slip == null) return NotFound(new { message = "Receiving slip not found" });
-
-            if (slip.Status != ReceivingSlipStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be modified" });
-
-            slip.Supplier = dto.Supplier.Trim();
-            await _db.SaveChangesAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            try
             {
-                action = "updated",
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Supplier,
-                slip.ReceiptDate,
-                slip.Status,
-                slip.CreatedAt,
-                slip.ConfirmedAt
-            });
+                var slip = await _receivingService.UpdateSupplierAsync(id, dto);
 
-            return Ok(new { slip.Id, slip.Supplier });
+                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+                {
+                    action = "updated",
+                    slip.Id,
+                    slip.ReferenceNo,
+                    slip.Supplier,
+                    slip.ReceiptDate,
+                    slip.Status,
+                    slip.CreatedAt,
+                    slip.ConfirmedAt
+                });
+
+                return Ok(new { slip.Id, slip.Supplier });
+            }
+            catch (ArgumentNullException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
 
         [HttpGet("dispatch-slips")]
         public async Task<IActionResult> GetDispatchSlips([FromQuery] DispatchSlipListQuery q)
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
-
-            var sales = _db.Set<RetailDispatch>()
-                .Select(x => new
-                {
-                    x.Id,
-                    Type = "Sales",
-                    ReferenceNo = x.ReferenceNo,
-                    CustomerOrProject = x.CustomerName,
-                    DispatchDate = x.DispatchDate,
-                    x.Status,
-                    x.CreatedAt,
-                    x.ConfirmedAt,
-                    x.Note
-                });
-
-            var projects = _db.Set<ProjectDispatch>()
-                .Select(x => new
-                {
-                    x.Id,
-                    Type = "Project",
-                    ReferenceNo = x.ReferenceNo,
-                    CustomerOrProject = x.ProjectName,
-                    DispatchDate = x.DispatchDate,
-                    x.Status,
-                    x.CreatedAt,
-                    x.ConfirmedAt,
-                    x.Note
-                });
-
-            var query = sales.Concat(projects).AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q.Type) &&
-                !q.Type.Equals("All", StringComparison.OrdinalIgnoreCase))
-            {
-                query = query.Where(x => x.Type == q.Type);
-            }
-
-            if (!string.IsNullOrWhiteSpace(q.Search))
-            {
-                var s = q.Search.Trim().ToLower();
-                query = query.Where(x =>
-                    x.ReferenceNo.ToLower().Contains(s) ||
-                    (x.CustomerOrProject ?? "").ToLower().Contains(s));
-            }
-
-            var total = await query.CountAsync();
-
-            var desc = string.Equals(q.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-            IOrderedQueryable<dynamic> ordered;
-
-            switch (q.SortBy)
-            {
-                case "referenceNo":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.ReferenceNo).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.ReferenceNo).ThenBy(x => x.Id);
-                    break;
-
-                case "dispatchDate":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.DispatchDate).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.DispatchDate).ThenBy(x => x.Id);
-                    break;
-
-                case "createdAt":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id);
-                    break;
-
-                case "confirmedAt":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.ConfirmedAt).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.ConfirmedAt).ThenBy(x => x.Id);
-                    break;
-
-                case "status":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.Status).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.Status).ThenBy(x => x.Id);
-                    break;
-
-                case "type":
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.Type).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.Type).ThenBy(x => x.Id);
-                    break;
-
-                default:
-                    ordered = desc
-                        ? query.OrderByDescending(x => x.DispatchDate).ThenByDescending(x => x.Id)
-                        : query.OrderBy(x => x.DispatchDate).ThenBy(x => x.Id);
-                    break;
-            }
-
-            var items = await ordered
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
-                .ToListAsync();
-
-            return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
+            var result = await _dispatchService.GetDispatchSlipsAsync(q);
+            return Ok(result);
         }
 
         [HttpGet("receiving-slips/weekly-summary")]
         public async Task<IActionResult> GetWeeklyInboundSummary()
         {
-            var today = DateTime.UtcNow.Date;
-            var dayOfWeek = (int)today.DayOfWeek;
-            var startOfThisWeek = today.AddDays(-dayOfWeek + 1);
-            var startOfLastWeek = startOfThisWeek.AddDays(-7);
-
-            var thisWeekTotal = await _db.ReceivingSlips
-                .Where(s => s.Status == ReceivingSlipStatus.Confirmed && s.ReceiptDate >= startOfThisWeek)
-                .CountAsync();
-
-            var lastWeekTotal = await _db.ReceivingSlips
-                .Where(s => s.Status == ReceivingSlipStatus.Confirmed && s.ReceiptDate >= startOfLastWeek && s.ReceiptDate < startOfThisWeek)
-                .CountAsync();
-
-            return Ok(new
-            {
-                thisWeek = thisWeekTotal,
-                lastWeek = lastWeekTotal
-            });
+            var result = await _warehouseReportService.GetWeeklyInboundSummaryAsync();
+            return Ok(result);
         }
 
         [HttpGet("dispatch-slips/weekly-summary")]
         public async Task<IActionResult> GetWeeklyOutboundSummary()
         {
-            var today = DateTime.UtcNow.Date;
-            var dayOfWeek = (int)today.DayOfWeek;
-            var startOfThisWeek = today.AddDays(-dayOfWeek + 1);
-            var startOfLastWeek = startOfThisWeek.AddDays(-7);
-
-            var thisWeekTotal = await _db.Dispatches
-                .Where(s => s.Status == DispatchStatus.Confirmed && s.DispatchDate >= startOfThisWeek)
-                .CountAsync();
-
-            var lastWeekTotal = await _db.Dispatches
-                .Where(s => s.Status == DispatchStatus.Confirmed
-                            && s.DispatchDate >= startOfLastWeek
-                            && s.DispatchDate < startOfThisWeek)
-                .CountAsync();
-
-            return Ok(new
-            {
-                thisWeek = thisWeekTotal,
-                lastWeek = lastWeekTotal
-            });
+            var result = await _warehouseReportService.GetWeeklyOutboundSummaryAsync();
+            return Ok(result);
         }
 
         [HttpGet("total-stock")]
         public async Task<IActionResult> GetTotalStock()
         {
-            var totalStock = await _db.ProductDetails
-                .SumAsync(d => d.Quantity);
-
-            return Ok(new { totalStock });
+            var result = await _warehouseReportService.GetTotalStockAsync();
+            return Ok(result);
         }
 
         [HttpGet("unit-of-measures")]
         public async Task<IActionResult> GetUnitOfMeasures()
         {
-            var uoms = await _db.UnitOfMeasures
-                                .Where(u => u.Status == "Active")
-                                .OrderBy(u => u.Name)
-                                .ToListAsync();
-            return Ok(uoms.Select(u => new { id = u.Id, name = u.Name }));
+            var result = await _warehouseReportService.GetUnitOfMeasuresAsync();
+            return Ok(result);
         }
 
-        // GET /api/warehousemanager/customers?search=abc
         [HttpGet("customers")]
         public async Task<IActionResult> GetCustomers([FromQuery] string? search)
         {
-            var customerRoleId = await _db.Roles
-                .Where(r => EF.Functions.ILike(r.Name, "customer"))
-                .Select(r => r.RoleId)
-                .FirstOrDefaultAsync();
-
-            if (customerRoleId == 0)
-                return Ok(Array.Empty<object>());
-
-            var q = _db.Users
-                .AsNoTracking()
-                .Where(u => u.RoleId == customerRoleId);
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var pattern = $"%{search.Trim()}%";
-                q = q.Where(u =>
-                    EF.Functions.ILike(u.Name, pattern) ||
-                    EF.Functions.ILike(u.Email, pattern));
-            }
-            var items = await q
-                .OrderBy(u => u.Name)
-                .Take(50)
-                .Select(u => new { id = u.UserID, name = u.Name })
-                .ToListAsync();
-
+            var items = await _dispatchService.GetCustomersAsync(search);
             return Ok(items);
         }
 
-        // GET /api/warehousemanager/projects?search=abc
         [HttpGet("projects")]
         public async Task<IActionResult> GetProjects([FromQuery] string? search)
         {
-            var q = _db.Projects.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var s = search.Trim().ToLower();
-                q = q.Where(p => p.Name.ToLower().Contains(s));
-            }
-
-            var items = await q
-                .OrderBy(p => p.Name)
-                .Select(p => new { id = p.Id, name = p.Name })
-                .ToListAsync();
-
+            var items = await _dispatchService.GetProjectsAsync(search);
             return Ok(items);
         }
 
         [HttpPost("dispatch-slips/sales")]
         public async Task<IActionResult> CreateSales([FromBody] RetailDispatchCreateDto dto)
         {
-            if (!(dto.CustomerId is > 0))
-                return BadRequest(new { message = "CustomerId is required > 0", received = dto.CustomerId });
-
-            var customerRoleId = await _db.Roles
-                .Where(r => EF.Functions.ILike(r.Name, "customer"))
-                .Select(r => r.RoleId)
-                .FirstOrDefaultAsync();
-
-            if (customerRoleId == 0)
-                return NotFound(new { message = "Role 'Customer' not found" });
-
-            var customer = await _db.Users
-                .FirstOrDefaultAsync(u => u.UserID == dto.CustomerId && u.RoleId == customerRoleId);
-
-            if (customer == null)
-                return NotFound(new { message = $"Customer {dto.CustomerId} not found or not a Customer role" });
-
-            var slip = new RetailDispatch
+            try
             {
-                DispatchDate = dto.DispatchDate,
-                CustomerId = customer.UserID,
-                CustomerName = customer.Name,
-                Note = dto.Note?.Trim(),
-                Status = DispatchStatus.Draft
-            };
+                var slip = await _dispatchService.CreateSalesDispatchAsync(dto);
 
-            _db.Set<RetailDispatch>().Add(slip);
-            await _db.SaveChangesAsync();
+                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                {
+                    action = "created",
+                    id = slip.Id,
+                    referenceNo = slip.ReferenceNo,
+                    type = slip.Type,
+                    status = slip.Status,
+                    customerName = slip.CustomerName,
+                    dispatchDate = slip.DispatchDate,
+                    createdAt = slip.CreatedAt,
+                    confirmedAt = slip.ConfirmedAt,
+                    note = slip.Note
+                });
 
-            slip.ReferenceNo = $"DSP-SLS-{slip.Id:D5}";
-            await _db.SaveChangesAsync();
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
+                {
+                    slip.Id,
+                    slip.ReferenceNo,
+                    slip.Type,
+                    slip.Status,
+                    receivedCustomerId = dto.CustomerId
+                });
+            }
+            catch (ArgumentException ex)
             {
-                action = "created",
-                id = slip.Id,
-                referenceNo = slip.ReferenceNo,
-                type = slip.Type,
-                status = slip.Status,
-                customerName = slip.CustomerName,
-                dispatchDate = slip.DispatchDate,
-                createdAt = slip.CreatedAt,
-                confirmedAt = slip.ConfirmedAt,
-                note = slip.Note
-            });
-
-            return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
+                return BadRequest(new { message = ex.Message, received = dto.CustomerId });
+            }
+            catch (KeyNotFoundException ex)
             {
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Type,
-                slip.Status,
-                receivedCustomerId = dto.CustomerId
-            });
+                return NotFound(new { message = ex.Message });
+            }
         }
 
         [HttpPost("dispatch-slips/projects")]
         public async Task<IActionResult> CreateProject([FromBody] ProjectDispatchCreateDto dto)
         {
-            if (!(dto.ProjectId is > 0))
-                return BadRequest(new { message = "ProjectId is required > 0", received = dto.ProjectId });
-
-            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
-            if (project == null)
-                return NotFound(new { message = $"Project {dto.ProjectId} not found" });
-
-            var slip = new ProjectDispatch
+            try
             {
-                DispatchDate = dto.DispatchDate,
-                ProjectId = project.Id,
-                ProjectName = project.Name,
-                Note = dto.Note?.Trim(),
-                Status = DispatchStatus.Draft
-            };
+                var slip = await _dispatchService.CreateProjectDispatchAsync(dto);
 
-            _db.Set<ProjectDispatch>().Add(slip);
-            await _db.SaveChangesAsync();
+                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                {
+                    action = "created",
+                    id = slip.Id,
+                    referenceNo = slip.ReferenceNo,
+                    type = slip.Type,
+                    status = slip.Status,
+                    projectName = slip.ProjectName,
+                    dispatchDate = slip.DispatchDate,
+                    createdAt = slip.CreatedAt,
+                    confirmedAt = slip.ConfirmedAt,
+                    note = slip.Note
+                });
 
-            slip.ReferenceNo = $"DSP-PRJ-{slip.Id:D5}";
-            await _db.SaveChangesAsync();
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
+                {
+                    slip.Id,
+                    slip.ReferenceNo,
+                    slip.Type,
+                    slip.Status,
+                    receivedProjectId = dto.ProjectId
+                });
+            }
+            catch (ArgumentException ex)
             {
-                action = "created",
-                id = slip.Id,
-                referenceNo = slip.ReferenceNo,
-                type = slip.Type,
-                status = slip.Status,
-                projectName = slip.ProjectName,
-                dispatchDate = slip.DispatchDate,
-                createdAt = slip.CreatedAt,
-                confirmedAt = slip.ConfirmedAt,
-                note = slip.Note
-            });
-
-            return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
+                return BadRequest(new { message = ex.Message, received = dto.ProjectId });
+            }
+            catch (KeyNotFoundException ex)
             {
-                slip.Id,
-                slip.ReferenceNo,
-                slip.Type,
-                slip.Status,
-                receivedProjectId = dto.ProjectId
-            });
+                return NotFound(new { message = ex.Message });
+            }
         }
 
-        // GET /api/warehousemanager/dispatch-slips/{id}
         [HttpGet("dispatch-slips/{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
         {
-            var s = await _db.Set<RetailDispatch>().FirstOrDefaultAsync(x => x.Id == id)
-                 as DispatchBase ?? await _db.Set<ProjectDispatch>().FirstOrDefaultAsync(x => x.Id == id);
-
-            if (s == null) return NotFound();
-
-            return Ok(new
-            {
-                s.Id,
-                s.ReferenceNo,
-                s.Type,
-                s.Status,
-                s.DispatchDate,
-                s.Note,
-                CustomerName = (s is RetailDispatch r) ? r.CustomerName : null,
-                CustomerId = (s is RetailDispatch r2) ? r2.CustomerId : null,
-                ProjectName = (s is ProjectDispatch p) ? p.ProjectName : null,
-                ProjectId = (s is ProjectDispatch p2) ? p2.ProjectId : null
-            });
+            var dto = await _dispatchService.GetDispatchByIdAsync(id);
+            if (dto == null) return NotFound();
+            return Ok(dto);
         }
 
         [HttpGet("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> GetDispatchItems([FromRoute] int id, [FromQuery] DispatchItemListQuery q)
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
-
-            var exists = await _db.Dispatches.AnyAsync(d => d.Id == id);
-            if (!exists)
-                return NotFound(new { message = $"Dispatch {id} không tồn tại" });
-
-            var baseQuery = _db.DispatchItems
-                .Where(i => i.DispatchId == id);
-
-            var total = await baseQuery.CountAsync();
-
-            var items = await baseQuery
-                .OrderBy(i => i.Id)
-                .Join(_db.Products,
-                      i => i.ProductId,
-                      p => p.ProductID,
-                      (i, p) => new
-                      {
-                          i.Id,
-                          i.DispatchId,
-                          i.ProductId,
-                          i.ProductName,
-                          ProductCode = p.ProductCode,
-                          i.Uom,
-                          i.Quantity,
-                          i.UnitPrice,
-                          i.Total
-                      })
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
-                .ToListAsync();
-
-            return Ok(new { total, page = q.Page, pageSize = q.PageSize, items });
+            try
+            {
+                var result = await _dispatchService.GetDispatchItemsAsync(id, q);
+                return Ok(new
+                {
+                    total = result.TotalItems,
+                    page = result.Page,
+                    pageSize = result.PageSize,
+                    items = result.Items
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
-
 
         [HttpPost("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> CreateDispatchItem(int id, [FromBody] DispatchItemDto dto)
         {
-            var dispatch = await _db.Dispatches.FindAsync(id);
-            if (dispatch == null) return NotFound($"Dispatch {id} không tồn tại");
-
-            if (string.IsNullOrWhiteSpace(dto.ProductName))
-                return BadRequest("Tên sản phẩm không được để trống");
-            if (dto.Quantity <= 0)
-                return BadRequest("Số lượng phải lớn hơn 0");
-            if (dto.ProductId == null)
-                return BadRequest("ProductId không được để trống");
-
-            var product = await _db.Products
-        .Where(p => p.ProductID == dto.ProductId)
-        .Select(p => new { p.ProductCode })
-        .FirstOrDefaultAsync();
-            var item = new DispatchItem
+            try
             {
-                DispatchId = id,
-                ProductId = dto.ProductId.Value,
-                ProductName = dto.ProductName,
-                Uom = dto.Uom ?? "pcs",
-                Quantity = dto.Quantity,
-                UnitPrice = dto.UnitPrice,
-                Total = dto.Quantity * dto.UnitPrice,
-                Dispatch = null
-            };
+                var result = await _dispatchService.CreateDispatchItemAsync(id, dto);
 
-            _db.DispatchItems.Add(item);
-            await _db.SaveChangesAsync();
+                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+                {
+                    action = "created",
+                    dispatchId = id,
+                    item = result
+                });
 
-            var responseItem = new
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
             {
-                item.Id,
-                item.DispatchId,
-                item.ProductId,
-                item.ProductName,
-                ProductCode = product?.ProductCode ?? "",
-                item.Uom,
-                item.Quantity,
-                item.UnitPrice,
-                item.Total
-            };
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
             {
-                action = "created",
-                dispatchId = id,
-                item = responseItem
-            });
-
-            return Ok(responseItem);
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        // PUT: /api/warehousemanager/dispatch-items/{itemId}
         [HttpPut("dispatch-items/{itemId:int}")]
         public async Task<IActionResult> UpdateDispatchItem(int itemId, [FromBody] DispatchItemDto dto)
         {
-            var item = await _db.DispatchItems.FindAsync(itemId);
-            if (item == null) return NotFound($"Item {itemId} không tồn tại");
-
-            item.ProductId = dto.ProductId ?? 0;
-            item.ProductName = dto.ProductName;
-            item.Uom = dto.Uom ?? "pcs";
-            item.Quantity = dto.Quantity;
-            item.UnitPrice = dto.UnitPrice;
-            item.Total = dto.Quantity * dto.UnitPrice;
-
-            string productCode = "";
-            var product = await _db.Products
-        .Where(p => p.ProductID == dto.ProductId)
-        .Select(p => new { p.ProductCode })
-        .FirstOrDefaultAsync();
-
-            await _db.SaveChangesAsync();
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+            try
             {
-                action = "updated",
-                dispatchId = item.DispatchId,
-                item = new
+                var (item, productCode) = await _dispatchService.UpdateDispatchItemAsync(itemId, dto);
+
+                var response = new
                 {
                     item.Id,
                     item.DispatchId,
@@ -1594,613 +587,163 @@ namespace SaoKim_ecommerce_BE.Controllers
                     item.Quantity,
                     item.UnitPrice,
                     item.Total
-                }
-            });
+                };
 
-            return Ok(new
+                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+                {
+                    action = "updated",
+                    dispatchId = item.DispatchId,
+                    item = response
+                });
+
+                return Ok(response);
+            }
+            catch (KeyNotFoundException ex)
             {
-                item.Id,
-                item.DispatchId,
-                item.ProductId,
-                item.ProductName,
-                ProductCode = productCode,
-                item.Uom,
-                item.Quantity,
-                item.UnitPrice,
-                item.Total
-            });
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("dispatch-slips/{id:int}")]
         public async Task<IActionResult> DeleteDispatchSlip(int id)
         {
-            var slip = await _db.Dispatches
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (slip == null)
-                return NotFound(new { message = "Dispatch slip not found" });
-
-            if (slip.Status != DispatchStatus.Draft)
-                return Conflict(new { message = "Only Draft slips can be deleted" });
-
-            _db.DispatchItems.RemoveRange(slip.Items);
-
-            _db.Dispatches.Remove(slip);
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+            try
             {
-                action = "deleted",
-                id = slip.Id
-            });
+                await _dispatchService.DeleteDispatchSlipAsync(id);
 
-            await _db.SaveChangesAsync();
+                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
+                {
+                    action = "deleted",
+                    id
+                });
 
-            return NoContent();
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
 
-        // DELETE: /api/warehousemanager/dispatch-items/{itemId}
         [HttpDelete("dispatch-items/{itemId:int}")]
         public async Task<IActionResult> DeleteDispatchItem(int itemId)
         {
-            var item = await _db.DispatchItems.FindAsync(itemId);
-            if (item == null) return NotFound($"Item {itemId} không tồn tại");
-
-            var dispatchId = item.DispatchId;
-
-            _db.DispatchItems.Remove(item);
-            await _db.SaveChangesAsync();
-
-            await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+            try
             {
-                action = "deleted",
-                dispatchId,
-                itemId = itemId
-            });
-            return NoContent();
+                var item = await _db.DispatchItems.FindAsync(itemId);
+                if (item == null)
+                    return NotFound(new { message = $"Item {itemId} không tồn tại" });
+
+                var dispatchId = item.DispatchId;
+
+                await _dispatchService.DeleteDispatchItemAsync(itemId);
+
+                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
+                {
+                    action = "deleted",
+                    dispatchId,
+                    itemId
+                });
+
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
 
         [HttpGet("inventory")]
         public async Task<IActionResult> GetInventory([FromQuery] InventoryListQuery q)
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
-
-            var productQuery = _db.Products.AsNoTracking();
-
-            if (!string.IsNullOrWhiteSpace(q.Search))
-            {
-                var s = q.Search.Trim().ToLower();
-                productQuery = productQuery.Where(p =>
-                    (p.ProductCode ?? "").ToLower().Contains(s) ||
-                    p.ProductName.ToLower().Contains(s));
-            }
-
-            var baseQuery =
-                from p in productQuery
-                join d in _db.ProductDetails.AsNoTracking()
-                    on p.ProductID equals d.ProductID into dg
-                from d in dg.DefaultIfEmpty()
-                join th in _db.InventoryThresholds.AsNoTracking()
-                    on p.ProductID equals th.ProductId into thg
-                from th in thg.DefaultIfEmpty()
-                select new
-                {
-                    p.ProductID,
-                    p.ProductCode,
-                    p.ProductName,
-                    Quantity = d != null ? d.Quantity : 0,
-                    Unit = d != null ? d.Unit : null,
-                    MinStock = (int?)th.MinStock ?? 0,
-                    DetailStatus = d != null ? d.Status : null
-                };
-
-            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
-
-            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
-            {
-                switch (q.Status)
-                {
-                    case "critical":
-                        baseQuery = baseQuery.Where(x =>
-                            x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
-                        break;
-
-                    case "alert":
-                        baseQuery = baseQuery.Where(x =>
-                            x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
-                        break;
-
-                    case "stock":
-                        baseQuery = baseQuery.Where(x =>
-                            x.MinStock == 0 || x.Quantity >= x.MinStock);
-                        break;
-                }
-            }
-
-            var total = await baseQuery.CountAsync();
-
-            var items = await baseQuery
-                .OrderBy(x => x.ProductName)
-                .ThenBy(x => x.ProductCode)
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
-                .Select(x => new
-                {
-                    productId = x.ProductID,
-                    productCode = x.ProductCode,
-                    productName = x.ProductName,
-                    onHand = x.Quantity,
-                    uomName = x.Unit,
-                    minStock = x.MinStock,
-                    status = (string?)null,
-                    note = (string?)null
-                })
-                .ToListAsync();
-
-            return Ok(new { total, items });
+            var result = await _warehouseReportService.GetInventoryAsync(q);
+            return Ok(result);
         }
 
         [HttpGet("inventory-report")]
         public async Task<IActionResult> GetInventoryReport([FromQuery] InventoryListQuery q)
         {
-            if (q.Page <= 0) q.Page = 1;
-            if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
+            var result = await _warehouseReportService.GetInventoryReportAsync(q);
 
-            var from = q.DateFrom ?? DateTime.MinValue;
-            var to = q.DateTo ?? DateTime.UtcNow;
-
-            var productQuery = _db.Products.AsNoTracking();
-
-            if (!string.IsNullOrWhiteSpace(q.Search))
+            return Ok(new
             {
-                var s = q.Search.Trim().ToLower();
-                productQuery = productQuery.Where(p =>
-                    (p.ProductCode ?? "").ToLower().Contains(s) ||
-                    p.ProductName.ToLower().Contains(s));
-            }
-
-            var baseQuery =
-                from p in productQuery
-                join d in _db.ProductDetails.AsNoTracking()
-                    on p.ProductID equals d.ProductID into dg
-                from d in dg.DefaultIfEmpty()
-                join th in _db.InventoryThresholds.AsNoTracking()
-                    on p.ProductID equals th.ProductId into thg
-                from th in thg.DefaultIfEmpty()
-                select new
-                {
-                    p.ProductID,
-                    p.ProductCode,
-                    p.ProductName,
-                    Quantity = d != null ? d.Quantity : 0,           
-                    Unit = d != null ? d.Unit : null,
-                    MinStock = (int?)th.MinStock ?? 0,
-                    DetailStatus = d != null ? d.Status : null
-                };
-
-            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
-
-            var queryWithStatus = baseQuery.Select(x => new
-            {
-                x.ProductID,
-                x.ProductCode,
-                x.ProductName,
-                x.Quantity,
-                x.Unit,
-                x.MinStock,
-                Status =
-                    x.MinStock <= 0
-                        ? "stock"
-                    : x.Quantity <= 0
-                        ? "critical"
-                    : x.Quantity < x.MinStock
-                        ? "alert"
-                        : "stock"
+                total = result.TotalItems,
+                items = result.Items
             });
-
-            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
-            {
-                switch (q.Status)
-                {
-                    case "critical":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "critical");
-                        break;
-                    case "alert":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "alert");
-                        break;
-                    case "stock":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "stock");
-                        break;
-                }
-            }
-
-            var total = await queryWithStatus.CountAsync();
-
-            var pageData = await queryWithStatus
-                .OrderBy(x => x.ProductName)
-                .ThenBy(x => x.ProductCode)
-                .Skip((q.Page - 1) * q.PageSize)
-                .Take(q.PageSize)
-                .ToListAsync();
-
-            var productIds = pageData.Select(x => x.ProductID).ToList();
-            if (productIds.Count == 0)
-            {
-                return Ok(new
-                {
-                    total,
-                    items = Array.Empty<object>()
-                });
-            }
-
-            var inboundBase =
-                from item in _db.ReceivingSlipItems.AsNoTracking()
-                join slip in _db.ReceivingSlips.AsNoTracking()
-                    on item.ReceivingSlipId equals slip.Id
-                where item.ProductId != null
-                      && productIds.Contains(item.ProductId.Value)
-                      && slip.Status == ReceivingSlipStatus.Confirmed
-                select new
-                {
-                    ProductId = item.ProductId!.Value,
-                    slip.ReceiptDate,
-                    item.Quantity
-                };
-
-            var inboundBeforeList = await inboundBase
-                .Where(x => x.ReceiptDate < from)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            // Nhập trong kỳ
-            var inboundPeriodList = await inboundBase
-                .Where(x => x.ReceiptDate >= from && x.ReceiptDate <= to)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var inboundBeforeDict = inboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
-            var inboundPeriodDict = inboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
-
-            var outboundBase =
-                from item in _db.DispatchItems.AsNoTracking()
-                join slip in _db.Dispatches.AsNoTracking()
-                    on item.DispatchId equals slip.Id
-                where item.ProductId != null
-                      && productIds.Contains(item.ProductId.Value)
-                      && slip.Status == DispatchStatus.Confirmed
-                select new
-                {
-                    ProductId = item.ProductId!.Value,
-                    slip.DispatchDate,
-                    item.Quantity
-                };
-
-            var outboundBeforeList = await outboundBase
-                .Where(x => x.DispatchDate < from)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var outboundPeriodList = await outboundBase
-                .Where(x => x.DispatchDate >= from && x.DispatchDate <= to)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var outboundBeforeDict = outboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
-            var outboundPeriodDict = outboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
-
-            var items = pageData
-                .Select(x =>
-                {
-                    var productId = x.ProductID;
-
-                    var inBefore = inboundBeforeDict.TryGetValue(productId, out var ib) ? ib : 0;
-                    var outBefore = outboundBeforeDict.TryGetValue(productId, out var ob) ? ob : 0;
-
-                    var inboundPeriod = inboundPeriodDict.TryGetValue(productId, out var ip) ? ip : 0;
-                    var outboundPeriod = outboundPeriodDict.TryGetValue(productId, out var op) ? op : 0;
-
-                    var opening = inBefore - outBefore;
-                    var closing = opening + inboundPeriod - outboundPeriod;
-
-                    return new
-                    {
-                        productId = x.ProductID,
-                        productCode = x.ProductCode,
-                        productName = x.ProductName,
-
-                        onHand = x.Quantity,
-
-                        uomName = x.Unit,
-                        minStock = x.MinStock,
-                        status = x.Status,
-                        note = (string?)null,
-
-                        openingQty = opening,          
-                        inboundQty = inboundPeriod,    
-                        outboundQty = outboundPeriod,  
-                        closingQty = closing           
-                    };
-                })
-                .ToList();
-
-            return Ok(new { total, items });
         }
 
         [HttpPatch("inventory/{productId:int}/min-stock")]
         public async Task<IActionResult> UpdateMinStock([FromRoute] int productId, [FromBody] UpdateMinStockDto dto)
         {
-            if (dto.MinStock < 0)
-                return BadRequest(new { message = "MinStock must be >= 0" });
-
-            var productExists = await _db.Products.AnyAsync(p => p.ProductID == productId);
-            if (!productExists)
-                return NotFound(new { message = "Product not found" });
-
-            var threshold = await _db.InventoryThresholds
-                .FirstOrDefaultAsync(t => t.ProductId == productId);
-
-            if (threshold == null)
+            try
             {
-                threshold = new InventoryThreshold
+                var threshold = await _warehouseReportService.UpdateMinStockAsync(productId, dto.MinStock);
+
+                await _inventoryHub.Clients.All.SendAsync("InventoryUpdated", new
                 {
-                    ProductId = productId,
-                    MinStock = dto.MinStock,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _db.InventoryThresholds.Add(threshold);
+                    productId,
+                    minStock = threshold.MinStock
+                });
+
+                return Ok(new { productId, minStock = threshold.MinStock });
             }
-            else
+            catch (ArgumentException ex)
             {
-                threshold.MinStock = dto.MinStock;
-                threshold.UpdatedAt = DateTime.UtcNow;
+                return BadRequest(new { message = ex.Message });
             }
-
-            await _inventoryHub.Clients.All.SendAsync("InventoryUpdated", new
+            catch (KeyNotFoundException ex)
             {
-                productId,
-                minStock = threshold.MinStock
-            });
-
-            await _db.SaveChangesAsync();
-
-            return Ok(new { productId, minStock = threshold.MinStock });
+                return NotFound(new { message = ex.Message });
+            }
         }
-
 
         [HttpGet("trace")]
         public async Task<IActionResult> SearchTrace([FromQuery] TraceSearchQuery q)
         {
-            IQueryable<TraceIdentity> query = _db.TraceIdentities.AsNoTracking();
-
-            if (!string.IsNullOrWhiteSpace(q.Query))
-            {
-                var s = q.Query.Trim().ToLower();
-
-                query = query.Where(i =>
-                    i.IdentityCode.ToLower().Contains(s) ||
-                    ((i.Product!.ProductCode ?? "").ToLower().Contains(s)) ||
-                    i.Product!.ProductName.ToLower().Contains(s) ||
-                    ((i.ProjectName ?? "").ToLower().Contains(s))
-                );
-            }
-
-            query = query
-                .Include(i => i.Product)
-                .Include(i => i.Events);
-
-            var items = await query
-                .OrderByDescending(i => i.UpdatedAt)
-                .Take(100)
-                .Select(i => new
-                {
-                    id = i.Id,
-                    serial = i.IdentityCode,
-                    sku = i.Product != null ? i.Product.ProductCode : null,
-                    productName = i.Product != null ? i.Product.ProductName : null,
-                    status = i.Status,
-                    project = i.ProjectName,
-                    currentLocation = i.CurrentLocation,
-                    timeline = i.Events
-                        .OrderBy(e => e.OccurredAt)
-                        .Select(e => new
-                        {
-                            time = e.OccurredAt,
-                            type = e.EventType,
-                            @ref = e.RefCode,
-                            actor = e.Actor,
-                            note = e.Note
-                        })
-                        .ToList()
-                })
-                .ToListAsync();
-
+            var items = await _warehouseReportService.SearchTraceAsync(q);
             return Ok(items);
         }
 
-        // GET /api/warehousemanager/trace/product/{productId}
         [HttpGet("trace/product/{productId:int}")]
         public async Task<IActionResult> GetProductTrace([FromRoute] int productId)
         {
-            var productInfo = await _db.Products
-                .AsNoTracking()
-                .Where(p => p.ProductID == productId)
-                .Select(p => new
-                {
-                    p.ProductID,
-                    p.ProductCode,
-                    p.ProductName,
-                    Unit = p.ProductDetails
-                        .OrderByDescending(d => d.Id)
-                        .Select(d => d.Unit)
-                        .FirstOrDefault()
-                })
-                .FirstOrDefaultAsync();
+            var result = await _warehouseReportService.GetProductTraceAsync(productId);
 
-            if (productInfo == null)
+            if (result == null)
                 return NotFound(new { message = "Product not found" });
 
-            var inboundQuery =
-                from item in _db.ReceivingSlipItems
-                join slip in _db.ReceivingSlips on item.ReceivingSlipId equals slip.Id
-                where item.ProductId == productId
-                select new
-                {
-                    direction = "in",
-                    slipType = "receiving",
-                    refNo = slip.ReferenceNo,
-                    partner = slip.Supplier,
-                    date = slip.ReceiptDate,
-                    quantity = item.Quantity,
-                    uom = item.Uom,
-                    note = slip.Note,
-                    slipId = slip.Id
-                };
-
-            var salesOutboundQuery =
-                from item in _db.DispatchItems
-                join d in _db.Set<RetailDispatch>() on item.DispatchId equals d.Id
-                where item.ProductId == productId
-                select new
-                {
-                    direction = "out",
-                    slipType = "sales",
-                    refNo = d.ReferenceNo,
-                    partner = d.CustomerName,
-                    date = d.DispatchDate,
-                    quantity = item.Quantity,
-                    uom = item.Uom,
-                    note = d.Note,
-                    slipId = d.Id
-                };
-
-            var projectOutboundQuery =
-                from item in _db.DispatchItems
-                join d in _db.Set<ProjectDispatch>() on item.DispatchId equals d.Id
-                where item.ProductId == productId
-                select new
-                {
-                    direction = "out",
-                    slipType = "project",
-                    refNo = d.ReferenceNo,
-                    partner = d.ProjectName,
-                    date = d.DispatchDate,
-                    quantity = item.Quantity,
-                    uom = item.Uom,
-                    note = d.Note,
-                    slipId = d.Id
-                };
-
-            var movements = await inboundQuery
-                .Concat(salesOutboundQuery)
-                .Concat(projectOutboundQuery)
-                .OrderBy(m => m.date)
-                .ToListAsync();
-
-            return Ok(new
-            {
-                productId = productInfo.ProductID,
-                productCode = productInfo.ProductCode,
-                productName = productInfo.ProductName,
-                unit = productInfo.Unit,  
-                movements
-            });
+            return Ok(result);
         }
 
         [HttpPost("receiving-slips/export-selected")]
         public async Task<IActionResult> ExportSelectedReceivingSlips([FromBody] ReceivingExportRequestDto req)
         {
-            if (req.Ids == null || req.Ids.Count == 0)
-                return BadRequest(new { message = "Chưa có phiếu nào được chọn." });
-
-            var slips = await _db.ReceivingSlips
-                .Include(s => s.Items)
-                .Where(s => req.Ids.Contains(s.Id))
-                .OrderByDescending(s => s.ReceiptDate)
-                .ThenByDescending(s => s.Id)
-                .ToListAsync();
-
-            using var wb = new ClosedXML.Excel.XLWorkbook();
-
-            var ws1 = wb.Worksheets.Add("Slips");
-            int r = 1;
-            ws1.Cell(r, 1).Value = "Id";
-            ws1.Cell(r, 2).Value = "ReferenceNo";
-            ws1.Cell(r, 3).Value = "Supplier";
-            ws1.Cell(r, 4).Value = "ReceiptDate";
-            ws1.Cell(r, 5).Value = "Status";
-            ws1.Cell(r, 6).Value = "Note";
-            ws1.Cell(r, 7).Value = "TotalItems";
-            ws1.Cell(r, 8).Value = "TotalAmount";
-            ws1.Range(r, 1, r, 8).Style.Font.SetBold();
-            r++;
-
-            foreach (var s in slips)
+            try
             {
-                var totalItems = s.Items?.Sum(i => i.Quantity) ?? 0;
-                var totalAmount = s.Items?.Sum(i => i.Total) ?? 0m;
+                var fileBytes = await _receivingService.ExportSelectedReceivingSlipsAsync(req);
 
-                ws1.Cell(r, 1).Value = s.Id;
-                ws1.Cell(r, 2).Value = s.ReferenceNo;
-                ws1.Cell(r, 3).Value = s.Supplier;
-                ws1.Cell(r, 4).Value = s.ReceiptDate; ws1.Cell(r, 4).Style.DateFormat.Format = "yyyy-mm-dd";
-                ws1.Cell(r, 5).Value = s.Status.ToString();
-                ws1.Cell(r, 6).Value = s.Note;
-                ws1.Cell(r, 7).Value = totalItems;
-                ws1.Cell(r, 8).Value = totalAmount; ws1.Cell(r, 8).Style.NumberFormat.Format = "#,##0.00";
-                r++;
+                var fileName = $"receiving-slips-selected-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
+                const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+                return File(fileBytes, contentType, fileName);
             }
-            ws1.Columns().AdjustToContents();
-
-            if (req.IncludeItems)
+            catch (ArgumentException ex)
             {
-                var ws2 = wb.Worksheets.Add("Items");
-                int r2 = 1;
-                ws2.Cell(r2, 1).Value = "SlipId";
-                ws2.Cell(r2, 2).Value = "ReferenceNo";
-                ws2.Cell(r2, 3).Value = "Supplier";
-                ws2.Cell(r2, 4).Value = "ReceiptDate";
-                ws2.Cell(r2, 5).Value = "ProductId";
-                ws2.Cell(r2, 6).Value = "ProductCode";
-                ws2.Cell(r2, 7).Value = "ProductName";
-                ws2.Cell(r2, 8).Value = "Uom";
-                ws2.Cell(r2, 9).Value = "Quantity";
-                ws2.Cell(r2, 10).Value = "UnitPrice";
-                ws2.Cell(r2, 11).Value = "Total";
-                ws2.Range(r2, 1, r2, 11).Style.Font.SetBold(); r2++;
-
-                foreach (var s in slips)
-                {
-                    foreach (var it in s.Items ?? new List<ReceivingSlipItem>())
-                    {
-                        ws2.Cell(r2, 1).Value = s.Id;
-                        ws2.Cell(r2, 2).Value = s.ReferenceNo;
-                        ws2.Cell(r2, 3).Value = s.Supplier;
-                        ws2.Cell(r2, 4).Value = s.ReceiptDate; ws2.Cell(r2, 4).Style.DateFormat.Format = "yyyy-mm-dd";
-                        ws2.Cell(r2, 5).Value = it.ProductId;
-                        ws2.Cell(r2, 6).Value = it.ProductCode;
-                        ws2.Cell(r2, 7).Value = it.ProductName;
-                        ws2.Cell(r2, 8).Value = it.Uom;
-                        ws2.Cell(r2, 9).Value = it.Quantity;
-                        ws2.Cell(r2, 10).Value = it.UnitPrice; ws2.Cell(r2, 10).Style.NumberFormat.Format = "#,##0.00";
-                        ws2.Cell(r2, 11).Value = it.Total; ws2.Cell(r2, 11).Style.NumberFormat.Format = "#,##0.00";
-                        r2++;
-                    }
-                }
-                ws2.Columns().AdjustToContents();
+                return BadRequest(new { message = ex.Message });
             }
-
-            using var ms = new MemoryStream();
-            wb.SaveAs(ms);
-            var fileBytes = ms.ToArray();
-
-            var fileName = $"receiving-slips-selected-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
-            const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-            return File(fileBytes, contentType, fileName);
         }
+
     }
 }
