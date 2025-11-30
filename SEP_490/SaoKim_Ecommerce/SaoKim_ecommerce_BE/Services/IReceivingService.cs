@@ -10,6 +10,7 @@ namespace SaoKim_ecommerce_BE.Services
     {
         Task<PagedResult<ReceivingSlipListItemDto>> GetReceivingSlipListAsync(ReceivingSlipListQuery q);
         Task<ReceivingSlip> CreateReceivingSlipAsync(ReceivingSlipCreateDto dto);
+        Task DeleteReceivingSlipAsync(int id);
         Task<ReceivingSlipItem> UpdateReceivingSlipItemAsync(int itemId, ReceivingSlipItemDto dto);
         Task<ReceivingSlipItem> CreateReceivingSlipItemAsync(int slipId, ReceivingSlipItemDto dto);
         Task<(int SlipId, int ItemId)> DeleteReceivingSlipItemAsync(int itemId);

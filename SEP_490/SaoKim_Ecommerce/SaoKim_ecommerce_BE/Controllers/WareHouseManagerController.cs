@@ -97,6 +97,31 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+        [HttpDelete("receiving-slips/{id:int}")]
+        public async Task<IActionResult> DeleteReceivingSlip([FromRoute] int id)
+        {
+            try
+            {
+                await _receivingService.DeleteReceivingSlipAsync(id);
+
+                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+                {
+                    action = "deleted",
+                    id
+                });
+
+                return Ok(new { message = "Phiếu đã được đưa vào thùng rác." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Phiếu nhập không tìm thấy" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
         [HttpPut("receiving-items/{itemId:int}")]
         public async Task<IActionResult> UpdateReceivingSlipItem(
     [FromRoute] int itemId,
