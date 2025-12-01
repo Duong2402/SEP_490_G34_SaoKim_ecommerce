@@ -1,8 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
 
@@ -179,9 +185,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var term = $"%{q.Trim()}%";
                 query = query.Where(u =>
-                    EF.Functions.ILike(u.Name ?? "", term) ||
-                    EF.Functions.ILike(u.Email ?? "", term) ||
-                    EF.Functions.ILike(u.PhoneNumber ?? "", term));
+                    EF.Functions.ILike(u.Name ?? string.Empty, term) ||
+                    EF.Functions.ILike(u.Email ?? string.Empty, term) ||
+                    EF.Functions.ILike(u.PhoneNumber ?? string.Empty, term));
             }
 
             if (!string.IsNullOrWhiteSpace(role))
@@ -261,7 +267,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 Name = dto.Name.Trim(),
                 Email = dto.Email.Trim(),
-                Password = dto.Password.Trim(), // hiện hệ thống đang dùng string Password :contentReference[oaicite:0]{index=0}
+                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim()),
                 RoleId = dto.RoleId,
                 PhoneNumber = dto.PhoneNumber?.Trim(),
                 Address = dto.Address?.Trim(),
@@ -343,7 +349,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (!string.IsNullOrWhiteSpace(dto.Password))
             {
-                user.Password = dto.Password.Trim();
+                user.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
             }
 
             if (dto.Image != null)
