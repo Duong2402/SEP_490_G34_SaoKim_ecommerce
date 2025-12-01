@@ -13,10 +13,18 @@ namespace SaoKim_ecommerce_BE.Services
     {
         private readonly SaoKimDBContext _db;
 
-        public PromotionService(SaoKimDBContext db) { _db = db; }
+        public PromotionService(SaoKimDBContext db)
+        {
+            _db = db;
+        }
 
         public async Task<(IEnumerable<PromotionListItemDto> Items, int Total)> ListAsync(
-            string? q, string? status, int page, int pageSize, string? sortBy, string? sortDir)
+            string? q,
+            string? status,
+            int page,
+            int pageSize,
+            string? sortBy,
+            string? sortDir)
         {
             var qry = _db.Promotions.AsQueryable();
 
@@ -32,6 +40,7 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             bool asc = (sortDir ?? "desc").Equals("asc", StringComparison.OrdinalIgnoreCase);
+
             qry = (sortBy ?? "created").ToLower() switch
             {
                 "name" => asc ? qry.OrderBy(x => x.Name) : qry.OrderByDescending(x => x.Name),
@@ -43,7 +52,10 @@ namespace SaoKim_ecommerce_BE.Services
             };
 
             var total = await qry.CountAsync();
-            var items = await qry.Skip((page - 1) * pageSize).Take(pageSize)
+
+            var items = await qry
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(x => new PromotionListItemDto
                 {
                     Id = x.Id,
@@ -54,20 +66,28 @@ namespace SaoKim_ecommerce_BE.Services
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
                     Status = x.Status.ToString(),
-                    CreatedAt = x.CreatedAt
+                    CreatedAt = x.CreatedAt,
+
+                    ImageUrl = x.ImageUrl,
+                    LinkUrl = x.LinkUrl,
+                    DescriptionHtml = x.DescriptionHtml
                 })
                 .ToListAsync();
 
             return (items, total);
         }
+
         public async Task<PromotionDetailDto?> GetAsync(int id)
         {
             var entity = await _db.Promotions
                 .Include(p => p.PromotionProducts)
-                .ThenInclude(pp => pp.Product)
+                    .ThenInclude(pp => pp.Product)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (entity == null) return null;
+            if (entity == null)
+            {
+                return null;
+            }
 
             return new PromotionDetailDto
             {
@@ -80,6 +100,11 @@ namespace SaoKim_ecommerce_BE.Services
                 EndDate = entity.EndDate,
                 Status = entity.Status.ToString(),
                 CreatedAt = entity.CreatedAt,
+
+                ImageUrl = entity.ImageUrl,
+                LinkUrl = entity.LinkUrl,
+                DescriptionHtml = entity.DescriptionHtml,
+
                 Products = entity.PromotionProducts.Select(pp => new PromotionProductItemDto
                 {
                     Id = pp.Id,
@@ -90,18 +115,34 @@ namespace SaoKim_ecommerce_BE.Services
                 }).ToList()
             };
         }
+
         public async Task<int> CreateAsync(PromotionCreateDto dto)
         {
+            var discountTypeParsed = Enum.TryParse<DiscountType>(dto.DiscountType, true, out var parsedDiscountType)
+                ? parsedDiscountType
+                : DiscountType.Percentage;
+
+            var statusParsed = Enum.TryParse<PromotionStatus>(dto.Status, true, out var parsedStatus)
+                ? parsedStatus
+                : PromotionStatus.Draft;
+
             var entity = new Promotion
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                DiscountType = Enum.TryParse<DiscountType>(dto.DiscountType, true, out var dt) ? dt : DiscountType.Percentage,
+                DiscountType = discountTypeParsed,
                 DiscountValue = dto.DiscountValue,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                Status = Enum.TryParse<PromotionStatus>(dto.Status, true, out var st) ? st : PromotionStatus.Draft,
-                CreatedAt = DateTimeOffset.UtcNow
+
+                // ép về UTC để tránh lỗi Npgsql (chỉ chấp nhận offset 0)
+                StartDate = dto.StartDate.ToUniversalTime(),
+                EndDate = dto.EndDate.ToUniversalTime(),
+
+                Status = statusParsed,
+                CreatedAt = DateTimeOffset.UtcNow,
+
+                ImageUrl = dto.ImageUrl,
+                LinkUrl = dto.LinkUrl,
+                DescriptionHtml = dto.DescriptionHtml
             };
 
             if (dto.ProductIds != null && dto.ProductIds.Count > 0)
@@ -119,62 +160,154 @@ namespace SaoKim_ecommerce_BE.Services
 
             _db.Promotions.Add(entity);
             await _db.SaveChangesAsync();
+
             return entity.Id;
         }
 
         public async Task<bool> UpdateAsync(int id, PromotionUpdateDto dto)
         {
-            var entity = await _db.Promotions.FirstOrDefaultAsync(p => p.Id == id);
-            if (entity == null) return false;
+            var entity = await _db.Promotions
+                .Include(p => p.PromotionProducts)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (entity == null)
+            {
+                return false;
+            }
 
             entity.Name = dto.Name;
             entity.Description = dto.Description;
-            entity.DiscountType = Enum.TryParse<DiscountType>(dto.DiscountType, true, out var dt) ? dt : entity.DiscountType;
+
+            if (Enum.TryParse<DiscountType>(dto.DiscountType, true, out var parsedDiscountType))
+            {
+                entity.DiscountType = parsedDiscountType;
+            }
+
             entity.DiscountValue = dto.DiscountValue;
-            entity.StartDate = dto.StartDate;
-            entity.EndDate = dto.EndDate;
-            entity.Status = Enum.TryParse<PromotionStatus>(dto.Status, true, out var st) ? st : entity.Status;
+
+            // ép về UTC
+            entity.StartDate = dto.StartDate.ToUniversalTime();
+            entity.EndDate = dto.EndDate.ToUniversalTime();
+
+            if (Enum.TryParse<PromotionStatus>(dto.Status, true, out var parsedStatus))
+            {
+                entity.Status = parsedStatus;
+            }
+
+            entity.ImageUrl = dto.ImageUrl;
+            entity.LinkUrl = dto.LinkUrl;
+            entity.DescriptionHtml = dto.DescriptionHtml;
+
             entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+            // Cập nhật danh sách sản phẩm nếu client gửi kèm
+            if (dto.ProductIds != null)
+            {
+                var validIds = await _db.Products
+                    .Where(p => dto.ProductIds.Contains(p.ProductID))
+                    .Select(p => p.ProductID)
+                    .ToListAsync();
+
+                var toRemove = entity.PromotionProducts
+                    .Where(pp => !validIds.Contains(pp.ProductId))
+                    .ToList();
+
+                if (toRemove.Count > 0)
+                {
+                    _db.PromotionProducts.RemoveRange(toRemove);
+                }
+
+                var existingProductIds = entity.PromotionProducts
+                    .Select(pp => pp.ProductId)
+                    .ToHashSet();
+
+                var toAdd = validIds
+                    .Where(pid => !existingProductIds.Contains(pid))
+                    .Select(pid => new PromotionProduct
+                    {
+                        PromotionId = entity.Id,
+                        ProductId = pid
+                    })
+                    .ToList();
+
+                if (toAdd.Count > 0)
+                {
+                    await _db.PromotionProducts.AddRangeAsync(toAdd);
+                }
+            }
 
             await _db.SaveChangesAsync();
             return true;
         }
+
         public async Task<bool> DeleteAsync(int id)
         {
-            var entity = await _db.Promotions.Include(p => p.PromotionProducts).FirstOrDefaultAsync(p => p.Id == id);
-            if (entity == null) return false;
+            var entity = await _db.Promotions
+                .Include(p => p.PromotionProducts)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
-            _db.Promotions.Remove(entity); // cascade
+            if (entity == null)
+            {
+                return false;
+            }
+
+            if (entity.PromotionProducts != null && entity.PromotionProducts.Count > 0)
+            {
+                _db.PromotionProducts.RemoveRange(entity.PromotionProducts);
+            }
+
+            _db.Promotions.Remove(entity);
             await _db.SaveChangesAsync();
+
             return true;
         }
 
         public async Task<bool> AddProductAsync(int promotionId, int productId, string? note)
         {
-            var exists = await _db.PromotionProducts.AnyAsync(x => x.PromotionId == promotionId && x.ProductId == productId);
-            if (exists) return true;
+            var promotion = await _db.Promotions.FirstOrDefaultAsync(p => p.Id == promotionId);
+            if (promotion == null)
+            {
+                return false;
+            }
 
-            var productExists = await _db.Products.AnyAsync(p => p.ProductID == productId);
-            if (!productExists) return false;
+            var product = await _db.Products.FirstOrDefaultAsync(p => p.ProductID == productId);
+            if (product == null)
+            {
+                return false;
+            }
 
-            _db.PromotionProducts.Add(new PromotionProduct
+            var exists = await _db.PromotionProducts.AnyAsync(x =>
+                x.PromotionId == promotionId && x.ProductId == productId);
+
+            if (exists)
+            {
+                return true;
+            }
+
+            var entity = new PromotionProduct
             {
                 PromotionId = promotionId,
                 ProductId = productId,
                 Note = note
-            });
+            };
 
+            _db.PromotionProducts.Add(entity);
             await _db.SaveChangesAsync();
+
             return true;
         }
 
         public async Task<bool> RemoveProductAsync(int promotionProductId)
         {
             var entity = await _db.PromotionProducts.FirstOrDefaultAsync(x => x.Id == promotionProductId);
-            if (entity == null) return false;
+            if (entity == null)
+            {
+                return false;
+            }
 
             _db.PromotionProducts.Remove(entity);
             await _db.SaveChangesAsync();
+
             return true;
         }
     }

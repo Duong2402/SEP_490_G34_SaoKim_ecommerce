@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
 
@@ -75,6 +76,7 @@ import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
 import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate";
 import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
+import ManagerProjectReport from "./pages/manager/projects/ManagerProjectReport";
 
 // Promotions 
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
@@ -177,6 +179,7 @@ export default function App() {
             <Route path="projects/create" element={<ManagerProjectCreate />} />
             <Route path="projects/:id" element={<ManagerProjectDetail />} />
             <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+            <Route path="projects/:id/report" element={<ManagerProjectReport />} />
 
             {/* Promotions cho Manager */}
             <Route path="promotions" element={<ManagerPromotionList />} />

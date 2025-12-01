@@ -41,6 +41,10 @@ namespace SaoKim_ecommerce_BE.DTOs
         public bool IsDefault { get; set; }
     }
 
+    public class ProjectManagerOptionDTO
+    {
+        public int Id { get; set; }              
+        public string Name { get; set; } = "";   
+        public string Email { get; set; } = ""; 
+    }
 }
-
-

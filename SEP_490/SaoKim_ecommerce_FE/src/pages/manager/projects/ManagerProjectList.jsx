@@ -63,11 +63,16 @@ export default function ManagerProjectList() {
         <div>
           <h2 className="manager-panel__title">Quản lý dự án</h2>
           <p className="manager-panel__subtitle">
-            Theo dõi tiến độ, giá trị dự án và trạng thái của từng dự án khách hàng.
+            Theo dõi tiến độ, giá trị dự án và trạng thái của từng dự án khách
+            hàng.
           </p>
         </div>
         <div className="manager-panel__actions">
-          <button type="button" className="manager-btn manager-btn--outline" onClick={loadProjects}>
+          <button
+            type="button"
+            className="manager-btn manager-btn--outline"
+            onClick={loadProjects}
+          >
             Làm mới
           </button>
           <button
@@ -117,7 +122,13 @@ export default function ManagerProjectList() {
           <option value="name_desc">Tên Z-A</option>
         </select>
 
-        <label style={{ marginLeft: "auto", fontSize: 14, color: "var(--manager-muted)" }}>
+        <label
+          style={{
+            marginLeft: "auto",
+            fontSize: 14,
+            color: "var(--manager-muted)",
+          }}
+        >
           Mỗi trang
         </label>
         <select
@@ -145,6 +156,7 @@ export default function ManagerProjectList() {
               <th>Mã dự án</th>
               <th>Tên dự án</th>
               <th>Khách hàng</th>
+              <th>PM phụ trách</th>
               <th>Trạng thái</th>
               <th>Bắt đầu</th>
               <th>Kết thúc</th>
@@ -155,13 +167,13 @@ export default function ManagerProjectList() {
           <tbody>
             {loading ? (
               <tr>
-                <td className="manager-table__empty" colSpan={9}>
+                <td className="manager-table__empty" colSpan={10}>
                   Đang tải dữ liệu dự án...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="manager-table__empty" colSpan={9}>
+                <td className="manager-table__empty" colSpan={10}>
                   Không có dự án phù hợp.
                 </td>
               </tr>
@@ -170,16 +182,21 @@ export default function ManagerProjectList() {
                 <tr key={project.id}>
                   <td>{(page - 1) * pageSize + idx + 1}</td>
                   <td>
-                    <Link to={`/manager/projects/${project.id}`}>{project.code}</Link>
+                    <Link to={`/manager/projects/${project.id}`}>
+                      {project.code}
+                    </Link>
                   </td>
                   <td>{project.name}</td>
                   <td>{project.customerName ?? project.customer ?? "-"}</td>
+                  <td>{project.projectManagerName ?? "-"}</td>
                   <td>
                     <StatusBadge value={project.status} />
                   </td>
                   <td>
                     {project.startDate
-                      ? new Date(project.startDate).toLocaleDateString("vi-VN")
+                      ? new Date(
+                          project.startDate
+                        ).toLocaleDateString("vi-VN")
                       : "-"}
                   </td>
                   <td>
@@ -189,7 +206,10 @@ export default function ManagerProjectList() {
                   </td>
                   <td>{project.budget?.toLocaleString("vi-VN") ?? "-"}</td>
                   <td style={{ textAlign: "right" }}>
-                    <Link to={`/manager/projects/${project.id}/edit`} className="manager-btn manager-btn--outline">
+                    <Link
+                      to={`/manager/projects/${project.id}/edit`}
+                      className="manager-btn manager-btn--outline"
+                    >
                       Chỉnh sửa
                     </Link>
                   </td>
@@ -201,7 +221,11 @@ export default function ManagerProjectList() {
       </div>
 
       <div className="manager-pagination">
-        <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+        <button
+          type="button"
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1}
+        >
           Trước
         </button>
         <span>
