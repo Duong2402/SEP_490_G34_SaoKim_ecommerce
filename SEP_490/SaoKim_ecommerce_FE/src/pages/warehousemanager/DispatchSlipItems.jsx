@@ -71,7 +71,7 @@ const DispatchSlipItems = () => {
     connection.off("DispatchItemsUpdated");
 
     connection.on("DispatchItemsUpdated", (payload) => {
-      console.log("DispatchItemsUpdated:", payload);
+      console.log("Sự kiện DispatchItemsUpdated:", payload);
 
       const { action, dispatchId, item, itemId } = payload || {};
       if (!action) return;
@@ -102,8 +102,10 @@ const DispatchSlipItems = () => {
     if (connection.state === signalR.HubConnectionState.Disconnected) {
       connection
         .start()
-        .then(() => console.log("SignalR connected in DispatchSlipItems"))
-        .catch((err) => console.error("SignalR connection error:", err));
+        .then(() => console.log("Đã kết nối SignalR cho DispatchSlipItems"))
+        .catch((err) =>
+          console.error("Lỗi kết nối SignalR cho DispatchSlipItems:", err)
+        );
     }
 
     return () => {
@@ -138,7 +140,7 @@ const DispatchSlipItems = () => {
       const res = await apiFetch(
         `/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Lỗi HTTP ${res.status}`);
       const data = await res.json();
 
       setItems(data.items || []);
@@ -160,7 +162,7 @@ const DispatchSlipItems = () => {
       const res = await apiFetch(`/api/products`);
 
       const json = await res.json();
-      console.log("GET /api/products:", json);
+      console.log("Kết quả GET /api/products:", json);
 
       const payload = json.data ?? json;
       const raw = Array.isArray(payload) ? payload : payload.items || [];
@@ -182,10 +184,10 @@ const DispatchSlipItems = () => {
         }))
         .filter((p) => p.id != null && p.name);
 
-      console.log("Products normalized:", normalized);
+      console.log("Danh sách sản phẩm sau chuẩn hóa:", normalized);
       setProducts(normalized);
     } catch (e) {
-      console.error("Error loading products:", e);
+      console.error("Lỗi khi tải danh mục sản phẩm:", e);
       setNotification({
         type: "danger",
         message: "Không thể tải danh mục sản phẩm.",
@@ -596,7 +598,7 @@ const DispatchSlipItems = () => {
                     }
                     isInvalid={!!formErrs.quantity}
                   />
-                  <InputGroup.Text>{form.uom || "unit"}</InputGroup.Text>
+                  <InputGroup.Text>{form.uom || "đơn vị"}</InputGroup.Text>
                   <Form.Control.Feedback type="invalid">
                     {formErrs.quantity}
                   </Form.Control.Feedback>

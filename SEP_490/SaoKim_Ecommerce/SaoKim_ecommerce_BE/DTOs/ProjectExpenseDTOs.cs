@@ -1,5 +1,6 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using SaoKim_ecommerce_BE.Services;
+
 
 namespace SaoKim_ecommerce_BE.DTOs
 {

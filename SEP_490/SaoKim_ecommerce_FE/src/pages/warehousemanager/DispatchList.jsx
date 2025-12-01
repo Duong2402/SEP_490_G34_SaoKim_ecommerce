@@ -73,12 +73,25 @@ const DispatchList = () => {
   const formatDate = (value) =>
     value ? new Date(value).toLocaleDateString("vi-VN") : "-";
 
+  const getTypeFilterLabel = (val) => {
+    switch (val) {
+      case "All":
+        return "Tất cả loại phiếu";
+      case "Sales":
+        return "Phiếu xuất bán";
+      case "Project":
+        return "Phiếu xuất dự án";
+      default:
+        return "Tất cả loại phiếu";
+    }
+  };
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("pageSize", pageSize);
+      params.append("page", String(page));
+      params.append("pageSize", String(pageSize));
 
       if (typeFilter !== "All") {
         params.append("type", typeFilter);
@@ -101,7 +114,7 @@ const DispatchList = () => {
       setRows(data.items || []);
       setTotal(data.total || 0);
     } catch (error) {
-      console.error("Error loading dispatch slips:", error);
+      console.error("Lỗi khi tải danh sách phiếu xuất kho:", error);
       setNotification({
         type: "danger",
         message: "Lỗi khi tải danh sách phiếu xuất kho.",
@@ -121,7 +134,7 @@ const DispatchList = () => {
     connection.off("DispatchSlipsUpdated");
 
     connection.on("DispatchSlipsUpdated", (payload) => {
-      console.log("DispatchSlipsUpdated:", payload);
+      console.log("Sự kiện DispatchSlipsUpdated:", payload);
 
       const { action } = payload || {};
       if (!action) return;
@@ -141,8 +154,10 @@ const DispatchList = () => {
     if (connection.state === signalR.HubConnectionState.Disconnected) {
       connection
         .start()
-        .then(() => console.log("SignalR connected in DispatchList"))
-        .catch((err) => console.error("SignalR connection error:", err));
+        .then(() => console.log("Đã kết nối SignalR cho DispatchList"))
+        .catch((err) =>
+          console.error("Lỗi kết nối SignalR cho DispatchList:", err)
+        );
     }
 
     return () => {
@@ -189,7 +204,7 @@ const DispatchList = () => {
         message: "Đã xác nhận phiếu xuất kho.",
       });
     } catch (error) {
-      console.error("Confirm failed:", error);
+      console.error("Lỗi khi xác nhận phiếu:", error);
       setNotification({
         type: "danger",
         message: error.message || "Không thể xác nhận phiếu.",
@@ -216,7 +231,7 @@ const DispatchList = () => {
       );
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        throw new Error(`Lỗi HTTP ${res.status}`);
       }
 
       setRows((prev) =>
@@ -228,7 +243,7 @@ const DispatchList = () => {
         message: "Đã xóa phiếu xuất kho.",
       });
     } catch (error) {
-      console.error("Delete failed:", error);
+      console.error("Lỗi khi xóa phiếu:", error);
       setNotification({
         type: "danger",
         message: "Không thể xóa phiếu.",
@@ -271,7 +286,7 @@ const DispatchList = () => {
           </button>
         </div>
       </div>
-      
+
       <div className="wm-surface wm-toolbar">
         <div className="wm-toolbar__search">
           <InputGroup>
@@ -293,7 +308,7 @@ const DispatchList = () => {
         <div className="wm-toolbar__actions">
           <Dropdown className="me-2">
             <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {TYPE_FILTERS.includes(typeFilter) ? typeFilter : "All"}
+              {getTypeFilterLabel(typeFilter)}
             </Dropdown.Toggle>
             <Dropdown.Menu align="end">
               {TYPE_FILTERS.map((type) => (
@@ -305,7 +320,7 @@ const DispatchList = () => {
                     setPage(1);
                   }}
                 >
-                  {type === "All" ? "Tất cả loại phiếu" : type}
+                  {getTypeFilterLabel(type)}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
@@ -324,7 +339,7 @@ const DispatchList = () => {
               <th role="button" onClick={() => handleSort("referenceNo")}>
                 Mã
               </th>
-              <th>Khách Hàng</th>
+              <th>Khách hàng / Dự án</th>
               <th role="button" onClick={() => handleSort("dispatchDate")}>
                 Ngày xuất
               </th>
@@ -358,6 +373,7 @@ const DispatchList = () => {
               rows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
+                const typeLabel = isSales ? "Xuất bán" : "Xuất dự án";
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
                 const slipId = getSlipId(r);
@@ -367,7 +383,7 @@ const DispatchList = () => {
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
                       <Badge bg={isSales ? "info" : "secondary"}>
-                        {normalizedType}
+                        {typeLabel}
                       </Badge>
                     </td>
                     <td>

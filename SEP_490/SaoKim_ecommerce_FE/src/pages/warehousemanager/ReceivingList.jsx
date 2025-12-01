@@ -71,7 +71,7 @@ export default function ReceivingList() {
       setRows(data.items || []);
       setTotal(data.total || 0);
     } catch (error) {
-      console.error("Error loading receiving slips:", error);
+      console.error("Lỗi khi tải danh sách phiếu nhập:", error);
       setNotify("Lỗi khi tải danh sách phiếu nhập.");
     } finally {
       setLoading(false);
@@ -112,10 +112,10 @@ export default function ReceivingList() {
       connection
         .start()
         .then(() => {
-          console.log("SignalR connected");
+          console.log("SignalR đã kết nối");
         })
         .catch((err) => {
-          console.error("SignalR connection error:", err);
+          console.error("SignalR mất kết nối:", err);
           setNotify("Không thể kết nối realtime tới máy chủ.");
         });
     }

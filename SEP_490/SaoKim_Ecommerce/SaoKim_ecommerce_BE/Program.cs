@@ -76,6 +76,10 @@ builder.Services.AddScoped<IProjectProductService, ProjectProductService>();
 builder.Services.AddScoped<IProjectExpenseService, ProjectExpenseService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
+builder.Services.AddScoped<IReceivingService, ReceivingService>();
+builder.Services.AddScoped<IDispatchService, DispatchService>();
+builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
+
 
 // DbContext
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
