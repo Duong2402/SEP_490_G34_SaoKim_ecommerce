@@ -74,7 +74,6 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 
-        // NEW: các project mà user này quản lý (PM)
         [InverseProperty(nameof(Project.ProjectManager))]
         public ICollection<Project> ManagedProjects { get; set; } = new List<Project>();
     }

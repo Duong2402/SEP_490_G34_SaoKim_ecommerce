@@ -35,7 +35,6 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? CreatedBy { get; set; }
 
-        // NEW: gán PM cho project
         public int? ProjectManagerId { get; set; }
 
         [ForeignKey(nameof(ProjectManagerId))]

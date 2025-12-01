@@ -281,6 +281,7 @@ namespace SaoKim_ecommerce_BE.Services
                 })
                 .ToListAsync();
         }
+
         public async Task<RetailDispatch> CreateSalesDispatchAsync(RetailDispatchCreateDto dto)
         {
             if (!(dto.CustomerId is > 0))
@@ -317,6 +318,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             return slip;
         }
+
         public async Task<ProjectDispatch> CreateProjectDispatchAsync(ProjectDispatchCreateDto dto)
         {
             if (!(dto.ProjectId is > 0))

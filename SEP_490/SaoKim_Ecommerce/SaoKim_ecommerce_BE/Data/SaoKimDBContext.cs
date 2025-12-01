@@ -13,14 +13,14 @@ namespace SaoKim_ecommerce_BE.Data
 
         public DbSet<Product> Products => Set<Product>();
         public DbSet<ProductDetail> ProductDetails { get; set; }
-        public DbSet<Category> Categories => Set<Category>();              
+        public DbSet<Category> Categories => Set<Category>();
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
         public DbSet<Address> Addresses { get; set; }
-		public DbSet<Review> Reviews { get; set; }
+        public DbSet<Review> Reviews { get; set; }
 
 
         //Customer
@@ -525,6 +525,7 @@ namespace SaoKim_ecommerce_BE.Data
                     b.Property(x => x.Status).IsRequired().HasMaxLength(32);
                 });
 
-            }); }
+            });
+        }
     }
 }
