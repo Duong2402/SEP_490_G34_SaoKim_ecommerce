@@ -13,6 +13,11 @@ namespace SaoKim_ecommerce_BE.Entities
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
 
+        // Multimedia & rich-text
+        public string? ImageUrl { get; set; }
+        public string? LinkUrl { get; set; }
+        public string? DescriptionHtml { get; set; }
+
         public DiscountType DiscountType { get; set; }
         public decimal DiscountValue { get; set; }
 

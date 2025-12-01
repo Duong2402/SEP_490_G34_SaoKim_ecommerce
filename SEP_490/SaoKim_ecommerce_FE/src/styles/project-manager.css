@@ -23,7 +23,7 @@
   width: 100%;
   background: var(--pm-blue-50);
   color: var(--pm-text);
-  font-family: var(--font-sans, "Inter", "Be Vietnam Pro", sans-serif);
+  font-family: var(--font-sans);
 }
 
 .pm-sidebar {
@@ -303,7 +303,8 @@
 }
 
 .pm-shell .page-title {
-  font-size: clamp(26px, 4vw, 30px);
+  font-size: var(--heading-xl);
+  font-weight: var(--weight-medium);
   color: var(--pm-text);
   margin: 0;
 }
@@ -311,7 +312,7 @@
 .pm-shell .page-subtitle {
   margin: 6px 0 0;
   color: var(--pm-muted);
-  font-size: 15px;
+  font-size: var(--text-base);
 }
 
 .pm-shell .actions {
@@ -446,8 +447,8 @@
 
 .pm-shell .metric-value,
 .pm-shell .project-overview__value {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--heading-md);
+  font-weight: var(--weight-medium);
   color: var(--pm-text);
 }
 
@@ -562,7 +563,8 @@
 
 .pm-shell .project-hero__title {
   margin: 6px 0 4px;
-  font-size: clamp(24px, 5vw, 30px);
+  font-size: var(--heading-xl);
+  font-weight: var(--weight-medium);
   color: var(--pm-text);
 }
 
@@ -596,8 +598,8 @@
 }
 
 .pm-shell .project-hero__stat-value {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: var(--heading-lg);
+  font-weight: var(--weight-medium);
   color: var(--pm-text);
 }
 
@@ -624,8 +626,8 @@
 
 .pm-shell .project-section-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--heading-md);
+  font-weight: var(--weight-medium);
   color: var(--pm-text);
 }
 

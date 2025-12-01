@@ -79,12 +79,22 @@ export default function ProjectForm({
       }
     }
 
+    // Validate start date >= today only for new projects (no initialValues or empty code)
+    if (!initialValues && form.startDate) {
+      const start = new Date(form.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (start < today) {
+        issues.startDate = "Ngày bắt đầu không thể trong quá khứ.";
+      }
+    }
+
     if (form.budget && parseBudgetInput(form.budget) === null) {
       issues.budget = "Giá trị dự án chỉ gồm số.";
     }
 
     return issues;
-  }, [form]);
+  }, [form, initialValues]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -212,7 +222,7 @@ export default function ProjectForm({
       </div>
 
       <div className="form-grid double">
-        <Field label="Ngày bắt đầu" name="startDate">
+        <Field label="Ngày bắt đầu" name="startDate" error={errors.startDate}>
           <input
             id="startDate"
             name="startDate"

@@ -13,6 +13,7 @@ namespace SaoKim_ecommerce_BE.Services
         Task<ProjectResponseDTO?> UpdateAsync(int id, UpdateProjectDTO dto, string? updatedBy);
         Task<bool> DeleteAsync(int id);
     }
+
     public class ProjectService : IProjectService
     {
         private readonly SaoKimDBContext _db;
@@ -31,7 +32,9 @@ namespace SaoKim_ecommerce_BE.Services
             Budget = p.Budget,
             Description = p.Description,
             CreatedAt = p.CreatedAt,
-            CreatedBy = p.CreatedBy
+            CreatedBy = p.CreatedBy,
+            ProjectManagerId = p.ProjectManagerId,
+            ProjectManagerName = p.ProjectManager != null ? p.ProjectManager.Name : null
         };
 
         private async Task<string> GenerateCodeAsync()
@@ -72,22 +75,35 @@ namespace SaoKim_ecommerce_BE.Services
                 EndDate = dto.EndDate,
                 Budget = dto.Budget,
                 Description = dto.Description,
-                CreatedBy = createdBy
+                CreatedBy = createdBy,
+                ProjectManagerId = dto.ProjectManagerId
             };
 
             _db.Projects.Add(entity);
             await _db.SaveChangesAsync();
+
+            if (entity.ProjectManagerId.HasValue)
+                await _db.Entry(entity).Reference(p => p.ProjectManager).LoadAsync();
+
             return Map(entity);
         }
+
         public async Task<ProjectResponseDTO?> GetByIdAsync(int id)
         {
-            var p = await _db.Projects.FindAsync(id);
+            var p = await _db.Projects
+                .Include(x => x.ProjectManager)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+
             return p == null ? null : Map(p);
         }
 
         public async Task<PagedResult<ProjectResponseDTO>> QueryAsync(ProjectQuery q)
         {
-            var query = _db.Projects.AsNoTracking().AsQueryable();
+            var query = _db.Projects
+                .Include(p => p.ProjectManager)
+                .AsNoTracking()
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q.Keyword))
             {
@@ -103,6 +119,12 @@ namespace SaoKim_ecommerce_BE.Services
                 query = query.Where(x => x.Status == q.Status);
             }
 
+            // filter theo PM nếu có
+            if (q.ProjectManagerId.HasValue)
+            {
+                query = query.Where(x => x.ProjectManagerId == q.ProjectManagerId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(q.Sort))
             {
                 var desc = q.Sort.StartsWith("-");
@@ -115,26 +137,34 @@ namespace SaoKim_ecommerce_BE.Services
                     _ => query.OrderByDescending(x => x.CreatedAt)
                 };
             }
+            else
+            {
+                query = query.OrderByDescending(x => x.CreatedAt);
+            }
 
             var total = await query.LongCountAsync();
             var page = q.Page <= 0 ? 1 : q.Page;
             var size = q.PageSize <= 0 ? 20 : q.PageSize;
 
-            var items = await query.Skip((page - 1) * size).Take(size)
-                .Select(x => Map(x)).ToListAsync();
+            var items = await query
+                .Skip((page - 1) * size)
+                .Take(size)
+                .ToListAsync();
 
             return new PagedResult<ProjectResponseDTO>
             {
                 Page = page,
                 PageSize = size,
                 TotalItems = (int)total,
-                Items = items
+                Items = items.Select(Map).ToList()
             };
-
         }
+
         public async Task<ProjectResponseDTO?> UpdateAsync(int id, UpdateProjectDTO dto, string? updatedBy)
         {
-            var p = await _db.Projects.FindAsync(id);
+            var p = await _db.Projects
+                .FirstOrDefaultAsync(x => x.Id == id);
+
             if (p == null) return null;
 
             if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate < dto.StartDate)
@@ -143,13 +173,23 @@ namespace SaoKim_ecommerce_BE.Services
             p.Name = dto.Name.Trim();
             p.CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? null : dto.CustomerName!.Trim();
             p.CustomerContact = string.IsNullOrWhiteSpace(dto.CustomerContact) ? null : dto.CustomerContact!.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.Status)) p.Status = dto.Status!.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.Status))
+                p.Status = dto.Status!.Trim();
+
             p.StartDate = dto.StartDate;
             p.EndDate = dto.EndDate;
             p.Budget = dto.Budget;
             p.Description = dto.Description;
 
+            // cập nhật PM (Controller sẽ kiểm soát quyền)
+            p.ProjectManagerId = dto.ProjectManagerId;
+
             await _db.SaveChangesAsync();
+
+            if (p.ProjectManagerId.HasValue)
+                await _db.Entry(p).Reference(x => x.ProjectManager).LoadAsync();
+
             return Map(p);
         }
 
@@ -157,6 +197,7 @@ namespace SaoKim_ecommerce_BE.Services
         {
             var p = await _db.Projects.FindAsync(id);
             if (p == null) return false;
+
             _db.Projects.Remove(p);
             await _db.SaveChangesAsync();
             return true;
