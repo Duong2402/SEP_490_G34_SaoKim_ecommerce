@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "../styles/home.css";
 
 export default function ProductSidebar({
@@ -6,17 +6,19 @@ export default function ProductSidebar({
   selectedCategory,
   onCategoryChange,
   onPriceFilter,
+  priceFilter = { min: null, max: null },
 }) {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
+  useEffect(() => {
+    setMinPrice(priceFilter.min ?? "");
+    setMaxPrice(priceFilter.max ?? "");
+  }, [priceFilter.min, priceFilter.max]);
+
   const toggleCategory = (category) => {
     if (!onCategoryChange) return;
-    if (selectedCategory === category) {
-      onCategoryChange("");
-    } else {
-      onCategoryChange(category);
-    }
+    onCategoryChange(selectedCategory === category ? "" : category);
   };
 
   const applyPriceFilter = () => {
@@ -29,77 +31,89 @@ export default function ProductSidebar({
   const resetPriceFilter = () => {
     setMinPrice("");
     setMaxPrice("");
-    if (onPriceFilter) {
-      onPriceFilter({ min: null, max: null });
-    }
+    if (onPriceFilter) onPriceFilter({ min: null, max: null });
   };
 
   return (
     <aside className="home-sidebar">
-      <div className="home-sidebar__card">
-        <h5>Categories</h5>
-        {categories.length ? (
-          <div className="home-sidebar__filters">
-            {categories.map((category) => (
+      <div className="home-card">
+        <div className="home-card__header">
+          <div>
+            <p className="home-kicker">Danh mục</p>
+            <h5>Sản phẩm</h5>
+          </div>
+          {selectedCategory && (
+            <button className="link-ghost" type="button" onClick={() => toggleCategory(selectedCategory)}>
+              Bỏ chọn
+            </button>
+          )}
+        </div>
+        <div className="home-sidebar__filters">
+          {categories.length ? (
+            categories.map((category) => (
               <button
                 key={category}
                 type="button"
-                className={`home-filter-pill${selectedCategory === category ? " is-active" : ""}`}
+                className={`home-pill${selectedCategory === category ? " is-active" : ""}`}
                 onClick={() => toggleCategory(category)}
               >
                 {category}
               </button>
-            ))}
-            {selectedCategory && (
-              <button
-                type="button"
-                className="home-filter-pill"
-                onClick={() => toggleCategory(selectedCategory)}
-              >
-                Clear filter
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="text-secondary small"></div>
-        )}
+            ))
+          ) : (
+            <div className="text-secondary small">Chưa có danh mục.</div>
+          )}
+        </div>
       </div>
 
-      <div className="home-sidebar__card">
-        <h5>Price range</h5>
+      <div className="home-card">
+        <div className="home-card__header">
+          <div>
+            <p className="home-kicker">Ngân sách</p>
+            <h5>Lọc theo giá</h5>
+          </div>
+          <button className="link-ghost" type="button" onClick={resetPriceFilter}>
+            Đặt lại
+          </button>
+        </div>
         <div className="home-price-range">
           <div className="home-price-inputs">
-            <input
-              type="number"
-              min="0"
-              placeholder="Min"
-              value={minPrice}
-              onChange={(event) => setMinPrice(event.target.value)}
-            />
-            <input
-              type="number"
-              min="0"
-              placeholder="Max"
-              value={maxPrice}
-              onChange={(event) => setMaxPrice(event.target.value)}
-            />
+            <label>
+              <span>Từ</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+              />
+            </label>
+            <label>
+              <span>Đến</span>
+              <input
+                type="number"
+                min="0"
+                placeholder="10.000.000"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+              />
+            </label>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <button type="button" className="home-price-apply" onClick={applyPriceFilter}>
-              Apply
-            </button>
-            <button type="button" className="btn btn-link p-0 text-secondary" onClick={resetPriceFilter}>
-              Reset
-            </button>
-          </div>
+          <button type="button" className="home-btn-primary" onClick={applyPriceFilter}>
+            Áp dụng
+          </button>
         </div>
       </div>
 
-      <div className="home-sidebar__card">
-        <h5>Recently viewed</h5>
-        <div className="text-secondary small">
-          Products you explore will appear here for quick access.
-        </div>
+      <div className="home-card home-card--muted">
+        <p className="home-kicker">Dịch vụ</p>
+        <h5>Tư vấn & Thiết kế</h5>
+        <p className="text-secondary">
+          Kỹ sư Sao Kim sẵn sàng hỗ trợ lên layout chiếu sáng, phối màu và tối ưu công suất cho dự án của bạn.
+        </p>
+        <a className="home-btn-ghost" href="#contact">
+          Liên hệ ngay
+        </a>
       </div>
     </aside>
   );
