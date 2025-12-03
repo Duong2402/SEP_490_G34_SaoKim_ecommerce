@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Button, Card, Spinner, Toast, ToastContainer } from "react-bootstrap";
+﻿import React, { useState, useEffect } from "react";
+import { Container, Row, Col, Button, Card, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faShoppingCart,
@@ -36,13 +36,15 @@ const HomePage = () => {
     {
       id: 2,
       name: "Đèn Tường Hiện Đại",
-      image: "https://flexhouse.vn/wp-content/uploads/2023/05/Den-LED-cam-bien-gan-tuong-hien-dai-SY1018-19.jpg?auto=format&fit=crop&q=80&w=600",
+      image:
+        "https://flexhouse.vn/wp-content/uploads/2023/05/Den-LED-cam-bien-gan-tuong-hien-dai-SY1018-19.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Tinh tế từng đường nét",
     },
     {
       id: 3,
       name: "Đèn Bàn Decor",
-      image: "https://sanota.net/wp-content/uploads/2025/05/SNT5624-den-ban-decor-phong-khach-hien-dai.jpg?auto=format&fit=crop&q=80&w=600",
+      image:
+        "https://sanota.net/wp-content/uploads/2025/05/SNT5624-den-ban-decor-phong-khach-hien-dai.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Điểm nhấn không gian",
     },
     {
@@ -60,7 +62,7 @@ const HomePage = () => {
         // Try to get home products first
         const data = await ProductsAPI.getHomeProducts();
 
-        // Handle different response structures based on previous HomeProductsBody logic
+        // Handle different response structures
         let items = [];
         if (data?.newArrivals) {
           items = data.newArrivals;
@@ -71,18 +73,19 @@ const HomePage = () => {
         }
 
         // Normalize data
-        const normalized = items.map(p => ({
-          id: p.id || p.productID,
-          name: p.name || p.productName,
-          price: p.price,
-          image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
-          category: p.category || "Đèn trang trí"
-        })).slice(0, 8); // Limit to 8 items
+        const normalized = items
+          .map((p) => ({
+            id: p.id || p.productID,
+            name: p.name || p.productName,
+            price: p.price,
+            image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
+            category: p.category || "Đèn trang trí",
+          }))
+          .slice(0, 8); // Limit to 8 items
 
         setProducts(normalized);
       } catch (error) {
         console.error("Failed to fetch products:", error);
-        // Fallback to empty or keep mock if needed, but here we just show empty
       } finally {
         setLoading(false);
       }
@@ -119,7 +122,8 @@ const HomePage = () => {
     const existingItemIndex = currentCart.findIndex((item) => item.id === product.id);
 
     if (existingItemIndex > -1) {
-      currentCart[existingItemIndex].quantity = (Number(currentCart[existingItemIndex].quantity) || 0) + 1;
+      currentCart[existingItemIndex].quantity =
+        (Number(currentCart[existingItemIndex].quantity) || 0) + 1;
     } else {
       currentCart.push({ ...product, quantity: 1 });
     }
@@ -134,7 +138,7 @@ const HomePage = () => {
       <HomepageHeader />
 
       {/* Toast Notification */}
-      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: 'fixed' }}>
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: "fixed" }}>
         <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
           <Toast.Header>
             <strong className="me-auto">Thông báo</strong>
@@ -145,30 +149,54 @@ const HomePage = () => {
       </ToastContainer>
 
       {/* Hero Section */}
-      <div className="hero-section fade-in-section">
-        <div className="hero-bg"></div>
-        <div className="hero-overlay">
-          <Container className="hero-content">
-            <span className="hero-subtitle animate-fade-in">
-              <FontAwesomeIcon icon={faStar} className="me-2 text-warning" />
-              Tinh Hoa Ánh Sáng Việt
-            </span>
-            <h1 className="hero-title animate-slide-up">
-              Nâng Tầm Không Gian Sống <br /> Đẳng Cấp & Sang Trọng
-            </h1>
-            <p className="hero-subtitle animate-slide-up delay-1">
-              Khám phá bộ sưu tập đèn trang trí độc quyền từ Sao Kim. <br />
-              Thiết kế tinh xảo, công nghệ hiện đại, bảo hành 5 năm.
-            </p>
-            <div className="hero-actions animate-slide-up delay-2">
-              <Button className="hero-btn me-3">
-                Xem Bộ Sưu Tập <FontAwesomeIcon icon={faArrowRight} className="ms-2" />
-              </Button>
-              <Button className="hero-btn-outline">Dự Án Tiêu Biểu</Button>
-            </div>
-          </Container>
-        </div>
-      </div>
+      <section className="hero-section fade-in-section">
+        <div className="hero-overlay"></div>
+        <Container fluid className="hero-inner">
+          <Row className="align-items-center g-4">
+            <Col lg={6} className="hero-copy">
+              <span className="hero-kicker">
+                <FontAwesomeIcon icon={faStar} className="me-2 text-warning" />
+                Giải pháp ánh sáng chuyên sâu
+              </span>
+              <h1 className="hero-title">
+                Giải pháp chiếu sáng cao cấp cho mọi không gian
+              </h1>
+              <p className="hero-subtitle">
+                Sao Kim mang đến các dòng đèn hiện đại, tiết kiệm điện, phù hợp cho nhà ở,
+                văn phòng và showroom. Thiết kế tinh xảo, công nghệ mới nhất, tối ưu trải nghiệm ánh sáng.
+              </p>
+              <div className="hero-actions d-flex flex-wrap align-items-center gap-3">
+                <Button className="hero-cta-primary" onClick={() => navigate("/products")}>
+                  Xem sản phẩm
+                </Button>
+                <Button className="hero-cta-secondary" variant="outline-light" href="#contact">
+                  Nhận tư vấn chiếu sáng
+                </Button>
+              </div>
+            </Col>
+            <Col lg={6} className="hero-visual">
+              <div className="hero-visual-card">
+                <div className="hero-visual-gradient"></div>
+                <img
+                  src="https://luxlightdesigns.com/images/slider/1.webp?auto=format&fit=crop&q=80&w=1600"
+                  alt="Modern lighting"
+                  className="hero-visual-img"
+                />
+                <div className="hero-visual-stats">
+                  <div>
+                    <strong>450+</strong>
+                    <span>Dự án showroom & văn phòng</span>
+                  </div>
+                  <div>
+                    <strong>24/7</strong>
+                    <span>Tư vấn & hỗ trợ kỹ thuật</span>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
 
       {/* Stats Bar */}
       <div className="stats-bar fade-in-section">
@@ -219,7 +247,9 @@ const HomePage = () => {
         <Container>
           <div className="text-center mb-5">
             <h2 className="section-title">Danh Mục Nổi Bật</h2>
-            <p className="section-subtitle">Lựa chọn phong cách ánh sáng cho ngôi nhà của bạn</p>
+            <p className="section-subtitle">
+              Lựa chọn phong cách ánh sáng cho ngôi nhà của bạn
+            </p>
           </div>
           <Row className="g-4">
             {categories.map((cat) => (
@@ -244,13 +274,20 @@ const HomePage = () => {
       </section>
 
       {/* Featured Products Section */}
-      <section className="section-padding fade-in-section" style={{ backgroundColor: "var(--light-bg)" }}>
+      <section
+        className="section-padding fade-in-section"
+        style={{ backgroundColor: "var(--light-bg)" }}
+      >
         <Container>
           <div className="d-flex justify-content-between align-items-end mb-5">
             <div>
               <h2 className="section-title text-start">Sản Phẩm Mới Nhất</h2>
             </div>
-            <Link to="/products" className="text-decoration-none fw-bold" style={{ color: "var(--primary)" }}>
+            <Link
+              to="/products"
+              className="text-decoration-none fw-bold"
+              style={{ color: "var(--primary)" }}
+            >
               Xem tất cả <FontAwesomeIcon icon={faArrowRight} />
             </Link>
           </div>
@@ -285,7 +322,11 @@ const HomePage = () => {
                           >
                             <FontAwesomeIcon icon={faShoppingCart} />
                           </Button>
-                          <Link to={`/products/${product.id}`} className="action-btn" title="Xem chi tiết">
+                          <Link
+                            to={`/products/${product.id}`}
+                            className="action-btn"
+                            title="Xem chi tiết"
+                          >
                             <FontAwesomeIcon icon={faArrowRight} />
                           </Link>
                         </div>
@@ -298,7 +339,9 @@ const HomePage = () => {
                         >
                           {product.name}
                         </Card.Title>
-                        <div className="luxury-card-price">{formatCurrency(product.price)}</div>
+                        <div className="luxury-card-price">
+                          {formatCurrency(product.price)}
+                        </div>
                       </Card.Body>
                     </Card>
                   </Col>
@@ -320,7 +363,8 @@ const HomePage = () => {
             <Col lg={8} className="text-center">
               <h2 className="cta-title">Bạn Cần Tư Vấn Giải Pháp Chiếu Sáng?</h2>
               <p className="cta-desc">
-                Đội ngũ kỹ sư ánh sáng của Sao Kim sẵn sàng hỗ trợ bạn thiết kế và lựa chọn giải pháp tối ưu nhất cho công trình.
+                Đội ngũ kỹ sư ánh sáng của Sao Kim sẵn sàng hỗ trợ bạn thiết kế
+                và lựa chọn giải pháp tối ưu nhất cho công trình.
               </p>
               <Button className="hero-btn">
                 Liên Hệ Ngay <FontAwesomeIcon icon={faHeadset} className="ms-2" />
@@ -336,3 +380,4 @@ const HomePage = () => {
 };
 
 export default HomePage;
+

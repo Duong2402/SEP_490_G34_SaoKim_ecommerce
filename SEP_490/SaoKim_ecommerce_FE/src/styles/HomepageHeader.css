@@ -18,9 +18,6 @@
   transition: box-shadow 0.25s ease, padding 0.25s ease;
 }
 
-.homepage-navbar.is-sticky {
-}
-
 .header-shell {
   position: relative;
   min-height: 96px;
