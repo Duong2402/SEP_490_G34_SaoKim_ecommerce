@@ -1,10 +1,7 @@
 // src/http.js
 import axios from "axios";
 
-// Lấy base URL từ env, ví dụ: https://localhost:7022
-let API_BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "";
+const isProd = import.meta.env.PROD;
 
 // Dev: gọi tới "/api" đi qua proxy; Prod: dùng VITE_API_BASE_URL
 const http = axios.create({
@@ -27,16 +24,12 @@ const getToken = () => {
 
 http.interceptors.request.use(
   (cfg) => {
-    // Gắn Content-Type khi có body (POST/PUT...)
+    // Chỉ gắn Content-Type khi có body (POST/PUT...)
     if (cfg.data && !cfg.headers["Content-Type"]) {
       cfg.headers["Content-Type"] = "application/json";
     }
-
     const token = getToken();
-    if (token) {
-      cfg.headers.Authorization = `Bearer ${token}`;
-    }
-
+    if (token) cfg.headers.Authorization = `Bearer ${token}`;
     return cfg;
   },
   (err) => Promise.reject(err),
@@ -46,7 +39,6 @@ http.interceptors.response.use(
   (res) => res.data,
   (err) => {
     const status = err?.response?.status;
-
     if (status === 401) {
       try {
         ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
@@ -54,7 +46,6 @@ http.interceptors.response.use(
       window.dispatchEvent(new Event("auth:changed"));
       const here = window.location.pathname + window.location.search + window.location.hash;
       const loginUrl = `/login?redirect=${encodeURIComponent(here)}`;
-
       if (window.location.pathname !== "/login") {
         window.location.assign(loginUrl);
       }
@@ -62,7 +53,6 @@ http.interceptors.response.use(
     const msg = err?.response?.data || err.message || "Network error";
     // eslint-disable-next-line no-console
     console.error("[HTTP]", status || "ERR", msg);
-
     return Promise.reject(err);
   },
 );

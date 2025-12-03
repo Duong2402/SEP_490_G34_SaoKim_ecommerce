@@ -114,10 +114,6 @@ namespace SaoKim_ecommerce_BE.Services
                     .ToList()
             };
         }
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main
         public async Task<PagedResult<DispatchSlipListItemDto>> GetDispatchSlipsAsync(DispatchSlipListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;

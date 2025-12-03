@@ -22,7 +22,7 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.Property<int>("AddressId")
                         .ValueGeneratedOnAdd()
@@ -44,11 +44,19 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_default");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
                     b.Property<string>("Line1")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("line1");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -1425,7 +1433,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("dispatch_retail_list", (string)null);
                 });
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.User", "User")
                         .WithMany()
