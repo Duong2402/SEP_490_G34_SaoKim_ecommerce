@@ -1,327 +1,184 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-
+import React, { useEffect, useState } from "react";
+import { Navbar, Container, Nav, Form, Button, InputGroup, Dropdown, Badge } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faSearch,
+  faShoppingCart,
+  faUser,
+  faBars,
+  faSignOutAlt,
+  faUserCircle,
+  faKey
+} from "@fortawesome/free-solid-svg-icons";
 import "../styles/EcommerceHeader.css";
+import { readCart } from "../api/cartStorage";
 
-const NAV_LINKS = [
-  { to: "/#catalog", label: "San pham" },
-  { to: "/#solutions", label: "Giai phap" },
-  { to: "/#projects", label: "Du an tieu bieu" },
-  { to: "/#contact", label: "Lien he" },
-];
-
-// Xác định "chủ giỏ hàng" theo email / username
-function getCartOwnerKey() {
-  if (typeof window === "undefined") return "guest";
-  const email = localStorage.getItem("userEmail");
-  const name = localStorage.getItem("userName");
-  return (email || name || "guest").toString();
-}
-
-function getCartCountKeyForCurrentUser() {
-  const owner = getCartOwnerKey();
-  return `cartCount_${owner}`;
-}
-
-function getCartCountValue() {
-  if (typeof window === "undefined") return 0;
-  try {
-    const key = getCartCountKeyForCurrentUser();
-    const raw = Number(localStorage.getItem(key) || 0);
-    return Number.isFinite(raw) && raw > 0 ? raw : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export default function EcommerceHeader() {
+const EcommerceHeader = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const [userName, setUserName] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [userName, setUserName] = useState(null);
   const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  const userMenuRef = useRef(null);
+  // Handle scroll for shadow effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
+  // Sync session and cart
   const syncSession = () => {
     try {
       const token = localStorage.getItem("token");
-      const name =
-        localStorage.getItem("userName") || localStorage.getItem("userEmail");
-      const cart = getCartCountValue();
+      const name = localStorage.getItem("userName") || localStorage.getItem("userEmail");
+      setUserName(token && name ? name : null);
 
-      setIsLoggedIn(Boolean(token && name));
-      setUserName(name || null);
-      setCartCount(cart);
-    } catch {
-      setIsLoggedIn(false);
-      setUserName(null);
-      setCartCount(0);
+      // Update cart count from storage
+      const cart = readCart();
+      const count = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+      setCartCount(count);
+    } catch (e) {
+      console.error("Session sync error", e);
     }
   };
 
   useEffect(() => {
     syncSession();
 
-    const onStorage = (e) => {
-      if (!e || !e.key) {
-        syncSession();
-        return;
-      }
-
-      // đổi token / thông tin user
-      if (["token", "userName", "userEmail", "role"].includes(e.key)) {
-        syncSession();
-        return;
-      }
-
-      // bất kỳ cartCount_<owner> đổi
-      if (e.key && e.key.startsWith("cartCount_")) {
-        syncSession();
-      }
-    };
-
-    const onAuthChanged = () => syncSession();
-    const onLocalStorageChange = () => syncSession();
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("auth:changed", onAuthChanged);
-    window.addEventListener("localStorageChange", onLocalStorageChange);
+    const handleStorageChange = () => syncSession();
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("localStorageChange", handleStorageChange);
+    window.addEventListener("auth:changed", handleStorageChange);
 
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("auth:changed", onAuthChanged);
-      window.removeEventListener("localStorageChange", onLocalStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("localStorageChange", handleStorageChange);
+      window.removeEventListener("auth:changed", handleStorageChange);
     };
-  }, []);
-
-  // cuộn tới anchor khi route có hash
-  useEffect(() => {
-    if (location.hash) {
-      const id = location.hash.slice(1);
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [location]);
-
-  // đóng menu khi click ra ngoài
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = () => {
-    try {
-      ["token", "userEmail", "userName", "role"].forEach((k) =>
-        localStorage.removeItem(k)
-      );
-    } catch {}
-
-    setIsLoggedIn(false);
-    setUserName(null);
-    setCartCount(0);
-
+    ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
     window.dispatchEvent(new Event("auth:changed"));
     navigate("/login");
   };
 
-  const startSearch = () => {
-    const q = (query || "").trim();
-    if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}`);
-  };
-
-  const onSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      startSearch();
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) {
+      navigate(`/products?search=${encodeURIComponent(query.trim())}`);
     }
   };
 
   return (
-    <header className="site-header">
-      <div className="site-header__shell">
-        <div className="site-header__brand-group">
-          <Link
-            to="/"
-            className="site-header__brand"
-            aria-label="Trang chu"
-          >
-            <span className="site-header__brand-mark">
-              <span className="site-header__brand-glow" />
-              <img
-                src="/images/saokim-logo.jpg"
-                alt="Sao Kim Lightning logo"
-              />
-            </span>
-            <div className="site-header__brand-copy">
-              <h1>Sao Kim Lightning</h1>
-              <span>Giai phap chieu sang dong bo cho moi khong gian</span>
-            </div>
-          </Link>
+    <Navbar
+      expand="lg"
+      sticky="top"
+      className={`ecommerce-header ${isScrolled ? "scrolled" : ""}`}
+    >
+      <Container>
+        {/* Brand */}
+        <Navbar.Brand as={Link} to="/" className="brand-logo">
+          <img
+            src="/images/saokim-logo.jpg"
+            alt="Sao Kim Lighting"
+            className="brand-image"
+            style={{ height: '80px', objectFit: 'contain' }}
+          />
+          <span className="brand-text ms-2">Sao Kim Lighting</span>
+        </Navbar.Brand>
 
-          <nav className="site-header__nav" aria-label="Main navigation">
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="site-header__nav-link"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        {/* Mobile Toggle */}
+        <Navbar.Toggle aria-controls="basic-navbar-nav">
+          <FontAwesomeIcon icon={faBars} />
+        </Navbar.Toggle>
 
-        <div className="site-header__utility">
-          <div className="site-header__search">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKeyDown}
-              placeholder="Tim kiem san pham, dong den, ma thiet bi..."
-              aria-label="Search products"
-            />
-            <button
-              type="button"
-              aria-label="Start search"
-              onClick={startSearch}
-            >
-              <i
-                className="fa-solid fa-magnifying-glass"
-                aria-hidden="true"
-              />
-            </button>
+        <Navbar.Collapse id="basic-navbar-nav">
+          {/* Search Bar (Center) */}
+          <div className="mx-auto my-3 my-lg-0 search-container">
+            <Form onSubmit={handleSearch} className="d-flex w-100">
+              <InputGroup>
+                <Form.Control
+                  type="search"
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className="search-input"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <Button type="submit" variant="warning" className="search-btn">
+                  <FontAwesomeIcon icon={faSearch} />
+                </Button>
+              </InputGroup>
+            </Form>
           </div>
 
-          <div className="site-header__actions" ref={userMenuRef}>
-            {isLoggedIn ? (
-              <div className="site-header__user">
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    padding: 0,
-                    margin: 0,
-                    cursor: "pointer",
-                    color: "inherit",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                  }}
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen ? "true" : "false"}
-                >
-                  <span className="site-header__user-name">
-                    {userName}
-                  </span>
-                  <i
-                    className={`fa-solid fa-chevron-${
-                      menuOpen ? "up" : "down"
-                    }`}
-                    aria-hidden="true"
-                  />
-                </button>
+          {/* Navigation & Icons (Right) */}
+          <Nav className="ms-auto align-items-center gap-3">
+            <Nav.Link as={Link} to="/" className="nav-item-link">
+              Trang chủ
+            </Nav.Link>
+            <Nav.Link as={Link} to="/products" className="nav-item-link">
+              Sản phẩm
+            </Nav.Link>
+            <Nav.Link as={Link} to="/about" className="nav-item-link">
+              Giới thiệu
+            </Nav.Link>
 
-                {menuOpen && (
-                  <div
-                    role="menu"
-                    style={{
-                      position: "absolute",
-                      marginTop: "0.5rem",
-                      right: 0,
-                      background: "#fff",
-                      border: "1px solid rgba(17,32,56,0.12)",
-                      borderRadius: 12,
-                      boxShadow: "0 10px 24px -12px rgba(18,49,87,0.28)",
-                      minWidth: 200,
-                      overflow: "hidden",
-                      zIndex: 50,
-                    }}
-                  >
-                    <Link
-                      to="/account"
-                      role="menuitem"
-                      onClick={() => setMenuOpen(false)}
-                      style={{
-                        display: "block",
-                        padding: "10px 14px",
-                        textDecoration: "none",
-                        color: "var(--text-primary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Thong tin tai khoan
-                    </Link>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={handleLogout}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 14px",
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-secondary)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Dang xuat
-                    </button>
+            {/* Cart */}
+            <Nav.Link as={Link} to="/cart" className="icon-link position-relative">
+              <FontAwesomeIcon icon={faShoppingCart} size="lg" />
+              {cartCount > 0 && (
+                <Badge bg="danger" pill className="cart-badge">
+                  {cartCount}
+                </Badge>
+              )}
+            </Nav.Link>
+
+            {/* User Account */}
+            {userName ? (
+              <Dropdown align="end">
+                <Dropdown.Toggle variant="link" className="user-dropdown-toggle p-0 border-0">
+                  <div className="user-avatar">
+                    {userName.charAt(0).toUpperCase()}
                   </div>
-                )}
-              </div>
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu className="user-menu shadow">
+                  <div className="px-3 py-2 border-bottom">
+                    <small className="text-muted">Xin chào,</small>
+                    <div className="fw-bold text-truncate" style={{ maxWidth: "150px" }}>
+                      {userName}
+                    </div>
+                  </div>
+                  <Dropdown.Item as={Link} to="/account">
+                    <FontAwesomeIcon icon={faUserCircle} className="me-2" />
+                    Tài khoản
+                  </Dropdown.Item>
+                  <Dropdown.Item as={Link} to="/change-password">
+                    <FontAwesomeIcon icon={faKey} className="me-2" />
+                    Đổi mật khẩu
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                  <Dropdown.Item onClick={handleLogout} className="text-danger">
+                    <FontAwesomeIcon icon={faSignOutAlt} className="me-2" />
+                    Đăng xuất
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
             ) : (
-              <Link to="/login" className="btn btn-outline btn-small">
-                Dang nhap
+              <Link to="/login" className="btn btn-outline-primary rounded-pill px-4 ms-2">
+                Đăng nhập
               </Link>
             )}
-            
-            <Link
-              to="/cart"
-              className="site-header__cart"
-              aria-label="Giỏ hàng"
-            >
-              <span className="site-header__cart-icon">
-                <i
-                  className="fa-solid fa-bag-shopping"
-                  aria-hidden="true"
-                />
-                {cartCount > 0 && (
-                  <span className="site-header__cart-badge">
-                    {cartCount}
-                  </span>
-                )}
-              </span>
-              <span className="site-header__cart-label">Giỏ hàng</span>
-            </Link>
-            <Link
-              to="/account/orders"
-              className="site-header__cart"
-              aria-label="Đơn hàng của tôi"
-            >
-              <span className="site-header__cart-icon">
-                <i className="fa-solid fa-receipt" aria-hidden="true" />
-              </span>
-              <span className="site-header__cart-label">Đơn hàng của tôi</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </header>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
-}
+};
+
+export default EcommerceHeader;
