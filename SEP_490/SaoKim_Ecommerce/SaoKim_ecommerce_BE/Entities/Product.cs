@@ -21,5 +21,8 @@ namespace SaoKim_ecommerce_BE.Entities
         public string ProductCode { get; set; } = string.Empty;
 
         public ICollection<ProductDetail> ProductDetails { get; set; } = new List<ProductDetail>();
+
+        // navigation sang project_products để biết sản phẩm đang được dùng trong dự án nào
+        public ICollection<ProjectProduct> ProjectProducts { get; set; } = new List<ProjectProduct>();
     }
 }

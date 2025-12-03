@@ -1,11 +1,10 @@
 .page-wrapper {
   min-height: 100vh;
   width: 100%;
-  /* padding: 56px 24px 84px; */
   background: var(--page-bg);
-  display: flex;
-  justify-content: center;
-  position: relative;
+  display: block;
+  padding: 0;
+  margin: 0;
 }
 
 .page-wrapper::after {

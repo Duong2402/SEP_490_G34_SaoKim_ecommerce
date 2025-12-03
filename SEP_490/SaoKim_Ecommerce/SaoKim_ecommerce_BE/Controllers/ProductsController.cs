@@ -17,9 +17,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly SaoKimDBContext _db;
         private readonly IWebHostEnvironment _env;
 
-        // trạng thái "đang luân chuyển" lưu trong DB
-        private const string ProductStatusProcessing = "Processing";
-
         public ProductsController(SaoKimDBContext db, IWebHostEnvironment env)
         {
             _db = db;
@@ -66,7 +63,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                         Product = p,
                         Detail = p.ProductDetails
                             .OrderByDescending(d => d.Id)
-                            .FirstOrDefault()
+                            .FirstOrDefault(),
+                        HasProjects = p.ProjectProducts.Any()
                     });
 
             var sortKey = (sortBy ?? "id").ToLowerInvariant();
@@ -129,7 +127,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     created = x.Detail != null ? x.Detail.CreateAt : null,
                     image = x.Detail != null && x.Detail.Image != null
                         ? $"{baseUrl}/images/{x.Detail.Image}"
-                        : null
+                        : null,
+                    inProject = x.HasProjects
                 })
                 .ToListAsync();
 
@@ -160,7 +159,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     Product = p,
                     Detail = p.ProductDetails
                         .OrderByDescending(d => d.Id)
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    HasProjects = p.ProjectProducts.Any()
                 })
                 .Select(x => new
                 {
@@ -181,7 +181,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     image = x.Detail != null && x.Detail.Image != null
                         ? $"{baseUrl}/images/{x.Detail.Image}"
                         : null,
-                    note = x.Detail != null ? x.Detail.Note : null
+                    note = x.Detail != null ? x.Detail.Note : null,
+                    inProject = x.HasProjects
                 })
                 .FirstOrDefaultAsync();
 
@@ -235,8 +236,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return BadRequest(new { message = "Trạng thái mới không được để trống." });
             }
 
-            // cho phép 3 trạng thái
-            var allowed = new[] { "Active", "Inactive", ProductStatusProcessing };
+            // chỉ cho phép Active / Inactive
+            var allowed = new[] { "Active", "Inactive" };
 
             var canonicalStatus = allowed
                 .FirstOrDefault(s => s.Equals(newStatusRaw, StringComparison.OrdinalIgnoreCase));
@@ -425,21 +426,19 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var product = await _db.Products
                 .Include(p => p.ProductDetails)
+                .Include(p => p.ProjectProducts)
                 .FirstOrDefaultAsync(p => p.ProductID == id);
 
             if (product == null)
                 return NotFound(new { message = "Product not found" });
 
-            var latestDetail = product.ProductDetails
-                .OrderByDescending(d => d.Id)
-                .FirstOrDefault();
-
-            if (latestDetail != null &&
-                string.Equals(latestDetail.Status, ProductStatusProcessing, StringComparison.OrdinalIgnoreCase))
+            // nếu sản phẩm đã nằm trong bất kỳ dự án nào -> không cho xóa
+            var hasProjects = product.ProjectProducts != null && product.ProjectProducts.Any();
+            if (hasProjects)
             {
                 return BadRequest(new
                 {
-                    message = "Sản phẩm đang ở trạng thái xử lý/luân chuyển, không được phép xóa."
+                    message = "Sản phẩm đang được sử dụng trong dự án, không được phép xóa."
                 });
             }
 

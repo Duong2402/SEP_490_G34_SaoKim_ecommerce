@@ -178,6 +178,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (inv.Status != InvoiceStatus.Paid)
                 return BadRequest(new { message = "Invoice must be Paid before generating PDF." });
 
+            ApplyDefaultTax(inv);
+
             var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
             Directory.CreateDirectory(folder);
 
@@ -324,6 +326,20 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "PDF generated successfully." });
+        }
+        
+        //thuế
+        private void ApplyDefaultTax(Invoice inv)
+        {
+            // số tiền chịu thuế = Subtotal - Discount (nếu âm thì đưa về 0)
+            var baseAmount = inv.Subtotal - inv.Discount;
+            if (baseAmount < 0) baseAmount = 0;
+
+            // thuế 10%
+            inv.Tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
+
+            // tổng = sau giảm + thuế
+            inv.Total = baseAmount + inv.Tax;
         }
 
         // GET /api/invoices/{id}/pdf
