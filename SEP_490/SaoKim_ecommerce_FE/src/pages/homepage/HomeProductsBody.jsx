@@ -127,7 +127,9 @@ function useHomeProducts(params) {
 
 function formatCurrency(value) {
   if (!value || Number(value) <= 0) return "Contact for price";
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(value));
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+    Number(value)
+  );
 }
 
 function buildImageUrl(path) {
@@ -137,9 +139,178 @@ function buildImageUrl(path) {
   return `${API_BASE}${API_BASE ? "/" : ""}${path}`;
 }
 
+function HeroBlock() {
+  return (
+    <div className="home-hero__content">
+      <span className="home-hero__badge">
+        <i className="fa-solid fa-star" aria-hidden="true" />
+        Sao Kim Lightning
+      </span>
+      <h1>Chieu sang an tuong cho moi khong gian song va kinh doanh</h1>
+      <p>
+        Lua chon danh muc den trang tri, downlight, tracklight va giai phap chieu sang thong minh
+        duoc Sao Kim tu van chuyen sau. Toi uu anh sang, tiet kiem nang luong va dam bao tieu
+        chuan thiet ke du an.
+      </p>
+      <div className="home-hero__actions">
+        <a className="btn btn-primary btn-small" href="#catalog">
+          Xem danh muc san pham
+        </a>
+        <Link to="/login" className="home-hero__link">
+          Giai phap cho doi tac&nbsp;
+          <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* BANNER + HERO: hero là slide 0, các banner là slide 1..n */
+function HomeBanner() {
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [index, setIndex] = useState(0); // 0 = hero, 1..n = banner
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const payload = await fetchJson(`${API_BASE}/api/banner`);
+        if (cancelled) return;
+
+        let list = [];
+        if (Array.isArray(payload)) list = payload;
+        else if (payload?.items) list = payload.items;
+
+        const normalized = (list || []).map((b) => ({
+          id: b.id ?? b.Id,
+          title: b.title ?? b.Title ?? "",
+          imageUrl: b.imageUrl ?? b.ImageUrl ?? "",
+          linkUrl: b.linkUrl ?? b.LinkUrl ?? "",
+          isActive:
+            b.isActive !== undefined
+              ? b.isActive
+              : b.IsActive !== undefined
+              ? b.IsActive
+              : true,
+        }));
+
+        const active = normalized.filter((x) => x.isActive && x.imageUrl);
+        setBanners(active);
+      } catch {
+        setBanners([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalSlides = 1 + (banners?.length || 0);
+
+  useEffect(() => {
+    if (totalSlides <= 1) return; // chỉ hero thì không cần auto slide
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % totalSlides);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [totalSlides]);
+
+  const currentIsHero = index === 0 || totalSlides === 1;
+  const currentBanner = !currentIsHero ? banners[index - 1] : null;
+
+  return (
+    <section className="home-hero">
+      <div className="home-container" style={{ position: "relative" }}>
+        {currentIsHero || loading || !currentBanner ? (
+          <HeroBlock />
+        ) : (
+          <div
+            className="home-banner__media"
+            style={{
+              width: "100%",
+              height: "420px",       // THÊM DÒNG NÀY
+              overflow: "hidden",
+              position: "relative",
+              marginBottom: "24px",
+              borderRadius: "16px",
+            }}
+          >
+            <a href={currentBanner.linkUrl || "#"} style={{ display: "block" }}>
+              <img
+                src={buildImageUrl(currentBanner.imageUrl)}
+                alt={currentBanner.title || "Homepage banner"}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </a>
+
+            {currentBanner.title && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "24px",
+                  bottom: "24px",
+                  background: "rgba(0,0,0,0.45)",
+                  color: "#fff",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  maxWidth: "60%",
+                  fontSize: "15px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {currentBanner.title}
+              </div>
+            )}
+          </div>
+        )}
+
+        {totalSlides > 1 && (
+          <div
+            style={{
+              position: "absolute",
+              right: "18px",
+              bottom: "18px",
+              display: "flex",
+              gap: "6px",
+            }}
+          >
+            {Array.from({ length: totalSlides }).map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIndex(i)}
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  background: i === index ? "#fff" : "rgba(255,255,255,0.5)",
+                }}
+                aria-label={i === 0 ? "Hero" : `Banner ${i}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* SẢN PHẨM */
+
 function ProductCard({ product }) {
   const [imageError, setImageError] = useState(false);
-  const imageSrc = imageError ? "https://via.placeholder.com/600x450?text=No+Image" : buildImageUrl(product.thumbnailUrl);
+  const imageSrc = imageError
+    ? "https://via.placeholder.com/600x450?text=No+Image"
+    : buildImageUrl(product.thumbnailUrl);
   const stockLabel =
     typeof product.stock === "number" && product.stock > 0 ? `${product.stock} in stock` : null;
 
@@ -202,7 +373,10 @@ function Pagination({ page, totalPages, onPage }) {
   );
 }
 
-function HomeProductsBody({ category: categoryFromProps = "", priceFilter = { min: null, max: null } }) {
+function HomeProductsBody({
+  category: categoryFromProps = "",
+  priceFilter = { min: null, max: null },
+}) {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sortBy, setSortBy] = useState("new");
@@ -229,7 +403,13 @@ function HomeProductsBody({ category: categoryFromProps = "", priceFilter = { mi
     setPage(1);
   }, [priceFilter.min, priceFilter.max]);
 
-  const { data, loading, error } = useHomeProducts({ page, pageSize, sortBy, keyword, category });
+  const { data, loading, error } = useHomeProducts({
+    page,
+    pageSize,
+    sortBy,
+    keyword,
+    category,
+  });
   const all = data?.all || { items: [], totalPages: 0, page: 1, totalItems: 0 };
 
   const priceFilterActive = priceFilter && (priceFilter.min != null || priceFilter.max != null);
@@ -245,7 +425,9 @@ function HomeProductsBody({ category: categoryFromProps = "", priceFilter = { mi
     });
   }, [all.items, priceFilter, priceFilterActive]);
 
-  const totalItems = priceFilterActive ? filteredItems.length : all.totalItems || filteredItems.length;
+  const totalItems = priceFilterActive
+    ? filteredItems.length
+    : all.totalItems || filteredItems.length;
   const startIndex = totalItems ? (priceFilterActive ? 1 : (all.page - 1) * pageSize + 1) : 0;
   const endIndex = totalItems
     ? priceFilterActive
@@ -344,30 +526,7 @@ function HomeWrapper() {
     <div className="home-wrapper">
       <EcommerceHeader />
       <main className="home-main">
-        <section className="home-hero">
-          <div className="home-container">
-            <div className="home-hero__content">
-              <span className="home-hero__badge">
-              <i className="fa-solid fa-star" aria-hidden="true" />
-              Sao Kim Lightning
-            </span>
-            <h1>Chieu sang an tuong cho moi khong gian song va kinh doanh</h1>
-            <p>
-              Lua chon danh muc den trang tri, downlight, tracklight va giai phap chieu sang thong minh duoc Sao Kim
-              tu van chuyen sau. Toi uu anh sang, tiet kiem nang luong va dam bao tieu chuan thiet ke du an.
-            </p>
-            <div className="home-hero__actions">
-              <a className="btn btn-primary btn-small" href="#catalog">
-                Xem danh muc san pham
-              </a>
-              <Link to="/login" className="home-hero__link">
-                Giai phap cho doi tac&nbsp;
-                <i className="fa-solid fa-arrow-right" aria-hidden="true" />
-              </Link>
-            </div>
-            </div>
-          </div>
-        </section>
+        <HomeBanner />
 
         <div className="home-container home-layout">
           <ProductSidebar
@@ -384,22 +543,31 @@ function HomeWrapper() {
             <div className="home-section__header">
               <h2>Giai phap chieu sang theo linh vuc</h2>
               <p>
-                Sao Kim Lightning ho tro tu giai phap trien khai nhanh cho cua hang den cac goi thiet ke chuyen sau
-                cho khach san va cong trinh cao cap.
+                Sao Kim Lightning ho tro tu giai phap trien khai nhanh cho cua hang den cac goi
+                thiet ke chuyen sau cho khach san va cong trinh cao cap.
               </p>
             </div>
             <div className="home-solutions__grid">
               <article className="home-solutions__card">
                 <h3>Showroom & Retail</h3>
-                <p>Gan ket trai nghiem mua sam voi den tracklight, downlight CRI cao va dieu khien dimming linh hoat.</p>
+                <p>
+                  Gan ket trai nghiem mua sam voi den tracklight, downlight CRI cao va dieu khien
+                  dimming linh hoat.
+                </p>
               </article>
               <article className="home-solutions__card">
                 <h3>Khach san & Nha hang</h3>
-                <p>Bo suu tap den trang tri, wall washer va day dan LED dam bao tong the sang trong, tinh te.</p>
+                <p>
+                  Bo suu tap den trang tri, wall washer va day dan LED dam bao tong the sang trong,
+                  tinh te.
+                </p>
               </article>
               <article className="home-solutions__card">
                 <h3>Can ho & Biet thu</h3>
-                <p>Tu van layout anh sang thong minh, toi uu cong suat va an toan dien cho khong gian song.</p>
+                <p>
+                  Tu van layout anh sang thong minh, toi uu cong suat va an toan dien cho khong gian
+                  song.
+                </p>
               </article>
             </div>
           </div>
@@ -409,7 +577,9 @@ function HomeWrapper() {
           <div className="home-container">
             <div className="home-section__header">
               <h2>Bo suu tap noi bat</h2>
-              <p>Lua chon san pham ban chay duoc nhieu nha thiet ke tin dung trong cac du an gan day.</p>
+              <p>
+                Lua chon san pham ban chay duoc nhieu nha thiet ke tin dung trong cac du an gan day.
+              </p>
             </div>
             <div className="home-showcase__grid">
               <article className="home-showcase__card">
@@ -433,7 +603,8 @@ function HomeWrapper() {
             <div className="home-contact__copy">
               <h2>Can ho tro tu van chieu sang?</h2>
               <p>
-                Gui thong tin cho chung toi hoac lien he hotline de duoc ky su Sao Kim de xuat giai phap nhanh chong.
+                Gui thong tin cho chung toi hoac lien he hotline de duoc ky su Sao Kim de xuat giai
+                phap nhanh chong.
               </p>
             </div>
             <div className="home-contact__actions">

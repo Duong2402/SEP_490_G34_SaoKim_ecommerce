@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { UserAPI } from "../../api/users";
+import { UserAPI } from "../../../api/users";
 
 export default function UserList() {
   const [users, setUsers] = useState([]);

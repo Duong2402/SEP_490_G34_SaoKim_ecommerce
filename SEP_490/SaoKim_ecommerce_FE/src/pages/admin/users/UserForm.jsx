@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { UserAPI } from "../../api/users";
+import { UserAPI } from "../../../api/users";
 
 const DEFAULT_FORM_VALUES = {
   name: "",

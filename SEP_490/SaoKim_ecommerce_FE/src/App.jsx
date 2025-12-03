@@ -57,10 +57,17 @@ import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 //Orders
 import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
 
+//admindashboard
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+//banner
+import BannerList from "./pages/admin/banner/BannerList.jsx";
+import BannerForm from "./pages/admin/banner/BannerForm.jsx";
+
 // Users
-import UserList from "./pages/users/UserList";
-import UserCreate from "./pages/users/UserCreate";
-import UserEdit from "./pages/users/UserEdit";
+import UserList from "./pages/admin/users/UserList";
+import UserCreate from "./pages/admin/users/UserCreate";
+import UserEdit from "./pages/admin/users/UserEdit";
 
 //Import Page
 import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
@@ -106,7 +113,11 @@ export default function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forbidden" element={<AccessDenied />} />
-
+          {/* Banner Management */}
+             <Route path="/admin/banner" element={<BannerList />} />
+            <Route path="/admin/banner/create" element={<BannerForm />} />
+            <Route path="/admin/banner/edit/:id" element={<BannerForm />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -137,6 +148,16 @@ export default function App() {
             <Route path="/staff/invoices" element={<ManageInvoices />} />
           </Route>
 
+          {/* Projects (ngoài khu Manager) */}
+          <Route path="/projects" element={<ProjectManagerLayout />}>
+            <Route index element={<ProjectList />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            <Route path="create" element={<ProjectCreate />} />
+            <Route path=":id" element={<ProjectDetail />} />
+            <Route path=":id/edit" element={<ProjectEdit />} />
+            <Route path=":id/report" element={<ProjectReport />} />
+          </Route>
+
           {/* Projects protected group - Only project_manager */}
           <Route element={<ProtectedRoute allow={["project_manager"]} />}>
             <Route path="/projects" element={<ProjectManagerLayout />}>
@@ -162,12 +183,10 @@ export default function App() {
           <Route path="/account/addresses" element={<Addresses />} />
           <Route path="/account/orders" element={<CustomerOrder />} />
 
-          {/* Users Management - Admin only */}
-          <Route element={<ProtectedRoute allow={["admin"]} />}>
-            <Route path="/users" element={<UserList />} />
-            <Route path="/users/create" element={<UserCreate />} />
-            <Route path="/users/:id/edit" element={<UserEdit />} />
-          </Route>
+          {/* Users Management */}
+          <Route path="/admin/users" element={<UserList />} />
+          <Route path="/admin/users/create" element={<UserCreate />} />
+          <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
           {/* Manager area protected group - Only manager */}
           <Route element={<ProtectedRoute allow={["manager"]} />}>

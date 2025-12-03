@@ -2,6 +2,21 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../../styles/account.css";
 
+// Lấy base URL từ .env, fallback về https://localhost:7278
+let API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "https://localhost:7278";
+if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
+
+function buildImageUrl(image) {
+  if (!image) return null;
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+  const relative = image.startsWith("/") ? image : `/${image}`;
+  return `${API_BASE}${relative}`;
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -18,38 +33,50 @@ export default function Profile() {
     image: null,
   });
 
-  const apiBase = "https://localhost:7278";
-
+  // Load thông tin user hiện tại
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login");
       return;
     }
+
     const load = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/users/me`, {
+        const res = await fetch(`${API_BASE}/api/users/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
         if (!res.ok) throw new Error("Không thể tải thông tin tài khoản");
         const data = await res.json();
+
+        let dob = "";
+        if (data.dob) {
+          if (typeof data.dob === "string" && data.dob.length >= 10) {
+            dob = data.dob.slice(0, 10);
+          } else {
+            dob = new Date(data.dob).toISOString().slice(0, 10);
+          }
+        }
+
         setForm({
           name: data.name || "",
           email: data.email || "",
-          phoneNumber: data.phoneNumber || "",
+          phoneNumber: data.phone || data.phoneNumber || "",
           address: data.address || "",
-          dob: data.dob ? new Date(data.dob).toISOString().slice(0, 10) : "",
+          dob,
           image: null,
         });
-        setPreviewUrl(data.image ? `${apiBase}${data.image}` : null);
+        setPreviewUrl(buildImageUrl(data.image));
       } catch (e) {
         setError(e.message || "Đã xảy ra lỗi");
       } finally {
         setLoading(false);
       }
     };
+
     load();
   }, [navigate]);
 
@@ -71,8 +98,14 @@ export default function Profile() {
     setError("");
     setSuccess("");
     setSaving(true);
+
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
       const fd = new FormData();
       if (form.name) fd.append("name", form.name);
       if (form.phoneNumber) fd.append("phoneNumber", form.phoneNumber);
@@ -80,10 +113,11 @@ export default function Profile() {
       if (form.dob) fd.append("dob", form.dob);
       if (form.image) fd.append("image", form.image);
 
-      const res = await fetch(`${apiBase}/api/users/me`, {
+      const res = await fetch(`${API_BASE}/api/users/me`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
+          // Không set Content-Type, để browser tự set multipart boundary
         },
         body: fd,
       });
@@ -94,12 +128,14 @@ export default function Profile() {
       }
 
       setSuccess("Đã cập nhật thông tin thành công");
-      const meRes = await fetch(`${apiBase}/api/users/me`, {
+
+      // Reload lại thông tin sau khi lưu
+      const meRes = await fetch(`${API_BASE}/api/users/me`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       if (meRes.ok) {
         const data = await meRes.json();
-        setPreviewUrl(data.image ? `${apiBase}${data.image}` : null);
+        setPreviewUrl(buildImageUrl(data.image));
         localStorage.setItem("userName", data.name || "");
         window.dispatchEvent(new Event("localStorageChange"));
       }
@@ -134,20 +170,21 @@ export default function Profile() {
           justifyContent: "space-between",
           alignItems: "center",
         }}
-      >
-        <h2 style={{ marginBottom: 16 }}>Cập nhật thông tin tài khoản</h2>
-        <div style={{ display: "flex", gap: 16 }}>
-          <Link to="/account/addresses">Quản lý địa chỉ</Link>
-        </div>
-      </div>
+      ></div>
 
       {error && (
-        <div className="account-alert account-alert--error" style={{ marginBottom: 12 }}>
+        <div
+          className="account-alert account-alert--error"
+          style={{ marginBottom: 12 }}
+        >
           {error}
         </div>
       )}
       {success && (
-        <div className="account-alert account-alert--success" style={{ marginBottom: 12 }}>
+        <div
+          className="account-alert account-alert--success"
+          style={{ marginBottom: 12 }}
+        >
           {success}
         </div>
       )}
@@ -176,7 +213,9 @@ export default function Profile() {
               {previewUrl ? (
                 <img src={previewUrl} alt="Ảnh đại diện" />
               ) : (
-                <span style={{ color: "var(--account-muted)" }}>Chưa có ảnh</span>
+                <span style={{ color: "var(--account-muted)" }}>
+                  Chưa có ảnh
+                </span>
               )}
             </div>
             <label className="account-upload">
@@ -215,7 +254,12 @@ export default function Profile() {
               </div>
               <div className="account-field">
                 <label>Ngày sinh</label>
-                <input type="date" name="dob" value={form.dob} onChange={onChange} />
+                <input
+                  type="date"
+                  name="dob"
+                  value={form.dob}
+                  onChange={onChange}
+                />
               </div>
             </div>
 

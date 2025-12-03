@@ -23,6 +23,7 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Review> Reviews { get; set; }
 
 
+
         //Customer
         public DbSet<CustomerNote> CustomerNotes { get; set; }
         public DbSet<StaffActionLog> StaffActionLogs { get; set; }
@@ -46,6 +47,8 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Promotion> Promotions => Set<Promotion>();
         public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
         public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+        public DbSet<Banner> Banners { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -524,6 +527,17 @@ namespace SaoKim_ecommerce_BE.Data
                     b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
                     b.Property(x => x.Status).IsRequired().HasMaxLength(32);
                 });
+                modelBuilder.Entity<Banner>(b =>
+                {
+                    b.Property(x => x.Title).IsRequired().HasMaxLength(255);
+                    b.Property(x => x.ImageUrl).IsRequired().HasMaxLength(2000);
+
+                    b.Property(x => x.LinkUrl).HasMaxLength(500);
+
+                    b.Property(x => x.CreatedAt)
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'");
+                });
+
 
             });
         }

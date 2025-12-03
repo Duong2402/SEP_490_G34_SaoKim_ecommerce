@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
@@ -13,7 +17,8 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly SaoKimDBContext _db;
         public UsersController(SaoKimDBContext db) => _db = db;
 
-        // GET /api/users  
+        // ======================= LIST USERS (ADMIN) =======================
+        // GET /api/users
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAll(
@@ -52,7 +57,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .OrderByDescending(u => u.CreateAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(u => new {
+                .Select(u => new
+                {
                     id = u.UserID,
                     name = u.Name,
                     email = u.Email,
@@ -97,7 +103,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET /api/users/{id}
         [HttpGet("{id:int}")]
-        [AllowAnonymous]
+        [AllowAnonymous]   // sau có thể đổi thành [Authorize(Roles="admin")]
         public async Task<IActionResult> GetById(int id)
         {
             var u = await _db.Users
@@ -122,9 +128,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+        // ======================= UPDATE USER (ADMIN) =======================
         // PUT /api/users/{id}
         [HttpPut("{id:int}")]
-        [AllowAnonymous]
+        [AllowAnonymous]  // sau có thể đổi thành [Authorize(Roles="admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto dto)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == id);
@@ -158,7 +165,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             public int? RoleId { get; set; }
         }
 
-        // GET /api/users/roles 
+        // ======================= ROLES LIST =======================
+        // GET /api/users/roles  
         [HttpGet("roles")]
         [AllowAnonymous]
         public async Task<IActionResult> GetRoles()
@@ -172,6 +180,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(roles);
         }
 
+        // ======================= GET CURRENT USER PROFILE =======================
+        // GET /api/users/me
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe()
@@ -201,6 +211,69 @@ namespace SaoKim_ecommerce_BE.Controllers
                 image = u.Image,
                 createdAt = u.CreateAt
             });
+        }
+
+        // ======================= UPDATE CURRENT USER PROFILE =======================
+        // DTO cho cập nhật profile của chính user
+        public class UpdateProfileDto
+        {
+            public string? Name { get; set; }
+            public string? Address { get; set; }
+            public string? PhoneNumber { get; set; }
+            public DateTime? Dob { get; set; }
+            public IFormFile? Image { get; set; }
+        }
+
+        // PUT /api/users/me
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMe([FromForm] UpdateProfileDto dto)
+        {
+            var email = User.Identity?.Name;
+            if (string.IsNullOrEmpty(email))
+                return Unauthorized(new { message = "User not logged in" });
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            // update cơ bản
+            if (!string.IsNullOrWhiteSpace(dto.Name))
+                user.Name = dto.Name;
+
+            if (!string.IsNullOrWhiteSpace(dto.Address))
+                user.Address = dto.Address;
+
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+                user.PhoneNumber = dto.PhoneNumber;
+
+            if (dto.Dob.HasValue)
+                user.DOB = dto.Dob.Value;
+
+            // xử lý upload ảnh
+            if (dto.Image != null && dto.Image.Length > 0)
+            {
+                var uploadsRoot = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    "uploads",
+                    "avatars");
+
+                Directory.CreateDirectory(uploadsRoot);
+
+                var fileName = $"{Guid.NewGuid()}{Path.GetExtension(dto.Image.FileName)}";
+                var filePath = Path.Combine(uploadsRoot, fileName);
+
+                using (var stream = System.IO.File.Create(filePath))
+                {
+                    await dto.Image.CopyToAsync(stream);
+                }
+                user.Image = $"/uploads/avatars/{fileName}";
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Profile updated successfully" });
         }
     }
 }

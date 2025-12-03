@@ -1,5 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
@@ -28,6 +35,25 @@ namespace SaoKim_ecommerce_BE.Controllers
             _dispatchService = dispatchService;
         }
 
+        // Lấy user hiện tại từ email trong token
+        private async Task<User?> GetCurrentUserAsync()
+        {
+            // Email thường nằm ở ClaimTypes.Email hoặc Name
+            var email =
+                User.FindFirstValue(ClaimTypes.Email) ??
+                User.Identity?.Name;
+
+            if (string.IsNullOrEmpty(email))
+                return null;
+
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            return user;
+        }
+
+        // POST /api/orders  : tạo đơn cho user hiện tại
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateOrderRequest request)
         {
@@ -39,14 +65,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 if (request.Items == null || request.Items.Count == 0)
                     return BadRequest(new { message = "Order must have at least 1 item" });
 
-                var email = User.Identity?.Name;
-                if (string.IsNullOrEmpty(email))
-                    return Unauthorized("Không xác định được người dùng từ token");
-
-                var user = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Email == email);
-
+                var user = await GetCurrentUserAsync();
                 if (user == null)
                     return Unauthorized("Không tìm thấy user tương ứng với token");
 
@@ -132,27 +151,66 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetMyOrders()
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyOrders(int page = 1, int pageSize = 10)
         {
-            var email = User.Identity?.Name;
-            if (string.IsNullOrEmpty(email))
-                return Unauthorized("Không xác định được người dùng từ token");
+            try
+            {
+                if (page <= 0) page = 1;
+                if (pageSize <= 0) pageSize = 10;
 
-            var user = await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email == email);
+                var user = await GetCurrentUserAsync();
+                if (user == null)
+                    return Unauthorized("Không xác định được người dùng từ token");
 
-            if (user == null)
-                return Unauthorized("Không tìm thấy user tương ứng với token");
+                var query = _context.Orders
+                    .AsNoTracking()
+                    .Include(o => o.Items)
+                        .ThenInclude(i => i.Product)   // để lấy tên sản phẩm
+                    .Where(o => o.UserId == user.UserID)
+                    .OrderByDescending(o => o.CreatedAt);
 
-            var orders = await _context.Orders
-                .AsNoTracking()
-                .Where(o => o.UserId == user.UserID)
-                .OrderByDescending(o => o.CreatedAt)
-                .ToListAsync();
+                var total = await query.CountAsync();
 
-            return Ok(orders);
+                var orders = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(o => new
+                    {
+                        orderId = o.OrderId,
+                        createdAt = o.CreatedAt,
+                        total = o.Total,
+                        status = o.Status,
+                        items = o.Items.Select(i => new
+                        {
+                            orderItemId = i.OrderItemId,
+                            productId = i.ProductId,
+                            productName = i.Product.ProductName, // hoặc i.Product.Name tùy entity
+
+                            // Lấy ảnh mới nhất từ ProductDetails theo ProductId
+                            productImage = _context.ProductDetails
+                                .Where(d => d.ProductID == i.ProductId)
+                                .OrderByDescending(d => d.Id)
+                                .Select(d => d.Image)
+                                .FirstOrDefault(),
+
+                            quantity = i.Quantity,
+                            unitPrice = i.UnitPrice
+                        }).ToList()
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    total,
+                    items = orders
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi GetMyOrders");
+                return StatusCode(500, new { message = "Lỗi server GetMyOrders", detail = ex.Message });
+            }
         }
     }
 }
