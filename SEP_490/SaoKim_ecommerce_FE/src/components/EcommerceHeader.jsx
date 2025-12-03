@@ -1,260 +1,184 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Navbar, Container, Nav, Form, Button, InputGroup, Dropdown, Badge } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faSearch,
+  faShoppingCart,
+  faUser,
+  faBars,
+  faSignOutAlt,
+  faUserCircle,
+  faKey
+} from "@fortawesome/free-solid-svg-icons";
 import "../styles/EcommerceHeader.css";
+import { readCart } from "../api/cartStorage";
 
-const NAV_LINKS = [
-  { to: "/#catalog", label: "Sản phẩm" },
-  { to: "/#solutions", label: "Giải pháp" },
-  { to: "/#projects", label: "Bộ sưu tập" },
-  { to: "/#contact", label: "Liên hệ" },
-];
-
-function getCartOwnerKey() {
-  if (typeof window === "undefined") return "guest";
-  const email = localStorage.getItem("userEmail");
-  const name = localStorage.getItem("userName");
-  return (email || name || "guest").toString();
-}
-
-function getCartCountValue() {
-  if (typeof window === "undefined") return 0;
-  try {
-    const ownerKey = `cartCount_${getCartOwnerKey()}`;
-    const raw = Number(localStorage.getItem(ownerKey) || 0);
-    return Number.isFinite(raw) && raw > 0 ? raw : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export default function EcommerceHeader() {
+const EcommerceHeader = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const [userName, setUserName] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [userName, setUserName] = useState(null);
   const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const menuRef = useRef(null);
+  // Handle scroll for shadow effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
+  // Sync session and cart
   const syncSession = () => {
     try {
       const token = localStorage.getItem("token");
       const name = localStorage.getItem("userName") || localStorage.getItem("userEmail");
-      setIsLoggedIn(Boolean(token && name));
-      setUserName(name || null);
-      setCartCount(getCartCountValue());
-    } catch {
-      setIsLoggedIn(false);
-      setUserName(null);
-      setCartCount(0);
+      setUserName(token && name ? name : null);
+
+      // Update cart count from storage
+      const cart = readCart();
+      const count = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+      setCartCount(count);
+    } catch (e) {
+      console.error("Session sync error", e);
     }
   };
 
   useEffect(() => {
     syncSession();
 
-    const onStorage = (e) => {
-      if (!e || !e.key) {
-        syncSession();
-        return;
-      }
-      if (["token", "userName", "userEmail", "role"].includes(e.key)) {
-        syncSession();
-      }
-      if (e.key && e.key.startsWith("cartCount_")) {
-        syncSession();
-      }
-    };
-
-    const onAuthChanged = () => syncSession();
-    const onLocalStorageChange = () => syncSession();
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("auth:changed", onAuthChanged);
-    window.addEventListener("localStorageChange", onLocalStorageChange);
+    const handleStorageChange = () => syncSession();
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("localStorageChange", handleStorageChange);
+    window.addEventListener("auth:changed", handleStorageChange);
 
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("auth:changed", onAuthChanged);
-      window.removeEventListener("localStorageChange", onLocalStorageChange);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("localStorageChange", handleStorageChange);
+      window.removeEventListener("auth:changed", handleStorageChange);
     };
-  }, []);
-
-  useEffect(() => {
-    if (location.hash) {
-      const id = location.hash.slice(1);
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [location]);
-
-  useEffect(() => {
-    const onClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 900) setMobileOpen(false);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogout = () => {
-    try {
-      ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
-    } catch {}
-    setIsLoggedIn(false);
-    setUserName(null);
-    setCartCount(0);
+    ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
     window.dispatchEvent(new Event("auth:changed"));
     navigate("/login");
   };
 
-  const startSearch = () => {
-    const q = (query || "").trim();
-    if (!q) return;
-    navigate(`/search?q=${encodeURIComponent(q)}`);
-    setMobileOpen(false);
-  };
-
-  const onSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      startSearch();
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) {
+      navigate(`/products?search=${encodeURIComponent(query.trim())}`);
     }
   };
 
   return (
-    <header className="sk-header">
-      <div className="sk-header__glow" />
-      <div className="sk-header__bar">
-        <Link to="/" className="sk-header__brand" aria-label="Trang chủ Sao Kim">
-          <span className="sk-header__logo">
-            <img src="/images/saokim-logo.jpg" alt="Sao Kim" />
-          </span>
-          <div className="sk-header__brand-text">
-            <span className="sk-header__brand-title">Sao Kim Lighting</span>
-            <span className="sk-header__brand-sub">Giải pháp chiếu sáng đồng bộ</span>
+    <Navbar
+      expand="lg"
+      sticky="top"
+      className={`ecommerce-header ${isScrolled ? "scrolled" : ""}`}
+    >
+      <Container>
+        {/* Brand */}
+        <Navbar.Brand as={Link} to="/" className="brand-logo">
+          <img
+            src="/images/saokim-logo.jpg"
+            alt="Sao Kim Lighting"
+            className="brand-image"
+            style={{ height: '80px', objectFit: 'contain' }}
+          />
+          <span className="brand-text ms-2">Sao Kim Lighting</span>
+        </Navbar.Brand>
+
+        {/* Mobile Toggle */}
+        <Navbar.Toggle aria-controls="basic-navbar-nav">
+          <FontAwesomeIcon icon={faBars} />
+        </Navbar.Toggle>
+
+        <Navbar.Collapse id="basic-navbar-nav">
+          {/* Search Bar (Center) */}
+          <div className="mx-auto my-3 my-lg-0 search-container">
+            <Form onSubmit={handleSearch} className="d-flex w-100">
+              <InputGroup>
+                <Form.Control
+                  type="search"
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className="search-input"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <Button type="submit" variant="warning" className="search-btn">
+                  <FontAwesomeIcon icon={faSearch} />
+                </Button>
+              </InputGroup>
+            </Form>
           </div>
-        </Link>
 
-        <button
-          type="button"
-          className="sk-header__menu-btn"
-          aria-label="Mở menu"
-          onClick={() => setMobileOpen((v) => !v)}
-        >
-          <i className={`fa-solid fa-${mobileOpen ? "xmark" : "bars"}`} aria-hidden="true" />
-        </button>
+          {/* Navigation & Icons (Right) */}
+          <Nav className="ms-auto align-items-center gap-3">
+            <Nav.Link as={Link} to="/" className="nav-item-link">
+              Trang chủ
+            </Nav.Link>
+            <Nav.Link as={Link} to="/products" className="nav-item-link">
+              Sản phẩm
+            </Nav.Link>
+            <Nav.Link as={Link} to="/about" className="nav-item-link">
+              Giới thiệu
+            </Nav.Link>
 
-        <div className={`sk-header__group${mobileOpen ? " is-open" : ""}`}>
-          <nav className={`sk-header__nav${mobileOpen ? " is-open" : ""}`} aria-label="Điều hướng chính">
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="sk-header__nav-link"
-                onClick={() => setMobileOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className={`sk-header__actions${mobileOpen ? " is-open" : ""}`}>
-            <div className="sk-header__search">
-              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={onSearchKeyDown}
-                placeholder="Tìm kiếm sản phẩm, mã thiết bị..."
-                aria-label="Tìm kiếm sản phẩm"
-              />
-              <button type="button" aria-label="Bắt đầu tìm kiếm" onClick={startSearch}>
-                Tìm
-              </button>
-            </div>
-
-            <Link to="/cart" className="sk-header__icon-btn" aria-label="Giỏ hàng" onClick={() => setMobileOpen(false)}>
-              <span className="sk-header__icon-badge">
-                <i className="fa-solid fa-bag-shopping" aria-hidden="true" />
-                {cartCount > 0 && <span className="sk-header__badge">{cartCount}</span>}
-              </span>
-              <span className="sk-header__icon-label">Giỏ hàng</span>
-            </Link>
-
-            <Link
-              to="/account/orders"
-              className="sk-header__icon-btn"
-              aria-label="Đơn hàng của tôi"
-              onClick={() => setMobileOpen(false)}
-            >
-              <span className="sk-header__icon-badge">
-                <i className="fa-solid fa-receipt" aria-hidden="true" />
-              </span>
-              <span className="sk-header__icon-label">Đơn hàng</span>
-            </Link>
-
-            <div className="sk-header__user" ref={menuRef}>
-              {isLoggedIn ? (
-                <>
-                  <button
-                    type="button"
-                    className="sk-header__user-icon"
-                    onClick={() => setMenuOpen((v) => !v)}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpen ? "true" : "false"}
-                  >
-                    <span className="sk-header__avatar-circle">
-                      {(userName || "U").slice(0, 1).toUpperCase()}
-                    </span>
-                    <i className={`fa-solid fa-chevron-${menuOpen ? "up" : "down"}`} aria-hidden="true" />
-                  </button>
-                  {menuOpen && (
-                    <div className="sk-header__dropdown" role="menu">
-                      <div className="sk-header__dropdown-header">
-                        <div className="sk-header__avatar-circle">
-                          {(userName || "U").slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="sk-header__dropdown-meta">
-                          <strong>{userName}</strong>
-                          <span>Tài khoản của bạn</span>
-                        </div>
-                      </div>
-                      <Link to="/account" role="menuitem" onClick={() => setMenuOpen(false)}>
-                        Thông tin cá nhân
-                      </Link>
-                      <Link to="/change-password" role="menuitem" onClick={() => setMenuOpen(false)}>
-                        Đổi mật khẩu
-                      </Link>
-                      <button type="button" role="menuitem" onClick={handleLogout}>
-                        Đăng xuất
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link to="/login" className="sk-header__login" aria-label="Đăng nhập">
-                  <i className="fa-solid fa-user" aria-hidden="true" />
-                </Link>
+            {/* Cart */}
+            <Nav.Link as={Link} to="/cart" className="icon-link position-relative">
+              <FontAwesomeIcon icon={faShoppingCart} size="lg" />
+              {cartCount > 0 && (
+                <Badge bg="danger" pill className="cart-badge">
+                  {cartCount}
+                </Badge>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
+            </Nav.Link>
+
+            {/* User Account */}
+            {userName ? (
+              <Dropdown align="end">
+                <Dropdown.Toggle variant="link" className="user-dropdown-toggle p-0 border-0">
+                  <div className="user-avatar">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu className="user-menu shadow">
+                  <div className="px-3 py-2 border-bottom">
+                    <small className="text-muted">Xin chào,</small>
+                    <div className="fw-bold text-truncate" style={{ maxWidth: "150px" }}>
+                      {userName}
+                    </div>
+                  </div>
+                  <Dropdown.Item as={Link} to="/account">
+                    <FontAwesomeIcon icon={faUserCircle} className="me-2" />
+                    Tài khoản
+                  </Dropdown.Item>
+                  <Dropdown.Item as={Link} to="/change-password">
+                    <FontAwesomeIcon icon={faKey} className="me-2" />
+                    Đổi mật khẩu
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                  <Dropdown.Item onClick={handleLogout} className="text-danger">
+                    <FontAwesomeIcon icon={faSignOutAlt} className="me-2" />
+                    Đăng xuất
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            ) : (
+              <Link to="/login" className="btn btn-outline-primary rounded-pill px-4 ms-2">
+                Đăng nhập
+              </Link>
+            )}
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
-}
+};
+
+export default EcommerceHeader;

@@ -9,7 +9,7 @@ import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
 import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import HomeProductsBody from "./pages/homepage/HomeProductsBody";
+import HomePage from "./pages/homepage/HomePage";
 import AccessDenied from "./pages/auth/AccessDenied";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -99,7 +99,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
-          <Route path="/" element={<HomeProductsBody />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
