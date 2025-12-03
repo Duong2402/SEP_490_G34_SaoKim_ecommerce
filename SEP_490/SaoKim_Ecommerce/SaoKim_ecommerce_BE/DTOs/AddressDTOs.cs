@@ -26,8 +26,10 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? Province { get; set; }
 
         public bool IsDefault { get; set; } = false;
-    }
 
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+    }
     public class AddressUpdateRequest : AddressCreateRequest { }
 
     public class AddressResponse
@@ -36,13 +38,11 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string RecipientName { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string Line1 { get; set; } = string.Empty;
-        public string? Line2 { get; set; }
         public string? Ward { get; set; }
-        public string? District { get; set; }
-        public string? Province { get; set; }
+        public string District { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 }
-
-
-

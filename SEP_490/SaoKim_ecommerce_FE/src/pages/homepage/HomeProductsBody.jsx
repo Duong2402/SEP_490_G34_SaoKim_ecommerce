@@ -136,9 +136,178 @@ function buildImageUrl(path) {
   return `${API_BASE}${API_BASE ? "/" : ""}${path}`;
 }
 
+function HeroBlock() {
+  return (
+    <div className="home-hero__content">
+      <span className="home-hero__badge">
+        <i className="fa-solid fa-star" aria-hidden="true" />
+        Sao Kim Lightning
+      </span>
+      <h1>Chieu sang an tuong cho moi khong gian song va kinh doanh</h1>
+      <p>
+        Lua chon danh muc den trang tri, downlight, tracklight va giai phap chieu sang thong minh
+        duoc Sao Kim tu van chuyen sau. Toi uu anh sang, tiet kiem nang luong va dam bao tieu
+        chuan thiet ke du an.
+      </p>
+      <div className="home-hero__actions">
+        <a className="btn btn-primary btn-small" href="#catalog">
+          Xem danh muc san pham
+        </a>
+        <Link to="/login" className="home-hero__link">
+          Giai phap cho doi tac&nbsp;
+          <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* BANNER + HERO: hero là slide 0, các banner là slide 1..n */
+function HomeBanner() {
+  const [banners, setBanners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [index, setIndex] = useState(0); // 0 = hero, 1..n = banner
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const payload = await fetchJson(`${API_BASE}/api/banner`);
+        if (cancelled) return;
+
+        let list = [];
+        if (Array.isArray(payload)) list = payload;
+        else if (payload?.items) list = payload.items;
+
+        const normalized = (list || []).map((b) => ({
+          id: b.id ?? b.Id,
+          title: b.title ?? b.Title ?? "",
+          imageUrl: b.imageUrl ?? b.ImageUrl ?? "",
+          linkUrl: b.linkUrl ?? b.LinkUrl ?? "",
+          isActive:
+            b.isActive !== undefined
+              ? b.isActive
+              : b.IsActive !== undefined
+                ? b.IsActive
+                : true,
+        }));
+
+        const active = normalized.filter((x) => x.isActive && x.imageUrl);
+        setBanners(active);
+      } catch {
+        setBanners([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalSlides = 1 + (banners?.length || 0);
+
+  useEffect(() => {
+    if (totalSlides <= 1) return; // chỉ hero thì không cần auto slide
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % totalSlides);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [totalSlides]);
+
+  const currentIsHero = index === 0 || totalSlides === 1;
+  const currentBanner = !currentIsHero ? banners[index - 1] : null;
+
+  return (
+    <section className="home-hero">
+      <div className="home-container" style={{ position: "relative" }}>
+        {currentIsHero || loading || !currentBanner ? (
+          <HeroBlock />
+        ) : (
+          <div
+            className="home-banner__media"
+            style={{
+              width: "100%",
+              height: "420px",       // THÊM DÒNG NÀY
+              overflow: "hidden",
+              position: "relative",
+              marginBottom: "24px",
+              borderRadius: "16px",
+            }}
+          >
+            <a href={currentBanner.linkUrl || "#"} style={{ display: "block" }}>
+              <img
+                src={buildImageUrl(currentBanner.imageUrl)}
+                alt={currentBanner.title || "Homepage banner"}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </a>
+
+            {currentBanner.title && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "24px",
+                  bottom: "24px",
+                  background: "rgba(0,0,0,0.45)",
+                  color: "#fff",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  maxWidth: "60%",
+                  fontSize: "15px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {currentBanner.title}
+              </div>
+            )}
+          </div>
+        )}
+
+        {totalSlides > 1 && (
+          <div
+            style={{
+              position: "absolute",
+              right: "18px",
+              bottom: "18px",
+              display: "flex",
+              gap: "6px",
+            }}
+          >
+            {Array.from({ length: totalSlides }).map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIndex(i)}
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  background: i === index ? "#fff" : "rgba(255,255,255,0.5)",
+                }}
+                aria-label={i === 0 ? "Hero" : `Banner ${i}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* SẢN PHẨM */
+
 function ProductCard({ product }) {
   const [imageError, setImageError] = useState(false);
-  const imageSrc = imageError ? "https://via.placeholder.com/600x450?text=No+Image" : buildImageUrl(product.thumbnailUrl);
+  const imageSrc = imageError
+    ? "https://via.placeholder.com/600x450?text=No+Image"
+    : buildImageUrl(product.thumbnailUrl);
   const stockLabel =
     typeof product.stock === "number" && product.stock > 0 ? `${product.stock} còn hàng` : "Đang cập nhật";
 
@@ -200,7 +369,10 @@ function Pagination({ page, totalPages, onPage }) {
   );
 }
 
-function HomeProductsBody({ category: categoryFromProps = "" }) {
+function HomeProductsBody({
+  category: categoryFromProps = "",
+  priceFilter = { min: null, max: null },
+}) {
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sortBy, setSortBy] = useState("new");
@@ -264,7 +436,9 @@ function HomeProductsBody({ category: categoryFromProps = "" }) {
     });
   }, [all.items, priceFilter, priceFilterActive]);
 
-  const totalItems = priceFilterActive ? filteredItems.length : all.totalItems || filteredItems.length;
+  const totalItems = priceFilterActive
+    ? filteredItems.length
+    : all.totalItems || filteredItems.length;
   const startIndex = totalItems ? (priceFilterActive ? 1 : (all.page - 1) * pageSize + 1) : 0;
   const endIndex = totalItems ? (priceFilterActive ? filteredItems.length : Math.min(all.page * pageSize, all.totalItems)) : 0;
 

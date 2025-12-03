@@ -22,28 +22,32 @@ export default function Checkout() {
 
   // Giỏ đầy đủ (theo user hiện tại)
   const [cartItems, setCartItems] = useState(() => readCart());
-  // Danh sách sản phẩm được chọn thanh toán (checkoutItems_<owner>)
   const [checkoutItems, setCheckoutItems] = useState(
     () => readCheckoutItemsForOwner()
   );
 
-  // Nếu có checkoutItems thì dùng, không thì fallback toàn bộ giỏ
   const itemsForCheckout =
     checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
 
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  // Form dùng để truyền sang trang success (lấy từ địa chỉ đã chọn)
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
-    address: "",
+    line1: "",
     note: "",
   });
+
   const [paymentMethod, setPaymentMethod] = useState("COD");
   const [submitting, setSubmitting] = useState(false);
 
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+
   const [shippingMethod, setShippingMethod] = useState("standard");
+  const [shippingFee, setShippingFee] = useState(20000);
+
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherList] = useState([
     { code: "SALE10", label: "Giảm 10%", type: "percent", value: 10 },
@@ -51,7 +55,11 @@ export default function Checkout() {
   ]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 
-  /* ---------- Sync localStorage / đổi user ---------- */
+  // Trạng thái thanh toán VietQR
+  const [paymentVerified, setPaymentVerified] = useState(false);
+  const [autoCheck, setAutoCheck] = useState(false);
+
+  /* ---------- Sync localStorage ---------- */
   useEffect(() => {
     const onStorage = () => {
       setCartItems(readCart());
@@ -71,14 +79,13 @@ export default function Checkout() {
     };
   }, []);
 
-  /* ---------- Khi danh sách sản phẩm thay đổi, chọn hết ---------- */
   useEffect(() => {
     const base =
       checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
     setSelectedIds(new Set(base.map((x) => x.id)));
   }, [checkoutItems, cartItems]);
 
-  /* ---------- Load địa chỉ ---------- */
+  /* ---------- Load địa chỉ đã lưu ---------- */
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -93,17 +100,19 @@ export default function Checkout() {
         const list = await res.json();
         setAddresses(list);
 
-        const def = list.find((x) => x.isDefault) || list[0];
-        if (def) {
-          setSelectedAddressId(def.addressId);
-          setForm({
-            fullName: def.recipientName,
-            phone: def.phoneNumber,
-            address: [def.line1, def.line2, def.ward, def.district, def.province]
-              .filter(Boolean)
-              .join(", "),
-            note: "",
-          });
+        if (list.length > 0) {
+          const def = list.find((x) => x.isDefault) || list[0];
+          if (def) {
+            setSelectedAddressId(def.addressId);
+            setForm({
+              fullName: def.recipientName,
+              phone: def.phoneNumber,
+              line1: def.line1 ?? "",
+              note: "",
+            });
+          }
+        } else {
+          setSelectedAddressId(null);
         }
       } catch {
         // bỏ qua lỗi
@@ -111,33 +120,45 @@ export default function Checkout() {
     })();
   }, [apiBase]);
 
-  /* ---------- Selected items ---------- */
+  /* ---------- Phí ship cho địa chỉ đã chọn ---------- */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    if (!selectedAddressId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `${apiBase}/api/shipping/fee?addressId=${selectedAddressId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.fee === "number") {
+          setShippingFee(data.fee);
+        }
+      } catch {
+        // giữ phí ship cũ nếu lỗi
+      }
+    })();
+  }, [selectedAddressId, apiBase]);
+
+  /* ---------- Selected items / subtotal ---------- */
   const selectedItems = useMemo(
-    () =>
-      itemsForCheckout.filter((it) => selectedIds.has(it.id)),
+    () => itemsForCheckout.filter((it) => selectedIds.has(it.id)),
     [itemsForCheckout, selectedIds]
   );
 
   const subtotal = useMemo(
     () =>
       selectedItems.reduce(
-        (sum, it) =>
-          sum + Number(it.price || 0) * Number(it.quantity || 0),
+        (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
         0
       ),
     [selectedItems]
   );
-
-  const shippingFee = useMemo(() => {
-    switch (shippingMethod) {
-      case "fast":
-        return 40000;
-      case "express":
-        return 60000;
-      default:
-        return 25000;
-    }
-  }, [shippingMethod]);
 
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
@@ -148,7 +169,57 @@ export default function Checkout() {
   }, [selectedVoucher, subtotal]);
 
   const total = Math.max(subtotal + shippingFee - discount, 0);
+  const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
+
+  /* ---------- checkPaid: gọi backend kiểm tra VietQR ---------- */
+const checkPaid = async () => {
+  try {
+    // qrAmount = số tiền cần kiểm tra (bạn đã tính ở trên)
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `${apiBase}/api/payments/check-vietqr?amount=${qrAmount}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }
+    );
+
+    if (!res.ok) {
+      console.error("checkPaid backend error", await res.text());
+      return false;
+    }
+
+    const data = await res.json();
+    // Backend trả { matched: true/false }
+    return !!data.matched;
+  } catch (e) {
+    console.error("Lỗi kiểm tra thanh toán", e);
+    return false;
+  }
+};
+
+
+  /* ---------- Polling tự động khi chọn QR ---------- */
+  useEffect(() => {
+    let interval;
+
+    if (paymentMethod === "QR" && autoCheck && !paymentVerified) {
+      interval = setInterval(async () => {
+        const paid = await checkPaid();
+        if (paid) {
+          setPaymentVerified(true);
+        }
+      }, 3000); // mỗi 3 giây gọi Apps Script
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount]);
 
   /* ---------- Apply voucher ---------- */
   const handleApplyVoucher = () => {
@@ -159,16 +230,10 @@ export default function Checkout() {
     else alert("Mã giảm giá không hợp lệ");
   };
 
-  /* ---------- PAY: tạo đơn + xóa khỏi giỏ sau khi thành công ---------- */
+  /* ---------- PAY ---------- */
   const handlePay = async () => {
-    console.log("HANDLE PAY CLICK");
-
     if (!selectedItems.length) {
       alert("Không có sản phẩm nào để thanh toán");
-      return;
-    }
-    if (!form.fullName || !form.phone || !form.address) {
-      alert("Vui lòng điền đầy đủ thông tin");
       return;
     }
 
@@ -179,22 +244,39 @@ export default function Checkout() {
       return;
     }
 
+    if (!selectedAddressId) {
+      alert("Vui lòng thêm hoặc chọn địa chỉ giao hàng");
+      navigate("/account/addresses", { state: { from: "/checkout" } });
+      return;
+    }
+
+    if (paymentMethod === "QR" && !paymentVerified) {
+      alert(
+        "Thanh toán QR chưa được xác nhận. Vui lòng chuyển khoản và đợi hệ thống báo Thanh toán thành công."
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
-        total,
+        subtotal,
+        addressId: selectedAddressId,
         status: paymentMethod === "COD" ? "Pending" : "Paid",
         paymentMethod,
         shippingMethod,
         note: form.note,
-        items: selectedItems.map((it) => ({
-          productId: it.id,
-          quantity: it.quantity,
-          price: it.price,
-        })),
+        items: selectedItems.map((it) => {
+          const productId = Number(
+            it.productId ?? it.productID ?? it.product_id ?? it.id
+          );
+          return {
+            productId,
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0,
+          };
+        }),
       };
-
-      console.log("CALL /api/orders", payload);
 
       const res = await fetch(`${apiBase}/api/orders`, {
         method: "POST",
@@ -205,8 +287,6 @@ export default function Checkout() {
         body: JSON.stringify(payload),
       });
 
-      console.log("RESULT /api/orders", res.status);
-
       if (!res.ok) {
         const err = await res.text();
         console.error("Order error:", err);
@@ -215,13 +295,13 @@ export default function Checkout() {
       }
 
       const createdOrder = await res.json();
+      const backendTotal =
+        typeof createdOrder.total === "number" ? createdOrder.total : total;
 
-      // Lúc này mới xóa các sản phẩm đã thanh toán khỏi GIỎ của user hiện tại
-      const fullCart = readCart(); // đọc lại giỏ mới nhất
+      const fullCart = readCart();
       const remain = fullCart.filter((it) => !selectedIds.has(it.id));
       writeCart(remain);
 
-      // Xóa checkoutItems_<owner>
       const { checkoutKey } = getCartKeys();
       localStorage.removeItem(checkoutKey);
 
@@ -229,7 +309,7 @@ export default function Checkout() {
         replace: true,
         state: {
           customer: form,
-          total,
+          total: backendTotal,
           paymentMethod,
           shippingMethod,
           selectedVoucher,
@@ -282,23 +362,23 @@ export default function Checkout() {
           >
             {/* LEFT SECTION */}
             <section>
-              {/* Bỏ onSubmit, dùng button tự gọi handlePay */}
               <form>
                 <div style={{ display: "grid", gap: 12 }}>
                   {/* --- ĐỊA CHỈ --- */}
-                  {addresses.length > 0 && (
-                    <div
-                      style={{
-                        padding: 12,
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 12,
-                      }}
-                    >
-                      <strong>Địa chỉ giao hàng</strong>
-                      {addresses.map((a) => (
+                  <div
+                    style={{
+                      padding: 12,
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 12,
+                    }}
+                  >
+                    <strong>Địa chỉ giao hàng</strong>
+
+                    {addresses.length > 0 &&
+                      addresses.map((a) => (
                         <label
                           key={a.addressId}
-                          style={{ display: "flex", gap: 10 }}
+                          style={{ display: "flex", gap: 10, marginTop: 8 }}
                         >
                           <input
                             type="radio"
@@ -306,20 +386,12 @@ export default function Checkout() {
                             checked={selectedAddressId === a.addressId}
                             onChange={() => {
                               setSelectedAddressId(a.addressId);
-                              setForm({
-                                ...form,
+                              setForm((f) => ({
+                                ...f,
                                 fullName: a.recipientName,
                                 phone: a.phoneNumber,
-                                address: [
-                                  a.line1,
-                                  a.line2,
-                                  a.ward,
-                                  a.district,
-                                  a.province,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", "),
-                              });
+                                line1: a.line1 ?? "",
+                              }));
                             }}
                           />
                           <div>
@@ -331,24 +403,41 @@ export default function Checkout() {
                                 </span>
                               )}
                             </div>
-                            <div
-                              style={{ fontSize: 13, color: "#667" }}
-                            >
-                              {[
-                                a.line1,
-                                a.line2,
-                                a.ward,
-                                a.district,
-                                a.province,
-                              ]
+                            <div style={{ fontSize: 13, color: "#667" }}>
+                              {[a.line1, a.ward, a.district, a.province]
                                 .filter(Boolean)
                                 .join(", ")}
                             </div>
                           </div>
                         </label>
                       ))}
+
+                    {addresses.length === 0 && (
+                      <p
+                        style={{
+                          marginTop: 8,
+                          fontSize: 13,
+                          color: "#666",
+                        }}
+                      >
+                        Bạn chưa có địa chỉ giao hàng.
+                      </p>
+                    )}
+
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() =>
+                          navigate("/account/addresses", {
+                            state: { from: "/checkout" },
+                          })
+                        }
+                      >
+                        Thêm địa chỉ mới
+                      </button>
                     </div>
-                  )}
+                  </div>
 
                   {/* --- SHIPPING --- */}
                   <fieldset
@@ -367,7 +456,7 @@ export default function Checkout() {
                         checked={shippingMethod === "standard"}
                         onChange={() => setShippingMethod("standard")}
                       />{" "}
-                      Tiết kiệm - 25.000đ
+                      Tiết kiệm
                     </label>
 
                     <label>
@@ -377,7 +466,7 @@ export default function Checkout() {
                         checked={shippingMethod === "fast"}
                         onChange={() => setShippingMethod("fast")}
                       />{" "}
-                      Nhanh - 40.000đ
+                      Nhanh
                     </label>
 
                     <label>
@@ -387,7 +476,7 @@ export default function Checkout() {
                         checked={shippingMethod === "express"}
                         onChange={() => setShippingMethod("express")}
                       />{" "}
-                      Hỏa tốc - 60.000đ
+                      Hỏa tốc
                     </label>
                   </fieldset>
 
@@ -405,7 +494,11 @@ export default function Checkout() {
                       <input
                         type="radio"
                         checked={paymentMethod === "COD"}
-                        onChange={() => setPaymentMethod("COD")}
+                        onChange={() => {
+                          setPaymentMethod("COD");
+                          setPaymentVerified(false);
+                          setAutoCheck(false);
+                        }}
                       />{" "}
                       Thanh toán khi nhận hàng (COD)
                     </label>
@@ -414,7 +507,11 @@ export default function Checkout() {
                       <input
                         type="radio"
                         checked={paymentMethod === "QR"}
-                        onChange={() => setPaymentMethod("QR")}
+                        onChange={() => {
+                          setPaymentMethod("QR");
+                          setPaymentVerified(false);
+                          setAutoCheck(true); 
+                        }}
                       />{" "}
                       Chuyển khoản qua QR
                     </label>
@@ -424,8 +521,34 @@ export default function Checkout() {
                         <img
                           alt="QR thanh toán"
                           width={160}
-                          src={`https://img.vietqr.io/image/BIDV-4270797287-qr_only.png?amount=${total}&addInfo=Thanh%20toan`}
+                          src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}
+                                &addInfo=${encodeURIComponent(" thanh toan don hang")}`}
                         />
+
+                        {!paymentVerified && (
+                          <p
+                            style={{
+                              marginTop: 8,
+                              fontSize: 14,
+                              color: "#666",
+                            }}
+                          >
+                            Đang chờ thanh toán qua QR. Hệ thống sẽ tự động ghi
+                            nhận khi tiền về tài khoản.
+                          </p>
+                        )}
+                        {paymentVerified && (
+                          <p
+                            style={{
+                              marginTop: 8,
+                              fontSize: 16,
+                              color: "green",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Thanh toán thành công!
+                          </p>
+                        )}
                       </div>
                     )}
                   </fieldset>
@@ -442,15 +565,10 @@ export default function Checkout() {
                     <div style={{ display: "flex", gap: 8 }}>
                       <input
                         value={voucherCode}
-                        onChange={(e) =>
-                          setVoucherCode(e.target.value)
-                        }
+                        onChange={(e) => setVoucherCode(e.target.value)}
                         placeholder="Nhập mã giảm giá"
                       />
-                      <button
-                        type="button"
-                        onClick={handleApplyVoucher}
-                      >
+                      <button type="button" onClick={handleApplyVoucher}>
                         Áp dụng
                       </button>
                     </div>
@@ -480,7 +598,11 @@ export default function Checkout() {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    disabled={submitting || noneChecked}
+                    disabled={
+                      submitting ||
+                      noneChecked ||
+                      (paymentMethod === "QR" && !paymentVerified)
+                    }
                     onClick={handlePay}
                   >
                     {noneChecked
@@ -488,10 +610,7 @@ export default function Checkout() {
                       : "Thanh toán"}
                   </button>
 
-                  <Link
-                    to="/cart"
-                    className="btn btn-outline"
-                  >
+                  <Link to="/cart" className="btn btn-outline">
                     Quay lại giỏ hàng
                   </Link>
                 </div>
@@ -501,7 +620,7 @@ export default function Checkout() {
             {/* RIGHT COLUMN */}
             <aside
               style={{
-                border: "1px solid #e5e7eb",
+                border: "1px solid #ddd",
                 borderRadius: 12,
                 padding: 16,
               }}
@@ -526,9 +645,7 @@ export default function Checkout() {
                     <div>
                       {it.name} × {it.quantity}
                     </div>
-                    <div
-                      style={{ fontSize: 13, color: "#667" }}
-                    >
+                    <div style={{ fontSize: 13, color: "#667" }}>
                       {new Intl.NumberFormat("vi-VN", {
                         style: "currency",
                         currency: "VND",
@@ -572,9 +689,7 @@ export default function Checkout() {
                     }}
                   >
                     <span>Giảm giá:</span>{" "}
-                    <strong>
-                      -{discount.toLocaleString()}đ
-                    </strong>
+                    <strong>-{discount.toLocaleString()}đ</strong>
                   </div>
                 )}
                 <div
