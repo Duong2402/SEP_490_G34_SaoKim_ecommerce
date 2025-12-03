@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
 
@@ -28,7 +29,7 @@ import ProductTrace from "./pages/warehousemanager/ProductTrace";
 import InventoryReport from "./pages/warehousemanager/InventoryReport";
 
 
-// Projects module (cũ)
+// Projects module
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
@@ -56,10 +57,17 @@ import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 //Orders
 import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
 
+//admindashboard
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+//banner
+import BannerList from "./pages/admin/banner/BannerList.jsx";
+import BannerForm from "./pages/admin/banner/BannerForm.jsx";
+
 // Users
-import UserList from "./pages/users/UserList";
-import UserCreate from "./pages/users/UserCreate";
-import UserEdit from "./pages/users/UserEdit";
+import UserList from "./pages/admin/users/UserList";
+import UserCreate from "./pages/admin/users/UserCreate";
+import UserEdit from "./pages/admin/users/UserEdit";
 
 //Import Page
 import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
@@ -75,6 +83,7 @@ import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
 import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate";
 import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
+import ManagerProjectReport from "./pages/manager/projects/ManagerProjectReport";
 
 // Promotions 
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
@@ -104,7 +113,11 @@ export default function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forbidden" element={<AccessDenied />} />
-
+          {/* Banner Management */}
+             <Route path="/admin/banner" element={<BannerList />} />
+            <Route path="/admin/banner/create" element={<BannerForm />} />
+            <Route path="/admin/banner/edit/:id" element={<BannerForm />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -145,9 +158,20 @@ export default function App() {
             <Route path=":id/report" element={<ProjectReport />} />
           </Route>
 
-          {/* Products (ngoài khu Manager) */}
-          <Route path="/products/:id" element={<ProductDetail />} />
+          {/* Projects protected group - Only project_manager */}
+          <Route element={<ProtectedRoute allow={["project_manager"]} />}>
+            <Route path="/projects" element={<ProjectManagerLayout />}>
+              <Route index element={<ProjectList />} />
+              <Route path="overview" element={<ProjectOverview />} />
+              <Route path="create" element={<ProjectCreate />} />
+              <Route path=":id" element={<ProjectDetail />} />
+              <Route path=":id/edit" element={<ProjectEdit />} />
+              <Route path=":id/report" element={<ProjectReport />} />
+            </Route>
+          </Route>
 
+          {/* Products (public) */}
+          <Route path="/products/:id" element={<ProductDetail />} />
 
           {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
@@ -160,38 +184,41 @@ export default function App() {
           <Route path="/account/orders" element={<CustomerOrder />} />
 
           {/* Users Management */}
-          <Route path="/users" element={<UserList />} />
-          <Route path="/users/create" element={<UserCreate />} />
-          <Route path="/users/:id/edit" element={<UserEdit />} />
+          <Route path="/admin/users" element={<UserList />} />
+          <Route path="/admin/users/create" element={<UserCreate />} />
+          <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
-          {/* Manager area */}
-          <Route path="/manager" element={<ManagerLayout />}>
-            <Route index element={<ManagerDashboard />} />
-            <Route path="dashboard" element={<ManagerDashboard />} />
+          {/* Manager area protected group - Only manager */}
+          <Route element={<ProtectedRoute allow={["manager"]} />}>
+            <Route path="/manager" element={<ManagerLayout />}>
+              <Route index element={<ManagerDashboard />} />
+              <Route path="dashboard" element={<ManagerDashboard />} />
 
-            {/* Products cho Manager */}
-            <Route path="products" element={<ManagerProductList />} />
+              {/* Products cho Manager */}
+              <Route path="products" element={<ManagerProductList />} />
 
-            {/* Projects cho Manager */}
-            <Route path="projects" element={<ManagerProjectList />} />
-            <Route path="projects/create" element={<ManagerProjectCreate />} />
-            <Route path="projects/:id" element={<ManagerProjectDetail />} />
-            <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+              {/* Projects cho Manager */}
+              <Route path="projects" element={<ManagerProjectList />} />
+              <Route path="projects/create" element={<ManagerProjectCreate />} />
+              <Route path="projects/:id" element={<ManagerProjectDetail />} />
+              <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+              <Route path="projects/:id/report" element={<ManagerProjectReport />} />
 
-            {/* Promotions cho Manager */}
-            <Route path="promotions" element={<ManagerPromotionList />} />
-            <Route path="promotions/create" element={<ManagerPromotionCreate />} />
-            <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
+              {/* Promotions cho Manager */}
+              <Route path="promotions" element={<ManagerPromotionList />} />
+              <Route path="promotions/create" element={<ManagerPromotionCreate />} />
+              <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
 
-            {/* Coupons cho Manager */}
-            <Route path="coupons" element={<ManagerCouponList />} />
-            <Route path="coupons/create" element={<ManagerCouponCreate />} />
-            <Route path="coupons/:id/edit" element={<ManagerCouponEdit />} />
+              {/* Coupons cho Manager */}
+              <Route path="coupons" element={<ManagerCouponList />} />
+              <Route path="coupons/create" element={<ManagerCouponCreate />} />
+              <Route path="coupons/:id/edit" element={<ManagerCouponEdit />} />
 
-            {/* Employees cho Manager */}
-            <Route path="employees" element={<ManagerEmployeeList />} />
-            <Route path="employees/create" element={<ManagerEmployeeCreate />} />
-            <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
+              {/* Employees cho Manager */}
+              <Route path="employees" element={<ManagerEmployeeList />} />
+              <Route path="employees/create" element={<ManagerEmployeeCreate />} />
+              <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
+            </Route>
           </Route>
 
           {/* 404 */}

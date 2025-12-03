@@ -24,7 +24,7 @@
   display: flex;
   background: var(--staff-blue-50);
   color: var(--staff-text);
-  font-family: var(--font-sans, "Inter", "Be Vietnam Pro", sans-serif);
+  font-family: var(--font-sans);
   width: 100%;
 }
 
@@ -318,14 +318,15 @@
 
 .staff-page-title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 650;
+  font-size: var(--heading-lg);
+  font-weight: var(--weight-medium);
   color: var(--staff-text);
 }
 
 .staff-page-lead {
   margin: 2px 0 0;
   color: var(--staff-muted);
+  font-size: var(--text-sm);
 }
 
 .staff-panel {
@@ -338,8 +339,8 @@
 
 .staff-panel__title {
   margin: 0 0 10px;
-  font-size: 18px;
-  font-weight: 650;
+  font-size: var(--heading-md);
+  font-weight: var(--weight-medium);
   color: var(--staff-text);
 }
 

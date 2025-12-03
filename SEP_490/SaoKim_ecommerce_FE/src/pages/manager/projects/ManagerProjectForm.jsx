@@ -1,5 +1,6 @@
 // src/pages/manager/projects/ManagerProjectForm.jsx
 import { useEffect, useState } from "react";
+import { UserAPI } from "../../../api/users";
 
 const STATUS_OPTIONS = [
   { value: "Draft", label: "Nháp" },
@@ -8,7 +9,23 @@ const STATUS_OPTIONS = [
   { value: "Cancelled", label: "Đã hủy" },
 ];
 
-export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
+const formatBudgetInput = (raw) => {
+  if (raw == null) return "";
+  const digits = String(raw).replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const number = Number(digits);
+  if (Number.isNaN(number)) return "";
+  return number.toLocaleString("vi-VN");
+};
+
+const normalizeBudgetValue = (formatted) =>
+  formatted ? Number(String(formatted).replace(/[^\d]/g, "")) : null;
+
+export default function ManagerProjectForm({
+  initialValues,
+  onSubmit,
+  submitting,
+}) {
   const [values, setValues] = useState({
     name: "",
     customerName: "",
@@ -18,31 +35,90 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
     endDate: "",
     budget: "",
     description: "",
+    projectManagerId: "", // string để bind với <select>
   });
 
+  const [pmOptions, setPmOptions] = useState([]);
+  const [pmLoading, setPmLoading] = useState(false);
+  const [pmError, setPmError] = useState("");
+
+  // Load danh sách PM
+  useEffect(() => {
+    let mounted = true;
+    async function loadPms() {
+      try {
+        setPmLoading(true);
+        setPmError("");
+        const res = await UserAPI.getProjectManagers();
+        const body = res?.data ?? res ?? [];
+        const list = Array.isArray(body) ? body : body.data ?? [];
+        if (mounted) {
+          setPmOptions(Array.isArray(list) ? list : []);
+        }
+      } catch (err) {
+        console.error(err);
+        if (mounted) {
+          setPmOptions([]);
+          setPmError("Không thể tải danh sách PM.");
+        }
+      } finally {
+        if (mounted) setPmLoading(false);
+      }
+    }
+
+    loadPms();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Bind initial values (khi edit)
   useEffect(() => {
     if (initialValues) {
-      setValues({
+      setValues((prev) => ({
+        ...prev,
         name: initialValues.name ?? "",
         customerName: initialValues.customerName ?? "",
         customerContact: initialValues.customerContact ?? "",
         status: initialValues.status ?? "Draft",
-        startDate: initialValues.startDate ? initialValues.startDate.substring(0, 10) : "",
-        endDate: initialValues.endDate ? initialValues.endDate.substring(0, 10) : "",
-        budget: initialValues.budget ?? "",
+        startDate: initialValues.startDate
+          ? initialValues.startDate.substring(0, 10)
+          : "",
+        endDate: initialValues.endDate
+          ? initialValues.endDate.substring(0, 10)
+          : "",
+        budget: formatBudgetInput(initialValues.budget),
         description: initialValues.description ?? "",
-      });
+        projectManagerId:
+          initialValues.projectManagerId != null
+            ? String(initialValues.projectManagerId)
+            : "",
+      }));
     }
   }, [initialValues]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    if (name === "budget") {
+      setValues((prev) => ({ ...prev, budget: formatBudgetInput(value) }));
+      return;
+    }
     setValues((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await onSubmit(values);
+    const normalizedBudget = normalizeBudgetValue(values.budget);
+
+    const payload = {
+      ...values,
+      budget: normalizedBudget,
+      projectManagerId: values.projectManagerId
+        ? Number(values.projectManagerId)
+        : null,
+    };
+
+    await onSubmit(payload);
   };
 
   return (
@@ -72,6 +148,32 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="manager-form__field">
+        <label>Người phụ trách dự án (PM)</label>
+        <select
+          name="projectManagerId"
+          value={values.projectManagerId}
+          onChange={handleChange}
+          className="manager-form__control"
+          disabled={pmLoading}
+        >
+          <option value="">Chưa phân công</option>
+          {pmOptions.map((pm) => (
+            <option key={pm.id} value={pm.id}>
+              {pm.name || pm.email}
+            </option>
+          ))}
+        </select>
+        {pmError && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {pmError}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field">

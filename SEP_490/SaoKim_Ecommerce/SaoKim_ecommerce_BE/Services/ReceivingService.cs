@@ -288,6 +288,21 @@ namespace SaoKim_ecommerce_BE.Services
 
             return slip;
         }
+        public async Task DeleteReceivingSlipAsync(int id)
+        {
+            var slip = await _db.ReceivingSlips
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (slip == null)
+                throw new KeyNotFoundException("Phiếu nhập không tìm thấy");
+
+            if (slip.Status != ReceivingSlipStatus.Draft)
+                throw new InvalidOperationException("Only Draft slips can be deleted");
+
+            slip.IsDeleted = true;
+
+            await _db.SaveChangesAsync();
+        }
 
         public async Task<ReceivingSlipItem> UpdateReceivingSlipItemAsync(int itemId, ReceivingSlipItemDto dto)
         {

@@ -12,7 +12,7 @@ const STATUS_LABELS = {
 };
 
 const formatCurrency = (value) => {
-  if (value == null) return "0 ₫";
+  if (value == null) return "0 ₫";
   return Number(value).toLocaleString("vi-VN") + " ₫";
 };
 
@@ -59,7 +59,9 @@ export default function ManagerProjectDetail() {
           expPayload?.Items ??
           [];
         setExpenses(Array.isArray(expenseItems) ? expenseItems : []);
-        setTotalExpense(Number(expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0));
+        setTotalExpense(
+          Number(expPayload?.totalAmount ?? expPayload?.TotalAmount ?? 0)
+        );
       } catch (err) {
         console.error(err);
         if (mounted) setError("Không thể tải dữ liệu dự án.");
@@ -75,7 +77,11 @@ export default function ManagerProjectDetail() {
   }, [id]);
 
   if (loading) {
-    return <div className="manager-panel manager-empty">Đang tải thông tin dự án...</div>;
+    return (
+      <div className="manager-panel manager-empty">
+        Đang tải thông tin dự án...
+      </div>
+    );
   }
 
   if (error || !project) {
@@ -89,8 +95,8 @@ export default function ManagerProjectDetail() {
   return (
     <div className="manager-section">
       <section className="manager-panel">
-        <div className="manager-panel__header">
-          <div>
+        <div className="manager-panel__header manager-overview__header">
+          <div className="manager-overview__title">
             <p className="manager-panel__subtitle">Mã dự án: {project.code}</p>
             <h2 className="manager-panel__title">{project.name}</h2>
             <StatusBadge value={project.status} />
@@ -112,11 +118,15 @@ export default function ManagerProjectDetail() {
           </div>
         </div>
 
-        <div className="manager-grid-two">
-          <InfoItem label="Khách hàng" value={project.customerName} />
-          <InfoItem label="Liên hệ" value={project.customerContact} />
-          <InfoItem label="Giá trị dự án" value={formatCurrency(project.budget)} />
-          <InfoItem
+        <div className="manager-overview-grid">
+          <OverviewCard label="Khách hàng" value={project.customerName} />
+          <OverviewCard label="Liên hệ" value={project.customerContact} />
+          <OverviewCard
+            label="Giá trị dự án"
+            value={formatCurrency(project.budget)}
+            highlight
+          />
+          <OverviewCard
             label="Ngày bắt đầu"
             value={
               project.startDate
@@ -124,23 +134,25 @@ export default function ManagerProjectDetail() {
                 : "-"
             }
           />
-          <InfoItem
+          <OverviewCard
             label="Ngày kết thúc"
             value={
-              project.endDate ? new Date(project.endDate).toLocaleDateString("vi-VN") : "-"
+              project.endDate
+                ? new Date(project.endDate).toLocaleDateString("vi-VN")
+                : "-"
             }
           />
-          <InfoItem label="Người tạo" value={project.createdBy || "-"} />
+          <OverviewCard
+            label="PM phụ trách"
+            value={project.projectManagerName || "-"}
+          />
+          <OverviewCard label="Người tạo" value={project.createdBy || "-"} />
+          <OverviewCard
+            label="Ghi chú"
+            value={project.description || "-"}
+            full
+          />
         </div>
-
-        {project.description && (
-          <div style={{ marginTop: 18 }}>
-            <div className="manager-card__label" style={{ marginBottom: 6 }}>
-              Ghi chú
-            </div>
-            <p className="manager-panel__subtitle">{project.description}</p>
-          </div>
-        )}
       </section>
 
       <section className="manager-panel">
@@ -154,7 +166,9 @@ export default function ManagerProjectDetail() {
         </div>
         <div className="manager-table__wrapper">
           {products.length === 0 ? (
-            <div className="manager-table__empty">Chưa có sản phẩm nào được gán.</div>
+            <div className="manager-table__empty">
+              Chưa có sản phẩm nào được gán.
+            </div>
           ) : (
             <table className="manager-table">
               <thead>
@@ -187,13 +201,16 @@ export default function ManagerProjectDetail() {
           <div>
             <h2 className="manager-panel__title">Chi phí phát sinh</h2>
             <p className="manager-panel__subtitle">
-              Tổng chi phí thực tế: <strong>{formatCurrency(totalExpense)}</strong>
+              Tổng chi phí thực tế:{" "}
+              <strong>{formatCurrency(totalExpense)}</strong>
             </p>
           </div>
         </div>
         <div className="manager-table__wrapper">
           {expenses.length === 0 ? (
-            <div className="manager-table__empty">Chưa có khoản chi phí nào.</div>
+            <div className="manager-table__empty">
+              Chưa có khoản chi phí nào.
+            </div>
           ) : (
             <table className="manager-table">
               <thead>
@@ -209,7 +226,11 @@ export default function ManagerProjectDetail() {
                 {expenses.map((expense) => (
                   <tr key={expense.id}>
                     <td>
-                      {expense.date ? new Date(expense.date).toLocaleDateString("vi-VN") : "-"}
+                      {expense.date
+                        ? new Date(
+                            expense.date
+                          ).toLocaleDateString("vi-VN")
+                        : "-"}
                     </td>
                     <td>{expense.category ?? "-"}</td>
                     <td>{expense.vendor ?? "-"}</td>
@@ -226,24 +247,30 @@ export default function ManagerProjectDetail() {
   );
 }
 
-function InfoItem({ label, value }) {
-  return (
-    <div>
-      <div className="manager-card__label">{label}</div>
-      <div className="manager-card__value">{value || "-"}</div>
-    </div>
-  );
-}
-
 function StatusBadge({ value }) {
   if (!value) return null;
   let className = "manager-status";
   if (value === "Draft") className += " manager-status--pending";
   if (value === "Cancelled") className += " manager-status--danger";
   return (
-    <span className={className} style={{ marginTop: 8, display: "inline-flex" }}>
+    <span
+      className={className}
+      style={{ marginTop: 8, display: "inline-flex" }}
+    >
       <span className="manager-status__dot" aria-hidden="true" />
       {STATUS_LABELS[value] ?? value}
     </span>
+  );
+}
+
+function OverviewCard({ label, value, highlight = false, full = false }) {
+  let className = "manager-overview-card";
+  if (highlight) className += " manager-overview-card--highlight";
+  if (full) className += " manager-overview-card--full";
+  return (
+    <div className={className}>
+      <div className="manager-overview-card__label">{label}</div>
+      <div className="manager-overview-card__value">{value || "-"}</div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { UserAPI } from "../../api/users";
+import { UserAPI } from "../../../api/users";
 import UserForm from "./UserForm";
 
 export default function UserEdit() {

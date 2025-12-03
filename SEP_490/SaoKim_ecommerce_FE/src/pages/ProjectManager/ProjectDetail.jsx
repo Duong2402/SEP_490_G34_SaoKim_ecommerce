@@ -1,4 +1,4 @@
-﻿// src/pages/ProjectManager/ProjectDetail.jsx
+﻿﻿// src/pages/ProjectManager/ProjectDetail.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -1605,7 +1605,3 @@ function TaskModal({ open, t, form, errors, saving, editing, onChange, onClose, 
   );
 }
 export default ProjectDetail;
-
-
-
-

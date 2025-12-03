@@ -13,14 +13,15 @@ namespace SaoKim_ecommerce_BE.Data
 
         public DbSet<Product> Products => Set<Product>();
         public DbSet<ProductDetail> ProductDetails { get; set; }
-        public DbSet<Category> Categories => Set<Category>();              
+        public DbSet<Category> Categories => Set<Category>();
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Project> Projects { get; set; }
         public DbSet<Address> Addresses { get; set; }
-		public DbSet<Review> Reviews { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+
 
 
         //Customer
@@ -46,6 +47,8 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Promotion> Promotions => Set<Promotion>();
         public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
         public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+        public DbSet<Banner> Banners { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -290,7 +293,14 @@ namespace SaoKim_ecommerce_BE.Data
 
                     e.Property(p => p.StartDate).HasColumnType("date");
                     e.Property(p => p.EndDate).HasColumnType("date");
+
+                    // 1 User (PM) - N Projects
+                    e.HasOne(p => p.ProjectManager)
+                     .WithMany(u => u.ManagedProjects)
+                     .HasForeignKey(p => p.ProjectManagerId)
+                     .OnDelete(DeleteBehavior.Restrict);
                 });
+
 
                 modelBuilder.Entity<TaskItem>(e =>
                 {
@@ -466,8 +476,12 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(x => x.Name).IsRequired().HasMaxLength(200);
                     e.Property(x => x.Description).HasMaxLength(500);
 
+                    e.Property(x => x.ImageUrl).HasMaxLength(500);
+                    e.Property(x => x.LinkUrl).HasMaxLength(500);
+                    e.Property(x => x.DescriptionHtml).HasColumnType("text");
+
                     e.Property(x => x.DiscountType).HasConversion<string>().HasMaxLength(20);
-                    e.Property(x => x.DiscountValue).HasColumnType("numeric(18,2)");
+                    e.Property(x => x.DiscountValue).HasColumnType("numeric(18, 2)");
 
                     e.Property(x => x.StartDate).HasColumnType("timestamp with time zone");
                     e.Property(x => x.EndDate).HasColumnType("timestamp with time zone");
@@ -513,7 +527,19 @@ namespace SaoKim_ecommerce_BE.Data
                     b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
                     b.Property(x => x.Status).IsRequired().HasMaxLength(32);
                 });
+                modelBuilder.Entity<Banner>(b =>
+                {
+                    b.Property(x => x.Title).IsRequired().HasMaxLength(255);
+                    b.Property(x => x.ImageUrl).IsRequired().HasMaxLength(2000);
 
-            }); }
+                    b.Property(x => x.LinkUrl).HasMaxLength(500);
+
+                    b.Property(x => x.CreatedAt)
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'");
+                });
+
+
+            });
+        }
     }
 }

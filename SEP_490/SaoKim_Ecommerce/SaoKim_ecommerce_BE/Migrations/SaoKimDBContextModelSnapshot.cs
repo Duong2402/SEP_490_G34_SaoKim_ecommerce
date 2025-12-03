@@ -22,7 +22,7 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.Property<int>("AddressId")
                         .ValueGeneratedOnAdd()
@@ -44,11 +44,19 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_default");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
                     b.Property<string>("Line1")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("line1");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -85,6 +93,41 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("UserId", "IsDefault");
 
                     b.ToTable("user_addresses", (string)null);
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Banner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Banners");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
@@ -716,6 +759,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("ProjectManagerId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("date");
 
@@ -729,6 +775,8 @@ namespace SaoKim_ecommerce_BE.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("ProjectManagerId");
 
                     b.ToTable("Projects");
                 });
@@ -840,16 +888,27 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("DescriptionHtml")
+                        .HasColumnType("text");
+
                     b.Property<string>("DiscountType")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
                     b.Property<decimal>("DiscountValue")
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18, 2)");
 
                     b.Property<DateTimeOffset>("EndDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1374,7 +1433,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("dispatch_retail_list", (string)null);
                 });
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Address", b =>
+            modelBuilder.Entity("Address", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.User", "User")
                         .WithMany()
@@ -1489,6 +1548,16 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Project", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "ProjectManager")
+                        .WithMany("ManagedProjects")
+                        .HasForeignKey("ProjectManagerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ProjectManager");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectExpense", b =>
@@ -1730,6 +1799,8 @@ namespace SaoKim_ecommerce_BE.Migrations
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.User", b =>
                 {
                     b.Navigation("Invoices");
+
+                    b.Navigation("ManagedProjects");
 
                     b.Navigation("Notes");
 
