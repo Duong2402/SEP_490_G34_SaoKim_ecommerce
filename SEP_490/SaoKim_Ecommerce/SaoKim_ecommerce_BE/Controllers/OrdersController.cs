@@ -1,28 +1,31 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models.Requests;
+using SaoKim_ecommerce_BE.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] 
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly SaoKimDBContext _context;
         private readonly ILogger<OrdersController> _logger;
+        private readonly IDispatchService _dispatchService;
 
-        public OrdersController(SaoKimDBContext context, ILogger<OrdersController> logger)
+        public OrdersController(
+            SaoKimDBContext context,
+            ILogger<OrdersController> logger,
+            IDispatchService dispatchService)
         {
             _context = context;
             _logger = logger;
+            _dispatchService = dispatchService;
         }
 
         [HttpPost]
@@ -48,7 +51,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     return Unauthorized("Không tìm thấy user tương ứng với token");
 
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
-
                 if (productIds.Count == 0)
                     return BadRequest(new { message = "Order must have at least 1 valid product" });
 
@@ -64,14 +66,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var detailDict = details.ToDictionary(d => d.ProductID, d => d);
 
                 decimal totalFromDb = 0m;
-                var orderItems = new List<OrderItem>();
+                var orderItems = new System.Collections.Generic.List<OrderItem>();
 
                 foreach (var i in request.Items)
                 {
                     if (!detailDict.TryGetValue(i.ProductId, out var detail))
                         return BadRequest(new { message = $"Product {i.ProductId} not found" });
 
-                    var unitPrice = detail.Price; 
+                    var unitPrice = detail.Price;
                     var lineTotal = unitPrice * i.Quantity;
                     totalFromDb += lineTotal;
 
@@ -83,17 +85,37 @@ namespace SaoKim_ecommerce_BE.Controllers
                     });
                 }
 
+                var paymentMethod = (request.PaymentMethod ?? "").Trim().ToUpperInvariant();
+
+                var orderStatus = "Paid";
+
                 var order = new Order
                 {
                     UserId = user.UserID,
                     Total = totalFromDb,
-                    Status = string.IsNullOrEmpty(request.Status) ? "Pending" : request.Status!,
+                    Status = orderStatus,
                     CreatedAt = DateTime.UtcNow,
                     Items = orderItems
                 };
 
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
+
+                var dispatchDto = new RetailDispatchCreateDto
+                {
+                    CustomerId = user.UserID,
+                    CustomerName = user.Name,
+                    DispatchDate = DateTime.UtcNow,
+                    SalesOrderNo = $"ORD-{order.OrderId}",  
+                    Note = request.Note,
+                    Items = order.Items.Select(oi => new DispatchItemDto
+                    {
+                        ProductId = oi.ProductId,
+                        Quantity = oi.Quantity
+                    }).ToList()
+                };
+
+                await _dispatchService.CreateSalesDispatchAsync(dispatchDto);
 
                 return Ok(new
                 {
@@ -110,8 +132,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-
-        // GET /api/orders  (khách xem đơn của chính mình)
         [HttpGet]
         public async Task<IActionResult> GetMyOrders()
         {
