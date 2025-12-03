@@ -64,7 +64,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             };
 
             // ================== WAREHOUSE PERFORMANCE ==================
-            var totalStock = await _db.Products
+            var totalStock = await _db.ProductDetails
                 .SumAsync(p => (int?)p.Quantity) ?? 0;
 
             var dayOfWeek = (int)today.DayOfWeek;

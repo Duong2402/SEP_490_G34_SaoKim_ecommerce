@@ -4,6 +4,14 @@ import { ProjectProductAPI } from "../api/ProjectManager/project-products";
 import ProductSelector from "./ProductSelector";
 import Portal from "./Portal";
 
+const formatVnd = (value) => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("vi-VN");
+};
+
+const parseNumber = (value) => Number(String(value || "").replace(/\D/g, "") || 0);
+
 function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
   const [form, setForm] = useState({
     productId: "",
@@ -19,7 +27,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
       setForm({
         productId: product.productId,
         quantity: product.quantity,
-        unitPrice: product.unitPrice,
+        unitPrice: formatVnd(product.unitPrice),
         note: product.note || "",
       });
       setPickedProduct({
@@ -36,6 +44,11 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "unitPrice") {
+      const digits = value.replace(/\D/g, "");
+      setForm((prev) => ({ ...prev, [name]: formatVnd(digits) }));
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -46,7 +59,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         ...prev,
         productId: p.id,
         unitPrice:
-          prev.unitPrice === "" || prev.unitPrice == null ? (p.price ?? "") : prev.unitPrice,
+          prev.unitPrice === "" || prev.unitPrice == null ? formatVnd(p.price ?? "") : prev.unitPrice,
       }));
     } else {
       setForm((prev) => ({ ...prev, productId: "", unitPrice: "" }));
@@ -60,7 +73,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
       if (product?.id) {
         await ProjectProductAPI.update(projectId, product.id, {
           quantity: Number(form.quantity),
-          unitPrice: Number(form.unitPrice ?? 0),
+          unitPrice: parseNumber(form.unitPrice),
           note: form.note || null,
         });
       } else {
@@ -72,7 +85,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         await ProjectProductAPI.create(projectId, {
           productId: Number(form.productId),
           quantity: Number(form.quantity),
-          unitPrice: form.unitPrice === "" ? undefined : Number(form.unitPrice),
+          unitPrice: form.unitPrice === "" ? undefined : parseNumber(form.unitPrice),
           note: form.note || null,
         });
       }
@@ -86,71 +99,47 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
     }
   };
 
+  const title = product ? "Cập nhật sản phẩm" : "Thêm sản phẩm vào dự án";
+  const submitLabel = saving ? "Đang lưu..." : product ? "Cập nhật" : "Thêm";
+
   return (
     <Portal>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,.45)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 999999, // bump để không bị section dưới đè
-        }}
-      >
+      <div className="pm-modal" onClick={onClose}>
         <div
+          className="pm-modal__dialog pm-modal__dialog--wide"
           role="dialog"
           aria-modal="true"
           aria-labelledby="pp-modal-title"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            background: "#fff",
-            width: 720,
-            maxWidth: "95vw",
-            borderRadius: 12,
-            border: "1px solid rgba(148,163,184,.15)",
-            boxShadow: "0 10px 30px rgba(0,0,0,.2)",
-          }}
         >
           <form onSubmit={handleSubmit}>
-            {/* HEADER */}
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid rgba(148,163,184,.15)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 id="pp-modal-title" style={{ margin: 0, fontSize: 18 }}>
-                {product ? "Cập nhật sản phẩm" : "Thêm sản phẩm vào dự án"}
-              </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Đóng"
-                style={{ background: "transparent", border: 0, fontSize: 22, cursor: "pointer" }}
-              >
+            <div className="pm-modal__header">
+              <div>
+                <h2 id="pp-modal-title" className="pm-modal__title">
+                  {title}
+                </h2>
+                <p className="pm-modal__subtitle">
+                  Chọn sản phẩm, nhập số lượng và đơn giá cho dự án.
+                </p>
+              </div>
+              <button type="button" onClick={onClose} aria-label="Đóng" className="pm-modal__close">
                 ×
               </button>
             </div>
 
-            {/* BODY */}
-            <div style={{ padding: 16, display: "grid", gap: 16 }}>
+            <div className="pm-modal__body pm-modal__section">
               {!product && (
-                <div>
-                  <label style={{ display: "block", marginBottom: 6 }}>Chọn sản phẩm</label>
+                <div className="pm-field">
+                  <span className="pm-field__label">Chọn sản phẩm</span>
                   <ProductSelector value={pickedProduct} onSelect={handlePick} />
                   <input type="hidden" name="productId" value={form.productId} readOnly />
+                  <span className="pm-field__hint">Tìm kiếm theo tên hoặc mã SKU.</span>
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label htmlFor="pp-qty" style={{ display: "block", marginBottom: 6 }}>
+              <div className="pm-modal__grid">
+                <div className="pm-field">
+                  <label htmlFor="pp-qty" className="pm-field__label">
                     Số lượng
                   </label>
                   <input
@@ -164,28 +153,30 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                     onChange={handleChange}
                     required
                   />
+                  <span className="pm-field__hint">Nhập số lượng giao/thi công.</span>
                 </div>
 
-                <div>
-                  <label htmlFor="pp-price" style={{ display: "block", marginBottom: 6 }}>
+                <div className="pm-field">
+                  <label htmlFor="pp-price" className="pm-field__label">
                     Đơn giá (VND)
                   </label>
                   <input
                     id="pp-price"
                     name="unitPrice"
                     className="input"
-                    type="number"
-                    min="0"
-                    step="1"
+                    type="text"
+                    inputMode="numeric"
                     value={form.unitPrice}
                     onChange={handleChange}
-                    placeholder="Bỏ trống để dùng giá của sản phẩm"
+                    placeholder="Bỏ trống để dùng giá sản phẩm"
+                    style={{ textAlign: "right" }}
                   />
+                  <span className="pm-field__hint">Có thể bỏ trống để lấy giá mặc định.</span>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="pp-note" style={{ display: "block", marginBottom: 6 }}>
+              <div className="pm-field">
+                <label htmlFor="pp-note" className="pm-field__label">
                   Ghi chú
                 </label>
                 <textarea
@@ -195,26 +186,17 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                   rows={3}
                   value={form.note}
                   onChange={handleChange}
-                  placeholder="Tuỳ chọn"
+                  placeholder="Ghi rõ yêu cầu đóng gói, màu sắc, v.v. (tùy chọn)"
                 />
               </div>
             </div>
 
-            {/* FOOTER */}
-            <div
-              style={{
-                padding: "12px 16px",
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                borderTop: "1px solid rgba(148,163,184,.15)",
-              }}
-            >
+            <div className="pm-modal__footer">
               <button type="button" className="btn" onClick={onClose} disabled={saving}>
-                Huỷ
+                Hủy
               </button>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Đang lưu..." : product ? "Cập nhật" : "Thêm"}
+                {submitLabel}
               </button>
             </div>
           </form>

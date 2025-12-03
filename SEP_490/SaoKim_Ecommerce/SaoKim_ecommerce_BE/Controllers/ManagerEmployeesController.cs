@@ -268,7 +268,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 DOB = ToUtc(dto.Dob),
                 Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
                 CreateAt = DateTime.UtcNow,
-                IsBanned = false
             };
 
             if (dto.Image != null)
@@ -380,7 +379,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             user.DeletedAt = DateTime.UtcNow;
             user.Status = "Inactive";
-            user.IsBanned = true;
 
             await _db.SaveChangesAsync();
             return Ok(new { message = "Employee deleted" });

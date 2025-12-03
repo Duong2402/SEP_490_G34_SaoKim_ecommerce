@@ -115,7 +115,7 @@ export default function ManagerProjectDetail() {
         <div className="manager-grid-two">
           <InfoItem label="Khách hàng" value={project.customerName} />
           <InfoItem label="Liên hệ" value={project.customerContact} />
-          <InfoItem label="Ngân sách" value={formatCurrency(project.budget)} />
+          <InfoItem label="Giá trị dự án" value={formatCurrency(project.budget)} />
           <InfoItem
             label="Ngày bắt đầu"
             value={

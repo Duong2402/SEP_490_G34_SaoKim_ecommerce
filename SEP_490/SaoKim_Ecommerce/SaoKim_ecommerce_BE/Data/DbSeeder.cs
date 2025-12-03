@@ -22,7 +22,7 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
-            // ----- Seed Categories (nếu chưa có) -----
+            // ----- Seed Categories -----
             var catNames = new[] { "Đèn LED" };
             foreach (var name in catNames)
             {
@@ -147,69 +147,115 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.UnitOfMeasures.AnyAsync(x => x.Name == u.Name)) db.UnitOfMeasures.Add(u);
             await db.SaveChangesAsync();
 
-           // ----- Seed Products -----
-            var seeds = new List<Product>
+            // ----- Seed Products -----
+            // ----- Seed Products -----
+            var seedDefs = new[]
             {
-                new() {
-                    ProductName = "Đèn Rạng Đông",
-                    ProductCode = "RD-01",
-                    Supplier    = "Rạng Đông",
-                    Quantity    = 120,
-                    Unit        = "Cái",
-                    Price       = 120000m,
-                    Status      = "Active",
-                    CategoryId  = catDenLed,                    //  dùng FK
-                    Description = "Đèn LED Rạng Đông công suất 12W",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
-                    CreateAt    = DateTime.UtcNow
-                },
-                new() {
-                    ProductName = "Đèn Hừng Sáng",
-                    ProductCode = "HS-01",
-                    Supplier    = "Hừng Sáng",
-                    Quantity    = 85,
-                    Unit        = "Cái",
-                    Price       = 95000m,
-                    Status      = "Active",
-                    CategoryId  = catDenLed,                    // 
-                    Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
-                    CreateAt    = DateTime.UtcNow
-                },
-                new() {
-                    ProductName = "Đèn Sáng",
-                    ProductCode = "HS-02",
-                    Supplier    = "Sáng",
-                    Quantity    = 60,
-                    Unit        = "Cái",
-                    Price       = 110000m,
-                    Status      = "Active",
-                    CategoryId  = catDenLed,                    // 
-                    Description = "Mẫu đèn khác để test",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
-                    CreateAt    = DateTime.UtcNow
-                }
-            };
+    new
+    {
+        ProductName = "Đèn Rạng Đông",
+        ProductCode = "RD-01",
+        Supplier    = "Rạng Đông",
+        Quantity    = 120,
+        Unit        = "Cái",
+        Price       = 120000m,
+        Status      = "Active",
+        CategoryId  = catDenLed,
+        Description = "Đèn LED Rạng Đông công suất 12W",
+        Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong"
+    },
+    new
+    {
+        ProductName = "Đèn Hừng Sáng",
+        ProductCode = "HS-01",
+        Supplier    = "Hừng Sáng",
+        Quantity    = 85,
+        Unit        = "Cái",
+        Price       = 95000m,
+        Status      = "Active",
+        CategoryId  = catDenLed,
+        Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
+        Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang"
+    },
+    new
+    {
+        ProductName = "Đèn Sáng",
+        ProductCode = "HS-02",
+        Supplier    = "Sáng",
+        Quantity    = 60,
+        Unit        = "Cái",
+        Price       = 110000m,
+        Status      = "Active",
+        CategoryId  = catDenLed,
+        Description = "Mẫu đèn khác để test",
+        Image       = "https://via.placeholder.com/200x150?text=Den+Sang"
+    }
+};
 
-            foreach (var s in seeds)
+            foreach (var s in seedDefs)
             {
-                var exist = await db.Products.SingleOrDefaultAsync(x => x.ProductCode == s.ProductCode);
-                if (exist == null)
-                    db.Products.Add(s);
+                // 1. Tìm hoặc tạo Product master (SKU + name)
+                var product = await db.Products
+                    .SingleOrDefaultAsync(x => x.ProductCode == s.ProductCode);
+
+                if (product == null)
+                {
+                    product = new Product
+                    {
+                        ProductCode = s.ProductCode,
+                        ProductName = s.ProductName
+                    };
+                    db.Products.Add(product);
+                    await db.SaveChangesAsync(); // để có ProductID
+                }
                 else
                 {
-                    exist.ProductName = s.ProductName;
-                    exist.Supplier = s.Supplier;
-                    exist.Quantity = s.Quantity;
-                    exist.Unit = s.Unit;
-                    exist.Price = s.Price;
-                    exist.Status = s.Status;
-                    exist.CategoryId = s.CategoryId;          //  cập nhật FK
-                    exist.Description = s.Description;
-                    exist.Image = s.Image;
-                    exist.UpdateAt = DateTime.UtcNow;
+                    // cập nhật tên nếu thay đổi
+                    product.ProductName = s.ProductName;
+                    await db.SaveChangesAsync();
+                }
+
+                // 2. Tìm ProductDetail hiện tại (nếu có)
+                var detail = await db.ProductDetails
+                    .Where(d => d.ProductID == product.ProductID)
+                    .OrderByDescending(d => d.Id)
+                    .FirstOrDefaultAsync();
+
+                var now = DateTime.UtcNow;
+
+                if (detail == null)
+                {
+                    detail = new ProductDetail
+                    {
+                        ProductID = product.ProductID,
+                        CategoryId = s.CategoryId,
+                        Unit = s.Unit,
+                        Price = s.Price,
+                        Quantity = s.Quantity,
+                        Status = s.Status,
+                        Description = s.Description,
+                        Supplier = s.Supplier,
+                        Image = s.Image,
+                        CreateAt = now,
+                        CreateBy = "Seeder"
+                    };
+                    db.ProductDetails.Add(detail);
+                }
+                else
+                {
+                    detail.CategoryId = s.CategoryId;
+                    detail.Unit = s.Unit;
+                    detail.Price = s.Price;
+                    detail.Quantity = s.Quantity;
+                    detail.Status = s.Status;
+                    detail.Description = s.Description;
+                    detail.Supplier = s.Supplier;
+                    detail.Image = s.Image;
+                    detail.UpdateAt = now;
+                    detail.UpdateBy = "Seeder";
                 }
             }
+
             await db.SaveChangesAsync();
 
             var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");

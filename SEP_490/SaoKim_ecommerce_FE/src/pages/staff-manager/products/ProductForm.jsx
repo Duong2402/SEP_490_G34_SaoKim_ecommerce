@@ -1,25 +1,20 @@
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
-import { Row, Col, Form, Button } from "@themesberg/react-bootstrap";
+import { Button, Form } from "@themesberg/react-bootstrap";
 import useCategoriesApi from "../api/useCategories";
 
 const normalizeDefaults = (d = {}) => ({
-  sku: d.sku ?? "",
-  name: d.name ?? "",
-  categoryId: d.categoryId ?? "",       // ✅ dùng id, không còn string name
+  sku: d.sku ?? d.productCode ?? "",
+  name: d.name ?? d.productName ?? "",
+  categoryId: d.categoryId ?? "",
   price: d.price ?? 0,
-  stock: d.stock ?? 0,
-  active: d.active ?? true,
+  stock: d.stock ?? d.quantity ?? 0,
+  active: d.active ?? (d.status ? d.status === "Active" : true),
+  imageFile: null,
 });
 
-export default function ProductForm({
-  defaultValues,
-  submitLabel,
-  loading,
-  onSubmit,
-  onCancel,
-}) {
+export default function ProductForm({ defaultValues, submitLabel, loading, onSubmit, onCancel }) {
   const {
     register,
     handleSubmit,
@@ -43,7 +38,7 @@ export default function ProductForm({
   useEffect(() => {
     (async () => {
       try {
-        const list = await getCategories(); // [{ id, name, slug }]
+        const list = await getCategories();
         setCategories(list || []);
       } catch {
         setCategories([]);
@@ -51,15 +46,14 @@ export default function ProductForm({
     })();
   }, []);
 
-  // Khi chọn option, nếu là "__NEW__" thì bật ô nhập
   const handleCategorySelect = (e) => {
     const v = e.target.value;
     if (v === "__NEW__") {
       setAddingNew(true);
-      setValue("categoryId", ""); // xoá chọn tạm
+      setValue("categoryId", "");
     } else {
       setAddingNew(false);
-      setValue("categoryId", v);  // lưu id dạng string; sẽ Number() khi submit
+      setValue("categoryId", v);
     }
   };
 
@@ -67,18 +61,17 @@ export default function ProductForm({
     const name = newCategory.trim();
     if (!name) return;
     try {
-      const created = await createCategory({ name }); // { id, name, slug }
+      const created = await createCategory({ name });
       setCategories((prev) => [...prev, created]);
-      setValue("categoryId", String(created.id), { shouldValidate: true }); // chọn luôn id mới
+      setValue("categoryId", String(created.id), { shouldValidate: true });
       setAddingNew(false);
       setNewCategory("");
     } catch (err) {
-      alert(err.message || "Create category failed");
+      alert(err.message || "Tạo danh mục thất bại");
     }
   };
 
   const submitWrapped = (values) => {
-    // ép kiểu id sang số ở Add/Edit
     return onSubmit({
       ...values,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
@@ -87,166 +80,133 @@ export default function ProductForm({
 
   return (
     <Form onSubmit={handleSubmit(submitWrapped)} noValidate>
-      <Row className="g-3">
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label>SKU</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="e.g. LED10W-WH"
-              {...register("sku", {
-                required: "SKU is required",
-                minLength: { value: 3, message: "Min 3 characters" },
-              })}
-              isInvalid={!!errors.sku}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.sku?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label>Name</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Product name"
-              {...register("name", { required: "Name is required" })}
-              isInvalid={!!errors.name}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.name?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        {/* CategoryId dropdown */}
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label>Category</Form.Label>
-
-            {!addingNew && (
-              <Form.Select
-                onChange={handleCategorySelect}
-                value={categoryId ?? ""}
-                {...register("categoryId", {
-                  validate: (v) => (v ? true : "Category is required"),
-                })}
-                isInvalid={!!errors.categoryId}
-                disabled={disabled}
-              >
-                <option value="">-- Chọn danh mục --</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-                <option value="__NEW__">+ Thêm danh mục mới…</option>
-              </Form.Select>
-            )}
-
-            {(addingNew || categoryId === "__NEW__") && (
-              <div className="d-flex gap-2 mt-2">
-                <Form.Control
-                  type="text"
-                  placeholder="Nhập danh mục mới"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  disabled={disabled}
-                />
-                <Button
-                  variant="primary"
-                  onClick={handleAddCategory}
-                  disabled={disabled}
-                >
-                  Lưu
-                </Button>
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => {
-                    setAddingNew(false);
-                    setNewCategory("");
-                    setValue("categoryId", "");
-                  }}
-                  disabled={disabled}
-                >
-                  Hủy
-                </Button>
-              </div>
-            )}
-
-            <Form.Control.Feedback type="invalid">
-              {errors.categoryId?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={3}>
-          <Form.Group>
-            <Form.Label>Price</Form.Label>
-            <Form.Control
-              type="number"
-              min={0}
-              {...register("price", {
-                required: "Price is required",
-                valueAsNumber: true,
-              })}
-              isInvalid={!!errors.price}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.price?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={3}>
-          <Form.Group>
-            <Form.Label>Stock</Form.Label>
-            <Form.Control
-              type="number"
-              min={0}
-              {...register("stock", {
-                required: "Stock is required",
-                valueAsNumber: true,
-              })}
-              isInvalid={!!errors.stock}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.stock?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={12}>
-          <Form.Check
-            type="switch"
-            id="active-switch"
-            label="Active"
-            {...register("active")}
+      <div className="staff-form-grid">
+        <Form.Group>
+          <Form.Label>Mã SKU</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Ví dụ: LED10W-WH"
+            {...register("sku", {
+              required: "SKU là bắt buộc",
+              minLength: { value: 3, message: "Tối thiểu 3 ký tự" },
+            })}
+            isInvalid={!!errors.sku}
             disabled={disabled}
           />
-        </Col>
+          <Form.Control.Feedback type="invalid">{errors.sku?.message}</Form.Control.Feedback>
+        </Form.Group>
 
-        <Col md={12} className="d-flex gap-2 justify-content-end">
-          {onCancel && (
-            <Button
-              variant="outline-secondary"
-              onClick={onCancel}
+        <Form.Group>
+          <Form.Label>Tên sản phẩm</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Nhập tên sản phẩm"
+            {...register("name", { required: "Tên sản phẩm là bắt buộc" })}
+            isInvalid={!!errors.name}
+            disabled={disabled}
+          />
+          <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Danh mục</Form.Label>
+
+          {!addingNew && (
+            <Form.Select
+              onChange={handleCategorySelect}
+              value={categoryId ?? ""}
+              {...register("categoryId", {
+                validate: (v) => (v ? true : "Vui lòng chọn danh mục"),
+              })}
+              isInvalid={!!errors.categoryId}
               disabled={disabled}
             >
-              Cancel
-            </Button>
+              <option value="">-- Chọn danh mục --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              <option value="__NEW__">+ Thêm danh mục mới</option>
+            </Form.Select>
           )}
-          <Button type="submit" disabled={disabled}>
-            {submitLabel}
+
+          {(addingNew || categoryId === "__NEW__") && (
+            <div className="d-flex gap-2 mt-2">
+              <Form.Control
+                type="text"
+                placeholder="Tên danh mục mới"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                disabled={disabled}
+              />
+              <Button variant="primary" onClick={handleAddCategory} disabled={disabled}>
+                Lưu
+              </Button>
+              <Button
+                variant="outline-secondary"
+                onClick={() => {
+                  setAddingNew(false);
+                  setNewCategory("");
+                  setValue("categoryId", "");
+                }}
+                disabled={disabled}
+              >
+                Hủy
+              </Button>
+            </div>
+          )}
+
+          <Form.Control.Feedback type="invalid">{errors.categoryId?.message}</Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Giá bán</Form.Label>
+          <Form.Control
+            type="number"
+            min={0}
+            {...register("price", {
+              required: "Giá bán là bắt buộc",
+              valueAsNumber: true,
+            })}
+            isInvalid={!!errors.price}
+            disabled={disabled}
+          />
+          <Form.Control.Feedback type="invalid">{errors.price?.message}</Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Ảnh sản phẩm</Form.Label>
+          <Form.Control
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setValue("imageFile", file, { shouldValidate: false });
+            }}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        <Form.Check
+          type="switch"
+          id="active-switch"
+          label="Kích hoạt hiển thị"
+          {...register("active")}
+          disabled={disabled}
+        />
+      </div>
+
+      <div className="d-flex gap-2 justify-content-end mt-3">
+        {onCancel && (
+          <Button variant="outline-secondary" onClick={onCancel} disabled={disabled}>
+            Hủy
           </Button>
-        </Col>
-      </Row>
+        )}
+        <Button type="submit" disabled={disabled}>
+          {submitLabel}
+        </Button>
+      </div>
     </Form>
   );
 }
@@ -261,7 +221,7 @@ ProductForm.propTypes = {
 
 ProductForm.defaultProps = {
   defaultValues: {},
-  submitLabel: "Save",
+  submitLabel: "Lưu",
   loading: false,
   onCancel: undefined,
 };

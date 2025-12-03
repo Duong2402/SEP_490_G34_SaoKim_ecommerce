@@ -7,11 +7,12 @@ using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Services;   // thêm
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;                     // thêm
 using System.Threading.Tasks;
-
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -21,10 +22,12 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class InvoicesController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
+        private readonly IEmailService _emailService;   // thêm
 
-        public InvoicesController(SaoKimDBContext db)
+        public InvoicesController(SaoKimDBContext db, IEmailService emailService)   // sửa ctor
         {
             _db = db;
+            _emailService = emailService;
         }
 
         // GET /api/invoices
@@ -162,6 +165,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { message = "Deleted" });
         }
+
         // POST /api/invoices/{id}/generate-pdf
         [HttpPost("{id:int}/generate-pdf")]
         public async Task<IActionResult> GeneratePdf(int id, [FromServices] IWebHostEnvironment env)
@@ -208,7 +212,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                     page.Content().Column(col =>
                     {
-                        // Header
                         col.Item().Row(r =>
                         {
                             r.RelativeItem().Column(c =>
@@ -257,7 +260,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                                 t.Cell().Border(0.5f).Padding(6).AlignRight().Text(it.LineTotal == 0 ? "" : VnMoney(it.LineTotal));
                             }
 
-                            // CỘNG
                             t.Cell().Border(0.8f).Padding(6).Text("CỘNG").SemiBold().AlignCenter();
                             t.Cell().Border(0.8f).Padding(6).Text("");
                             t.Cell().Border(0.8f).Padding(6).Text("");
@@ -298,14 +300,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                             r.RelativeItem().AlignCenter().Column(c =>
                             {
                                 c.Item().Text("KHÁCH HÀNG").SemiBold();
-                                c.Item().Height(60); // chỗ ký
+                                c.Item().Height(60);
                                 c.Item().Text(customerSignName).Italic();
                             });
 
                             r.RelativeItem().AlignCenter().Column(c =>
                             {
                                 c.Item().Text("NGƯỜI BÁN HÀNG").SemiBold();
-                                c.Item().Height(60); // chỗ ký
+                                c.Item().Height(60);
                                 c.Item().Text(sellerSignName).Italic();
                             });
                         });
@@ -324,7 +326,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "PDF generated successfully." });
         }
 
-        // GET /api/invoices/{id}/pdf  (download/preview)
+        // GET /api/invoices/{id}/pdf
         [HttpGet("{id:int}/pdf")]
         public async Task<IActionResult> DownloadPdf(int id, [FromServices] IWebHostEnvironment env, [FromQuery] bool inline = false)
         {
@@ -368,5 +370,54 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { message = "Deleted" });
         }
+
+        // POST /api/invoices/{id}/send-email
+        [HttpPost("{id:int}/send-email")]
+        public async Task<IActionResult> SendInvoiceEmail(int id)
+        {
+            var inv = await _db.Set<Invoice>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (inv == null)
+                return NotFound(new { message = "Invoice not found" });
+
+            if (string.IsNullOrWhiteSpace(inv.Email))
+                return BadRequest(new { message = "Customer email is empty" });
+
+            if (inv.Status != InvoiceStatus.Paid)
+                return BadRequest(new { message = "Invoice must be Paid before sending email." });
+
+            if (string.IsNullOrEmpty(inv.PdfFileName))
+                return BadRequest(new { message = "PDF not generated yet." });
+
+            // Link tải/preview PDF
+            var pdfUrl = $"{Request.Scheme}://{Request.Host}/api/invoices/{inv.Id}/pdf";
+
+            var subject = $"Hóa đơn {inv.Code} từ Sao Kim Lighting";
+            var body = $@"
+Chào {inv.CustomerName ?? "quý khách"},
+
+Cảm ơn bạn đã mua hàng tại Sao Kim Lighting.
+
+Thông tin hóa đơn:
+- Mã hóa đơn: {inv.Code}
+- Tổng tiền: {inv.Total:#,0} đ
+- Ngày tạo: {inv.CreatedAt:dd/MM/yyyy HH:mm}
+
+Bạn có thể xem hoặc tải hóa đơn tại đường dẫn:
+{pdfUrl}
+
+Nếu có bất kỳ thắc mắc nào, vui lòng phản hồi email này.
+
+Trân trọng,
+Sao Kim Lighting
+";
+
+            await _emailService.SendAsync(inv.Email, subject, body);
+
+            return Ok(new { message = "Invoice email sent" });
+        }
+
     }
 }

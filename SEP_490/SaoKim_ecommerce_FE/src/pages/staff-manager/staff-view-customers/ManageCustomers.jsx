@@ -7,7 +7,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Badge,
   Breadcrumb,
   Button,
   ButtonGroup,
@@ -16,10 +15,10 @@ import {
   Dropdown,
   Form,
   InputGroup,
-  Row,
-  Table,
   Pagination,
+  Row,
   Spinner,
+  Table,
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -29,11 +28,9 @@ import useCustomersApi from "../api/useCustomers";
 
 export default function ManageCustomers() {
   const navigate = useNavigate();
-  const { fetchCustomers, updateCustomerStatus, exportCustomers } =
-    useCustomersApi();
+  const { fetchCustomers, exportCustomers } = useCustomersApi();
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
   const [createdFrom, setCreatedFrom] = useState(null);
   const [createdTo, setCreatedTo] = useState(null);
   const [minSpend, setMinSpend] = useState("");
@@ -56,7 +53,6 @@ export default function ManageCustomers() {
     try {
       const res = await fetchCustomers({
         q: debouncedSearch,
-        status,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
         minSpend: minSpend || undefined,
@@ -81,49 +77,13 @@ export default function ManageCustomers() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    debouncedSearch,
-    status,
-    createdFrom,
-    createdTo,
-    minSpend,
-    minOrders,
-    page,
-    pageSize,
-    sortBy,
-    sortDir,
-  ]);
-
-  const renderStatus = (isBanned) =>
-    isBanned ? (
-      <Badge bg="secondary">Banned</Badge>
-    ) : (
-      <Badge bg="success">Active</Badge>
-    );
-
-  const handleToggleBan = async (row) => {
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn ${row.isBanned ? "mở khóa" : "khóa"} khách hàng này?`
-      )
-    )
-      return;
-
-    try {
-      await updateCustomerStatus(row.id, !row.isBanned);
-      await load();
-    } catch (error) {
-      console.error(error);
-      alert("Cập nhật trạng thái thất bại");
-    }
-  };
+  }, [debouncedSearch, createdFrom, createdTo, minSpend, minOrders, page, pageSize, sortBy, sortDir]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
       const blob = await exportCustomers({
         q: debouncedSearch,
-        status,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
       });
@@ -131,16 +91,12 @@ export default function ManageCustomers() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      // Đổi sang .xlsx
-      a.download = `customers_${new Date()
-        .toISOString()
-        .replace(/[-:T.]/g, "")
-        .slice(0, 14)}.xlsx`;
+      a.download = `customers_${new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14)}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error(error);
-      alert("Export thất bại");
+      alert("Xuất Excel thất bại");
     } finally {
       setExporting(false);
     }
@@ -148,46 +104,40 @@ export default function ManageCustomers() {
 
   return (
     <StaffLayout>
-      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
+      <div className="staff-page-header">
         <div>
           <Breadcrumb
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/dashboard">
+            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
-            <Breadcrumb.Item>Customers</Breadcrumb.Item>
-            <Breadcrumb.Item active>Manage Customers</Breadcrumb.Item>
+            <Breadcrumb.Item>Khách hàng</Breadcrumb.Item>
+            <Breadcrumb.Item active>Quản lý khách hàng</Breadcrumb.Item>
           </Breadcrumb>
 
-          <h4>Manage Customers</h4>
+          <h4 className="staff-page-title">Quản lý khách hàng</h4>
         </div>
 
-        <Button
-          variant="outline-primary"
-          size="sm"
-          onClick={handleExport}
-          disabled={exporting}
-        >
+        <Button variant="outline-primary" size="sm" onClick={handleExport} disabled={exporting}>
           <FontAwesomeIcon icon={faDownload} className="me-2" />
-          {exporting ? "Exporting..." : "Export Excel"}
+          {exporting ? "Đang xuất..." : "Xuất Excel"}
         </Button>
       </div>
 
-      {/* Search + Filters */}
-      <Card className="mb-4 shadow-sm">
+      <Card className="staff-panel mb-4">
         <Card.Body>
           <Row className="g-3 align-items-end">
             <Col md={4}>
-              <Form.Label>Search</Form.Label>
+              <Form.Label>Tìm kiếm</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <FontAwesomeIcon icon={faSearch} />
                 </InputGroup.Text>
                 <Form.Control
                   type="text"
-                  placeholder="Name, email, phone"
+                  placeholder="Tên, email, số điện thoại"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
@@ -198,22 +148,7 @@ export default function ManageCustomers() {
             </Col>
 
             <Col md={2}>
-              <Form.Label>Status</Form.Label>
-              <Form.Select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="banned">Banned</option>
-              </Form.Select>
-            </Col>
-
-            <Col md={2}>
-              <Form.Label>Created from</Form.Label>
+              <Form.Label>Từ ngày</Form.Label>
               <DatePicker
                 selected={createdFrom}
                 onChange={(date) => {
@@ -228,7 +163,7 @@ export default function ManageCustomers() {
             </Col>
 
             <Col md={2}>
-              <Form.Label>Created to</Form.Label>
+              <Form.Label>Đến ngày</Form.Label>
               <DatePicker
                 selected={createdTo}
                 onChange={(date) => {
@@ -243,7 +178,7 @@ export default function ManageCustomers() {
             </Col>
 
             <Col md={2}>
-              <Form.Label>Min spend</Form.Label>
+              <Form.Label>Chi tiêu tối thiểu</Form.Label>
               <Form.Control
                 type="number"
                 value={minSpend}
@@ -255,7 +190,7 @@ export default function ManageCustomers() {
             </Col>
 
             <Col md={2}>
-              <Form.Label>Min orders</Form.Label>
+              <Form.Label>Đơn hàng tối thiểu</Form.Label>
               <Form.Control
                 type="number"
                 value={minOrders}
@@ -268,16 +203,11 @@ export default function ManageCustomers() {
 
             <Col md="auto" className="ms-auto">
               <Dropdown as={ButtonGroup}>
-                <Dropdown.Toggle
-                  split
-                  as={Button}
-                  variant="link"
-                  className="text-dark m-0 p-0"
-                >
+                <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
                   <FontAwesomeIcon icon={faCog} />
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
-                  <Dropdown.Header>Show</Dropdown.Header>
+                  <Dropdown.Header>Hiển thị</Dropdown.Header>
                   {[10, 20, 30, 50].map((n) => (
                     <Dropdown.Item
                       key={n}
@@ -287,15 +217,13 @@ export default function ManageCustomers() {
                         setPage(1);
                       }}
                     >
-                      {n}
-                      {pageSize === n && (
-                        <FontAwesomeIcon icon={faCheck} className="ms-2" />
-                      )}
+                      {n} dòng
+                      {pageSize === n && <FontAwesomeIcon icon={faCheck} className="ms-2" />}
                     </Dropdown.Item>
                   ))}
 
                   <Dropdown.Divider />
-                  <Dropdown.Header>Sort by</Dropdown.Header>
+                  <Dropdown.Header>Sắp xếp</Dropdown.Header>
 
                   <Dropdown.Item
                     onClick={() => {
@@ -304,7 +232,7 @@ export default function ManageCustomers() {
                       setPage(1);
                     }}
                   >
-                    Created ↓
+                    Ngày tạo mới nhất
                   </Dropdown.Item>
                   <Dropdown.Item
                     onClick={() => {
@@ -313,7 +241,7 @@ export default function ManageCustomers() {
                       setPage(1);
                     }}
                   >
-                    Orders ↓
+                    Số đơn cao xuống thấp
                   </Dropdown.Item>
                   <Dropdown.Item
                     onClick={() => {
@@ -322,7 +250,7 @@ export default function ManageCustomers() {
                       setPage(1);
                     }}
                   >
-                    Total spend ↓
+                    Chi tiêu cao xuống thấp
                   </Dropdown.Item>
                   <Dropdown.Item
                     onClick={() => {
@@ -331,7 +259,7 @@ export default function ManageCustomers() {
                       setPage(1);
                     }}
                   >
-                    Last order ↓
+                    Đơn gần nhất
                   </Dropdown.Item>
                 </Dropdown.Menu>
               </Dropdown>
@@ -340,15 +268,14 @@ export default function ManageCustomers() {
         </Card.Body>
       </Card>
 
-      {/* Table */}
-      <Card className="shadow-sm">
+      <Card className="staff-panel">
         <Card.Body className="pt-0">
           <div className="d-flex justify-content-between mb-2">
-            <div>Total: {total}</div>
+            <div>Tổng số: {total}</div>
             {loading && (
               <div className="d-flex align-items-center gap-2">
                 <Spinner animation="border" size="sm" />
-                <span>Loading…</span>
+                <span>Đang tải...</span>
               </div>
             )}
           </div>
@@ -356,45 +283,37 @@ export default function ManageCustomers() {
           <Table hover className="user-table mb-0">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
+                <th>#</th>
+                <th>Tên khách hàng</th>
                 <th>Email</th>
-                <th>Phone</th>
-                <th className="text-end">Orders</th>
-                <th className="text-end">Total Spend</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th className="text-end">Actions</th>
+                <th>Số điện thoại</th>
+                <th className="text-end">Số đơn</th>
+                <th className="text-end">Tổng chi tiêu</th>
+                <th>Ngày tạo</th>
+                <th className="text-end">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((c) => (
+              {rows.map((c, idx) => (
                 <tr key={c.id}>
-                  <td>{c.id}</td>
+                  <td>{(page - 1) * pageSize + idx + 1}</td>
                   <td>
-                    <Button
-                      variant="link"
-                      className="p-0"
-                      onClick={() => navigate(`/staff-view-customers/${c.id}`)}
-                    >
+                    <Button variant="link" className="p-0" onClick={() => navigate(`/staff-view-customers/${c.id}`)}>
                       {c.name}
                     </Button>
                   </td>
                   <td>{c.email}</td>
                   <td>{c.phoneNumber}</td>
                   <td className="text-end">{c.ordersCount}</td>
-                  <td className="text-end">
-                    {(c.totalSpend ?? 0).toLocaleString("vi-VN")}đ
-                  </td>
-                  <td>{renderStatus(c.isBanned)}</td>
+                  <td className="text-end">{(c.totalSpend ?? 0).toLocaleString("vi-VN")} ₫</td>
                   <td>{formatDate(c.createAt)}</td>
                   <td className="text-end">
                     <Button
                       size="sm"
-                      variant={c.isBanned ? "success" : "outline-danger"}
-                      onClick={() => handleToggleBan(c)}
+                      variant="outline-primary"
+                      onClick={() => navigate(`/staff/manager-orders?customerId=${c.id}`)}
                     >
-                      {c.isBanned ? "Unban" : "Ban"}
+                      Xem đơn
                     </Button>
                   </td>
                 </tr>
@@ -402,41 +321,26 @@ export default function ManageCustomers() {
 
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
-                    No data
+                  <td colSpan={8} className="text-center text-muted py-4">
+                    Chưa có dữ liệu
                   </td>
                 </tr>
               )}
             </tbody>
           </Table>
 
-          {/* Pagination */}
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>
-              Page {page} / {totalPages}
+              Trang {page} / {totalPages}
             </div>
             <Pagination>
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
+              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
 
               {renderPageItems(page, totalPages, setPage)}
 
-              <Pagination.Next
-                disabled={page >= totalPages}
-                onClick={() =>
-                  setPage((p) => Math.min(totalPages, p + 1))
-                }
-              />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              <Pagination.Next disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} />
+              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
             </Pagination>
           </div>
         </Card.Body>
@@ -476,25 +380,19 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2)
-      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item
-        key={p}
-        active={p === current}
-        onClick={() => onClick(p)}
-      >
+      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1)
-      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

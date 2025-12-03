@@ -2,7 +2,6 @@ import {
   faCheck,
   faCog,
   faEdit,
-  // faEye,
   faHome,
   faPlus,
   faSearch,
@@ -19,10 +18,10 @@ import {
   Dropdown,
   Form,
   InputGroup,
+  Pagination,
   Row,
+  Spinner,
   Table,
-  Pagination, // <— thêm
-  Spinner,    // <— thêm (nếu muốn hiển thị loading)
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
@@ -34,31 +33,24 @@ import EditProductForm from "./products/EditProductForm";
 import useProductsApi from "./api/useProducts";
 
 export default function ManageProduct() {
-  // bộ lọc/sort/phân trang
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("id");
-  const [sortDir, setSortDir] = useState("asc"); // hoặc "desc"
+  const [sortDir, setSortDir] = useState("asc");
 
-  // dialog state
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
 
-  // data cục bộ cho bảng
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loadingTable, setLoadingTable] = useState(false);
 
-  // dùng action từ hook
-  const { fetchProducts, deleteProduct } = useProductsApi();
-
-  // debounce search
+  const { fetchProducts, deleteProduct, updateProductStatus } = useProductsApi();
   const debouncedSearch = useDebounce(search, 400);
 
-  // tải dữ liệu server-side
   const load = async (opts) => {
     setLoadingTable(true);
     try {
@@ -73,105 +65,134 @@ export default function ManageProduct() {
       setTotal(res?.total ?? 0);
       setTotalPages(res?.totalPages ?? 1);
 
-      // đồng bộ lại page/pageSize nếu BE trả về khác (phòng trường hợp BE chuẩn hóa)
       if (res?.page && res.page !== page) setPage(res.page);
       if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
     } catch (e) {
-      // có thể hiển thị toast/alert
       console.error(e);
     } finally {
       setLoadingTable(false);
     }
   };
 
-  // lần đầu hoặc khi các tham số thay đổi
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, page, pageSize, sortBy, sortDir]);
 
-  // khi gõ search thì luôn reset page về 1
   const onChangeSearch = (e) => {
     setSearch(e.target.value);
     setPage(1);
   };
 
-  // reload sau khi tạo/sửa/xóa
   const handleReload = async () => {
-    // nếu vừa xóa khiến trang hiện tại > totalPages mới -> lùi 1 trang
     await load();
     if (page > 1 && rows.length === 1 && total > 0) {
-      // sau khi load xong, nếu trang rỗng do vừa xóa bản ghi cuối, lùi trang và load lại
       const newPage = Math.max(1, page - 1);
       if (newPage !== page) {
         setPage(newPage);
-        // load sẽ tự chạy lại do useEffect phụ thuộc page
       }
     }
   };
 
-  // hiển thị nhãn trạng thái
-  const renderStatus = (s) =>
-    s === "Active" ? (
-      <Badge bg="success" text="white">
-        Active
-      </Badge>
-    ) : (
-      <Badge bg="secondary" text="white">
-        Inactive
+  const normalizeStatus = (status) =>
+    String(status || "").trim().toLowerCase();
+
+  const renderStatus = (status) => {
+    const s = normalizeStatus(status);
+
+    if (s === "active") {
+      return (
+        <Badge bg="success" text="white">
+          Đang hiển thị
+        </Badge>
+      );
+    }
+
+    if (s === "inactive") {
+      return (
+        <Badge bg="secondary" text="white">
+          Ngừng bán
+        </Badge>
+      );
+    }
+
+    if (s === "processing") {
+      return (
+        <Badge bg="warning" text="dark">
+          Đang luân chuyển
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge bg="light" text="dark">
+        {status || "Không xác định"}
       </Badge>
     );
+  };
+
+  const handleChangeStatus = async (product, newStatus) => {
+    try {
+      await updateProductStatus(product.id, newStatus);
+      await load();
+    } catch (err) {
+      alert("Cập nhật trạng thái thất bại: " + (err.message || err));
+    }
+  };
 
   return (
     <StaffLayout>
-      {/* Header */}
-      <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-        <div className="d-block mb-4 mb-md-0">
+      <div className="staff-page-header">
+        <div>
           <Breadcrumb
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/dashboard">
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
-            <Breadcrumb.Item>Products</Breadcrumb.Item>
-            <Breadcrumb.Item active>Manage Product</Breadcrumb.Item>
+            <Breadcrumb.Item>Sản phẩm</Breadcrumb.Item>
+            <Breadcrumb.Item active>Quản lý sản phẩm</Breadcrumb.Item>
           </Breadcrumb>
-          <h4>Manage Product</h4>
-          <p className="mb-0">Create, edit, manage product lists</p>
+          <h4 className="staff-page-title">Quản lý sản phẩm</h4>
+          <p className="staff-page-lead">
+            Tạo, chỉnh sửa và duy trì danh mục hàng hóa
+          </p>
         </div>
 
-        <div className="btn-toolbar mb-2 mb-md-0">
+        <div className="staff-panel__actions">
           <Button
             variant="primary"
             size="sm"
             onClick={() => setShowCreate(true)}
           >
             <FontAwesomeIcon icon={faPlus} className="me-2" />
-            Create Product
+            Thêm sản phẩm
           </Button>
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="table-settings mb-4">
-        <Row className="justify-content-between align-items-center">
+      <div className="staff-panel">
+        <Row className="justify-content-between g-3 align-items-end">
           <Col xs={12} md={6} lg={5} xl={4}>
+            <Form.Label>Tìm kiếm</Form.Label>
             <InputGroup>
               <InputGroup.Text>
                 <FontAwesomeIcon icon={faSearch} />
               </InputGroup.Text>
               <Form.Control
                 type="text"
-                placeholder="Search by name, SKU or category"
+                placeholder="Tên, SKU hoặc danh mục"
                 value={search}
                 onChange={onChangeSearch}
               />
             </InputGroup>
           </Col>
 
-            {/* Page size + sort */}
-          <Col xs="auto" className="ps-md-0 text-end">
+          <Col xs="auto" className="text-end">
             <Dropdown as={ButtonGroup}>
               <Dropdown.Toggle
                 split
@@ -184,7 +205,7 @@ export default function ManageProduct() {
                 </span>
               </Dropdown.Toggle>
               <Dropdown.Menu className="dropdown-menu-xs dropdown-menu-right">
-                <Dropdown.Header>Show</Dropdown.Header>
+                <Dropdown.Header>Hiển thị</Dropdown.Header>
                 {[10, 20, 30, 50].map((n) => (
                   <Dropdown.Item
                     key={n}
@@ -195,7 +216,7 @@ export default function ManageProduct() {
                       setPage(1);
                     }}
                   >
-                    {n}
+                    {n} dòng
                     {pageSize === n && (
                       <span className="icon icon-small ms-auto">
                         <FontAwesomeIcon icon={faCheck} />
@@ -205,21 +226,51 @@ export default function ManageProduct() {
                 ))}
 
                 <Dropdown.Divider />
-                <Dropdown.Header>Sort by</Dropdown.Header>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("asc"); setPage(1); }}>
-                  ID ↑
+                <Dropdown.Header>Sắp xếp</Dropdown.Header>
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
+                  ID tăng dần
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("id"); setSortDir("desc"); setPage(1); }}>
-                  ID ↓
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("id");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
+                  ID giảm dần
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("created"); setSortDir("desc"); setPage(1); }}>
-                  Created ↓
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("created");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
+                  Ngày tạo mới nhất
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("name"); setSortDir("asc"); setPage(1); }}>
-                  Name ↑
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("name");
+                    setSortDir("asc");
+                    setPage(1);
+                  }}
+                >
+                  Tên A → Z
                 </Dropdown.Item>
-                <Dropdown.Item onClick={() => { setSortBy("price"); setSortDir("desc"); setPage(1); }}>
-                  Price ↓
+                <Dropdown.Item
+                  onClick={() => {
+                    setSortBy("price");
+                    setSortDir("desc");
+                    setPage(1);
+                  }}
+                >
+                  Giá cao xuống thấp
                 </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
@@ -227,89 +278,131 @@ export default function ManageProduct() {
         </Row>
       </div>
 
-      {/* Table */}
-      <Card border="light" className="table-wrapper table-responsive shadow-sm">
+      <Card className="staff-panel table-responsive">
         <Card.Body className="pt-0">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <div>Total: {total}</div>
+          <div className="staff-table__summary">
+            <div>Tổng số: {total}</div>
             {loadingTable && (
               <div className="d-flex align-items-center gap-2">
                 <Spinner animation="border" size="sm" />
-                <span>Loading…</span>
+                <span>Đang tải...</span>
               </div>
             )}
           </div>
 
-          <Table hover className="user-table align-items-center mb-0">
+          <Table hover className="align-items-center mb-0">
             <thead>
               <tr>
                 <th style={{ whiteSpace: "nowrap" }}>ID</th>
+                <th>Ảnh</th>
                 <th>SKU</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th className="text-end">Price</th>
-                {/*<th className="text-end">Stock</th>*/}
-                <th>Status</th>
-                <th className="text-end">Actions</th>
+                <th>Tên sản phẩm</th>
+                <th>Danh mục</th>
+                <th className="text-end">Giá</th>
+                <th>Trạng thái</th>
+                <th className="text-end">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {(rows || []).map((p) => (
-                <tr key={p.id}>
-                  <td>{p.id}</td>
-                  <td>{p.sku}</td>
-                  <td>{p.name}</td>
-                  <td>{p.category}</td>
-                  <td className="text-end">
-                    {(p.price ?? 0).toLocaleString("vi-VN")}đ
-                  </td>
-                  {/*<td className="text-end">{p.stock}</td>*/}
-                  <td>{renderStatus(p.status)}</td>
-                  <td className="text-end">
-                    {/* icon mat */}
-                    {/* <Button
-                      variant="outline-info"
-                      size="sm"
-                      className="me-2"
-                      title="View"
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </Button> */}
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      title="Edit"
-                      onClick={() => setEditing(p)}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      title="Delete"
-                      onClick={() => setDeleting(p)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {(rows || []).map((p) => {
+                const statusNorm = normalizeStatus(p.status);
+                const isProcessing = statusNorm === "processing";
+
+                return (
+                  <tr key={p.id}>
+                    <td>{p.id}</td>
+                    <td>
+                      {p.image ? (
+                        <img
+                          src={p.image}
+                          alt={p.name}
+                          style={{
+                            width: 48,
+                            height: 48,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            border: "1px solid #e0e0e0",
+                            backgroundColor: "#f8f9fa",
+                          }}
+                        />
+                      ) : (
+                        <span className="text-muted small">Chưa có ảnh</span>
+                      )}
+                    </td>
+                    <td>{p.sku}</td>
+                    <td>{p.name}</td>
+                    <td>{p.category}</td>
+                    <td className="text-end">
+                      {(p.price ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
+                    <td>{renderStatus(p.status)}</td>
+                    <td className="text-end">
+                      {/* Nút đổi trạng thái */}
+                      {isProcessing ? (
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          className="me-2"
+                          title="Mở bán lại sản phẩm này"
+                          onClick={() => handleChangeStatus(p, "Active")}
+                        >
+                          Mở bán lại
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          className="me-2"
+                          title="Đưa sản phẩm vào trạng thái xử lý / luân chuyển"
+                          onClick={() => handleChangeStatus(p, "Processing")}
+                        >
+                          Đưa vào xử lý
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        title="Chỉnh sửa"
+                        onClick={() => setEditing(p)}
+                      >
+                        <FontAwesomeIcon icon={faEdit} />
+                      </Button>
+
+                      <Button
+                        variant={isProcessing ? "outline-secondary" : "outline-danger"}
+                        size="sm"
+                        title={
+                          isProcessing
+                            ? "Không thể xóa khi sản phẩm đang ở trạng thái xử lý / luân chuyển"
+                            : "Xóa sản phẩm"
+                        }
+                        disabled={isProcessing}
+                        onClick={() => {
+                          if (!isProcessing) setDeleting(p);
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {!loadingTable && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
-                    No data
+                  <td colSpan={9} className="text-center text-muted py-4">
+                    Chưa có dữ liệu
                   </td>
                 </tr>
               )}
             </tbody>
           </Table>
 
-          {/* Pagination */}
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>
-              Page {page} / {totalPages}
+              Trang {page} / {totalPages}
             </div>
             <Pagination className="mb-0">
               <Pagination.First
@@ -320,10 +413,7 @@ export default function ManageProduct() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               />
-
-              {/* hiển thị dải trang ngắn gọn */}
               {renderPageItems(page, totalPages, (p) => setPage(p))}
-
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -335,28 +425,38 @@ export default function ManageProduct() {
             </Pagination>
           </div>
 
-          {/* Create */}
-          <Modal show={showCreate} onHide={() => setShowCreate(false)} centered>
+          <Modal
+            show={showCreate}
+            onHide={() => setShowCreate(false)}
+            centered
+            dialogClassName="staff-modal"
+          >
             <Modal.Header closeButton>
-              <Modal.Title>Create Product</Modal.Title>
+              <Modal.Title className="staff-modal__title">
+                Thêm sản phẩm
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <AddProductForm
                 onCancel={() => setShowCreate(false)}
                 onSuccess={() => {
                   setShowCreate(false);
-                  // sau khi tạo mới quay về page 1 để thấy item mới nhất nếu sort id desc
-                  // hoặc chỉ cần reload trang hiện tại
                   load({ page: 1 });
                 }}
               />
             </Modal.Body>
           </Modal>
 
-          {/* Edit */}
-          <Modal show={!!editing} onHide={() => setEditing(null)} centered>
+          <Modal
+            show={!!editing}
+            onHide={() => setEditing(null)}
+            centered
+            dialogClassName="staff-modal"
+          >
             <Modal.Header closeButton>
-              <Modal.Title>Edit Product</Modal.Title>
+              <Modal.Title className="staff-modal__title">
+                Chỉnh sửa sản phẩm
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {editing && (
@@ -368,7 +468,8 @@ export default function ManageProduct() {
                     category: editing.category,
                     price: editing.price,
                     stock: editing.stock,
-                    active: editing.status === "Active" || editing.active,
+                    active:
+                      editing.status === "Active" || editing.active === true,
                   }}
                   onCancel={() => setEditing(null)}
                   onSuccess={() => {
@@ -380,17 +481,16 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
-          {/* Delete */}
           <ConfirmDeleteModal
             show={!!deleting}
-            title="Delete Product"
+            title="Xóa sản phẩm"
             message={
               deleting
-                ? `Are you sure you want to delete "${deleting.name}"? This action cannot be undone.`
+                ? `Bạn có chắc muốn xóa “${deleting.name}”? Thao tác này không thể hoàn tác.`
                 : ""
             }
-            confirmText="Delete"
-            cancelText="Cancel"
+            confirmText="Xóa"
+            cancelText="Hủy"
             loading={false}
             onClose={() => setDeleting(null)}
             onConfirm={async () => {
@@ -400,7 +500,7 @@ export default function ManageProduct() {
                 setDeleting(null);
                 await handleReload();
               } catch (err) {
-                alert("Delete failed: " + err.message);
+                alert("Xóa sản phẩm thất bại: " + err.message);
               }
             }}
           />
@@ -410,7 +510,6 @@ export default function ManageProduct() {
   );
 }
 
-/** Hook debounce ngắn gọn */
 function useDebounce(value, delay = 400) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -420,12 +519,11 @@ function useDebounce(value, delay = 400) {
   return v;
 }
 
-/** Render các nút trang: hiện quanh trang hiện tại */
 function renderPageItems(current, total, onClick) {
   const items = [];
-  const window = 2; // số trang hai bên
-  const start = Math.max(1, current - window);
-  const end = Math.min(total, current + window);
+  const windowSize = 2;
+  const start = Math.max(1, current - windowSize);
+  const end = Math.min(total, current + windowSize);
 
   if (start > 1) {
     items.push(
@@ -433,7 +531,8 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis key="start-ellipsis" disabled />);
   }
 
   for (let p = start; p <= end; p++) {
@@ -449,7 +548,8 @@ function renderPageItems(current, total, onClick) {
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis key="end-ellipsis" disabled />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

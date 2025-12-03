@@ -97,7 +97,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var cat = await _db.Categories.FindAsync(id);
             if (cat == null) return NotFound(new { message = "Category not found" });
 
-            bool hasProducts = await _db.Products.AnyAsync(p => p.CategoryId == id);
+            bool hasProducts = await _db.ProductDetails.AnyAsync(p => p.CategoryId == id);
             if (hasProducts)
                 return BadRequest(new { message = "Cannot delete: category has products" });
 

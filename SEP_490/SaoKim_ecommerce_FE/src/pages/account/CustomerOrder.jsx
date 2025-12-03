@@ -8,14 +8,13 @@ export default function CustomerOrder() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [userId, setUserId] = useState(null);
   const navigate = useNavigate();
 
-  // Lấy base URL từ .env (giống http.ts)
+  // Base URL: ưu tiên .env, nếu không có thì fallback về port backend
   const apiBase =
-    typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL
-      ? import.meta.env.VITE_API_BASE_URL
-      : "";
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_API_BASE_URL) ||
+    "https://localhost:7278";
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -24,39 +23,42 @@ export default function CustomerOrder() {
       return;
     }
 
-    const fetchUserId = async () => {
-      try {
-        const res = await fetch(`${apiBase}/api/users/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Không lấy được thông tin user");
-        const data = await res.json();
-        setUserId(data.userID || data.id); // tuỳ API trả ra
-      } catch (e) {
-        setError(e.message || "Lỗi user");
-      }
-    };
-
-    fetchUserId();
-  }, [navigate, apiBase]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const token = localStorage.getItem("token");
-
     const fetchOrders = async () => {
       setLoading(true);
       setError("");
+
       try {
-        const res = await fetch(
-          `${apiBase}/api/customers/${userId}/orders?page=${page}&pageSize=${pageSize}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!res.ok) throw new Error("Không lấy được đơn hàng");
+        const url = `${apiBase}/api/orders/my?page=${page}&pageSize=${pageSize}`;
+        console.log("Call orders url =", url);
+
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.status === 401) {
+          navigate("/login");
+          return;
+        }
+
+        if (!res.ok) {
+          let msg = `Lỗi API: ${res.status}`;
+          try {
+            const errJson = await res.json();
+            if (errJson?.message || errJson?.detail) {
+              msg += ` - ${errJson.message || errJson.detail}`;
+            }
+          } catch {
+            // ignore nếu body không phải JSON
+          }
+          throw new Error(msg);
+        }
+
         const data = await res.json();
-        setOrders(data.items || []);
-        setTotal(data.total || 0);
+
+        setOrders(data.items || data.orders || data.data || []);
+        setTotal(data.total || data.totalCount || 0);
       } catch (e) {
         setError(e.message || "Lỗi tải đơn hàng");
       } finally {
@@ -65,12 +67,11 @@ export default function CustomerOrder() {
     };
 
     fetchOrders();
-  }, [userId, page, pageSize, apiBase]);
+  }, [page, pageSize, apiBase, navigate]);
 
   const nextPage = () => setPage((p) => p + 1);
   const prevPage = () => setPage((p) => Math.max(1, p - 1));
 
-  // Lấy danh sách tên sản phẩm từ một order (gộp thành chuỗi)
   const getProductNames = (order) => {
     const items =
       order.items ||
@@ -87,6 +88,27 @@ export default function CustomerOrder() {
 
     return names.length > 0 ? names.join(", ") : "-";
   };
+
+  const getProductImage = (order) => {
+  const items =
+    order.items ||
+    order.Items ||
+    order.products ||
+    order.Products ||
+    [];
+
+  if (!Array.isArray(items) || items.length === 0) return "";
+
+  const first = items[0];
+
+  return (
+    first.productImage ||
+    first.ProductImage ||
+    first.imageUrl ||
+    first.ImageUrl ||
+    ""
+  );
+};
 
   return (
     <div
@@ -135,40 +157,62 @@ export default function CustomerOrder() {
           }}
         >
           <thead>
-            <tr style={{ background: "#f5f5f7" }}>
-              <th style={{ padding: 8, border: "1px solid #eee" }}>Mã đơn</th>
-              <th style={{ padding: 8, border: "1px solid #eee" }}>Ngày đặt</th>
-              <th style={{ padding: 8, border: "1px solid #eee" }}>Sản phẩm</th>
-              <th style={{ padding: 8, border: "1px solid #eee" }}>Tổng tiền</th>
-              <th style={{ padding: 8, border: "1px solid #eee" }}>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o.orderId || o.OrderId}>
-                <td style={{ padding: 8, border: "1px solid #eee" }}>
-                  {o.orderId || o.OrderId}
-                </td>
-                <td style={{ padding: 8, border: "1px solid #eee" }}>
-                  {o.createdAt
-                    ? new Date(o.createdAt).toLocaleString("vi-VN")
-                    : "-"}
-                </td>
-                <td style={{ padding: 8, border: "1px solid #eee" }}>
-                  {getProductNames(o)}
-                </td>
-                <td style={{ padding: 8, border: "1px solid #eee" }}>
-                  {o.total != null
-                    ? Number(o.total).toLocaleString("vi-VN")
-                    : "0"}{" "}
-                  ₫
-                </td>
-                <td style={{ padding: 8, border: "1px solid #eee" }}>
-                  {o.status || "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
+  <tr style={{ background: "#f5f5f7" }}>
+    <th style={{ padding: 8, border: "1px solid #eee" }}>Sản phẩm</th>
+    <th style={{ padding: 8, border: "1px solid #eee" }}>Ngày đặt</th>
+    <th style={{ padding: 8, border: "1px solid #eee" }}>Tổng tiền</th>
+    <th style={{ padding: 8, border: "1px solid #eee" }}>Trạng thái</th>
+  </tr>
+</thead>
+<tbody>
+  {orders.map((o) => {
+    const img = getProductImage(o);
+    return (
+      <tr key={o.orderId || o.OrderId}>
+        <td style={{ padding: 8, border: "1px solid #eee" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {img && (
+              <img
+                src={img}
+                alt={getProductNames(o)}
+                style={{
+                  width: 48,
+                  height: 48,
+                  objectFit: "cover",
+                  borderRadius: 4,
+                  border: "1px solid #ddd",
+                }}
+              />
+            )}
+            <span>{getProductNames(o)}</span>
+          </div>
+        </td>
+        <td style={{ padding: 8, border: "1px solid #eee" }}>
+          {o.createdAt || o.CreatedAt || o.orderDate || o.OrderDate
+            ? new Date(
+                o.createdAt || o.CreatedAt || o.orderDate || o.OrderDate
+              ).toLocaleString("vi-VN")
+            : "-"}
+        </td>
+        <td style={{ padding: 8, border: "1px solid #eee" }}>
+          {o.total != null || o.Total != null
+            ? Number(o.total ?? o.Total).toLocaleString("vi-VN")
+            : "0"}{" "}
+          ₫
+        </td>
+        <td style={{ padding: 8, border: "1px solid #eee" }}>
+          {o.status || o.Status || "-"}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
         </table>
       )}
 

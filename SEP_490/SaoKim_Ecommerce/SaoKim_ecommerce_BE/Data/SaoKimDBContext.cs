@@ -12,6 +12,7 @@ namespace SaoKim_ecommerce_BE.Data
         public SaoKimDBContext(DbContextOptions<SaoKimDBContext> options) : base(options) { }
 
         public DbSet<Product> Products => Set<Product>();
+        public DbSet<ProductDetail> ProductDetails { get; set; }
         public DbSet<Category> Categories => Set<Category>();              
         public DbSet<ReceivingSlip> ReceivingSlips => Set<ReceivingSlip>();
         public DbSet<ReceivingSlipItem> ReceivingSlipItems => Set<ReceivingSlipItem>();
@@ -21,11 +22,16 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Address> Addresses { get; set; }
 		public DbSet<Review> Reviews { get; set; }
 
+
         //Customer
         public DbSet<CustomerNote> CustomerNotes { get; set; }
         public DbSet<StaffActionLog> StaffActionLogs { get; set; }
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
+        // Invoice
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceItem> InvoiceItems { get; set; }
 
 
         // NEW:
@@ -40,6 +46,8 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Promotion> Promotions => Set<Promotion>();
         public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
         public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
+        public DbSet<Banner> Banners { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -52,7 +60,7 @@ namespace SaoKim_ecommerce_BE.Data
                     .HasForeignKey(u => u.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Category (NEW)
+                // Category
                 modelBuilder.Entity<Category>(e =>
                 {
                     e.ToTable("categories");
@@ -72,11 +80,11 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(x => x.Slug).HasDatabaseName("IX_categories_slug");
                 });
 
-                // Product (UPDATED: dùng CategoryId thay string Category)
                 // products
                 modelBuilder.Entity<Product>(e =>
                 {
                     e.ToTable("products");
+
                     e.HasKey(x => x.ProductID);
 
                     e.Property(x => x.ProductName)
@@ -90,8 +98,30 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(x => x.ProductCode)
                         .IsUnique();
 
+                    // Quan hệ 1-n Product -> ProductDetail
+                    e.HasMany(x => x.ProductDetails)
+                        .WithOne(d => d.Product)
+                        .HasForeignKey(d => d.ProductID)
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+                modelBuilder.Entity<ProductDetail>(e =>
+                {
+                    e.ToTable("product_details");
+
+                    e.HasKey(x => x.Id);
+
                     e.Property(x => x.Unit)
                         .HasMaxLength(50);
+
+                    e.Property(x => x.Price)
+                        .HasColumnType("decimal(18,2)");
+
+                    e.Property(x => x.Status)
+                        .HasMaxLength(50);
+
+                    e.Property(x => x.Image)
+                        .HasMaxLength(300);
 
                     e.Property(x => x.Description)
                         .HasMaxLength(500);
@@ -99,18 +129,8 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(x => x.Supplier)
                         .HasMaxLength(200);
 
-                    e.Property(x => x.Image)
-                        .HasMaxLength(300);
-
-                    e.Property(x => x.Price)
-                        .HasColumnType("decimal(18,2)");
-
                     e.Property(x => x.Note)
                         .HasMaxLength(500);
-
-
-                    e.Property(x => x.Status)
-                        .HasMaxLength(50);
 
                     e.Property(x => x.CreateAt)
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -122,10 +142,10 @@ namespace SaoKim_ecommerce_BE.Data
                         .HasColumnName("category_id");
 
                     e.HasIndex(x => x.CategoryId)
-                        .HasDatabaseName("IX_products_category_id");
+                        .HasDatabaseName("IX_product_details_category_id");
 
                     e.HasOne(x => x.Category)
-                        .WithMany(c => c.Products)
+                        .WithMany(c => c.ProductDetails)
                         .HasForeignKey(x => x.CategoryId)
                         .OnDelete(DeleteBehavior.SetNull);
                 });
@@ -311,6 +331,7 @@ namespace SaoKim_ecommerce_BE.Data
 
 
                 // Invoices
+                base.OnModelCreating(modelBuilder);
                 modelBuilder.Entity<Invoice>(e =>
                 {
                     e.ToTable("invoices");
@@ -318,18 +339,34 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(x => x.Code).HasMaxLength(40).IsRequired();
                     e.HasIndex(x => x.Code).IsUnique();
 
+                    e.Property(x => x.CustomerId).HasColumnName("customer_id");
+                    e.Property(x => x.CustomerName).HasMaxLength(200);
                     e.Property(x => x.Email).HasMaxLength(200);
                     e.Property(x => x.Phone).HasMaxLength(50);
+
+                    e.Property(x => x.OrderId).HasColumnName("order_id");
+
                     e.Property(x => x.CreatedAt).HasDefaultValueSql("NOW()");
 
                     e.Property(x => x.Subtotal).HasColumnType("numeric(18,2)");
+                    e.Property(x => x.Discount).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Tax).HasColumnType("numeric(18,2)");
                     e.Property(x => x.Total).HasColumnType("numeric(18,2)");
 
-                    // PDF columns
                     e.Property(x => x.PdfFileName).HasMaxLength(260);
                     e.Property(x => x.PdfOriginalName).HasMaxLength(260);
+
+                    e.HasOne(x => x.Customer)
+                     .WithMany(u => u.Invoices)
+                     .HasForeignKey(x => x.CustomerId)
+                     .OnDelete(DeleteBehavior.Restrict);
+
+                    e.HasOne(x => x.Order)
+                     .WithOne(o => o.Invoice)
+                     .HasForeignKey<Invoice>(x => x.OrderId)
+                     .OnDelete(DeleteBehavior.Cascade);
                 });
+
 
 
                 modelBuilder.Entity<InvoiceItem>(e =>
@@ -349,9 +386,6 @@ namespace SaoKim_ecommerce_BE.Data
                      .OnDelete(DeleteBehavior.Cascade);
                 });
 
-                //(Customer) Soft delete filter cho User 
-                /*modelBuilder.Entity<User>()
-                    .HasQueryFilter(u => u.DeletedAt == null);*/
 
                 modelBuilder.Entity<CustomerNote>()
                     .HasOne(n => n.Customer)
@@ -371,8 +405,6 @@ namespace SaoKim_ecommerce_BE.Data
                     .HasForeignKey(l => l.StaffId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // traceability
-                // ===== Address =====
                 modelBuilder.Entity<Address>(e =>
                 {
                     e.ToTable("user_addresses");
@@ -391,7 +423,6 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(a => new { a.UserId, a.IsDefault });
                 });
 
-                // ===== Review =====
                 modelBuilder.Entity<Review>(e =>
                 {
                     e.ToTable("product_reviews");
@@ -484,6 +515,17 @@ namespace SaoKim_ecommerce_BE.Data
                     b.Property(x => x.MinOrderAmount).HasColumnType("numeric(18,2)");
                     b.Property(x => x.Status).IsRequired().HasMaxLength(32);
                 });
+                modelBuilder.Entity<Banner>(b =>
+                {
+                    b.Property(x => x.Title).IsRequired().HasMaxLength(255);
+                    b.Property(x => x.ImageUrl).IsRequired().HasMaxLength(2000);
+
+                    b.Property(x => x.LinkUrl).HasMaxLength(500);
+
+                    b.Property(x => x.CreatedAt)
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'");
+                });
+
 
             }); }
     }

@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
-import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
-import { useLanguage } from "./i18n/LanguageProvider.jsx";
+
 
 // Auth & commons
 import Login from "./pages/auth/Login";
@@ -21,10 +20,13 @@ import DispatchSlipItems from "./pages/warehousemanager/DispatchSlipItems";
 import DispatchCreate from "./pages/warehousemanager/DispatchCreate.jsx";
 import DispatchList from "./pages/warehousemanager/DispatchList";
 import InboundReport from "./pages/warehousemanager/InboundReport";
+import OutboundReport from "./pages/warehousemanager/OutboundReport";
 import WarehouseReport from "./pages/warehousemanager/WarehouseReport";
 import WarehouseDashboard from "./pages/warehousemanager/WarehouseDashboard";
 import WarehouseInventory from "./pages/warehousemanager/WarehouseInventory";
 import ProductTrace from "./pages/warehousemanager/ProductTrace";
+import InventoryReport from "./pages/warehousemanager/InventoryReport";
+
 
 // Projects module (cũ)
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
@@ -32,6 +34,7 @@ import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
+import ProjectOverview from "./pages/ProjectManager/ProjectOverview.jsx";
 import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 // Products (staff manager)
@@ -50,16 +53,27 @@ import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard
 //Invoices
 import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 
+//Orders
+import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
+
+//admindashboard
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+//banner
+import BannerList from "./pages/admin/banner/BannerList.jsx";
+import BannerForm from "./pages/admin/banner/BannerForm.jsx";
+
 // Users
-import UserList from "./pages/users/UserList";
-import UserCreate from "./pages/users/UserCreate";
-import UserEdit from "./pages/users/UserEdit";
+import UserList from "./pages/admin/users/UserList";
+import UserCreate from "./pages/admin/users/UserCreate";
+import UserEdit from "./pages/admin/users/UserEdit";
 
 //Import Page
 import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
 
 // Manager area
 import ManagerLayout from "./layouts/ManagerLayout";
+import ProjectManagerLayout from "./layouts/ProjectManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
 import ManagerProductList from "./pages/manager/products/ManagerProductList";
 
@@ -84,12 +98,10 @@ import ManagerEmployeeList from "./pages/manager/employees/ManagerEmployeeList";
 import ManagerEmployeeCreate from "./pages/manager/employees/ManagerEmployeeCreate";
 import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
 
-export default function App() {
-  const { t } = useLanguage();
 
+export default function App() {
   return (
     <div className="page-wrapper">
-      <LanguageSwitcher />
       <BrowserRouter>
         <Routes>
           {/* Public */}
@@ -100,7 +112,11 @@ export default function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forbidden" element={<AccessDenied />} />
-
+          {/* Banner Management */}
+             <Route path="/admin/banner" element={<BannerList />} />
+            <Route path="/admin/banner/create" element={<BannerForm />} />
+            <Route path="/admin/banner/edit/:id" element={<BannerForm />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -115,29 +131,37 @@ export default function App() {
               <Route path="trace" element={<ProductTrace />} />
               <Route path="warehouse-report" element={<WarehouseReport />} />
               <Route path="warehouse-report/inbound-report" element={<InboundReport />} />
+              <Route path="warehouse-report/outbound-report" element={<OutboundReport />} />
+              <Route path="warehouse-report/inventory-report" element={<InventoryReport />}
+              />
             </Route>
           </Route>
 
+          {/* Staff protected group */}
+          <Route element={<ProtectedRoute allow={["staff"]} />}>
+            <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
+            <Route path="/staff/manager-products" element={<ManageProduct />} />
+            <Route path="/staff/manager-customers" element={<ManageCustomers />} />
+            <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
+            <Route path="/staff/manager-orders" element={<ManageOrders />} />
+            <Route path="/staff/invoices" element={<ManageInvoices />} />
+          </Route>
+
           {/* Projects (ngoài khu Manager) */}
-          <Route path="/projects" element={<ProjectList />} />
-          <Route path="/projects/create" element={<ProjectCreate />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/projects/:id/edit" element={<ProjectEdit />} />
-          <Route path="/projects/:id/report" element={<ProjectReport />} />
+          <Route path="/projects" element={<ProjectManagerLayout />}>
+            <Route index element={<ProjectList />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            <Route path="create" element={<ProjectCreate />} />
+            <Route path=":id" element={<ProjectDetail />} />
+            <Route path=":id/edit" element={<ProjectEdit />} />
+            <Route path=":id/report" element={<ProjectReport />} />
+          </Route>
 
           {/* Products (ngoài khu Manager) */}
           <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/staff/manager-products" element={<ManageProduct />} />
 
-          {/* Customers */}
-          <Route path="/staff/manager-customers" element={<ManageCustomers />} />
-          <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
 
-          <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
-
-          {/* Invoices */}
-          <Route path="/staff/invoices" element={<ManageInvoices />} />
-          <Route path="/products" element={<ManageProduct />} />
+          {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
@@ -148,9 +172,9 @@ export default function App() {
           <Route path="/account/orders" element={<CustomerOrder />} />
 
           {/* Users Management */}
-          <Route path="/users" element={<UserList />} />
-          <Route path="/users/create" element={<UserCreate />} />
-          <Route path="/users/:id/edit" element={<UserEdit />} />
+          <Route path="/admin/users" element={<UserList />} />
+          <Route path="/admin/users/create" element={<UserCreate />} />
+          <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
           {/* Manager area */}
           <Route path="/manager" element={<ManagerLayout />}>
@@ -170,7 +194,7 @@ export default function App() {
             <Route path="promotions" element={<ManagerPromotionList />} />
             <Route path="promotions/create" element={<ManagerPromotionCreate />} />
             <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
-            
+
             {/* Coupons cho Manager */}
             <Route path="coupons" element={<ManagerCouponList />} />
             <Route path="coupons/create" element={<ManagerCouponCreate />} />
@@ -180,12 +204,12 @@ export default function App() {
             <Route path="employees" element={<ManagerEmployeeList />} />
             <Route path="employees/create" element={<ManagerEmployeeCreate />} />
             <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
-          </Route>
-
+           </Route>
+          
           {/* 404 */}
           <Route
             path="*"
-            element={<div style={{ padding: 24 }}>{t("common.pageNotFound")}</div>}
+            element={<div style={{ padding: 24 }}>Không tìm thấy trang.</div>}
           />
         </Routes>
       </BrowserRouter>

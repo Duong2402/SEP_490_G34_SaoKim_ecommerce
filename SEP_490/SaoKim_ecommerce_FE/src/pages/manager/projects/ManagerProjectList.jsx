@@ -63,7 +63,7 @@ export default function ManagerProjectList() {
         <div>
           <h2 className="manager-panel__title">Quản lý dự án</h2>
           <p className="manager-panel__subtitle">
-            Theo dõi tiến độ, ngân sách và trạng thái của từng dự án khách hàng.
+            Theo dõi tiến độ, giá trị dự án và trạng thái của từng dự án khách hàng.
           </p>
         </div>
         <div className="manager-panel__actions">
@@ -148,7 +148,7 @@ export default function ManagerProjectList() {
               <th>Trạng thái</th>
               <th>Bắt đầu</th>
               <th>Kết thúc</th>
-              <th>Ngân sách</th>
+              <th>Giá trị dự án</th>
               <th></th>
             </tr>
           </thead>

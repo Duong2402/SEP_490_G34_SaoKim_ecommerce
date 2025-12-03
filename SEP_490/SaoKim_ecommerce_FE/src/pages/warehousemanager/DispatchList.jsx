@@ -16,6 +16,7 @@ import {
   Badge,
   Button,
 } from "@themesberg/react-bootstrap";
+import { Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Dropdown from "react-bootstrap/Dropdown";
@@ -43,6 +44,14 @@ const normType = (type, row) => {
   return row?.customerId || row?.salesOrderNo ? "Sales" : "Project";
 };
 
+const getSlipId = (row) =>
+  row?.id ??
+  row?.dispatchSlipId ??
+  row?.dispatchSlipID ??
+  row?.dispatchId ??
+  row?.slipId ??
+  row?.slipID;
+
 const DispatchList = () => {
   const navigate = useNavigate();
 
@@ -59,16 +68,30 @@ const DispatchList = () => {
   const [sortOrder, setSortOrder] = useState("desc");
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const [notification, setNotification] = useState(null);
 
   const formatDate = (value) =>
     value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+
+  const getTypeFilterLabel = (val) => {
+    switch (val) {
+      case "All":
+        return "Tất cả loại phiếu";
+      case "Sales":
+        return "Phiếu xuất bán";
+      case "Project":
+        return "Phiếu xuất dự án";
+      default:
+        return "Tất cả loại phiếu";
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("pageSize", pageSize);
+      params.append("page", String(page));
+      params.append("pageSize", String(pageSize));
 
       if (typeFilter !== "All") {
         params.append("type", typeFilter);
@@ -91,7 +114,11 @@ const DispatchList = () => {
       setRows(data.items || []);
       setTotal(data.total || 0);
     } catch (error) {
-      console.error("Error loading dispatch slips:", error);
+      console.error("Lỗi khi tải danh sách phiếu xuất kho:", error);
+      setNotification({
+        type: "danger",
+        message: "Lỗi khi tải danh sách phiếu xuất kho.",
+      });
     } finally {
       setLoading(false);
     }
@@ -107,7 +134,7 @@ const DispatchList = () => {
     connection.off("DispatchSlipsUpdated");
 
     connection.on("DispatchSlipsUpdated", (payload) => {
-      console.log("DispatchSlipsUpdated:", payload);
+      console.log("Sự kiện DispatchSlipsUpdated:", payload);
 
       const { action } = payload || {};
       if (!action) return;
@@ -127,8 +154,10 @@ const DispatchList = () => {
     if (connection.state === signalR.HubConnectionState.Disconnected) {
       connection
         .start()
-        .then(() => console.log("SignalR connected in DispatchList"))
-        .catch((err) => console.error("SignalR connection error:", err));
+        .then(() => console.log("Đã kết nối SignalR cho DispatchList"))
+        .catch((err) =>
+          console.error("Lỗi kết nối SignalR cho DispatchList:", err)
+        );
     }
 
     return () => {
@@ -147,34 +176,78 @@ const DispatchList = () => {
   };
 
   const handleConfirm = async (id) => {
+    const slipId = id ?? null;
+    if (!slipId) {
+      setNotification({
+        type: "warning",
+        message: "Không tìm thấy ID phiếu để xác nhận.",
+      });
+      return;
+    }
+
+    const targetId = Number.isFinite(Number(slipId)) ? Number(slipId) : slipId;
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
+
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}/confirm`,
+      await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${targetId}/confirm`,
         {
           method: "POST",
+          body: JSON.stringify({}),
         }
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      await loadData();
+
+      setNotification({
+        type: "success",
+        message: "Đã xác nhận phiếu xuất kho.",
+      });
     } catch (error) {
-      console.error("Confirm failed:", error);
-      alert("Không thể xác nhận phiếu.");
+      console.error("Lỗi khi xác nhận phiếu:", error);
+      setNotification({
+        type: "danger",
+        message: error.message || "Không thể xác nhận phiếu.",
+      });
     }
   };
 
   const handleDelete = async (id) => {
+    if (!id) {
+      setNotification({
+        type: "warning",
+        message: "Không tìm thấy ID phiếu để xóa.",
+      });
+      return;
+    }
+    const targetId = Number.isFinite(Number(id)) ? Number(id) : id;
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
     try {
       const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}`,
+        `/api/warehousemanager/dispatch-slips/${targetId}`,
         {
           method: "DELETE",
         }
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      if (!res.ok) {
+        throw new Error(`Lỗi HTTP ${res.status}`);
+      }
+
+      setRows((prev) =>
+        prev.filter((r) => String(getSlipId(r)) !== String(targetId))
+      );
+
+      setNotification({
+        type: "success",
+        message: "Đã xóa phiếu xuất kho.",
+      });
     } catch (error) {
-      console.error("Delete failed:", error);
-      alert("Không thể xóa phiếu.");
+      console.error("Lỗi khi xóa phiếu:", error);
+      setNotification({
+        type: "danger",
+        message: "Không thể xóa phiếu.",
+      });
     }
   };
 
@@ -235,7 +308,7 @@ const DispatchList = () => {
         <div className="wm-toolbar__actions">
           <Dropdown className="me-2">
             <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {TYPE_FILTERS.includes(typeFilter) ? typeFilter : "All"}
+              {getTypeFilterLabel(typeFilter)}
             </Dropdown.Toggle>
             <Dropdown.Menu align="end">
               {TYPE_FILTERS.map((type) => (
@@ -247,7 +320,7 @@ const DispatchList = () => {
                     setPage(1);
                   }}
                 >
-                  {type === "All" ? "Tất cả loại phiếu" : type}
+                  {getTypeFilterLabel(type)}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
@@ -260,13 +333,25 @@ const DispatchList = () => {
           <thead>
             <tr>
               <th>#</th>
-              <th role="button" onClick={() => handleSort("type")}>Loại phiếu</th>
-              <th role="button" onClick={() => handleSort("referenceNo")}>Mã</th>
-              <th>Khách Hàng</th>
-              <th role="button" onClick={() => handleSort("dispatchDate")}>Ngày xuất</th>
-              <th role="button" onClick={() => handleSort("createdAt")}>Ngày tạo</th>
-              <th role="button" onClick={() => handleSort("confirmedAt")}>Ngày xác nhận</th>
-              <th role="button" onClick={() => handleSort("status")}>Trạng thái</th>
+              <th role="button" onClick={() => handleSort("type")}>
+                Loại phiếu
+              </th>
+              <th role="button" onClick={() => handleSort("referenceNo")}>
+                Mã
+              </th>
+              <th>Khách hàng / Dự án</th>
+              <th role="button" onClick={() => handleSort("dispatchDate")}>
+                Ngày xuất
+              </th>
+              <th role="button" onClick={() => handleSort("createdAt")}>
+                Ngày tạo
+              </th>
+              <th role="button" onClick={() => handleSort("confirmedAt")}>
+                Ngày xác nhận
+              </th>
+              <th role="button" onClick={() => handleSort("status")}>
+                Trạng thái
+              </th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
@@ -288,15 +373,17 @@ const DispatchList = () => {
               rows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
+                const typeLabel = isSales ? "Xuất bán" : "Xuất dự án";
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
+                const slipId = getSlipId(r);
 
                 return (
                   <tr key={r.id}>
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
                       <Badge bg={isSales ? "info" : "secondary"}>
-                        {normalizedType}
+                        {typeLabel}
                       </Badge>
                     </td>
                     <td>
@@ -305,9 +392,7 @@ const DispatchList = () => {
                         : r.requestNo || r.referenceNo}
                     </td>
                     <td>
-                      {isSales
-                        ? r.customerName || "-"
-                        : r.projectName || "-"}
+                      {isSales ? r.customerName || "-" : r.projectName || "-"}
                     </td>
 
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
@@ -319,7 +404,9 @@ const DispatchList = () => {
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
                       ) : (
-                        <Badge bg="warning" text="dark">Nháp</Badge>
+                        <Badge bg="warning" text="dark">
+                          Nháp
+                        </Badge>
                       )}
                     </td>
 
@@ -331,9 +418,10 @@ const DispatchList = () => {
                         className="me-2"
                         onClick={() =>
                           navigate(
-                            `/warehouse-dashboard/dispatch-slips/${r.id}/items`
+                            `/warehouse-dashboard/dispatch-slips/${slipId}/items`
                           )
                         }
+                        disabled={!slipId}
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
@@ -344,14 +432,16 @@ const DispatchList = () => {
                             variant="outline-success"
                             size="sm"
                             className="me-2"
-                            onClick={() => handleConfirm(r.id)}
+                            onClick={() => handleConfirm(slipId)}
+                            disabled={!slipId}
                           >
                             <FontAwesomeIcon icon={faCheck} />
                           </Button>
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            onClick={() => handleDelete(r.id)}
+                            onClick={() => handleDelete(slipId)}
+                            disabled={!slipId}
                           >
                             <FontAwesomeIcon icon={faTrash} />
                           </Button>
@@ -381,7 +471,10 @@ const DispatchList = () => {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
+            .filter(
+              (p) =>
+                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
+            )
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -399,8 +492,9 @@ const DispatchList = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -418,9 +512,50 @@ const DispatchList = () => {
           </button>
         </div>
       </div>
+
+      <ToastContainer
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 9999,
+        }}
+      >
+        {notification && (
+          <Toast
+            bg={
+              notification.type === "danger"
+                ? "danger"
+                : notification.type === "warning"
+                ? "warning"
+                : notification.type === "success"
+                ? "success"
+                : "light"
+            }
+            onClose={() => setNotification(null)}
+            show={!!notification}
+            delay={3500}
+            autohide
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body
+              className={
+                notification.type === "danger" ||
+                notification.type === "warning"
+                  ? "text-white"
+                  : "text-dark"
+              }
+            >
+              {notification.message}
+            </Toast.Body>
+          </Toast>
+        )}
+      </ToastContainer>
     </WarehouseLayout>
   );
 };
 
 export default DispatchList;
-
