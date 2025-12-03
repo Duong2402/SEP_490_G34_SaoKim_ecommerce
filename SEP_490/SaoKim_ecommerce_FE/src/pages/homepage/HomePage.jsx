@@ -13,7 +13,7 @@ import {
 import "../../styles/home.css";
 import { Link, useNavigate } from "react-router-dom";
 import EcommerceFooter from "../../components/EcommerceFooter";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import HomepageHeader from "../../components/HomepageHeader";
 import { ProductsAPI } from "../../api/products";
 import { readCart, writeCart } from "../../api/cartStorage";
 import ProductSkeleton from "../../components/common/ProductSkeleton";
@@ -131,7 +131,7 @@ const HomePage = () => {
 
   return (
     <div className="homepage-wrapper">
-      <EcommerceHeader />
+      <HomepageHeader />
 
       {/* Toast Notification */}
       <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: 'fixed' }}>
