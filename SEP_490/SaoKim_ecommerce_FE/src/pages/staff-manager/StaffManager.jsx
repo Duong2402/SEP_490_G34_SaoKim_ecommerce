@@ -48,7 +48,7 @@ export default function ManageProduct() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingTable, setLoadingTable] = useState(false);
 
-  const { fetchProducts, deleteProduct, updateProductStatus } = useProductsApi();
+  const { fetchProducts, deleteProduct } = useProductsApi();
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async (opts) => {
@@ -116,28 +116,11 @@ export default function ManageProduct() {
       );
     }
 
-    if (s === "processing") {
-      return (
-        <Badge bg="warning" text="dark">
-          Đang luân chuyển
-        </Badge>
-      );
-    }
-
     return (
       <Badge bg="light" text="dark">
         {status || "Không xác định"}
       </Badge>
     );
-  };
-
-  const handleChangeStatus = async (product, newStatus) => {
-    try {
-      await updateProductStatus(product.id, newStatus);
-      await load();
-    } catch (err) {
-      alert("Cập nhật trạng thái thất bại: " + (err.message || err));
-    }
   };
 
   return (
@@ -305,8 +288,8 @@ export default function ManageProduct() {
             </thead>
             <tbody>
               {(rows || []).map((p) => {
-                const statusNorm = normalizeStatus(p.status);
-                const isProcessing = statusNorm === "processing";
+                const inProject = !!p.inProject;
+                const canDelete = !inProject;
 
                 return (
                   <tr key={p.id}>
@@ -337,29 +320,6 @@ export default function ManageProduct() {
                     </td>
                     <td>{renderStatus(p.status)}</td>
                     <td className="text-end">
-                      {/* Nút đổi trạng thái */}
-                      {isProcessing ? (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          title="Mở bán lại sản phẩm này"
-                          onClick={() => handleChangeStatus(p, "Active")}
-                        >
-                          Mở bán lại
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          title="Đưa sản phẩm vào trạng thái xử lý / luân chuyển"
-                          onClick={() => handleChangeStatus(p, "Processing")}
-                        >
-                          Đưa vào xử lý
-                        </Button>
-                      )}
-
                       <Button
                         variant="outline-primary"
                         size="sm"
@@ -371,16 +331,16 @@ export default function ManageProduct() {
                       </Button>
 
                       <Button
-                        variant={isProcessing ? "outline-secondary" : "outline-danger"}
+                        variant={canDelete ? "outline-danger" : "outline-secondary"}
                         size="sm"
                         title={
-                          isProcessing
-                            ? "Không thể xóa khi sản phẩm đang ở trạng thái xử lý / luân chuyển"
-                            : "Xóa sản phẩm"
+                          canDelete
+                            ? "Xóa sản phẩm"
+                            : "Sản phẩm đang được sử dụng trong dự án, không thể xóa"
                         }
-                        disabled={isProcessing}
+                        disabled={!canDelete}
                         onClick={() => {
-                          if (!isProcessing) setDeleting(p);
+                          if (canDelete) setDeleting(p);
                         }}
                       >
                         <FontAwesomeIcon icon={faTrash} />
