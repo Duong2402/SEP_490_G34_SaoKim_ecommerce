@@ -192,36 +192,57 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest req)
         {
-            var newStatus = (req.Status ?? "").Trim();
+            var rawStatus = (req.Status ?? "").Trim();
 
-            if (string.IsNullOrWhiteSpace(newStatus))
+            if (string.IsNullOrWhiteSpace(rawStatus))
                 return BadRequest(new { message = "Status is required" });
 
-            var allowedStatuses = new[] { "Pending", "Shipping", "Paid", "Completed", "Cancelled" };
+            // Normalize: "Hoàn tất" -> "Completed"
+            string NormalizeStatus(string s)
+            {
+                if (string.Equals(s, "Hoàn tất", StringComparison.OrdinalIgnoreCase))
+                    return "Completed";
+
+                return s;
+            }
+
+            var newStatus = NormalizeStatus(rawStatus);
+
+            var allowedStatuses = new[]
+            {
+        "Pending",
+        "Shipping",
+        "Paid",
+        "Completed",
+        "Cancelled"
+    };
+
             if (!allowedStatuses.Contains(newStatus, StringComparer.OrdinalIgnoreCase))
             {
-                return BadRequest(new { message = $"Invalid status: {newStatus}" });
+                return BadRequest(new { message = $"Invalid status: {rawStatus}" });
             }
+
+            bool IsCompleted(string status)
+                => string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase);
 
             var order = await _db.Orders
                 .Include(o => o.Customer)
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Invoice)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
 
-            if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(newStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+            // Nếu đơn đã hoàn tất thì không cho đổi sang trạng thái khác (trừ việc set lại Completed chính nó)
+            if (IsCompleted(order.Status) && !IsCompleted(newStatus))
             {
                 return BadRequest(new { message = "Completed order cannot change status." });
             }
 
             order.Status = newStatus;
 
-            if (string.Equals(newStatus, "Paid", StringComparison.OrdinalIgnoreCase)
-                && order.Invoice == null)
+            // Tạo hóa đơn khi trạng thái mới là Completed và chưa có invoice
+            if (IsCompleted(newStatus) && order.Invoice == null)
             {
                 var items = order.Items.ToList();
 
@@ -264,6 +285,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return NoContent();
         }
+
 
         // =========================================================
         // 4) LẤY ITEMS CHO 1 ORDER (NẾU MUỐN DÙNG RIÊNG)

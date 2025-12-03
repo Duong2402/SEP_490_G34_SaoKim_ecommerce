@@ -7,4 +7,5 @@ export const ProductsAPI = {
     http.get("/products", {
       params,
     }),
+  getHomeProducts: (params = {}) => http.get("/products/home", { params }),
 };
