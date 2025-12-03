@@ -91,8 +91,9 @@ export default function ManageOrders() {
           Chờ xử lý
         </Badge>
       );
+    if (v === "paid")
+      return <Badge bg="primary">Đang xử lý kho</Badge>;
     if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
-    if (v === "paid") return <Badge bg="primary">Đã thanh toán</Badge>;
     if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
     if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
@@ -341,21 +342,16 @@ export default function ManageOrders() {
                       </Button>
                     )}
 
+                    {o.status === "Paid" && (
+                      <span className="text-muted small">
+                        Đang chờ kho xác nhận phiếu xuất
+                      </span>
+                    )}
+
                     {o.status === "Shipping" && (
                       <Button
                         size="sm"
                         variant="outline-success"
-                        disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Paid")}
-                      >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Đánh dấu đã thu"}
-                      </Button>
-                    )}
-
-                    {o.status === "Paid" && (
-                      <Button
-                        size="sm"
-                        variant="outline-primary"
                         disabled={updatingOrderId === o.id}
                         onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
                       >
