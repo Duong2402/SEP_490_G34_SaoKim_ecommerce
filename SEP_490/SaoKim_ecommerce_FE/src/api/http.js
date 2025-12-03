@@ -6,18 +6,13 @@ let API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
   "";
 
-// Bỏ dấu / ở cuối nếu có
-if (API_BASE.endsWith("/")) {
-  API_BASE = API_BASE.slice(0, -1);
-}
-
-// Tất cả request sẽ đi tới: {API_BASE}/api/...
-// Ví dụ: https://localhost:7022/api/banner
+// Dev: gọi tới "/api" đi qua proxy; Prod: dùng VITE_API_BASE_URL
 const http = axios.create({
-  baseURL: `${API_BASE}/api`,
+  baseURL: isProd ? import.meta.env.VITE_API_BASE_URL || "/" : "/api",
   headers: {
     "Accept-Language": "vi",
   },
+  // withCredentials: true, // bật nếu backend xác thực bằng cookie
   timeout: 15000,
 });
 
@@ -56,18 +51,14 @@ http.interceptors.response.use(
       try {
         ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
       } catch {}
-
       window.dispatchEvent(new Event("auth:changed"));
-
-      const here =
-        window.location.pathname + window.location.search + window.location.hash;
+      const here = window.location.pathname + window.location.search + window.location.hash;
       const loginUrl = `/login?redirect=${encodeURIComponent(here)}`;
 
       if (window.location.pathname !== "/login") {
         window.location.assign(loginUrl);
       }
     }
-
     const msg = err?.response?.data || err.message || "Network error";
     // eslint-disable-next-line no-console
     console.error("[HTTP]", status || "ERR", msg);

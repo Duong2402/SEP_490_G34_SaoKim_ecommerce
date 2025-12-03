@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./App.css";
 
@@ -28,7 +29,7 @@ import ProductTrace from "./pages/warehousemanager/ProductTrace";
 import InventoryReport from "./pages/warehousemanager/InventoryReport";
 
 
-// Projects module (cũ)
+// Projects module
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
 import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
@@ -82,6 +83,7 @@ import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
 import ManagerProjectCreate from "./pages/manager/projects/ManagerProjectCreate";
 import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail";
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
+import ManagerProjectReport from "./pages/manager/projects/ManagerProjectReport";
 
 // Promotions 
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
@@ -97,7 +99,6 @@ import ManagerCouponEdit from "./pages/manager/coupons/ManagerCouponEdit";
 import ManagerEmployeeList from "./pages/manager/employees/ManagerEmployeeList";
 import ManagerEmployeeCreate from "./pages/manager/employees/ManagerEmployeeCreate";
 import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
-
 
 export default function App() {
   return (
@@ -157,9 +158,20 @@ export default function App() {
             <Route path=":id/report" element={<ProjectReport />} />
           </Route>
 
-          {/* Products (ngoài khu Manager) */}
-          <Route path="/products/:id" element={<ProductDetail />} />
+          {/* Projects protected group - Only project_manager */}
+          <Route element={<ProtectedRoute allow={["project_manager"]} />}>
+            <Route path="/projects" element={<ProjectManagerLayout />}>
+              <Route index element={<ProjectList />} />
+              <Route path="overview" element={<ProjectOverview />} />
+              <Route path="create" element={<ProjectCreate />} />
+              <Route path=":id" element={<ProjectDetail />} />
+              <Route path=":id/edit" element={<ProjectEdit />} />
+              <Route path=":id/report" element={<ProjectReport />} />
+            </Route>
+          </Route>
 
+          {/* Products (public) */}
+          <Route path="/products/:id" element={<ProductDetail />} />
 
           {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
@@ -176,36 +188,39 @@ export default function App() {
           <Route path="/admin/users/create" element={<UserCreate />} />
           <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
-          {/* Manager area */}
-          <Route path="/manager" element={<ManagerLayout />}>
-            <Route index element={<ManagerDashboard />} />
-            <Route path="dashboard" element={<ManagerDashboard />} />
+          {/* Manager area protected group - Only manager */}
+          <Route element={<ProtectedRoute allow={["manager"]} />}>
+            <Route path="/manager" element={<ManagerLayout />}>
+              <Route index element={<ManagerDashboard />} />
+              <Route path="dashboard" element={<ManagerDashboard />} />
 
-            {/* Products cho Manager */}
-            <Route path="products" element={<ManagerProductList />} />
+              {/* Products cho Manager */}
+              <Route path="products" element={<ManagerProductList />} />
 
-            {/* Projects cho Manager */}
-            <Route path="projects" element={<ManagerProjectList />} />
-            <Route path="projects/create" element={<ManagerProjectCreate />} />
-            <Route path="projects/:id" element={<ManagerProjectDetail />} />
-            <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+              {/* Projects cho Manager */}
+              <Route path="projects" element={<ManagerProjectList />} />
+              <Route path="projects/create" element={<ManagerProjectCreate />} />
+              <Route path="projects/:id" element={<ManagerProjectDetail />} />
+              <Route path="projects/:id/edit" element={<ManagerProjectEdit />} />
+              <Route path="projects/:id/report" element={<ManagerProjectReport />} />
 
-            {/* Promotions cho Manager */}
-            <Route path="promotions" element={<ManagerPromotionList />} />
-            <Route path="promotions/create" element={<ManagerPromotionCreate />} />
-            <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
+              {/* Promotions cho Manager */}
+              <Route path="promotions" element={<ManagerPromotionList />} />
+              <Route path="promotions/create" element={<ManagerPromotionCreate />} />
+              <Route path="promotions/:id/edit" element={<ManagerPromotionEdit />} />
 
-            {/* Coupons cho Manager */}
-            <Route path="coupons" element={<ManagerCouponList />} />
-            <Route path="coupons/create" element={<ManagerCouponCreate />} />
-            <Route path="coupons/:id/edit" element={<ManagerCouponEdit />} />
+              {/* Coupons cho Manager */}
+              <Route path="coupons" element={<ManagerCouponList />} />
+              <Route path="coupons/create" element={<ManagerCouponCreate />} />
+              <Route path="coupons/:id/edit" element={<ManagerCouponEdit />} />
 
-            {/* Employees cho Manager */}
-            <Route path="employees" element={<ManagerEmployeeList />} />
-            <Route path="employees/create" element={<ManagerEmployeeCreate />} />
-            <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
-           </Route>
-          
+              {/* Employees cho Manager */}
+              <Route path="employees" element={<ManagerEmployeeList />} />
+              <Route path="employees/create" element={<ManagerEmployeeCreate />} />
+              <Route path="employees/:id/edit" element={<ManagerEmployeeEdit />} />
+            </Route>
+          </Route>
+
           {/* 404 */}
           <Route
             path="*"

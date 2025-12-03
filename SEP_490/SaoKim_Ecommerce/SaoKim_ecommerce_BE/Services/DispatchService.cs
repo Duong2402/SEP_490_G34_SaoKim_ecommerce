@@ -81,6 +81,21 @@ namespace SaoKim_ecommerce_BE.Services
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
 
+            if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
+                slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+            {
+                var raw = slip.ReferenceNo.Substring("ORD-".Length);
+                if (int.TryParse(raw, out var orderId))
+                {
+                    var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
+                    if (order != null &&
+                        string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        order.Status = "Pending";
+                    }
+                }
+            }
+
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
@@ -99,6 +114,10 @@ namespace SaoKim_ecommerce_BE.Services
                     .ToList()
             };
         }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
         public async Task<PagedResult<DispatchSlipListItemDto>> GetDispatchSlipsAsync(DispatchSlipListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
@@ -300,6 +319,9 @@ namespace SaoKim_ecommerce_BE.Services
             if (customer == null)
                 throw new KeyNotFoundException($"Customer {dto.CustomerId} không tìm thấy hoặc không có khách hàng nào");
 
+            if (dto.Items == null || dto.Items.Count == 0)
+                throw new ArgumentException("Phiếu xuất bán phải có ít nhất 1 sản phẩm");
+
             var slip = new RetailDispatch
             {
                 DispatchDate = dto.DispatchDate,
@@ -312,7 +334,46 @@ namespace SaoKim_ecommerce_BE.Services
             _db.Set<RetailDispatch>().Add(slip);
             await _db.SaveChangesAsync();
 
-            slip.ReferenceNo = $"DSP-SLS-{slip.Id:D5}";
+            if (!string.IsNullOrWhiteSpace(dto.SalesOrderNo))
+            {
+                slip.ReferenceNo = dto.SalesOrderNo!.Trim();
+            }
+            else
+            {
+                slip.ReferenceNo = $"DSP-SLS-{slip.Id:D5}";
+            }
+
+            await _db.SaveChangesAsync();
+
+            foreach (var it in dto.Items)
+            {
+                if (!it.ProductId.HasValue || it.ProductId.Value <= 0)
+                    continue;
+
+                var product = await _db.Products
+                    .Where(p => p.ProductID == it.ProductId.Value)
+                    .Select(p => new { p.ProductID, p.ProductCode, p.ProductName })
+                    .FirstOrDefaultAsync();
+
+                if (product == null)
+                    continue;
+
+                var item = new DispatchItem
+                {
+                    DispatchId = slip.Id,
+                    ProductId = product.ProductID,
+                    ProductName = string.IsNullOrWhiteSpace(it.ProductName)
+                        ? product.ProductName
+                        : it.ProductName,
+                    Uom = string.IsNullOrWhiteSpace(it.Uom) ? "pcs" : it.Uom,
+                    Quantity = it.Quantity,
+                    UnitPrice = it.UnitPrice,
+                    Total = it.Quantity * it.UnitPrice
+                };
+
+                _db.DispatchItems.Add(item);
+            }
+
             await _db.SaveChangesAsync();
 
             return slip;

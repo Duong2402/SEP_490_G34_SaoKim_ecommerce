@@ -1,5 +1,6 @@
 ﻿using DocumentFormat.OpenXml.Drawing.Charts;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -73,5 +74,7 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 
+        [InverseProperty(nameof(Project.ProjectManager))]
+        public ICollection<Project> ManagedProjects { get; set; } = new List<Project>();
     }
 }

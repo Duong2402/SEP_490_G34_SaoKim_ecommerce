@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;   // NEW
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -19,7 +20,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         // ======================= LIST USERS (ADMIN) =======================
         // GET /api/users
         [HttpGet]
-        [AllowAnonymous]   // sau này có thể đổi thành [Authorize(Roles="admin")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q,
             [FromQuery] string? role,
@@ -78,7 +79,28 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // ======================= GET USER BY ID (ADMIN) =======================
+        // NEW: GET /api/users/project-managers
+        // dùng cho Manager lấy danh sách PM làm dropdown
+        [HttpGet("project-managers")]
+        [AllowAnonymous] // nếu muốn chỉ Manager gọi được thì đổi sang [Authorize]
+        public async Task<IActionResult> GetProjectManagers()
+        {
+            var pms = await _db.Users
+                .AsNoTracking()
+                .Include(u => u.Role)
+                .Where(u => u.Role != null && u.Role.Name == "project_manager")
+                .OrderBy(u => u.Name)
+                .Select(u => new ProjectManagerOptionDTO
+                {
+                    Id = u.UserID,
+                    Name = u.Name,
+                    Email = u.Email
+                })
+                .ToListAsync();
+
+            return Ok(pms);
+        }
+
         // GET /api/users/{id}
         [HttpGet("{id:int}")]
         [AllowAnonymous]   // sau có thể đổi thành [Authorize(Roles="admin")]
@@ -146,7 +168,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         // ======================= ROLES LIST =======================
         // GET /api/users/roles  
         [HttpGet("roles")]
-        [AllowAnonymous]    // triển khai thực tế có thể yêu cầu quyền admin
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoles()
         {
             var roles = await _db.Roles

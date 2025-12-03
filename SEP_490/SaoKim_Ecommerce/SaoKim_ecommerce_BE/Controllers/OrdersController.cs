@@ -8,23 +8,31 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
+using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models.Requests;
+using SaoKim_ecommerce_BE.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]    // /api/orders
-    [Authorize]                    // tất cả action yêu cầu đăng nhập
+    [Route("api/[controller]")]
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly SaoKimDBContext _context;
         private readonly ILogger<OrdersController> _logger;
+        private readonly IDispatchService _dispatchService;
 
-        public OrdersController(SaoKimDBContext context, ILogger<OrdersController> logger)
+        public OrdersController(
+            SaoKimDBContext context,
+            ILogger<OrdersController> logger,
+            IDispatchService dispatchService)
         {
             _context = context;
             _logger = logger;
+            _dispatchService = dispatchService;
         }
 
         // Lấy user hiện tại từ email trong token
@@ -59,14 +67,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 var user = await GetCurrentUserAsync();
                 if (user == null)
-                    return Unauthorized("Không xác định được người dùng từ token");
+                    return Unauthorized("Không tìm thấy user tương ứng với token");
 
-                // Lấy danh sách productId
                 var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
                 if (productIds.Count == 0)
                     return BadRequest(new { message = "Order must have at least 1 valid product" });
 
-                // Lấy detail mới nhất của từng sản phẩm
                 var details = await _context.ProductDetails
                     .Where(d => productIds.Contains(d.ProductID))
                     .GroupBy(d => d.ProductID)
@@ -79,7 +85,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var detailDict = details.ToDictionary(d => d.ProductID, d => d);
 
                 decimal totalFromDb = 0m;
-                var orderItems = new List<OrderItem>();
+                var orderItems = new System.Collections.Generic.List<OrderItem>();
 
                 foreach (var i in request.Items)
                 {
@@ -98,17 +104,37 @@ namespace SaoKim_ecommerce_BE.Controllers
                     });
                 }
 
+                var paymentMethod = (request.PaymentMethod ?? "").Trim().ToUpperInvariant();
+
+                var orderStatus = "Paid";
+
                 var order = new Order
                 {
                     UserId = user.UserID,
                     Total = totalFromDb,
-                    Status = string.IsNullOrEmpty(request.Status) ? "Pending" : request.Status!,
+                    Status = orderStatus,
                     CreatedAt = DateTime.UtcNow,
                     Items = orderItems
                 };
 
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
+
+                var dispatchDto = new RetailDispatchCreateDto
+                {
+                    CustomerId = user.UserID,
+                    CustomerName = user.Name,
+                    DispatchDate = DateTime.UtcNow,
+                    SalesOrderNo = $"ORD-{order.OrderId}",  
+                    Note = request.Note,
+                    Items = order.Items.Select(oi => new DispatchItemDto
+                    {
+                        ProductId = oi.ProductId,
+                        Quantity = oi.Quantity
+                    }).ToList()
+                };
+
+                await _dispatchService.CreateSalesDispatchAsync(dispatchDto);
 
                 return Ok(new
                 {

@@ -71,6 +71,9 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string CustomerName { get; set; } = "";
         public int? CustomerId { get; set; }
         public string? Note { get; set; }
+
+        public string? SalesOrderNo { get; set; }
+        public List<DispatchItemDto> Items { get; set; } = new();
     }
 
     public class ProjectDispatchCreateDto
