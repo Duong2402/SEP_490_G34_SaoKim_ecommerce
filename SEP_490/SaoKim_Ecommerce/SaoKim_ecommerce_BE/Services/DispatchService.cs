@@ -80,7 +80,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
-            // duy thêm
             if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
     slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
             {
@@ -90,7 +89,7 @@ namespace SaoKim_ecommerce_BE.Services
                     var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
                     if (order != null)
                     {
-                        // nếu đơn đã hủy thì không cho xác nhận xuất kho
+                        
                         if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
                         {
                             throw new InvalidOperationException("Đơn hàng đã bị hủy, không thể xác nhận phiếu xuất.");
