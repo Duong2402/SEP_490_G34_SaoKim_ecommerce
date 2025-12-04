@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Button, Card, Spinner, Toast, ToastContainer } from "react-bootstrap";
+﻿import React, { useState, useEffect } from "react";
+import { Container, Row, Col, Button, Card, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faShoppingCart,
@@ -13,7 +13,7 @@ import {
 import "../../styles/home.css";
 import { Link, useNavigate } from "react-router-dom";
 import EcommerceFooter from "../../components/EcommerceFooter";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import HomepageHeader from "../../components/HomepageHeader";
 import { ProductsAPI } from "../../api/products";
 import { readCart, writeCart } from "../../api/cartStorage";
 import ProductSkeleton from "../../components/common/ProductSkeleton";
@@ -29,25 +29,29 @@ const HomePage = () => {
   const categories = [
     {
       id: 1,
-      name: "Đèn Chùm Luxury",
+      name: "Đèn chùm Luxury",
       image: "https://anandecor.vn/wp-content/uploads/2022/06/58.png?auto=format&fit=crop&q=80&w=600",
-      desc: "Sang trọng & Đẳng cấp",
+      desc: "Sang trọng & đẳng cấp",
+      badge: "Bán chạy",
     },
     {
       id: 2,
-      name: "Đèn Tường Hiện Đại",
-      image: "https://flexhouse.vn/wp-content/uploads/2023/05/Den-LED-cam-bien-gan-tuong-hien-dai-SY1018-19.jpg?auto=format&fit=crop&q=80&w=600",
+      name: "Đèn tường hiện đại",
+      image:
+        "https://flexhouse.vn/wp-content/uploads/2023/05/Den-LED-cam-bien-gan-tuong-hien-dai-SY1018-19.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Tinh tế từng đường nét",
+      badge: "Mới",
     },
     {
       id: 3,
-      name: "Đèn Bàn Decor",
-      image: "https://sanota.net/wp-content/uploads/2025/05/SNT5624-den-ban-decor-phong-khach-hien-dai.jpg?auto=format&fit=crop&q=80&w=600",
+      name: "Đèn bàn decor",
+      image:
+        "https://sanota.net/wp-content/uploads/2025/05/SNT5624-den-ban-decor-phong-khach-hien-dai.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Điểm nhấn không gian",
     },
     {
       id: 4,
-      name: "Đèn Sàn Cao Cấp",
+      name: "Đèn sân cao cấp",
       image: "https://dentrangtrivirgo.com/wp-content/uploads/2022/09/10003.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Ánh sáng hoàn hảo",
     },
@@ -60,7 +64,7 @@ const HomePage = () => {
         // Try to get home products first
         const data = await ProductsAPI.getHomeProducts();
 
-        // Handle different response structures based on previous HomeProductsBody logic
+        // Handle different response structures
         let items = [];
         if (data?.newArrivals) {
           items = data.newArrivals;
@@ -71,18 +75,19 @@ const HomePage = () => {
         }
 
         // Normalize data
-        const normalized = items.map(p => ({
-          id: p.id || p.productID,
-          name: p.name || p.productName,
-          price: p.price,
-          image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
-          category: p.category || "Đèn trang trí"
-        })).slice(0, 8); // Limit to 8 items
+        const normalized = items
+          .map((p) => ({
+            id: p.id || p.productID,
+            name: p.name || p.productName,
+            price: p.price,
+            image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
+            category: p.category || "Đèn trang trí",
+          }))
+          .slice(0, 8); // Limit to 8 items
 
         setProducts(normalized);
       } catch (error) {
         console.error("Failed to fetch products:", error);
-        // Fallback to empty or keep mock if needed, but here we just show empty
       } finally {
         setLoading(false);
       }
@@ -119,7 +124,8 @@ const HomePage = () => {
     const existingItemIndex = currentCart.findIndex((item) => item.id === product.id);
 
     if (existingItemIndex > -1) {
-      currentCart[existingItemIndex].quantity = (Number(currentCart[existingItemIndex].quantity) || 0) + 1;
+      currentCart[existingItemIndex].quantity =
+        (Number(currentCart[existingItemIndex].quantity) || 0) + 1;
     } else {
       currentCart.push({ ...product, quantity: 1 });
     }
@@ -131,10 +137,10 @@ const HomePage = () => {
 
   return (
     <div className="homepage-wrapper">
-      <EcommerceHeader />
+      <HomepageHeader />
 
       {/* Toast Notification */}
-      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: 'fixed' }}>
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: "fixed" }}>
         <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
           <Toast.Header>
             <strong className="me-auto">Thông báo</strong>
@@ -145,30 +151,54 @@ const HomePage = () => {
       </ToastContainer>
 
       {/* Hero Section */}
-      <div className="hero-section fade-in-section">
-        <div className="hero-bg"></div>
-        <div className="hero-overlay">
-          <Container className="hero-content">
-            <span className="hero-subtitle animate-fade-in">
-              <FontAwesomeIcon icon={faStar} className="me-2 text-warning" />
-              Tinh Hoa Ánh Sáng Việt
-            </span>
-            <h1 className="hero-title animate-slide-up">
-              Nâng Tầm Không Gian Sống <br /> Đẳng Cấp & Sang Trọng
-            </h1>
-            <p className="hero-subtitle animate-slide-up delay-1">
-              Khám phá bộ sưu tập đèn trang trí độc quyền từ Sao Kim. <br />
-              Thiết kế tinh xảo, công nghệ hiện đại, bảo hành 5 năm.
-            </p>
-            <div className="hero-actions animate-slide-up delay-2">
-              <Button className="hero-btn me-3">
-                Xem Bộ Sưu Tập <FontAwesomeIcon icon={faArrowRight} className="ms-2" />
-              </Button>
-              <Button className="hero-btn-outline">Dự Án Tiêu Biểu</Button>
-            </div>
-          </Container>
-        </div>
-      </div>
+      <section className="hero-section fade-in-section">
+        <div className="hero-overlay"></div>
+        <Container fluid className="hero-inner">
+          <Row className="align-items-center g-4">
+            <Col lg={6} className="hero-copy">
+              <span className="hero-kicker">
+                <FontAwesomeIcon icon={faStar} className="me-2 text-warning" />
+                Giải pháp ánh sáng chuyên sâu
+              </span>
+              <h1 className="hero-title">
+                Giải pháp chiếu sáng cao cấp cho mọi không gian
+              </h1>
+              <p className="hero-subtitle">
+                Sao Kim mang đến các dòng đèn hiện đại, tiết kiệm điện, phù hợp cho nhà ở,
+                văn phòng và showroom. Thiết kế tinh xảo, công nghệ mới nhất, tối ưu trải nghiệm ánh sáng.
+              </p>
+              <div className="hero-actions d-flex flex-wrap align-items-center gap-3">
+                <Button className="hero-cta-primary" onClick={() => navigate("/products")}>
+                  Xem sản phẩm
+                </Button>
+                <Button className="hero-cta-secondary" variant="outline-light" href="#contact">
+                  Nhận tư vấn chiếu sáng
+                </Button>
+              </div>
+            </Col>
+            <Col lg={6} className="hero-visual">
+              <div className="hero-visual-card">
+                <div className="hero-visual-gradient"></div>
+                <img
+                  src="https://luxlightdesigns.com/images/slider/1.webp?auto=format&fit=crop&q=80&w=1600"
+                  alt="Modern lighting"
+                  className="hero-visual-img"
+                />
+                <div className="hero-visual-stats">
+                  <div>
+                    <strong>450+</strong>
+                    <span>Dự án showroom & văn phòng</span>
+                  </div>
+                  <div>
+                    <strong>24/7</strong>
+                    <span>Tư vấn & hỗ trợ kỹ thuật</span>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
 
       {/* Stats Bar */}
       <div className="stats-bar fade-in-section">
@@ -215,50 +245,63 @@ const HomePage = () => {
       </div>
 
       {/* Categories Section */}
-      <section className="section-padding fade-in-section">
-        <Container>
-          <div className="text-center mb-5">
-            <h2 className="section-title">Danh Mục Nổi Bật</h2>
-            <p className="section-subtitle">Lựa chọn phong cách ánh sáng cho ngôi nhà của bạn</p>
-          </div>
-          <Row className="g-4">
-            {categories.map((cat) => (
-              <Col lg={3} md={6} key={cat.id}>
-                <div className="category-card">
-                  <div
-                    className="category-bg"
-                    style={{ backgroundImage: `url(${cat.image})` }}
-                  ></div>
-                  <div className="category-overlay">
-                    <h3 className="category-name">{cat.name}</h3>
-                    <span className="category-desc">{cat.desc}</span>
-                    <Link to={`/products?category=${cat.id}`} className="category-link">
-                      Khám phá <FontAwesomeIcon icon={faArrowRight} />
-                    </Link>
-                  </div>
-                </div>
-              </Col>
-            ))}
-          </Row>
+      <section className="featured-categories section-padding fade-in-section">
+        <Container fluid className="px-0">
+          <Container className="featured-categories-inner">
+            <div className="featured-header text-center text-lg-start">
+              <span className="featured-kicker">Bộ sưu tập</span>
+              <h2 className="section-title mb-2">Danh mục nổi bật</h2>
+              <p className="section-subtitle mb-0">
+                Lựa chọn nhanh dòng sản phẩm phù hợp với không gian của bạn.
+              </p>
+            </div>
+
+            <Row className="g-4 g-lg-4 g-xl-4">
+              {categories.map((cat) => (
+                <Col xl={3} lg={4} md={6} sm={12} key={cat.id}>
+                  <Link to={`/products?category=${cat.id}`} className="category-card">
+                    <div
+                      className="category-bg"
+                      style={{ backgroundImage: `url(${cat.image})` }}
+                    ></div>
+                    <div className="category-gradient"></div>
+                    {cat.badge && <span className="category-badge">{cat.badge}</span>}
+                    <div className="category-overlay">
+                      <div className="category-label">Danh mục</div>
+                      <h3 className="category-name">{cat.name}</h3>
+                      {cat.desc && <span className="category-desc">{cat.desc}</span>}
+                      <div className="category-cta">
+                        <span>Xem ngay</span>
+                        <FontAwesomeIcon icon={faArrowRight} />
+                      </div>
+                    </div>
+                  </Link>
+                </Col>
+              ))}
+            </Row>
+          </Container>
         </Container>
       </section>
-
       {/* Featured Products Section */}
-      <section className="section-padding fade-in-section" style={{ backgroundColor: "var(--light-bg)" }}>
+      <section className="featured-products section-padding fade-in-section">
         <Container>
-          <div className="d-flex justify-content-between align-items-end mb-5">
+          <div className="featured-products-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
             <div>
-              <h2 className="section-title text-start">Sản Phẩm Mới Nhất</h2>
+              <span className="featured-kicker">Bộ sưu tập</span>
+              <h2 className="section-title text-start mb-2">Sản phẩm nổi bật</h2>
+              <p className="section-subtitle mb-0">
+                Khám phá những mẫu đèn được khách hàng lựa chọn nhiều nhất.
+              </p>
             </div>
-            <Link to="/products" className="text-decoration-none fw-bold" style={{ color: "var(--primary)" }}>
-              Xem tất cả <FontAwesomeIcon icon={faArrowRight} />
+            <Link to="/products" className="view-all-link">
+              Xem tất cả sản phẩm <FontAwesomeIcon icon={faArrowRight} />
             </Link>
           </div>
 
           {loading ? (
             <Row className="g-4">
               {[...Array(8)].map((_, index) => (
-                <Col lg={3} md={6} sm={6} key={`skeleton-${index}`}>
+                <Col xl={3} lg={3} md={6} sm={6} key={`skeleton-${index}`}>
                   <ProductSkeleton />
                 </Col>
               ))}
@@ -267,38 +310,43 @@ const HomePage = () => {
             <Row className="g-4">
               {products.length > 0 ? (
                 products.map((product) => (
-                  <Col lg={3} md={6} sm={6} key={product.id}>
-                    <Card className="luxury-card">
-                      <div className="product-badge">New</div>
-                      <div className="luxury-card-img-wrapper">
+                  <Col xl={3} lg={3} md={6} sm={6} key={product.id}>
+                    <Card className="luxury-card home-product-card h-100">
+                      <div className="home-product-badge">Mới</div>
+                      <div className="home-product-media">
                         <Card.Img
                           variant="top"
                           src={product.image}
-                          className="luxury-card-img cursor-pointer"
+                          className="home-product-img cursor-pointer"
                           onClick={() => navigate(`/products/${product.id}`)}
                         />
-                        <div className="product-actions">
-                          <Button
-                            className="action-btn"
-                            title="Thêm vào giỏ"
-                            onClick={() => handleAddToCart(product)}
-                          >
-                            <FontAwesomeIcon icon={faShoppingCart} />
-                          </Button>
-                          <Link to={`/products/${product.id}`} className="action-btn" title="Xem chi tiết">
-                            <FontAwesomeIcon icon={faArrowRight} />
-                          </Link>
-                        </div>
                       </div>
-                      <Card.Body className="luxury-card-body">
-                        <div className="luxury-card-cat">{product.category}</div>
+                      <Card.Body className="home-product-body">
+                        <div className="home-product-meta">{product.category}</div>
                         <Card.Title
-                          className="luxury-card-title cursor-pointer"
+                          className="home-product-title cursor-pointer"
                           onClick={() => navigate(`/products/${product.id}`)}
                         >
                           {product.name}
                         </Card.Title>
-                        <div className="luxury-card-price">{formatCurrency(product.price)}</div>
+                        <div className="home-product-price">
+                          {formatCurrency(product.price)}
+                        </div>
+                        <div className="home-product-actions">
+                          <Button
+                            className="home-product-btn primary"
+                            onClick={() => navigate(`/products/${product.id}`)}
+                          >
+                            Xem chi tiết
+                          </Button>
+                          <Button
+                            className="home-product-btn ghost"
+                            onClick={() => handleAddToCart(product)}
+                            title="Thêm vào giỏ"
+                          >
+                            <FontAwesomeIcon icon={faShoppingCart} />
+                          </Button>
+                        </div>
                       </Card.Body>
                     </Card>
                   </Col>
@@ -314,19 +362,44 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="cta-section fade-in-section">
-        <Container>
-          <Row className="justify-content-center">
-            <Col lg={8} className="text-center">
-              <h2 className="cta-title">Bạn Cần Tư Vấn Giải Pháp Chiếu Sáng?</h2>
-              <p className="cta-desc">
-                Đội ngũ kỹ sư ánh sáng của Sao Kim sẵn sàng hỗ trợ bạn thiết kế và lựa chọn giải pháp tối ưu nhất cho công trình.
-              </p>
-              <Button className="hero-btn">
-                Liên Hệ Ngay <FontAwesomeIcon icon={faHeadset} className="ms-2" />
-              </Button>
-            </Col>
-          </Row>
+      <section className="cta-section fade-in-section" id="contact">
+        <Container fluid className="px-0">
+          <Container className="cta-inner">
+            <Row className="align-items-center gy-4">
+              <Col lg={7}>
+                <div className="cta-copy text-lg-start text-center">
+                  <span className="cta-kicker">Tư vấn chiếu sáng</span>
+                  <h2 className="cta-title">Bạn cần tư vấn giải pháp chiếu sáng?</h2>
+                  <p className="cta-subtitle">
+                    Đội ngũ kỹ sư của Sao Kim sẵn sàng hỗ trợ bạn chọn đèn phù hợp với từng không gian
+                    và ngân sách.
+                  </p>
+                  <div className="cta-actions d-flex flex-wrap justify-content-center justify-content-lg-start gap-3">
+                    <Button className="cta-primary" onClick={() => navigate("/contact")}>
+                      Liên hệ ngay <FontAwesomeIcon icon={faArrowRight} className="ms-2" />
+                    </Button>
+                    <Link to="/contact" className="cta-secondary">
+                      Tư vấn miễn phí 24/7
+                    </Link>
+                  </div>
+                </div>
+              </Col>
+              <Col lg={5}>
+                <div className="cta-visual">
+                  <div className="cta-visual-glow"></div>
+                  <img
+                    src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=900"
+                    alt="Lighting consultation"
+                    className="cta-visual-img"
+                  />
+                  <div className="cta-visual-badge">
+                    <span>Lighting Design</span>
+                    <strong>Premium</strong>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Container>
         </Container>
       </section>
 
@@ -336,3 +409,8 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
+
+
+
+

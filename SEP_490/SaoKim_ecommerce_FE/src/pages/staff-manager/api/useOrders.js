@@ -59,10 +59,25 @@ export default function useOrdersApi() {
     });
     return handleJson(res, "Tải sản phẩm trong đơn");
   };
+  const deleteOrder = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("[Xóa đơn hàng] lỗi", res.status, text);
+      throw new Error(`Xóa đơn hàng thất bại (mã ${res.status})`);
+    }
+
+    return true;
+  };
 
   return {
     fetchOrders,
     updateOrderStatus,
     fetchOrderItems,
+    deleteOrder,
   };
 }

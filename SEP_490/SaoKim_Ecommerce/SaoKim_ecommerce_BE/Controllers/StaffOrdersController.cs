@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -17,11 +18,14 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         private readonly ILogger<StaffOrdersController> _logger;
+        private readonly IDispatchService _dispathservice;
 
-        public StaffOrdersController(SaoKimDBContext db, ILogger<StaffOrdersController> logger)
+        public StaffOrdersController(SaoKimDBContext db, ILogger<StaffOrdersController> logger
+            , IDispatchService dispathservice)
         {
             _db = db;
             _logger = logger;
+            _dispathservice = dispathservice;
         }
 
         public class UpdateOrderStatusRequest
@@ -186,7 +190,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // =========================================================
-        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Paid
+        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Completed/Hoàn tất
         // PATCH /api/staff/orders/{id}/status
         // =========================================================
         [HttpPatch("{id:int}/status")]
@@ -210,12 +214,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var allowedStatuses = new[]
             {
-        "Pending",
-        "Shipping",
-        "Paid",
-        "Completed",
-        "Cancelled"
-    };
+                "Pending",
+                "Shipping",
+                "Paid",
+                "Completed",
+                "Cancelled"
+            };
 
             if (!allowedStatuses.Contains(newStatus, StringComparer.OrdinalIgnoreCase))
             {
@@ -288,7 +292,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
 
         // =========================================================
-        // 4) LẤY ITEMS CHO 1 ORDER (NẾU MUỐN DÙNG RIÊNG)
+        // 4) LẤY ITEMS CHO 1 ORDER
         // GET /api/staff/orders/{id}/items
         // =========================================================
         [HttpGet("{id:int}/items")]
@@ -321,5 +325,54 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return StatusCode(500, new { message = "Error fetching order items", detail = ex.Message });
             }
         }
+
+        // =========================================================
+        // 5) XÓA ĐƠN ĐÃ HỦY
+        // DELETE /api/staff/orders/{id}
+        // =========================================================
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                .Include(o => o.Invoice)
+                .FirstOrDefaultAsync(o => o.OrderId == id);
+
+            if (order == null)
+                return NotFound(new { message = "Order not found" });
+
+            if (!string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Chỉ được xóa đơn hàng đã ở trạng thái Đã hủy." });
+            }
+
+            if (order.Invoice != null)
+            {
+                return BadRequest(new { message = "Không thể xóa đơn đã có hóa đơn." });
+            }
+
+            var salesOrderNo = $"ORD-{id}";
+
+            var dispatchIds = await _db.Dispatches
+                .Where(d => d.ReferenceNo == salesOrderNo)
+                .Select(d => d.Id) 
+                .ToListAsync();
+
+            foreach (var dispatchId in dispatchIds)
+            {
+                await _dispathservice.DeleteDispatchSlipAsync(dispatchId);
+            }
+
+            _db.OrderItems.RemoveRange(order.Items);
+
+            _db.Orders.Remove(order);
+
+            //order.isDelete = true;
+
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+
     }
 }
