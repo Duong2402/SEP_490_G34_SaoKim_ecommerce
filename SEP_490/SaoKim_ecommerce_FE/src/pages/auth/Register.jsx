@@ -65,22 +65,30 @@ export default function Register() {
     if (!form.email.trim()) v.email = "Email là bắt buộc.";
     else if (!/^\S+@\S+\.\S+$/.test(form.email))
       v.email = "Email không hợp lệ.";
+
     if (!form.password) v.password = "Mật khẩu là bắt buộc.";
     else if (form.password.length < 8)
       v.password = "Mật khẩu tối thiểu 8 ký tự.";
+    else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(form.password))
+      v.password = "Mật khẩu phải có ít nhất 1 chữ cái và 1 chữ số.";
+
     if (!form.confirmPassword)
       v.confirmPassword = "Vui lòng nhập lại mật khẩu.";
     else if (form.password !== form.confirmPassword)
       v.confirmPassword = "Mật khẩu xác nhận không khớp.";
+
     if (!form.phoneNumber.trim())
       v.phoneNumber = "Số điện thoại là bắt buộc.";
     else if (!/^\d{9,11}$/.test(form.phoneNumber))
       v.phoneNumber = "Số điện thoại không hợp lệ.";
+
     if (!form.dob.trim()) v.dob = "Ngày sinh là bắt buộc.";
     if (!form.image) v.image = "Ảnh đại diện là bắt buộc.";
+
     setErrors(v);
     return Object.keys(v).length === 0;
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -116,17 +124,32 @@ export default function Register() {
         body: formData,
       });
 
-      console.log("response", {
-          name: form.fullName,
-          email: form.email,
-          password: form.password,
-          role: "customer",
-        });
-
       const data = await res.json();
 
       if (!res.ok) {
-        setGeneralError(data?.message || "Đăng ký thất bại.");
+        if (data?.errors) {
+          const fieldErrors = {};
+
+          Object.keys(data.errors).forEach((key) => {
+            let fieldName = key.charAt(0).toLowerCase() + key.slice(1); 
+            if (fieldName === "dOB") fieldName = "dob";
+            fieldErrors[fieldName] = data.errors[key][0];
+          });
+
+          setErrors(fieldErrors);
+          setTouched((prev) => ({
+            ...prev,
+            fullName: true,
+            email: true,
+            password: true,
+            confirmPassword: true,
+            phoneNumber: true,
+            dob: true,
+            image: true,
+          }));
+        } else {
+          setGeneralError(data?.message || "Đăng ký thất bại.");
+        }
         return;
       }
 
