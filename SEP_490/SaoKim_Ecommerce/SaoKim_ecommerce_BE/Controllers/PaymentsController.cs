@@ -16,9 +16,8 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpGet("check-vietqr")]
-        public async Task<IActionResult> CheckVietQr([FromQuery] int amount)
+        public async Task<IActionResult> CheckVietQr([FromQuery] int amount, [FromQuery] string? paymentToken = null)
         {
-            // URL Apps Script (loại bỏ /u/1 nếu có, dùng URL Deploy Web App chuẩn)
             var scriptUrl = "https://script.google.com/macros/s/AKfycbwKiGzxdPq4n_Xl-PvAokMhpDdmTrty8DUlEf63Vw_kr3UJY6rE2NfqwyabS5uhdU4LNw/exec";
 
             var response = await _httpClient.GetAsync(scriptUrl);
@@ -40,16 +39,31 @@ namespace SaoKim_ecommerce_BE.Controllers
             const string targetAccount = "0000126082016";
             var targetAmount = amount;
 
+            // Chuẩn hóa token (nếu có) để so sánh không phân biệt hoa thường
+            var tokenUpper = paymentToken?.ToUpperInvariant();
+
             bool matched = false;
             foreach (var row in dataElem.EnumerateArray())
             {
                 var account = row.GetProperty("Số tài khoản").GetString();
                 var value = row.GetProperty("Giá trị").GetInt32();
-                var desc = row.GetProperty("Mô tả").GetString()?.ToUpperInvariant() ?? "";
+                var descRaw = row.GetProperty("Mô tả").GetString() ?? string.Empty;
+                var descUpper = descRaw.ToUpperInvariant();
+
+                // Điều kiện mô tả cơ bản
+                var descMatchBasic =
+                    descUpper.Contains("THANH TOAN") ||
+                    descUpper.Contains("CHUYEN TIEN");
+
+                // Nếu có paymentToken thì bắt buộc mô tả phải chứa token đó
+                var descMatchToken = string.IsNullOrEmpty(tokenUpper)
+                    ? true
+                    : descUpper.Contains(tokenUpper);
 
                 if (account == targetAccount &&
-                    (value == targetAmount) &&
-                    (desc.Contains("THANH TOAN") || desc.Contains("CHUYEN TIEN")))
+                    value == targetAmount &&
+                    descMatchBasic &&
+                    descMatchToken)
                 {
                     matched = true;
                     break;

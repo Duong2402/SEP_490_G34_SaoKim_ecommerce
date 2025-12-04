@@ -1,12 +1,3 @@
-import React from "react";
-import { Container, Row, Col } from "react-bootstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-    faMapMarkerAlt,
-    faPhoneAlt,
-    faEnvelope,
-    faChevronRight,
-} from "@fortawesome/free-solid-svg-icons";
 import React, { useState } from "react";
 import { Container, Row, Col, Form, InputGroup, Button } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
