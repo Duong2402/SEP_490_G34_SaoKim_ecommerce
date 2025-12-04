@@ -1,8 +1,7 @@
 ﻿import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Button, Card, Toast, ToastContainer } from "react-bootstrap";
+import { Container, Row, Col, Button, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faShoppingCart,
   faArrowRight,
   faStar,
   faLightbulb,
@@ -17,6 +16,7 @@ import HomepageHeader from "../../components/HomepageHeader";
 import { ProductsAPI } from "../../api/products";
 import { readCart, writeCart } from "../../api/cartStorage";
 import ProductSkeleton from "../../components/common/ProductSkeleton";
+import ProductCard from "../../components/products/ProductCard";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -311,44 +311,13 @@ const HomePage = () => {
               {products.length > 0 ? (
                 products.map((product) => (
                   <Col xl={3} lg={3} md={6} sm={6} key={product.id}>
-                    <Card className="luxury-card home-product-card h-100">
-                      <div className="home-product-badge">Mới</div>
-                      <div className="home-product-media">
-                        <Card.Img
-                          variant="top"
-                          src={product.image}
-                          className="home-product-img cursor-pointer"
-                          onClick={() => navigate(`/products/${product.id}`)}
-                        />
-                      </div>
-                      <Card.Body className="home-product-body">
-                        <div className="home-product-meta">{product.category}</div>
-                        <Card.Title
-                          className="home-product-title cursor-pointer"
-                          onClick={() => navigate(`/products/${product.id}`)}
-                        >
-                          {product.name}
-                        </Card.Title>
-                        <div className="home-product-price">
-                          {formatCurrency(product.price)}
-                        </div>
-                        <div className="home-product-actions">
-                          <Button
-                            className="home-product-btn primary"
-                            onClick={() => navigate(`/products/${product.id}`)}
-                          >
-                            Xem chi tiết
-                          </Button>
-                          <Button
-                            className="home-product-btn ghost"
-                            onClick={() => handleAddToCart(product)}
-                            title="Thêm vào giỏ"
-                          >
-                            <FontAwesomeIcon icon={faShoppingCart} />
-                          </Button>
-                        </div>
-                      </Card.Body>
-                    </Card>
+                    <ProductCard
+                      product={product}
+                      badgeText="Mới"
+                      onView={() => navigate(`/products/${product.id}`)}
+                      onAddToCart={handleAddToCart}
+                      formatPrice={formatCurrency}
+                    />
                   </Col>
                 ))
               ) : (

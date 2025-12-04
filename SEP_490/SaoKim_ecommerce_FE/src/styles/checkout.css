@@ -1,0 +1,239 @@
+:root {
+  --checkout-bg: #f5f7fb;
+  --checkout-primary: #003366;
+  --checkout-accent: #ff8c00;
+  --checkout-muted: #6b7280;
+  --checkout-border: rgba(0, 51, 102, 0.08);
+}
+
+.checkout-page {
+  background: var(--checkout-bg);
+  min-height: 100vh;
+}
+
+.checkout-section {
+  background: var(--checkout-bg);
+  padding-bottom: 80px;
+}
+
+.checkout-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+  color: #9da4af;
+}
+
+.checkout-breadcrumb .breadcrumb-item a {
+  color: var(--checkout-muted);
+  text-decoration: none;
+}
+
+.checkout-breadcrumb .breadcrumb-item a:hover {
+  color: var(--checkout-primary);
+}
+
+.checkout-breadcrumb .breadcrumb-item.active {
+  color: var(--checkout-primary);
+  font-weight: 700;
+}
+
+.checkout-title {
+  color: var(--checkout-primary);
+}
+
+.checkout-subtitle {
+  line-height: 1.7;
+}
+
+.checkout-card {
+  border: 1px solid var(--checkout-border);
+  border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(0, 35, 82, 0.06);
+  background: #ffffff;
+}
+
+.checkout-card .card-body {
+  padding: 24px;
+}
+
+.checkout-card-title {
+  color: var(--checkout-primary);
+  font-weight: 700;
+}
+
+.address-option,
+.shipping-option,
+.payment-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.address-option:hover,
+.shipping-option:hover,
+.payment-option:hover {
+  border-color: #c6d8ff;
+  box-shadow: 0 8px 24px rgba(0, 51, 102, 0.06);
+}
+
+.address-option.active,
+.shipping-option.active,
+.payment-option.active {
+  border-color: #2f5fb8;
+  background: #eef3ff;
+  box-shadow: 0 12px 32px rgba(0, 51, 102, 0.1);
+}
+
+.address-name {
+  color: var(--checkout-primary);
+  font-weight: 700;
+}
+
+.address-meta {
+  color: var(--checkout-muted);
+  font-size: 0.95rem;
+  margin-top: 2px;
+}
+
+.badge-soft-primary {
+  background: #e7eefb;
+  color: #1b3f78;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.qr-box {
+  border: 1px dashed #d7deed;
+  background: #f9fbff;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.qr-image {
+  box-shadow: 0 12px 28px rgba(0, 51, 102, 0.08);
+  background: #ffffff;
+}
+
+.discount-group .form-control {
+  border-color: #d6deed;
+  padding: 12px 14px;
+}
+
+.discount-group .form-control:focus {
+  box-shadow: 0 0 0 0.2rem rgba(47, 95, 184, 0.18);
+}
+
+.btn-saokim {
+  background: linear-gradient(135deg, #ff9a1a, #ff7a00);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(255, 122, 0, 0.28);
+}
+
+.btn-saokim:hover {
+  filter: brightness(0.95);
+  color: #ffffff;
+}
+
+.btn-saokim:disabled {
+  opacity: 0.7;
+}
+
+.order-summary-card {
+  position: sticky;
+  top: 88px;
+}
+
+.summary-list {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-item {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-divider {
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.summary-pricing {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  color: #1f2937;
+}
+
+.total-row {
+  font-weight: 800;
+  color: var(--checkout-primary);
+}
+
+.total-amount {
+  color: var(--checkout-accent);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.empty-state-card {
+  max-width: 720px;
+}
+
+.note-box {
+  background: #f8faff;
+  border: 1px solid #e4ebf9;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.note-box .form-control {
+  border-color: #d6deed;
+}
+
+.shipping-option .text-primary,
+.payment-option .text-primary,
+.summary-item .text-primary {
+  color: var(--checkout-primary) !important;
+}
+
+@media (max-width: 991.98px) {
+  .order-summary-card {
+    position: static;
+  }
+
+  .checkout-card .card-body {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .address-option,
+  .shipping-option,
+  .payment-option {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .btn-saokim {
+    width: 100%;
+  }
+}

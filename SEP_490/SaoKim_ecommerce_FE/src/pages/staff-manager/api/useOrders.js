@@ -45,9 +45,23 @@ export default function useOrdersApi() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, text);
-      throw new Error(`Cập nhật trạng thái đơn thất bại (mã ${res.status})`);
+      let message = `Cập nhật trạng thái đơn thất bại (mã ${res.status})`;
+      try {
+        const text = await res.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            message = data?.message || data?.error || text;
+          } catch {
+            message = text;
+          }
+        }
+      } catch {
+        // fall back to default message
+      }
+
+      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, message);
+      throw new Error(message);
     }
 
     return true;

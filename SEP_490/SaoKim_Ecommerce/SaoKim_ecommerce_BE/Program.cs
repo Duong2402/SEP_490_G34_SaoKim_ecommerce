@@ -79,6 +79,8 @@ builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IReceivingService, ReceivingService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
+builder.Services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+
 
 
 // DbContext
