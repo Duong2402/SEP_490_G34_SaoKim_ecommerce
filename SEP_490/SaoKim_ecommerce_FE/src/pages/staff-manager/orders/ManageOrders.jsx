@@ -4,6 +4,7 @@ import {
   faCog,
   faHome,
   faSearch,
+  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -29,7 +30,8 @@ import StaffLayout from "../../../layouts/StaffLayout";
 import useOrdersApi from "../api/useOrders";
 
 export default function ManageOrders() {
-  const { fetchOrders, updateOrderStatus, fetchOrderItems } = useOrdersApi();
+  const { fetchOrders, updateOrderStatus, fetchOrderItems, deleteOrder } =
+    useOrdersApi();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -50,6 +52,9 @@ export default function ManageOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
   const [loadingOrderItems, setLoadingOrderItems] = useState(false);
+
+  const [cancellingOrderId, setCancellingOrderId] = useState(null);
+  const [deletingOrderId, setDeletingOrderId] = useState(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -81,7 +86,16 @@ export default function ManageOrders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, status, createdFrom, createdTo, page, pageSize, sortBy, sortDir]);
+  }, [
+    debouncedSearch,
+    status,
+    createdFrom,
+    createdTo,
+    page,
+    pageSize,
+    sortBy,
+    sortDir,
+  ]);
 
   const renderStatus = (s) => {
     const v = String(s || "").toLowerCase();
@@ -91,8 +105,7 @@ export default function ManageOrders() {
           Chờ xử lý
         </Badge>
       );
-    if (v === "paid")
-      return <Badge bg="primary">Đang xử lý kho</Badge>;
+    if (v === "paid") return <Badge bg="primary">Đang xử lý kho</Badge>;
     if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
     if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
     if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
@@ -129,6 +142,62 @@ export default function ManageOrders() {
     }
   };
 
+  const canCancel = (order) => {
+    if (!order) return false;
+    const s = String(order.status || "").toLowerCase();
+    return s === "pending" || s === "shipping" || s === "paid";
+  };
+
+  const handleCancelOrder = async (order) => {
+    if (!order || !canCancel(order)) return;
+
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
+
+    setCancellingOrderId(order.id);
+    try {
+      await updateOrderStatus(order.id, "Cancelled");
+      await load();
+
+      setSelectedOrder((prev) =>
+        prev && prev.id === order.id ? { ...prev, status: "Cancelled" } : prev
+      );
+    } catch (e) {
+      console.error(e);
+      alert("Không hủy được đơn hàng");
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    if (!order) return;
+
+    const status = String(order.status || "").toLowerCase();
+    if (status !== "cancelled") {
+      alert("Chỉ được xóa đơn hàng đã ở trạng thái Đã hủy");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Xóa vĩnh viễn đơn hàng này? Hành động không thể hoàn tác."
+      )
+    )
+      return;
+
+    setDeletingOrderId(order.id);
+    try {
+      await deleteOrder(order.id);
+      setShowOrderItemsModal(false);
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert("Không xóa được đơn hàng");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
   return (
     <StaffLayout>
       <div className="staff-page-header">
@@ -137,7 +206,10 @@ export default function ManageOrders() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-dashboard" }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Đơn hàng</Breadcrumb.Item>
@@ -145,7 +217,9 @@ export default function ManageOrders() {
           </Breadcrumb>
 
           <h4 className="staff-page-title">Quản lý đơn hàng</h4>
-          <p className="staff-page-lead">Lọc, cập nhật trạng thái và theo dõi chi tiết đơn</p>
+          <p className="staff-page-lead">
+            Lọc, cập nhật trạng thái và theo dõi chi tiết đơn
+          </p>
         </div>
       </div>
 
@@ -219,7 +293,12 @@ export default function ManageOrders() {
 
           <Col md="auto" className="ms-auto">
             <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+              <Dropdown.Toggle
+                split
+                as={Button}
+                variant="link"
+                className="text-dark m-0 p-0"
+              >
                 <FontAwesomeIcon icon={faCog} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
@@ -234,7 +313,9 @@ export default function ManageOrders() {
                     }}
                   >
                     {n} dòng
-                    {pageSize === n && <FontAwesomeIcon icon={faCheck} className="ms-2" />}
+                    {pageSize === n && (
+                      <FontAwesomeIcon icon={faCheck} className="ms-2" />
+                    )}
                   </Dropdown.Item>
                 ))}
 
@@ -315,7 +396,8 @@ export default function ManageOrders() {
                   <td>
                     <div>{o.customerName}</div>
                     <div className="small text-muted">
-                      {o.customerEmail} {o.customerPhone && ` / ${o.customerPhone}`}
+                      {o.customerEmail}{" "}
+                      {o.customerPhone && ` / ${o.customerPhone}`}
                     </div>
                   </td>
                   <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
@@ -327,8 +409,9 @@ export default function ManageOrders() {
                       variant="outline-primary"
                       className="me-2"
                       onClick={() => handleViewOrderItems(o)}
+                      title="Xem chi tiết đơn hàng"
                     >
-                      Xem sản phẩm
+                      <FontAwesomeIcon icon={faEye} />
                     </Button>
 
                     {o.status === "Pending" && (
@@ -336,9 +419,13 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-secondary"
                         disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Shipping")}
+                        onClick={() =>
+                          handleUpdateOrderStatus(o.id, "Shipping")
+                        }
                       >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Chuyển giao hàng"}
+                        {updatingOrderId === o.id
+                          ? "Đang lưu..."
+                          : "Chuyển giao hàng"}
                       </Button>
                     )}
 
@@ -353,9 +440,13 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-success"
                         disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
+                        onClick={() =>
+                          handleUpdateOrderStatus(o.id, "Completed")
+                        }
                       >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Hoàn tất đơn"}
+                        {updatingOrderId === o.id
+                          ? "Đang lưu..."
+                          : "Hoàn tất đơn"}
                       </Button>
                     )}
                   </td>
@@ -377,14 +468,23 @@ export default function ManageOrders() {
               Trang {page} / {totalPages}
             </div>
             <Pagination>
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
+              <Pagination.Prev
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
               {renderPageItems(page, totalPages, setPage)}
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
-              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
+              <Pagination.Last
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              />
             </Pagination>
           </div>
         </Card.Body>
@@ -398,7 +498,7 @@ export default function ManageOrders() {
       >
         <Modal.Header closeButton>
           <Modal.Title className="staff-modal__title">
-            Sản phẩm trong đơn #{selectedOrder?.id}
+            Chi tiết đơn hàng #{selectedOrder?.id}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -434,6 +534,61 @@ export default function ManageOrders() {
             <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
           )}
         </Modal.Body>
+        <Modal.Footer>
+          <div className="w-100 d-flex justify-content-between align-items-center">
+            <div>
+              {selectedOrder && (
+                <>
+                  <div className="mb-1">
+                    Trạng thái hiện tại: {renderStatus(selectedOrder.status)}
+                  </div>
+                  <div className="small text-muted">
+                    Tổng tiền:{" "}
+                    {(selectedOrder.total ?? 0).toLocaleString("vi-VN")} ₫
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="d-flex gap-2">
+              {selectedOrder && canCancel(selectedOrder) && (
+                <Button
+                  size="sm"
+                  variant="outline-danger"
+                  disabled={cancellingOrderId === selectedOrder.id}
+                  onClick={() => handleCancelOrder(selectedOrder)}
+                >
+                  {cancellingOrderId === selectedOrder.id
+                    ? "Đang hủy..."
+                    : "Hủy đơn hàng"}
+                </Button>
+              )}
+
+              {selectedOrder &&
+                String(selectedOrder.status || "").toLowerCase() ===
+                  "cancelled" && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={deletingOrderId === selectedOrder.id}
+                    onClick={() => handleDeleteOrder(selectedOrder)}
+                  >
+                    {deletingOrderId === selectedOrder.id
+                      ? "Đang xóa..."
+                      : "Xóa đơn đã hủy"}
+                  </Button>
+                )}
+
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowOrderItemsModal(false)}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal.Footer>
       </Modal>
     </StaffLayout>
   );
@@ -470,19 +625,25 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

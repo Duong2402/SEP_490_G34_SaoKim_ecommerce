@@ -1,3 +1,4 @@
+// src/pages/staff-manager/products/ProductForm.jsx
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
@@ -11,10 +12,23 @@ const normalizeDefaults = (d = {}) => ({
   price: d.price ?? 0,
   stock: d.stock ?? d.quantity ?? 0,
   active: d.active ?? (d.status ? d.status === "Active" : true),
+  unit: d.unit ?? "",
+  description: d.description ?? "",
+  supplier: d.supplier ?? "",
+  note: d.note ?? "",
   imageFile: null,
+  updateAt: d.updateAt ?? d.update_at ?? d.UpdateAt ?? null,
 });
 
-export default function ProductForm({ defaultValues, submitLabel, loading, onSubmit, onCancel }) {
+export default function ProductForm({
+  defaultValues,
+  submitLabel,
+  loading,
+  onSubmit,
+  onCancel,
+}) {
+  const defaults = normalizeDefaults(defaultValues);
+
   const {
     register,
     handleSubmit,
@@ -22,7 +36,7 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
     setValue,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: normalizeDefaults(defaultValues),
+    defaultValues: defaults,
     mode: "onBlur",
   });
 
@@ -34,6 +48,7 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
   const [newCategory, setNewCategory] = useState("");
 
   const categoryId = watch("categoryId");
+  const updateAt = defaults.updateAt;
 
   useEffect(() => {
     (async () => {
@@ -81,6 +96,7 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
   return (
     <Form onSubmit={handleSubmit(submitWrapped)} noValidate>
       <div className="staff-form-grid">
+        {/* SKU */}
         <Form.Group>
           <Form.Label>Mã SKU</Form.Label>
           <Form.Control
@@ -93,9 +109,12 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
             isInvalid={!!errors.sku}
             disabled={disabled}
           />
-          <Form.Control.Feedback type="invalid">{errors.sku?.message}</Form.Control.Feedback>
+          <Form.Control.Feedback type="invalid">
+            {errors.sku?.message}
+          </Form.Control.Feedback>
         </Form.Group>
 
+        {/* Tên sản phẩm */}
         <Form.Group>
           <Form.Label>Tên sản phẩm</Form.Label>
           <Form.Control
@@ -105,9 +124,12 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
             isInvalid={!!errors.name}
             disabled={disabled}
           />
-          <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
+          <Form.Control.Feedback type="invalid">
+            {errors.name?.message}
+          </Form.Control.Feedback>
         </Form.Group>
 
+        {/* Danh mục */}
         <Form.Group>
           <Form.Label>Danh mục</Form.Label>
 
@@ -140,7 +162,11 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
                 onChange={(e) => setNewCategory(e.target.value)}
                 disabled={disabled}
               />
-              <Button variant="primary" onClick={handleAddCategory} disabled={disabled}>
+              <Button
+                variant="primary"
+                onClick={handleAddCategory}
+                disabled={disabled}
+              >
                 Lưu
               </Button>
               <Button
@@ -157,9 +183,12 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
             </div>
           )}
 
-          <Form.Control.Feedback type="invalid">{errors.categoryId?.message}</Form.Control.Feedback>
+          <Form.Control.Feedback type="invalid">
+            {errors.categoryId?.message}
+          </Form.Control.Feedback>
         </Form.Group>
 
+        {/* Giá bán */}
         <Form.Group>
           <Form.Label>Giá bán</Form.Label>
           <Form.Control
@@ -172,9 +201,41 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
             isInvalid={!!errors.price}
             disabled={disabled}
           />
-          <Form.Control.Feedback type="invalid">{errors.price?.message}</Form.Control.Feedback>
+          <Form.Control.Feedback type="invalid">
+            {errors.price?.message}
+          </Form.Control.Feedback>
         </Form.Group>
 
+        {/* Số lượng / quantity */}
+        <Form.Group>
+          <Form.Label>Số lượng</Form.Label>
+          <Form.Control
+            type="number"
+            min={0}
+            {...register("stock", {
+              required: "Số lượng là bắt buộc",
+              valueAsNumber: true,
+            })}
+            isInvalid={!!errors.stock}
+            disabled={disabled}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.stock?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        {/* Đơn vị tính */}
+        <Form.Group>
+          <Form.Label>Đơn vị tính</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Ví dụ: cái, bộ, chiếc"
+            {...register("unit")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        {/* Ảnh */}
         <Form.Group>
           <Form.Label>Ảnh sản phẩm</Form.Label>
           <Form.Control
@@ -188,6 +249,42 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
           />
         </Form.Group>
 
+        {/* Mô tả */}
+        <Form.Group>
+          <Form.Label>Mô tả</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            placeholder="Mô tả ngắn về sản phẩm"
+            {...register("description")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        {/* Nhà cung cấp */}
+        <Form.Group>
+          <Form.Label>Nhà cung cấp</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Tên nhà cung cấp"
+            {...register("supplier")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        {/* Ghi chú */}
+        <Form.Group>
+          <Form.Label>Ghi chú</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            placeholder="Ghi chú nội bộ"
+            {...register("note")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        {/* Active */}
         <Form.Check
           type="switch"
           id="active-switch"
@@ -196,6 +293,14 @@ export default function ProductForm({ defaultValues, submitLabel, loading, onSub
           disabled={disabled}
         />
       </div>
+
+      {/* Hiển thị update_at (nếu có) */}
+      {updateAt && (
+        <div className="mt-2 text-muted small">
+          Cập nhật lần cuối:{" "}
+          {new Date(updateAt).toLocaleString("vi-VN")}
+        </div>
+      )}
 
       <div className="d-flex gap-2 justify-content-end mt-3">
         {onCancel && (

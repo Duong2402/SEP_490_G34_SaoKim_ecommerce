@@ -182,7 +182,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                         ? $"{baseUrl}/images/{x.Detail.Image}"
                         : null,
                     note = x.Detail != null ? x.Detail.Note : null,
-                    inProject = x.HasProjects
+                    inProject = x.HasProjects,
+                    updateAt = x.Detail != null ? x.Detail.UpdateAt : null
                 })
                 .FirstOrDefaultAsync();
 
