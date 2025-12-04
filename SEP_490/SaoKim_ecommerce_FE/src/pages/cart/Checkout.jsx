@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import {
+  Breadcrumb,
+  Button,
+  Card,
+  Col,
+  Container,
+  Form,
+  InputGroup,
+  Row,
+} from "react-bootstrap";
+import HomepageHeader from "../../components/HomepageHeader";
+import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
+import "../../styles/checkout.css";
 
-/* ---------- Helpers gắn với từng user ---------- */
+// Helpers per user session
 function readCheckoutItemsForOwner() {
   try {
     const { checkoutKey } = getCartKeys();
@@ -15,23 +27,18 @@ function readCheckoutItemsForOwner() {
   }
 }
 
-/* ---------- Component ---------- */
 export default function Checkout() {
   const navigate = useNavigate();
   const apiBase = "https://localhost:7278";
 
-  // Giỏ đầy đủ (theo user hiện tại)
   const [cartItems, setCartItems] = useState(() => readCart());
-  const [checkoutItems, setCheckoutItems] = useState(
-    () => readCheckoutItemsForOwner()
-  );
+  const [checkoutItems, setCheckoutItems] = useState(() => readCheckoutItemsForOwner());
 
   const itemsForCheckout =
     checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
 
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  // Form dùng để truyền sang trang success (lấy từ địa chỉ đã chọn)
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -54,12 +61,25 @@ export default function Checkout() {
     { code: "GIAM30K", label: "Giảm 30.000đ", type: "amount", value: 30000 },
   ]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [voucherStatus, setVoucherStatus] = useState(null);
 
-  // Trạng thái thanh toán VietQR
+  // VietQR state
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [autoCheck, setAutoCheck] = useState(false);
 
-  /* ---------- Sync localStorage ---------- */
+  const shippingOptions = [
+    { value: "standard", label: "Tiết kiệm", time: "Giao 3 - 5 ngày" },
+    { value: "fast", label: "Nhanh", time: "Giao 1 - 2 ngày" },
+    { value: "express", label: "Hoả tốc", time: "Giao trong ngày" },
+  ];
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(Number(value) || 0);
+
+  // Sync storage
   useEffect(() => {
     const onStorage = () => {
       setCartItems(readCart());
@@ -80,12 +100,11 @@ export default function Checkout() {
   }, []);
 
   useEffect(() => {
-    const base =
-      checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
+    const base = checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
     setSelectedIds(new Set(base.map((x) => x.id)));
   }, [checkoutItems, cartItems]);
 
-  /* ---------- Load địa chỉ đã lưu ---------- */
+  // Load saved addresses
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -115,12 +134,12 @@ export default function Checkout() {
           setSelectedAddressId(null);
         }
       } catch {
-        // bỏ qua lỗi
+        // ignore
       }
     })();
   }, [apiBase]);
 
-  /* ---------- Phí ship cho địa chỉ đã chọn ---------- */
+  // Shipping fee for selected address
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -140,12 +159,12 @@ export default function Checkout() {
           setShippingFee(data.fee);
         }
       } catch {
-        // giữ phí ship cũ nếu lỗi
+        // keep old fee on error
       }
     })();
   }, [selectedAddressId, apiBase]);
 
-  /* ---------- Selected items / subtotal ---------- */
+  // Selected items / subtotal
   const selectedItems = useMemo(
     () => itemsForCheckout.filter((it) => selectedIds.has(it.id)),
     [itemsForCheckout, selectedIds]
@@ -172,38 +191,35 @@ export default function Checkout() {
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
 
-  /* ---------- checkPaid: gọi backend kiểm tra VietQR ---------- */
-const checkPaid = async () => {
-  try {
-    // qrAmount = số tiền cần kiểm tra (bạn đã tính ở trên)
-    const token = localStorage.getItem("token");
+  // checkPaid: call backend to verify VietQR
+  const checkPaid = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-    const res = await fetch(
-      `${apiBase}/api/payments/check-vietqr?amount=${qrAmount}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      const res = await fetch(
+        `${apiBase}/api/payments/check-vietqr?amount=${qrAmount}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.error("checkPaid backend error", await res.text());
+        return false;
       }
-    );
 
-    if (!res.ok) {
-      console.error("checkPaid backend error", await res.text());
+      const data = await res.json();
+      return !!data.matched;
+    } catch (e) {
+      console.error("Error verifying payment", e);
       return false;
     }
+  };
 
-    const data = await res.json();
-    // Backend trả { matched: true/false }
-    return !!data.matched;
-  } catch (e) {
-    console.error("Lỗi kiểm tra thanh toán", e);
-    return false;
-  }
-};
-
-
-  /* ---------- Polling tự động khi chọn QR ---------- */
+  // Polling auto-check when QR selected
   useEffect(() => {
     let interval;
 
@@ -213,7 +229,7 @@ const checkPaid = async () => {
         if (paid) {
           setPaymentVerified(true);
         }
-      }, 3000); // mỗi 3 giây gọi Apps Script
+      }, 3000);
     }
 
     return () => {
@@ -221,16 +237,21 @@ const checkPaid = async () => {
     };
   }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount]);
 
-  /* ---------- Apply voucher ---------- */
+  // Apply voucher
   const handleApplyVoucher = () => {
     const found = voucherList.find(
       (v) => v.code.toLowerCase() === voucherCode.toLowerCase()
     );
-    if (found) setSelectedVoucher(found);
-    else alert("Mã giảm giá không hợp lệ");
+    if (found) {
+      setSelectedVoucher(found);
+      setVoucherStatus({ type: "success", message: `Đã áp dụng: ${found.label}` });
+    } else {
+      setSelectedVoucher(null);
+      setVoucherStatus({ type: "error", message: "Mã giảm giá không hợp lệ" });
+    }
   };
 
-  /* ---------- PAY ---------- */
+  // PAY
   const handlePay = async () => {
     if (!selectedItems.length) {
       alert("Không có sản phẩm nào để thanh toán");
@@ -322,392 +343,421 @@ const checkPaid = async () => {
     }
   };
 
-  /* ---------- Render ---------- */
   if (!itemsForCheckout.length) {
     return (
       <div className="checkout-page">
-        <EcommerceHeader />
-        <main className="checkout-main" style={{ padding: 24 }}>
-          <div
-            className="checkout-container"
-            style={{ maxWidth: 1040, margin: "0 auto" }}
-          >
-            <h1 style={{ marginBottom: 16 }}>Thanh toán</h1>
-            <p>Giỏ hàng trống. Vui lòng thêm sản phẩm</p>
-            <Link to="/" className="btn btn-primary">
-              Về trang chủ
-            </Link>
-          </div>
-        </main>
+        <HomepageHeader />
+        <section className="checkout-section py-5">
+          <Container>
+            <Breadcrumb className="checkout-breadcrumb mb-3">
+              <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>
+                Trang chủ
+              </Breadcrumb.Item>
+              <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/cart" }}>
+                Giỏ hàng
+              </Breadcrumb.Item>
+              <Breadcrumb.Item active>Thanh toán</Breadcrumb.Item>
+            </Breadcrumb>
+            <Card className="checkout-card text-center empty-state-card mx-auto">
+              <Card.Body className="py-5">
+                <h2 className="fw-bold text-primary mb-2">
+                  Không có sản phẩm nào để thanh toán.
+                </h2>
+                <p className="text-muted mb-4">Vui lòng quay lại giỏ hàng.</p>
+                <Button
+                  as={Link}
+                  to="/cart"
+                  variant="outline-primary"
+                  className="rounded-pill px-4"
+                >
+                  Xem giỏ hàng
+                </Button>
+              </Card.Body>
+            </Card>
+          </Container>
+        </section>
+        <EcommerceFooter />
       </div>
     );
   }
 
   return (
     <div className="checkout-page">
-      <EcommerceHeader />
-      <main className="checkout-main" style={{ padding: 24 }}>
-        <div
-          className="checkout-container"
-          style={{ maxWidth: 1040, margin: "0 auto" }}
-        >
-          <h1 style={{ marginBottom: 16 }}>Thanh toán</h1>
+      <HomepageHeader />
+      <section className="checkout-section py-5">
+        <Container className="checkout-container">
+          <Breadcrumb className="checkout-breadcrumb mb-3">
+            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>
+              Trang chủ
+            </Breadcrumb.Item>
+            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/cart" }}>
+              Giỏ hàng
+            </Breadcrumb.Item>
+            <Breadcrumb.Item active>Thanh toán</Breadcrumb.Item>
+          </Breadcrumb>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 380px",
-              gap: 24,
-            }}
-          >
-            {/* LEFT SECTION */}
-            <section>
-              <form>
-                <div style={{ display: "grid", gap: 12 }}>
-                  {/* --- ĐỊA CHỈ --- */}
-                  <div
-                    style={{
-                      padding: 12,
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                    }}
-                  >
-                    <strong>Địa chỉ giao hàng</strong>
+          <div className="d-flex flex-column gap-2 mb-4">
+            <h1 className="checkout-title display-5 fw-bold mb-0">
+              Thanh toán
+            </h1>
+            <p className="checkout-subtitle text-muted mb-0">
+              Xem lại thông tin giao hàng, vận chuyển và hoàn tất đơn hàng của bạn.
+            </p>
+          </div>
 
-                    {addresses.length > 0 &&
-                      addresses.map((a) => (
-                        <label
-                          key={a.addressId}
-                          style={{ display: "flex", gap: 10, marginTop: 8 }}
+          <Row className="g-4">
+            <Col lg={8}>
+              <Form className="checkout-form" onSubmit={(e) => e.preventDefault()}>
+                <Card className="checkout-card mb-4">
+                  <Card.Body>
+                    <div className="d-flex justify-content-between flex-wrap gap-3 align-items-start mb-2">
+                      <div>
+                        <Card.Title className="checkout-card-title mb-1">
+                          Địa chỉ giao hàng
+                        </Card.Title>
+                        <small className="text-muted">
+                          Chọn địa chỉ sẵn có hoặc thêm mới để giao hàng.
+                        </small>
+                      </div>
+                    </div>
+
+                    {addresses.length === 0 ? (
+                      <div className="mt-2">
+                        <p className="text-muted mb-3">Bạn chưa có địa chỉ giao hàng.</p>
+                        <Button
+                          variant="outline-primary"
+                          className="rounded-pill"
+                          onClick={() =>
+                            navigate("/account/addresses", {
+                              state: { from: "/checkout" },
+                            })
+                          }
                         >
-                          <input
+                          Thêm địa chỉ mới
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="d-grid gap-3 mt-3">
+                          {addresses.map((a) => (
+                            <label
+                              key={a.addressId}
+                              className={`address-option ${
+                                selectedAddressId === a.addressId ? "active" : ""
+                              }`}
+                            >
+                              <Form.Check
+                                type="radio"
+                                name="addr"
+                                checked={selectedAddressId === a.addressId}
+                                onChange={() => {
+                                  setSelectedAddressId(a.addressId);
+                                  setForm((f) => ({
+                                    ...f,
+                                    fullName: a.recipientName,
+                                    phone: a.phoneNumber,
+                                    line1: a.line1 ?? "",
+                                  }));
+                                }}
+                                className="mt-1 me-3"
+                              />
+                              <div className="flex-grow-1">
+                                <div className="d-flex align-items-center flex-wrap gap-2">
+                                  <span className="address-name">{a.recipientName}</span>
+                                  <span className="text-muted small">• {a.phoneNumber}</span>
+                                  {a.isDefault && (
+                                    <span className="badge-soft-primary">Mặc định</span>
+                                  )}
+                                </div>
+                                <div className="address-meta">
+                                  {[a.line1, a.ward, a.district, a.province]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                        <div className="mt-3">
+                          <Button
+                            variant="outline-primary"
+                            className="rounded-pill"
+                            onClick={() =>
+                              navigate("/account/addresses", {
+                                state: { from: "/checkout" },
+                              })
+                            }
+                          >
+                            Thêm địa chỉ mới
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                    <Form.Group className="mt-4 note-box">
+                      <Form.Label className="fw-semibold text-muted small mb-2">
+                        Ghi chú đơn hàng (tùy chọn)
+                      </Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        placeholder="Ví dụ: Giao lắp buổi chiều, kiểm tra hàng trước khi nhận..."
+                        value={form.note}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            note: e.target.value,
+                          }))
+                        }
+                        className="rounded-3"
+                      />
+                    </Form.Group>
+                  </Card.Body>
+                </Card>
+
+                <Card className="checkout-card mb-4">
+                  <Card.Body>
+                    <Card.Title className="checkout-card-title mb-3">
+                      Phương thức vận chuyển
+                    </Card.Title>
+                    <div className="d-grid gap-3">
+                      {shippingOptions.map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={`shipping-option ${
+                            shippingMethod === opt.value ? "active" : ""
+                          }`}
+                        >
+                          <Form.Check
                             type="radio"
-                            name="addr"
-                            checked={selectedAddressId === a.addressId}
-                            onChange={() => {
-                              setSelectedAddressId(a.addressId);
-                              setForm((f) => ({
-                                ...f,
-                                fullName: a.recipientName,
-                                phone: a.phoneNumber,
-                                line1: a.line1 ?? "",
-                              }));
-                            }}
+                            name="shipping"
+                            checked={shippingMethod === opt.value}
+                            onChange={() => setShippingMethod(opt.value)}
+                            className="mt-1 me-3"
                           />
-                          <div>
-                            <div style={{ fontWeight: 500 }}>
-                              {a.recipientName} • {a.phoneNumber}{" "}
-                              {a.isDefault && (
-                                <span style={{ color: "#2563eb" }}>
-                                  (Mặc định)
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: 13, color: "#667" }}>
-                              {[a.line1, a.ward, a.district, a.province]
-                                .filter(Boolean)
-                                .join(", ")}
+                          <div className="w-100">
+                            <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                              <div>
+                                <div className="fw-semibold text-primary">{opt.label}</div>
+                                <div className="text-muted small">{opt.time}</div>
+                              </div>
+                              <div className="text-end">
+                                <div className="fw-semibold text-dark">
+                                  {formatCurrency(shippingFee)}
+                                </div>
+                                <div className="text-muted small">Ước tính phí</div>
+                              </div>
                             </div>
                           </div>
                         </label>
                       ))}
-
-                    {addresses.length === 0 && (
-                      <p
-                        style={{
-                          marginTop: 8,
-                          fontSize: 13,
-                          color: "#666",
-                        }}
-                      >
-                        Bạn chưa có địa chỉ giao hàng.
-                      </p>
-                    )}
-
-                    <div style={{ marginTop: 8 }}>
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() =>
-                          navigate("/account/addresses", {
-                            state: { from: "/checkout" },
-                          })
-                        }
-                      >
-                        Thêm địa chỉ mới
-                      </button>
                     </div>
-                  </div>
+                  </Card.Body>
+                </Card>
 
-                  {/* --- SHIPPING --- */}
-                  <fieldset
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <legend>Phương thức vận chuyển</legend>
+                <Card className="checkout-card mb-4">
+                  <Card.Body>
+                    <Card.Title className="checkout-card-title mb-3">
+                      Phương thức thanh toán
+                    </Card.Title>
+                    <div className="d-grid gap-3">
+                      <label
+                        className={`payment-option ${
+                          paymentMethod === "COD" ? "active" : ""
+                        }`}
+                      >
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "COD"}
+                          onChange={() => {
+                            setPaymentMethod("COD");
+                            setPaymentVerified(false);
+                            setAutoCheck(false);
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">
+                            Thanh toán khi nhận hàng (COD)
+                          </div>
+                          <div className="text-muted small">
+                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao hàng.
+                          </div>
+                        </div>
+                      </label>
 
-                    <label>
-                      <input
-                        type="radio"
-                        value="standard"
-                        checked={shippingMethod === "standard"}
-                        onChange={() => setShippingMethod("standard")}
-                      />{" "}
-                      Tiết kiệm
-                    </label>
-
-                    <label>
-                      <input
-                        type="radio"
-                        value="fast"
-                        checked={shippingMethod === "fast"}
-                        onChange={() => setShippingMethod("fast")}
-                      />{" "}
-                      Nhanh
-                    </label>
-
-                    <label>
-                      <input
-                        type="radio"
-                        value="express"
-                        checked={shippingMethod === "express"}
-                        onChange={() => setShippingMethod("express")}
-                      />{" "}
-                      Hỏa tốc
-                    </label>
-                  </fieldset>
-
-                  {/* --- PAYMENT --- */}
-                  <fieldset
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <legend>Phương thức thanh toán</legend>
-
-                    <label>
-                      <input
-                        type="radio"
-                        checked={paymentMethod === "COD"}
-                        onChange={() => {
-                          setPaymentMethod("COD");
-                          setPaymentVerified(false);
-                          setAutoCheck(false);
-                        }}
-                      />{" "}
-                      Thanh toán khi nhận hàng (COD)
-                    </label>
-
-                    <label>
-                      <input
-                        type="radio"
-                        checked={paymentMethod === "QR"}
-                        onChange={() => {
-                          setPaymentMethod("QR");
-                          setPaymentVerified(false);
-                          setAutoCheck(true); 
-                        }}
-                      />{" "}
-                      Chuyển khoản qua QR
-                    </label>
+                      <label
+                        className={`payment-option ${
+                          paymentMethod === "QR" ? "active" : ""
+                        }`}
+                      >
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "QR"}
+                          onChange={() => {
+                            setPaymentMethod("QR");
+                            setPaymentVerified(false);
+                            setAutoCheck(true);
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">Chuyển khoản qua QR</div>
+                          <div className="text-muted small">
+                            Quét mã QR để thanh toán chuyển khoản.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
 
                     {paymentMethod === "QR" && (
-                      <div style={{ marginTop: 12 }}>
-                        <img
-                          alt="QR thanh toán"
-                          width={160}
-                          src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}
-                                &addInfo=${encodeURIComponent(" thanh toan don hang")}`}
-                        />
-
-                        {!paymentVerified && (
-                          <p
-                            style={{
-                              marginTop: 8,
-                              fontSize: 14,
-                              color: "#666",
-                            }}
-                          >
-                            Đang chờ thanh toán qua QR. Hệ thống sẽ tự động ghi
-                            nhận khi tiền về tài khoản.
-                          </p>
-                        )}
-                        {paymentVerified && (
-                          <p
-                            style={{
-                              marginTop: 8,
-                              fontSize: 16,
-                              color: "green",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Thanh toán thành công!
-                          </p>
-                        )}
+                      <div className="qr-box mt-3">
+                        <div className="d-flex flex-wrap gap-3 align-items-start">
+                          <img
+                            alt="QR thanh toán"
+                            width={180}
+                            className="qr-image rounded-3"
+                            src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}&addInfo=${encodeURIComponent(
+                              " thanh toan don hang"
+                            )}`}
+                          />
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              <span className="badge-soft-primary">Tài khoản MB Bank</span>
+                              <span className="text-muted small">
+                                Số tiền: {formatCurrency(qrAmount)}
+                              </span>
+                            </div>
+                            {!paymentVerified && (
+                              <p className="text-muted small mb-2">
+                                Đang chờ thanh toán qua QR. Hệ thống sẽ tự động ghi nhận khi tiền về
+                                tài khoản.
+                              </p>
+                            )}
+                            {paymentVerified && (
+                              <p className="text-success fw-semibold mb-0">
+                                Thanh toán thành công!
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
-                  </fieldset>
+                  </Card.Body>
+                </Card>
 
-                  {/* --- DISCOUNT --- */}
-                  <fieldset
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <legend>Mã giảm giá</legend>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input
+                <Card className="checkout-card mb-4">
+                  <Card.Body>
+                    <Card.Title className="checkout-card-title mb-3">Mã giảm giá</Card.Title>
+                    <InputGroup className="discount-group">
+                      <Form.Control
                         value={voucherCode}
                         onChange={(e) => setVoucherCode(e.target.value)}
                         placeholder="Nhập mã giảm giá"
+                        className="rounded-start-pill"
                       />
-                      <button type="button" onClick={handleApplyVoucher}>
+                      <Button
+                        type="button"
+                        className="btn-saokim rounded-end-pill px-4"
+                        onClick={handleApplyVoucher}
+                      >
                         Áp dụng
-                      </button>
-                    </div>
+                      </Button>
+                    </InputGroup>
 
                     {selectedVoucher && (
-                      <p
-                        style={{
-                          marginTop: 6,
-                          fontSize: 13,
-                          color: "#16a34a",
-                        }}
-                      >
+                      <div className="mt-2 text-success fw-semibold small">
                         Đã áp dụng: {selectedVoucher.label}
-                      </p>
+                      </div>
                     )}
-                  </fieldset>
-                </div>
+                    {voucherStatus?.type === "error" && (
+                      <div className="mt-2 text-danger small">{voucherStatus.message}</div>
+                    )}
+                  </Card.Body>
+                </Card>
+              </Form>
+            </Col>
 
-                {/* --- PAY BUTTON --- */}
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: "flex",
-                    gap: 12,
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={
-                      submitting ||
-                      noneChecked ||
-                      (paymentMethod === "QR" && !paymentVerified)
-                    }
-                    onClick={handlePay}
-                  >
-                    {noneChecked
-                      ? "Chọn sản phẩm để thanh toán"
-                      : "Thanh toán"}
-                  </button>
-
-                  <Link to="/cart" className="btn btn-outline">
-                    Quay lại giỏ hàng
-                  </Link>
-                </div>
-              </form>
-            </section>
-
-            {/* RIGHT COLUMN */}
-            <aside
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 12,
-                padding: 16,
-              }}
-            >
-              <h3>Tóm tắt đơn hàng</h3>
-              <ul
-                style={{
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  padding: 0,
-                  listStyle: "none",
-                }}
-              >
-                {selectedItems.map((it) => (
-                  <li
-                    key={it.id}
-                    style={{
-                      borderBottom: "1px dashed #ddd",
-                      padding: "6px 0",
-                    }}
-                  >
-                    <div>
-                      {it.name} × {it.quantity}
-                    </div>
-                    <div style={{ fontSize: 13, color: "#667" }}>
-                      {new Intl.NumberFormat("vi-VN", {
-                        style: "currency",
-                        currency: "VND",
-                      }).format(it.price)}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <div
-                style={{
-                  borderTop: "1px solid #ddd",
-                  marginTop: 12,
-                  paddingTop: 12,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>Tạm tính:</span>{" "}
-                  <strong>{subtotal.toLocaleString()}đ</strong>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span>Phí ship:</span>{" "}
-                  <strong>{shippingFee.toLocaleString()}đ</strong>
-                </div>
-                {discount > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      color: "#16a34a",
-                    }}
-                  >
-                    <span>Giảm giá:</span>{" "}
-                    <strong>-{discount.toLocaleString()}đ</strong>
+            <Col lg={4}>
+              <Card className="checkout-card order-summary-card">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <Card.Title className="checkout-card-title mb-0">
+                      Tóm tắt đơn hàng
+                    </Card.Title>
+                    <span className="badge-soft-primary">
+                      {selectedItems.length} sản phẩm
+                    </span>
                   </div>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: 6,
-                    fontWeight: 600,
-                  }}
-                >
-                  <span>Tổng cộng:</span>{" "}
-                  <span>{total.toLocaleString()}đ</span>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </div>
-      </main>
+
+                  <div className="summary-list">
+                    {selectedItems.map((it) => (
+                      <div key={it.id} className="summary-item">
+                        <div className="flex-grow-1">
+                          <div className="fw-semibold text-primary">{it.name}</div>
+                          <div className="text-muted small">× {it.quantity}</div>
+                        </div>
+                        <div className="text-end text-dark fw-semibold">
+                          {formatCurrency(it.price)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="summary-divider my-3"></div>
+
+                  <div className="summary-pricing">
+                    <div className="summary-row">
+                      <span>Tạm tính:</span>
+                      <span className="fw-semibold">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Phí ship:</span>
+                      <span className="fw-semibold">{formatCurrency(shippingFee)}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="summary-row text-success">
+                        <span>Giảm giá:</span>
+                        <span className="fw-semibold">-{formatCurrency(discount)}</span>
+                      </div>
+                    )}
+                    <div className="summary-row total-row">
+                      <span>Tổng cộng:</span>
+                      <span className="total-amount">{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+
+                  <div className="d-grid gap-2 mt-4">
+                    <Button
+                      type="button"
+                      className="btn-saokim w-100 py-3"
+                      disabled={
+                        submitting ||
+                        noneChecked ||
+                        (paymentMethod === "QR" && !paymentVerified)
+                      }
+                      onClick={handlePay}
+                    >
+                      {noneChecked ? "Chọn sản phẩm để thanh toán" : "Đặt hàng"}
+                    </Button>
+                    <Button
+                      as={Link}
+                      to="/cart"
+                      variant="outline-primary"
+                      className="rounded-pill w-100"
+                    >
+                      Quay lại giỏ hàng
+                    </Button>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+      <EcommerceFooter />
     </div>
   );
 }
