@@ -29,27 +29,29 @@ const HomePage = () => {
   const categories = [
     {
       id: 1,
-      name: "Đèn Chùm Luxury",
+      name: "Đèn chùm Luxury",
       image: "https://anandecor.vn/wp-content/uploads/2022/06/58.png?auto=format&fit=crop&q=80&w=600",
-      desc: "Sang trọng & Đẳng cấp",
+      desc: "Sang trọng & đẳng cấp",
+      badge: "Bán chạy",
     },
     {
       id: 2,
-      name: "Đèn Tường Hiện Đại",
+      name: "Đèn tường hiện đại",
       image:
         "https://flexhouse.vn/wp-content/uploads/2023/05/Den-LED-cam-bien-gan-tuong-hien-dai-SY1018-19.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Tinh tế từng đường nét",
+      badge: "Mới",
     },
     {
       id: 3,
-      name: "Đèn Bàn Decor",
+      name: "Đèn bàn decor",
       image:
         "https://sanota.net/wp-content/uploads/2025/05/SNT5624-den-ban-decor-phong-khach-hien-dai.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Điểm nhấn không gian",
     },
     {
       id: 4,
-      name: "Đèn Sàn Cao Cấp",
+      name: "Đèn sân cao cấp",
       image: "https://dentrangtrivirgo.com/wp-content/uploads/2022/09/10003.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Ánh sáng hoàn hảo",
     },
@@ -243,37 +245,44 @@ const HomePage = () => {
       </div>
 
       {/* Categories Section */}
-      <section className="section-padding fade-in-section">
-        <Container>
-          <div className="text-center mb-5">
-            <h2 className="section-title">Danh Mục Nổi Bật</h2>
-            <p className="section-subtitle">
-              Lựa chọn phong cách ánh sáng cho ngôi nhà của bạn
-            </p>
-          </div>
-          <Row className="g-4">
-            {categories.map((cat) => (
-              <Col lg={3} md={6} key={cat.id}>
-                <div className="category-card">
-                  <div
-                    className="category-bg"
-                    style={{ backgroundImage: `url(${cat.image})` }}
-                  ></div>
-                  <div className="category-overlay">
-                    <h3 className="category-name">{cat.name}</h3>
-                    <span className="category-desc">{cat.desc}</span>
-                    <Link to={`/products?category=${cat.id}`} className="category-link">
-                      Khám phá <FontAwesomeIcon icon={faArrowRight} />
-                    </Link>
-                  </div>
-                </div>
-              </Col>
-            ))}
-          </Row>
+      <section className="featured-categories section-padding fade-in-section">
+        <Container fluid className="px-0">
+          <Container className="featured-categories-inner">
+            <div className="featured-header text-center text-lg-start">
+              <span className="featured-kicker">Bộ sưu tập</span>
+              <h2 className="section-title mb-2">Danh mục nổi bật</h2>
+              <p className="section-subtitle mb-0">
+                Lựa chọn nhanh dòng sản phẩm phù hợp với không gian của bạn.
+              </p>
+            </div>
+
+            <Row className="g-4 g-lg-4 g-xl-4">
+              {categories.map((cat) => (
+                <Col xl={3} lg={4} md={6} sm={12} key={cat.id}>
+                  <Link to={`/products?category=${cat.id}`} className="category-card">
+                    <div
+                      className="category-bg"
+                      style={{ backgroundImage: `url(${cat.image})` }}
+                    ></div>
+                    <div className="category-gradient"></div>
+                    {cat.badge && <span className="category-badge">{cat.badge}</span>}
+                    <div className="category-overlay">
+                      <div className="category-label">Danh mục</div>
+                      <h3 className="category-name">{cat.name}</h3>
+                      {cat.desc && <span className="category-desc">{cat.desc}</span>}
+                      <div className="category-cta">
+                        <span>Xem ngay</span>
+                        <FontAwesomeIcon icon={faArrowRight} />
+                      </div>
+                    </div>
+                  </Link>
+                </Col>
+              ))}
+            </Row>
+          </Container>
         </Container>
       </section>
-
-      {/* Featured Products Section */}
+{/* Featured Products Section */}
       <section
         className="section-padding fade-in-section"
         style={{ backgroundColor: "var(--light-bg)" }}
@@ -380,4 +389,7 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
+
+
 
