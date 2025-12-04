@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import HomepageHeader from "../../components/HomepageHeader";
 import ProductSidebar from "../../components/ProductSidebar";
 import "../../styles/home.css";
 
@@ -446,7 +446,7 @@ function HomeProductsBody({
 
   return (
     <div className="home-page">
-      <EcommerceHeader />
+      <HomepageHeader />
 
       <section className="home-hero">
         <div className="home-container">
