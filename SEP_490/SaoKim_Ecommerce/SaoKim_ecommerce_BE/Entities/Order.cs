@@ -29,7 +29,52 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // ============== PAYMENT ==============
+
+        [Column("payment_method")]
+        [MaxLength(50)]
+        public string? PaymentMethod { get; set; }
+
+        [Column("payment_status")]
+        [MaxLength(50)]
+        public string? PaymentStatus { get; set; }
+
+        [Column("payment_transaction_code")]
+        [MaxLength(100)]
+        public string? PaymentTransactionCode { get; set; }
+
+        [Column("paid_at")]
+        public DateTime? PaidAt { get; set; }
+
+        // ============== SHIPPING (snapshot) ==============
+
+        [Column("shipping_recipient_name")]
+        [MaxLength(200)]
+        public string? ShippingRecipientName { get; set; }
+
+        [Column("shipping_phone_number")]
+        [MaxLength(20)]
+        public string? ShippingPhoneNumber { get; set; }
+
+        [Column("shipping_line1")]
+        [MaxLength(200)]
+        public string? ShippingLine1 { get; set; }
+
+        [Column("shipping_ward")]
+        [MaxLength(100)]
+        public string? ShippingWard { get; set; }
+
+        [Column("shipping_district")]
+        [MaxLength(100)]
+        public string? ShippingDistrict { get; set; }
+
+        [Column("shipping_province")]
+        [MaxLength(100)]
+        public string? ShippingProvince { get; set; }
+
         //public bool isDelete = false;
+
+        // ============== NAVIGATION ==============
 
         // Navigation tới danh sách OrderItem
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();

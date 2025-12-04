@@ -195,7 +195,7 @@ const EcommerceFooter = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/projects">
+                  <Link to="">
                     <FontAwesomeIcon icon={faChevronRight} className="me-2 text-warning" size="xs" />
                     Dự án đã thực hiện
                   </Link>
@@ -246,7 +246,7 @@ const EcommerceFooter = () => {
               <ul className="contact-list">
                 <li>
                   <FontAwesomeIcon icon={faMapMarkerAlt} className="contact-icon" />
-                  <span>Địa chỉ: 56 123, Đường ABC, Quận XYZ, TP. Hồ Chí Minh</span>
+                  <span>Địa chỉ: Số 40, ngõ 168, Nguyễn Xiển, Phường Hạ Đình, Quận Thanh Xuân, Thành phố Hà Nội, Việt Nam</span>
                 </li>
                 <li>
                   <FontAwesomeIcon icon={faPhoneAlt} className="contact-icon" />
