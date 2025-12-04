@@ -1,4 +1,4 @@
-// src/pages/manager/products/AddProductForm.jsx
+// src/pages/staff-manager/products/AddProductForm.jsx
 import useProductsApi from "../api/useProducts";
 import ProductForm from "./ProductForm";
 
@@ -10,14 +10,15 @@ function AddProductForm({ onCancel, onSuccess }) {
       sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
-      unit: "pcs",
+      unit: values.unit || "cái",
       price: values.price,
+      // quantity lấy từ stock trong form
       quantity: values.stock,
       stock: values.stock,
       active: values.active,
-      description: "",
-      supplier: "",
-      note: "",
+      description: values.description || "",
+      supplier: values.supplier || "",
+      note: values.note || "",
       imageFile: values.imageFile || null,
     };
 
@@ -25,7 +26,13 @@ function AddProductForm({ onCancel, onSuccess }) {
     onSuccess && onSuccess();
   };
 
-  return <ProductForm submitLabel="Thêm sản phẩm" onSubmit={handleCreate} onCancel={onCancel} />;
+  return (
+    <ProductForm
+      submitLabel="Thêm sản phẩm"
+      onSubmit={handleCreate}
+      onCancel={onCancel}
+    />
+  );
 }
 
 export default AddProductForm;

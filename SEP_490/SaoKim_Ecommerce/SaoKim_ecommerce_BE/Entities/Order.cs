@@ -29,6 +29,8 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        //public bool isDelete = false;
+
         // Navigation tới danh sách OrderItem
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 
