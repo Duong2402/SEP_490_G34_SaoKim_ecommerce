@@ -282,29 +282,26 @@ const HomePage = () => {
           </Container>
         </Container>
       </section>
-{/* Featured Products Section */}
-      <section
-        className="section-padding fade-in-section"
-        style={{ backgroundColor: "var(--light-bg)" }}
-      >
+      {/* Featured Products Section */}
+      <section className="featured-products section-padding fade-in-section">
         <Container>
-          <div className="d-flex justify-content-between align-items-end mb-5">
+          <div className="featured-products-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
             <div>
-              <h2 className="section-title text-start">Sản Phẩm Mới Nhất</h2>
+              <span className="featured-kicker">Bộ sưu tập</span>
+              <h2 className="section-title text-start mb-2">Sản phẩm nổi bật</h2>
+              <p className="section-subtitle mb-0">
+                Khám phá những mẫu đèn được khách hàng lựa chọn nhiều nhất.
+              </p>
             </div>
-            <Link
-              to="/products"
-              className="text-decoration-none fw-bold"
-              style={{ color: "var(--primary)" }}
-            >
-              Xem tất cả <FontAwesomeIcon icon={faArrowRight} />
+            <Link to="/products" className="view-all-link">
+              Xem tất cả sản phẩm <FontAwesomeIcon icon={faArrowRight} />
             </Link>
           </div>
 
           {loading ? (
             <Row className="g-4">
               {[...Array(8)].map((_, index) => (
-                <Col lg={3} md={6} sm={6} key={`skeleton-${index}`}>
+                <Col xl={3} lg={3} md={6} sm={6} key={`skeleton-${index}`}>
                   <ProductSkeleton />
                 </Col>
               ))}
@@ -313,43 +310,42 @@ const HomePage = () => {
             <Row className="g-4">
               {products.length > 0 ? (
                 products.map((product) => (
-                  <Col lg={3} md={6} sm={6} key={product.id}>
-                    <Card className="luxury-card">
-                      <div className="product-badge">New</div>
-                      <div className="luxury-card-img-wrapper">
+                  <Col xl={3} lg={3} md={6} sm={6} key={product.id}>
+                    <Card className="luxury-card home-product-card h-100">
+                      <div className="home-product-badge">Mới</div>
+                      <div className="home-product-media">
                         <Card.Img
                           variant="top"
                           src={product.image}
-                          className="luxury-card-img cursor-pointer"
+                          className="home-product-img cursor-pointer"
                           onClick={() => navigate(`/products/${product.id}`)}
                         />
-                        <div className="product-actions">
-                          <Button
-                            className="action-btn"
-                            title="Thêm vào giỏ"
-                            onClick={() => handleAddToCart(product)}
-                          >
-                            <FontAwesomeIcon icon={faShoppingCart} />
-                          </Button>
-                          <Link
-                            to={`/products/${product.id}`}
-                            className="action-btn"
-                            title="Xem chi tiết"
-                          >
-                            <FontAwesomeIcon icon={faArrowRight} />
-                          </Link>
-                        </div>
                       </div>
-                      <Card.Body className="luxury-card-body">
-                        <div className="luxury-card-cat">{product.category}</div>
+                      <Card.Body className="home-product-body">
+                        <div className="home-product-meta">{product.category}</div>
                         <Card.Title
-                          className="luxury-card-title cursor-pointer"
+                          className="home-product-title cursor-pointer"
                           onClick={() => navigate(`/products/${product.id}`)}
                         >
                           {product.name}
                         </Card.Title>
-                        <div className="luxury-card-price">
+                        <div className="home-product-price">
                           {formatCurrency(product.price)}
+                        </div>
+                        <div className="home-product-actions">
+                          <Button
+                            className="home-product-btn primary"
+                            onClick={() => navigate(`/products/${product.id}`)}
+                          >
+                            Xem chi tiết
+                          </Button>
+                          <Button
+                            className="home-product-btn ghost"
+                            onClick={() => handleAddToCart(product)}
+                            title="Thêm vào giỏ"
+                          >
+                            <FontAwesomeIcon icon={faShoppingCart} />
+                          </Button>
                         </div>
                       </Card.Body>
                     </Card>
@@ -366,20 +362,44 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="cta-section fade-in-section">
-        <Container>
-          <Row className="justify-content-center">
-            <Col lg={8} className="text-center">
-              <h2 className="cta-title">Bạn Cần Tư Vấn Giải Pháp Chiếu Sáng?</h2>
-              <p className="cta-desc">
-                Đội ngũ kỹ sư ánh sáng của Sao Kim sẵn sàng hỗ trợ bạn thiết kế
-                và lựa chọn giải pháp tối ưu nhất cho công trình.
-              </p>
-              <Button className="hero-btn">
-                Liên Hệ Ngay <FontAwesomeIcon icon={faHeadset} className="ms-2" />
-              </Button>
-            </Col>
-          </Row>
+      <section className="cta-section fade-in-section" id="contact">
+        <Container fluid className="px-0">
+          <Container className="cta-inner">
+            <Row className="align-items-center gy-4">
+              <Col lg={7}>
+                <div className="cta-copy text-lg-start text-center">
+                  <span className="cta-kicker">Tư vấn chiếu sáng</span>
+                  <h2 className="cta-title">Bạn cần tư vấn giải pháp chiếu sáng?</h2>
+                  <p className="cta-subtitle">
+                    Đội ngũ kỹ sư của Sao Kim sẵn sàng hỗ trợ bạn chọn đèn phù hợp với từng không gian
+                    và ngân sách.
+                  </p>
+                  <div className="cta-actions d-flex flex-wrap justify-content-center justify-content-lg-start gap-3">
+                    <Button className="cta-primary" onClick={() => navigate("/contact")}>
+                      Liên hệ ngay <FontAwesomeIcon icon={faArrowRight} className="ms-2" />
+                    </Button>
+                    <Link to="/contact" className="cta-secondary">
+                      Tư vấn miễn phí 24/7
+                    </Link>
+                  </div>
+                </div>
+              </Col>
+              <Col lg={5}>
+                <div className="cta-visual">
+                  <div className="cta-visual-glow"></div>
+                  <img
+                    src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&q=80&w=900"
+                    alt="Lighting consultation"
+                    className="cta-visual-img"
+                  />
+                  <div className="cta-visual-badge">
+                    <span>Lighting Design</span>
+                    <strong>Premium</strong>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Container>
         </Container>
       </section>
 
@@ -389,6 +409,7 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
 
 
 
