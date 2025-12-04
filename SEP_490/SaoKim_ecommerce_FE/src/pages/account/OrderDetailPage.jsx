@@ -48,6 +48,7 @@ export default function OrderDetailPage() {
   const apiBase =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
     "https://localhost:7278";
+  const apiBaseNormalized = (apiBase || "").replace(/\/+$/, "");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -178,8 +179,17 @@ export default function OrderDetailPage() {
 
   const resolveImage = (url) => {
     if (!url) return null;
-    if (url.startsWith("http")) return url;
-    return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+    const raw = String(url).trim().replace(/\\/g, "/");
+    if (!raw) return null;
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+
+    let path = raw.startsWith("/") ? raw : `/${raw}`;
+    const lower = path.toLowerCase();
+    if (!lower.startsWith("/images/") && !lower.startsWith("/uploads/")) {
+      path = `/images${path}`;
+    }
+
+    return `${apiBaseNormalized}${path}`;
   };
 
   const orderCode =
