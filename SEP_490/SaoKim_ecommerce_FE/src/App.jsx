@@ -40,6 +40,7 @@ import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 // Products (staff manager)
 import ProductDetail from "./pages/products/ProductDetail";
+import ProductsPage from "./pages/products/ProductsPage";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/cart/Checkout";
 import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
@@ -171,6 +172,7 @@ export default function App() {
           </Route>
 
           {/* Products (public) */}
+          <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetail />} />
 
           {/* cart, checkout */}
