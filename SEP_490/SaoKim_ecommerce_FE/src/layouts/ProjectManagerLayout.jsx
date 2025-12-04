@@ -135,7 +135,7 @@ export default function ProjectManagerLayout() {
                 <div className="pm-user__dropdown" role="menu">
                   <button type="button" onClick={goToProfile}>
                     <FontAwesomeIcon icon={faUserPen} className="me-2" />
-                    Cập nhật thông tin
+                    Hồ sơ cá nhân
                   </button>
                   <button type="button" onClick={goToChangePassword}>
                     <FontAwesomeIcon icon={faKey} className="me-2" />

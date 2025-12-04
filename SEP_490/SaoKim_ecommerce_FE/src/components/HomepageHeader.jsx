@@ -201,7 +201,7 @@ const HomepageHeader = () => {
                     Đơn hàng của tôi
                   </Dropdown.Item>
                   <Dropdown.Item as={Link} to="/account">
-                    Xem thông tin cá nhân
+                    Hồ sơ cá nhân
                   </Dropdown.Item>
                   <Dropdown.Item as={Link} to="/change-password">
                     Đổi mật khẩu

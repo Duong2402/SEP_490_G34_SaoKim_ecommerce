@@ -7,7 +7,6 @@ import "./App.css";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
-import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomePage from "./pages/homepage/HomePage";
 import AccessDenied from "./pages/auth/AccessDenied";
@@ -44,10 +43,9 @@ import ProductsPage from "./pages/products/ProductsPage";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/cart/Checkout";
 import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
-import Profile from "./pages/account/Profile";
-import Addresses from "./pages/account/Addresses";
 import CustomerOrder from "./pages/account/CustomerOrder";
 import OrderDetailPage from "./pages/account/OrderDetailPage";
+import AccountPage from "./pages/account/AccountPage";
 
 //Customers
 import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
@@ -113,7 +111,10 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/change-password" element={<ChangePassword />} />
+          <Route
+            path="/change-password"
+            element={<AccountPage initialTab="password" />}
+          />
           <Route path="/forbidden" element={<AccessDenied />} />
           {/* Banner Management */}
              <Route path="/admin/banner" element={<BannerList />} />
@@ -182,8 +183,11 @@ export default function App() {
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
           {/* Account */}
-          <Route path="/account" element={<Profile />} />
-          <Route path="/account/addresses" element={<Addresses />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route
+            path="/account/addresses"
+            element={<AccountPage initialTab="addresses" />}
+          />
           <Route path="/account/orders" element={<CustomerOrder />} />
           <Route path="/account/orders/:orderId" element={<OrderDetailPage />} />
 
