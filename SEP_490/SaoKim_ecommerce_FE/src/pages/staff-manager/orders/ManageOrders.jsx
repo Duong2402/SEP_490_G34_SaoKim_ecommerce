@@ -106,7 +106,7 @@ export default function ManageOrders() {
       await load();
     } catch (e) {
       console.error(e);
-      alert("Không cập nhật được trạng thái đơn hàng");
+      alert(e?.message || "Không cập nhật được trạng thái đơn hàng");
     } finally {
       setUpdatingOrderId(null);
     }
@@ -307,60 +307,73 @@ export default function ManageOrders() {
                 <th className="text-end">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((o, idx) => (
-                <tr key={o.id}>
-                  <td>{(page - 1) * pageSize + idx + 1}</td>
-                  <td>{o.id}</td>
-                  <td>
-                    <div>{o.customerName}</div>
-                    <div className="small text-muted">
-                      {o.customerEmail} {o.customerPhone && ` / ${o.customerPhone}`}
-                    </div>
-                  </td>
-                  <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
-                  <td>{renderStatus(o.status)}</td>
-                  <td>{formatDate(o.createdAt)}</td>
-                  <td className="text-end">
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      className="me-2"
-                      onClick={() => handleViewOrderItems(o)}
-                    >
-                      Xem sản phẩm
-                    </Button>
+              <tbody>
+              {rows.map((o, idx) => {
+                const canShip = Boolean(o.dispatchConfirmed);
+                const disableShip = updatingOrderId === o.id || !canShip;
 
-                    {o.status === "Pending" && (
+                return (
+                  <tr key={o.id}>
+                    <td>{(page - 1) * pageSize + idx + 1}</td>
+                    <td>{o.id}</td>
+                    <td>
+                      <div>{o.customerName}</div>
+                      <div className="small text-muted">
+                        {o.customerEmail} {o.customerPhone && ` / ${o.customerPhone}`}
+                      </div>
+                    </td>
+                    <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td>{renderStatus(o.status)}</td>
+                    <td>{formatDate(o.createdAt)}</td>
+                    <td className="text-end">
                       <Button
                         size="sm"
-                        variant="outline-secondary"
-                        disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Shipping")}
+                        variant="outline-primary"
+                        className="me-2"
+                        onClick={() => handleViewOrderItems(o)}
                       >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Chuyển giao hàng"}
+                        Xem sản phẩm
                       </Button>
-                    )}
 
-                    {o.status === "Paid" && (
-                      <span className="text-muted small">
-                        Đang chờ kho xác nhận phiếu xuất
-                      </span>
-                    )}
+                      {o.status === "Pending" && (
+                        <div className="d-inline-flex flex-column align-items-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            disabled={disableShip}
+                            title={!canShip ? "Chờ kho xác nhận phiếu xuất" : undefined}
+                            onClick={() => handleUpdateOrderStatus(o.id, "Shipping")}
+                          >
+                            {updatingOrderId === o.id ? "Đang lưu..." : "Chuyển giao hàng"}
+                          </Button>
+                          {!canShip && (
+                            <span className="text-muted small">
+                              Chờ kho xác nhận phiếu xuất
+                            </span>
+                          )}
+                        </div>
+                      )}
 
-                    {o.status === "Shipping" && (
-                      <Button
-                        size="sm"
-                        variant="outline-success"
-                        disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
-                      >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Hoàn tất đơn"}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      {o.status === "Paid" && (
+                        <span className="text-muted small">
+                          Đang chờ kho xác nhận phiếu xuất
+                        </span>
+                      )}
+
+                      {o.status === "Shipping" && (
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          disabled={updatingOrderId === o.id}
+                          onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
+                        >
+                          {updatingOrderId === o.id ? "Đang lưu..." : "Hoàn tất đơn"}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
 
               {!loading && rows.length === 0 && (
                 <tr>

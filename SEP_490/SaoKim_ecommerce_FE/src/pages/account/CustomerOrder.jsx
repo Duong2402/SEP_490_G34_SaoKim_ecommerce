@@ -99,6 +99,9 @@ export default function CustomerOrder() {
   const getOrderCode = (order) =>
     order.orderCode || order.code || order.OrderCode || order.orderId || order.OrderId || "";
 
+  const getOrderId = (order) =>
+    order.orderId || order.OrderId || order.orderCode || order.code || order.OrderCode || "";
+
   const formatDate = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "-");
 
   const formatCurrency = (value) =>
@@ -283,7 +286,8 @@ export default function CustomerOrder() {
                                   variant="outline-primary"
                                   className="rounded-pill"
                                   onClick={() => {
-                                    // TODO: Hook into order detail route when available
+                                    const id = getOrderId(o);
+                                    if (id) navigate(`/account/orders/${id}`);
                                   }}
                                 >
                                   Xem chi tiết

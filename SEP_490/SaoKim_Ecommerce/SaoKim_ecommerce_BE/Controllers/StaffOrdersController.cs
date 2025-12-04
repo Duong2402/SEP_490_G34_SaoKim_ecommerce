@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using System.Collections.Generic;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -101,23 +102,47 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var total = await baseQuery.CountAsync();
 
-            var items = await baseQuery
+            var orders = await baseQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(o => new
                 {
-                    id = o.OrderId,
-                    code = $"ORD-{o.OrderId}",
-                    customerName = o.Customer.Name,
-                    customerEmail = o.Customer.Email,
-                    customerPhone = o.Customer.PhoneNumber,
-                    total = o.Total,
-                    status = o.Status,
-                    createdAt = o.CreatedAt,
-                    hasInvoice = o.Invoice != null,
-                    invoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
+                    o.OrderId,
+                    ReferenceNo = $"ORD-{o.OrderId}",
+                    CustomerName = o.Customer.Name,
+                    CustomerEmail = o.Customer.Email,
+                    CustomerPhone = o.Customer.PhoneNumber,
+                    o.Total,
+                    o.Status,
+                    o.CreatedAt,
+                    HasInvoice = o.Invoice != null,
+                    InvoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
                 })
                 .ToListAsync();
+
+            var referenceNos = orders.Select(o => o.ReferenceNo).ToList();
+            var confirmedRefs = referenceNos.Count == 0
+                ? new HashSet<string>()
+                : new HashSet<string>(await _db.Dispatches
+                    .AsNoTracking()
+                    .Where(d => referenceNos.Contains(d.ReferenceNo) && d.ConfirmedAt != null)
+                    .Select(d => d.ReferenceNo)
+                    .ToListAsync());
+
+            var items = orders.Select(o => new
+            {
+                id = o.OrderId,
+                code = o.ReferenceNo,
+                customerName = o.CustomerName,
+                customerEmail = o.CustomerEmail,
+                customerPhone = o.CustomerPhone,
+                total = o.Total,
+                status = o.Status,
+                createdAt = o.CreatedAt,
+                hasInvoice = o.HasInvoice,
+                invoiceId = o.InvoiceId,
+                dispatchConfirmed = confirmedRefs.Contains(o.ReferenceNo)
+            });
 
             return Ok(new
             {
@@ -186,7 +211,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // =========================================================
-        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Paid
+        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Completed
         // PATCH /api/staff/orders/{id}/status
         // =========================================================
         [HttpPatch("{id:int}/status")]
@@ -197,11 +222,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (string.IsNullOrWhiteSpace(rawStatus))
                 return BadRequest(new { message = "Status is required" });
 
-            // Normalize: "Hoàn tất" -> "Completed"
+            // Chuẩn hóa text hiển thị tiếng Việt -> status nội bộ
             string NormalizeStatus(string s)
             {
                 if (string.Equals(s, "Hoàn tất", StringComparison.OrdinalIgnoreCase))
                     return "Completed";
+                if (string.Equals(s, "Chờ xử lý", StringComparison.OrdinalIgnoreCase))
+                    return "Pending";
+                if (string.Equals(s, "Đang giao", StringComparison.OrdinalIgnoreCase))
+                    return "Shipping";
+                if (string.Equals(s, "Đã hủy", StringComparison.OrdinalIgnoreCase))
+                    return "Cancelled";
 
                 return s;
             }
@@ -210,12 +241,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var allowedStatuses = new[]
             {
-        "Pending",
-        "Shipping",
-        "Paid",
-        "Completed",
-        "Cancelled"
-    };
+                "Pending",
+                "Shipping",
+                "Paid",
+                "Completed",
+                "Cancelled"
+            };
 
             if (!allowedStatuses.Contains(newStatus, StringComparer.OrdinalIgnoreCase))
             {
@@ -232,6 +263,29 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
+
+            // =====================================================
+            // BẮT BUỘC KHO PHẢI XÁC NHẬN PHIẾU XUẤT TRƯỚC
+            // KHI STAFF ĐƯỢC PHÉP ĐỔI TRẠNG THÁI (TRỪ KHI HỦY ĐƠN)
+            // =====================================================
+            var isCancelling = string.Equals(newStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCancelling)
+            {
+                var referenceNo = $"ORD-{order.OrderId}";
+
+                var dispatch = await _db.Dispatches
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.ReferenceNo == referenceNo);
+
+                if (dispatch == null || dispatch.ConfirmedAt == null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Kho chưa xác nhận phiếu xuất, không thể cập nhật trạng thái đơn hàng."
+                    });
+                }
+            }
 
             // Nếu đơn đã hoàn tất thì không cho đổi sang trạng thái khác (trừ việc set lại Completed chính nó)
             if (IsCompleted(order.Status) && !IsCompleted(newStatus))
@@ -285,7 +339,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
             return NoContent();
         }
-
 
         // =========================================================
         // 4) LẤY ITEMS CHO 1 ORDER (NẾU MUỐN DÙNG RIÊNG)

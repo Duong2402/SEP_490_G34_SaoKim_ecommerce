@@ -47,6 +47,7 @@ import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
 import Profile from "./pages/account/Profile";
 import Addresses from "./pages/account/Addresses";
 import CustomerOrder from "./pages/account/CustomerOrder";
+import OrderDetailPage from "./pages/account/OrderDetailPage";
 
 //Customers
 import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
@@ -184,6 +185,7 @@ export default function App() {
           <Route path="/account" element={<Profile />} />
           <Route path="/account/addresses" element={<Addresses />} />
           <Route path="/account/orders" element={<CustomerOrder />} />
+          <Route path="/account/orders/:orderId" element={<OrderDetailPage />} />
 
           {/* Users Management */}
           <Route path="/admin/users" element={<UserList />} />
