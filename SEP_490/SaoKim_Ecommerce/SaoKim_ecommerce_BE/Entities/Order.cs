@@ -72,8 +72,11 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(100)]
         public string? ShippingProvince { get; set; }
 
+        //public bool isDelete = false;
+
         // ============== NAVIGATION ==============
 
+        // Navigation tới danh sách OrderItem
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 
         // 1–1: mỗi Order có tối đa 1 Invoice

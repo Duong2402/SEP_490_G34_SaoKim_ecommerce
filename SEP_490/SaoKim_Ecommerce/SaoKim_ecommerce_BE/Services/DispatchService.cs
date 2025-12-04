@@ -80,21 +80,29 @@ namespace SaoKim_ecommerce_BE.Services
 
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
-
             if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
-                slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+    slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = slip.ReferenceNo.Substring("ORD-".Length);
                 if (int.TryParse(raw, out var orderId))
                 {
                     var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
-                    if (order != null &&
-                        string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    if (order != null)
                     {
-                        order.Status = "Pending";
+                        
+                        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException("Đơn hàng đã bị hủy, không thể xác nhận phiếu xuất.");
+                        }
+
+                        if (string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                        {
+                            order.Status = "Pending";
+                        }
                     }
                 }
             }
+
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();

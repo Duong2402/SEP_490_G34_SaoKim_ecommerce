@@ -11,14 +11,24 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
       sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
-      unit: initial?.unit ?? "pcs",
+      unit: values.unit || initial?.unit || "cái",
       price: values.price,
+      // quantity lấy từ stock trong form
       quantity: values.stock,
       stock: values.stock,
       active: values.active,
-      description: initial?.description ?? "",
-      supplier: initial?.supplier ?? "",
-      note: initial?.note ?? "",
+      description:
+        values.description ??
+        initial?.description ??
+        "",
+      supplier:
+        values.supplier ??
+        initial?.supplier ??
+        "",
+      note:
+        values.note ??
+        initial?.note ??
+        "",
       updateBy: "staff01",
       imageFile: values.imageFile || null,
     };
