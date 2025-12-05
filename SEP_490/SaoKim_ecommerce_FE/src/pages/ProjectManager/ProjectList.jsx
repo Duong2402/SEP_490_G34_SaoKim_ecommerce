@@ -1,74 +1,49 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
-import {
-  PROJECT_STATUSES,
-  formatBudget,
-  formatBudgetCompact,
-  formatDate,
-  getStatusBadgeClass,
-  getStatusLabel,
-  formatNumber,
-} from "./projectHelpers";
+import { formatBudget, formatDate } from "./projectHelpers";
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await ProjectAPI.getAll({ Page: 1, PageSize: 100, Sort: "-CreatedAt" });
-      const body = res || {};
-      const pageData = body.data || {};
-      setProjects(pageData.items || []);
-    } catch (err) {
-      console.error(err);
-      setProjects([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleDelete = async (id) => {
-    const confirmed = window.confirm("Bạn có chắc muốn xóa dự án này?");
-    if (!confirmed) return;
-
+  const load = async () => {
+    setLoading(true);
+    setError("");
     try {
-      await ProjectAPI.remove(id);
-      await load();
+      const res = await ProjectAPI.getAll({ q: search || undefined, status: statusFilter });
+      const body = res?.data || res || {};
+      setProjects(body.items || body.data?.items || body.data || []);
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || "Không thể xóa dự án");
+      setError("Không tải được danh sách dự án.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const filteredProjects = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return projects.filter((project) => {
+    return (projects || []).filter((project) => {
+      const term = search.trim().toLowerCase();
       const matchesTerm =
         !term ||
         project.name?.toLowerCase().includes(term) ||
         project.code?.toLowerCase().includes(term) ||
         project.customerName?.toLowerCase().includes(term);
-
       const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-
       return matchesTerm && matchesStatus;
     });
   }, [projects, search, statusFilter]);
 
   const metrics = useMemo(() => {
-    if (!projects.length) {
-      return { total: 0, active: 0, completed: 0, budget: 0 };
-    }
-
     const total = projects.length;
     const active = projects.filter((p) => p.status === "InProgress").length;
     const completed = projects.filter((p) => p.status === "Done").length;
@@ -76,7 +51,6 @@ export default function ProjectList() {
       (sum, project) => sum + (typeof project.budget === "number" ? project.budget : 0),
       0,
     );
-
     return { total, active, completed, budget };
   }, [projects]);
 
@@ -94,95 +68,74 @@ export default function ProjectList() {
             <button type="button" className="btn btn-ghost" onClick={load}>
               Làm mới
             </button>
-            <Link to="/projects/create" className="btn btn-primary">
-              + Tạo dự án
-            </Link>
           </div>
         </header>
 
-        <section className="metrics-grid">
-          <article className="metric-card">
-            <div className="metric-label">Tổng dự án</div>
-            <div className="metric-value">{formatNumber(projects.length) || "0"}</div>
-            <div className="metric-trend">
-              Đang hoạt động: {formatNumber(metrics.active) || "0"}
-            </div>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-label">Hoàn thành</div>
-            <div className="metric-value">{formatNumber(metrics.completed) || "0"}</div>
-            <div className="metric-trend">Dự án đã bàn giao</div>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-label">Giá trị dự án</div>
-            <div className="metric-value">{formatBudgetCompact(metrics.budget, "vi")}</div>
-            <div className="metric-trend">Tổng giá trị của các dự án</div>
-          </article>
-        </section>
-
-        <div className="project-actions">
+        <div className="filters">
           <input
-            type="search"
-            className="input"
-            placeholder="Tìm theo tên, mã hoặc khách hàng"
+            className="pm-input"
+            placeholder="Tìm theo tên, mã dự án hoặc khách hàng"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Tìm dự án"
+            onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            className="select"
+            className="pm-select"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            aria-label="Lọc trạng thái"
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">Tất cả trạng thái</option>
-            {PROJECT_STATUSES.map((status) => (
-              <option key={status.value} value={status.value}>
-                {getStatusLabel(status.value)}
-              </option>
-            ))}
+            <option value="Draft">Nháp</option>
+            <option value="InProgress">Đang triển khai</option>
+            <option value="Done">Hoàn tất</option>
+            <option value="Delivered">Đã bàn giao</option>
           </select>
         </div>
+
+        <div className="summary-cards">
+          <div className="summary-card">
+            <div className="summary-label">Tổng dự án</div>
+            <div className="summary-value">{metrics.total}</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Đang triển khai</div>
+            <div className="summary-value">{metrics.active}</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Hoàn tất</div>
+            <div className="summary-value">{metrics.completed}</div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-label">Tổng ngân sách</div>
+            <div className="summary-value">{formatBudget(metrics.budget)}</div>
+          </div>
+        </div>
+
+        {error && <div className="alert alert-danger">{error}</div>}
 
         {loading ? (
           <div className="loading-state">Đang tải dự án...</div>
         ) : filteredProjects.length ? (
-          <div className="table-responsive">
-            <table className="table">
+          <div className="pm-table__wrapper">
+            <table className="pm-table">
               <thead>
                 <tr>
                   <th>Mã</th>
-                  <th>Tên</th>
+                  <th>Tên dự án</th>
                   <th>Khách hàng</th>
-                  <th>Trạng thái</th>
-                  <th>Tiến độ</th>
-                  <th>Giá trị dự án</th>
-                  <th>Thao tác</th>
+                  <th>Ngày bắt đầu</th>
+                  <th>Ngày kết thúc</th>
+                  <th>Ngân sách</th>
+                  <th></th>
                 </tr>
               </thead>
-                  <tbody>
+              <tbody>
                 {filteredProjects.map((project) => (
                   <tr key={project.id}>
-                    <td>
-                      <Link to={`/projects/${project.id}`} className="link">
-                        {project.code}
-                      </Link>
-                    </td>
+                    <td>{project.code || "-"}</td>
                     <td>{project.name}</td>
                     <td>{project.customerName || "-"}</td>
-                    <td>
-                      <span className={getStatusBadgeClass(project.status)}>
-                        <span className="badge-dot" />
-                        {getStatusLabel(project.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {project.startDate
-                        ? `${formatDate(project.startDate, "vi")} - ${formatDate(project.endDate, "vi")}`
-                        : "-"}
-                    </td>
+                    <td>{project.startDate ? formatDate(project.startDate, "vi") : "-"}</td>
+                    <td>{project.endDate ? formatDate(project.endDate, "vi") : "-"}</td>
                     <td>{formatBudget(project.budget, "vi")}</td>
                     <td className="table-actions">
                       <div className="table-actions__buttons">
@@ -195,7 +148,7 @@ export default function ProjectList() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => handleDelete(project.id)}
+                          onClick={() => alert("Không được phép xóa dự án từ tài khoản PM")}
                         >
                           Xóa
                         </button>
@@ -210,11 +163,8 @@ export default function ProjectList() {
           <div className="empty-state">
             <div className="empty-state-title">Chưa có dự án</div>
             <div className="empty-state-subtitle">
-              Tạo dự án đầu tiên để theo dõi mốc thời gian, giá trị dự án và tiến độ giao hàng.
+              Hiện chưa có dự án nào được gán cho bạn.
             </div>
-            <Link to="/projects/create" className="btn btn-primary">
-              Tạo dự án
-            </Link>
           </div>
         )}
       </div>

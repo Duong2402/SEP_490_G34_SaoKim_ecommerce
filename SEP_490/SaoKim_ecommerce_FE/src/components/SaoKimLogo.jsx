@@ -1,26 +1,26 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./SaoKimLogo.css";
 
 const LOGO_EXTENSIONS = ["png", "svg", "jpg", "jpeg", "webp"];
 
-export default function SaoKimLogo({ size = "medium", showText = true }) {
+export default function SaoKimLogo({
+  size = "medium",
+  showText = true,
+  title = "Sao Kim Manager",
+  tagline = "Không gian quản lý",
+}) {
   const [logoExists, setLogoExists] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-
-    const checkLogo = () => {
-      LOGO_EXTENSIONS.forEach((ext) => {
-        const img = new Image();
-        img.onload = () => {
-          if (!cancelled) setLogoExists(true);
-        };
-        img.onerror = () => {};
-        img.src = `/images/saokim-logo.${ext}`;
-      });
-    };
-
-    checkLogo();
+    LOGO_EXTENSIONS.forEach((ext) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!cancelled) setLogoExists(true);
+      };
+      img.onerror = () => {};
+      img.src = `/images/saokim-logo.${ext}`;
+    });
     return () => {
       cancelled = true;
     };
@@ -33,11 +33,11 @@ export default function SaoKimLogo({ size = "medium", showText = true }) {
       large: "logo-large",
     }[size] || "logo-medium";
 
-  const renderSlogan = () =>
+  const renderText = () =>
     showText ? (
       <div className="logo-slogan">
-        <div className="logo-company">SaoKim Commerce</div>
-        <small className="logo-tagline">Đồng hành chiếu sáng tương lai</small>
+        <div className="logo-company">{title}</div>
+        <small className="logo-tagline">{tagline}</small>
       </div>
     ) : null;
 
@@ -47,23 +47,21 @@ export default function SaoKimLogo({ size = "medium", showText = true }) {
         <div className="logo-container">
           <img
             src="/images/saokim-logo.png"
-            alt="SaoKim logo"
+            alt="Sao Kim logo"
             className="logo-image"
             onError={(event) => {
-              const element = event.currentTarget;
-              const currentSrc = element.src;
-              const baseSrc = currentSrc.replace(/\.(png|svg|jpg|jpeg|webp)$/i, "");
-              const currentExt = currentSrc.match(/\.(\w+)$/i)?.[1]?.toLowerCase() ?? "png";
-              const nextIndex = LOGO_EXTENSIONS.indexOf(currentExt) + 1;
-
-              if (nextIndex < LOGO_EXTENSIONS.length) {
-                element.src = `${baseSrc}.${LOGO_EXTENSIONS[nextIndex]}`;
+              const el = event.currentTarget;
+              const base = el.src.replace(/\.(png|svg|jpg|jpeg|webp)$/i, "");
+              const ext = el.src.match(/\.(\w+)$/i)?.[1]?.toLowerCase() ?? "png";
+              const nextIdx = LOGO_EXTENSIONS.indexOf(ext) + 1;
+              if (nextIdx < LOGO_EXTENSIONS.length) {
+                el.src = `${base}.${LOGO_EXTENSIONS[nextIdx]}`;
               } else {
                 setLogoExists(false);
               }
             }}
           />
-          {renderSlogan()}
+          {renderText()}
         </div>
       </div>
     );
@@ -92,7 +90,7 @@ export default function SaoKimLogo({ size = "medium", showText = true }) {
           </span>
           <span className="logo-okim">OKIM</span>
         </div>
-        {renderSlogan()}
+        {renderText()}
       </div>
     </div>
   );

@@ -63,16 +63,13 @@ export default function ProjectOverview() {
             </p>
           </div>
           <div className="actions">
-            <Link to="/projects/create" className="btn btn-primary">
-              + Tạo dự án
-            </Link>
             <Link to="/projects" className="btn btn-outline">
               Danh sách
             </Link>
           </div>
         </header>
 
-                        <section className="metrics-grid">
+        <section className="metrics-grid">
           <article className="metric-card">
             <div className="metric-label">Tổng dự án</div>
             <div className="metric-value">{formatNumber(metrics.total) || "0"}</div>
@@ -103,7 +100,7 @@ export default function ProjectOverview() {
         </section>
 
         <div className="manager-grid-two">
-                    <section className="manager-panel">
+          <section className="manager-panel">
             <div className="manager-panel__header">
               <div>
                 <h3 className="manager-panel__title">Dự án có rủi ro</h3>
@@ -158,7 +155,7 @@ export default function ProjectOverview() {
             )}
           </section>
 
-                    <section className="manager-panel">
+          <section className="manager-panel">
             <div className="manager-panel__header">
               <div>
                 <h3 className="manager-panel__title">Dự án mới cập nhật</h3>
@@ -201,7 +198,9 @@ export default function ProjectOverview() {
             ) : (
               <div className="empty-state">
                 <div className="empty-state-title">Chưa có dữ liệu</div>
-                <div className="empty-state-subtitle">Hãy tạo dự án đầu tiên.</div>
+                <div className="empty-state-subtitle">
+                  Hiện chưa có dự án nào được cập nhật gần đây.
+                </div>
               </div>
             )}
           </section>

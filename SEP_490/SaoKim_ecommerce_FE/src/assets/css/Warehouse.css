@@ -54,36 +54,9 @@
 .warehouse-sidebar__brand {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.warehouse-sidebar__brand-badge {
-  display: inline-flex;
+  gap: 14px;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgba(244, 123, 32, 0.18);
-  border: 1px solid rgba(244, 123, 32, 0.38);
-  color: #ffead8;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.warehouse-sidebar__brand-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0;
-  color: #ffffff;
-}
-
-.warehouse-sidebar__brand-subtitle {
-  margin: 0;
-  font-size: 0.85rem;
-  color: rgba(240, 245, 255, 0.76);
-  line-height: 1.5;
+  text-align: center;
 }
 
 .warehouse-sidebar__menu {

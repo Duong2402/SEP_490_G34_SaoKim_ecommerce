@@ -134,7 +134,7 @@ const HomepageHeader = () => {
       <Container fluid className="header-shell">
         <Navbar.Brand as={Link} to="/" className="brand-area">
           <div className="logo-wrapper">
-            <img src="/images/saokim-logo.jpg" alt="Sao Kim Lighting" />
+            <img src="/images/saokim-logo.png" alt="Sao Kim Lighting" />
           </div>
           <div>
             <span className="brand-name d-block">Sao Kim Lighting</span>
