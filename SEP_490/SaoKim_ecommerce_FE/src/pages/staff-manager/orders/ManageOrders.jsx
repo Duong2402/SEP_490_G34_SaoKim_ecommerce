@@ -30,7 +30,7 @@ import StaffLayout from "../../../layouts/StaffLayout";
 import useOrdersApi from "../api/useOrders";
 
 export default function ManageOrders() {
-  const { fetchOrders, updateOrderStatus, fetchOrderItems, deleteOrder } =
+  const { fetchOrders, fetchOrderDetail, updateOrderStatus, deleteOrder } =
     useOrdersApi();
 
   const [search, setSearch] = useState("");
@@ -105,8 +105,7 @@ export default function ManageOrders() {
           Chờ xử lý
         </Badge>
       );
-    if (v === "paid")
-      return <Badge bg="primary">Đã thanh toán</Badge>;
+    if (v === "paid") return <Badge bg="primary">Đã thanh toán</Badge>;
     if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
     if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
     if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
@@ -137,18 +136,33 @@ export default function ManageOrders() {
     }
   };
 
-  const handleViewOrderItems = async (order) => {
-    setSelectedOrder(order);
+  // phân biệt đơn COD
+  const isCodOrder = (order) => {
+    const m = String(
+      order.paymentMethod ||
+        order.PaymentMethod ||
+        order.payment?.method ||
+        order.Payment?.Method ||
+        ""
+    ).toLowerCase();
+    return m === "cod" || m === "cash_on_delivery";
+  };
+
+  // mở modal chi tiết: lấy luôn customer + shipping + payment + items
+  const handleViewOrderDetail = async (order) => {
     setShowOrderItemsModal(true);
     setLoadingOrderItems(true);
+    setSelectedOrder(order);
     setSelectedOrderItems([]);
 
     try {
-      const items = await fetchOrderItems(order.id);
+      const detail = await fetchOrderDetail(order.id);
+      setSelectedOrder(detail);
+      const items = detail.items || detail.Items || [];
       setSelectedOrderItems(items);
     } catch (e) {
       console.error(e);
-      alert("Không tải được danh sách sản phẩm của đơn hàng");
+      alert("Không tải được chi tiết đơn hàng");
     } finally {
       setLoadingOrderItems(false);
     }
@@ -210,15 +224,26 @@ export default function ManageOrders() {
     }
   };
 
-  const isCodOrder = (order) => {
-    const m = String(
-      order.paymentMethod ||
-        order.PaymentMethod ||
-        order.payment?.method ||
-        order.Payment?.Method ||
-        ""
-    ).toLowerCase();
-    return m === "cod" || m === "cash_on_delivery";
+  // Nhận luôn cả order, tự lôi ra paymentMethod và fallback COD nếu trống
+  const paymentMethodLabel = (order) => {
+    const raw =
+      order?.paymentMethod ||
+      order?.PaymentMethod ||
+      order?.payment?.method ||
+      order?.Payment?.Method ||
+      "";
+
+    const v = raw.toString().toLowerCase();
+
+    if (!v || v === "cod" || v === "cash_on_delivery") {
+      return "Thanh toán khi nhận hàng (COD)";
+    }
+
+    if (v === "qr" || v === "bank_transfer_qr") {
+      return "Chuyển khoản qua QR";
+    }
+
+    return raw;
   };
 
   return (
@@ -428,9 +453,7 @@ export default function ManageOrders() {
                         {o.customerPhone && ` / ${o.customerPhone}`}
                       </div>
                     </td>
-                    <td>
-                      {(o.total ?? 0).toLocaleString("vi-VN")} ₫
-                    </td>
+                    <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
 
                     <td>{renderStatusForRow(o)}</td>
 
@@ -440,7 +463,7 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-primary"
                         className="me-2"
-                        onClick={() => handleViewOrderItems(o)}
+                        onClick={() => handleViewOrderDetail(o)}
                         title="Xem chi tiết đơn hàng"
                       >
                         <FontAwesomeIcon icon={faEye} />
@@ -549,6 +572,7 @@ export default function ManageOrders() {
         </Card.Body>
       </Card>
 
+      {/* MODAL CHI TIẾT ĐƠN */}
       <Modal
         show={showOrderItemsModal}
         onHide={() => setShowOrderItemsModal(false)}
@@ -560,41 +584,91 @@ export default function ManageOrders() {
             Chi tiết đơn hàng #{selectedOrder?.id}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
           {loadingOrderItems ? (
             <div className="d-flex align-items-center gap-2 my-3">
               <Spinner animation="border" size="sm" />
-              <span>Đang tải sản phẩm...</span>
+              <span>Đang tải chi tiết đơn...</span>
             </div>
-          ) : selectedOrderItems.length > 0 ? (
-            <Table hover responsive size="sm" className="mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Sản phẩm</th>
-                  <th>Số lượng</th>
-                  <th>Đơn giá</th>
-                  <th>Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedOrderItems.map((item, index) => (
-                  <tr key={item.orderItemId ?? index}>
-                    <td>{index + 1}</td>
-                    <td>{item.productName}</td>
-                    <td>{item.quantity}</td>
-                    <td>
-                      {(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
-                    </td>
-                    <td>
-                      {(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
           ) : (
-            <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
+            <>
+              {/* Thông tin khách hàng */}
+              <section className="mb-3">
+                <h5>Thông tin khách hàng</h5>
+                <div>Khách hàng: {selectedOrder?.customerName}</div>
+                <div>Email: {selectedOrder?.customerEmail}</div>
+                <div>Số điện thoại: {selectedOrder?.customerPhone}</div>
+              </section>
+
+              {/* Địa chỉ giao hàng */}
+              <section className="mb-3">
+                <h5>Địa chỉ giao hàng</h5>
+                <div>
+                  Người nhận:{" "}
+                  {selectedOrder?.shippingRecipientName ||
+                    selectedOrder?.customerName}
+                </div>
+                <div>
+                  SĐT người nhận:{" "}
+                  {selectedOrder?.shippingPhoneNumber ||
+                    selectedOrder?.customerPhone}
+                </div>
+                <div>
+                  Địa chỉ:{" "}
+                  {[
+                    selectedOrder?.shippingLine1,
+                    selectedOrder?.shippingWard,
+                    selectedOrder?.shippingDistrict,
+                    selectedOrder?.shippingProvince,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </section>
+
+              {/* Thanh toán */}
+              <section className="mb-3">
+                <h5>Thanh toán</h5>
+                <div>Phương thức: {paymentMethodLabel(selectedOrder)}</div>
+              </section>
+
+              <hr />
+
+              {/* Sản phẩm trong đơn */}
+              <section>
+                <h5 className="mb-3">Sản phẩm trong đơn</h5>
+                {selectedOrderItems.length === 0 ? (
+                  <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
+                ) : (
+                  <Table hover responsive size="sm" className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Đơn giá</th>
+                        <th>Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrderItems.map((item, index) => (
+                        <tr key={item.orderItemId ?? index}>
+                          <td>{index + 1}</td>
+                          <td>{item.productName}</td>
+                          <td>{item.quantity}</td>
+                          <td>
+                            {(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
+                          </td>
+                          <td>
+                            {(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </section>
+            </>
           )}
         </Modal.Body>
         <Modal.Footer>
@@ -603,8 +677,7 @@ export default function ManageOrders() {
               {selectedOrder && (
                 <>
                   <div className="mb-1">
-                    Trạng thái hiện tại:{" "}
-                    {renderStatusForRow(selectedOrder)}
+                    Trạng thái hiện tại: {renderStatusForRow(selectedOrder)}
                   </div>
                   <div className="small text-muted">
                     Tổng tiền:{" "}
@@ -617,7 +690,7 @@ export default function ManageOrders() {
             <div className="d-flex gap-2">
               {selectedOrder && canCancel(selectedOrder) && (
                 <Button
-                  size="sm"
+                  size="small"
                   variant="outline-danger"
                   disabled={cancellingOrderId === selectedOrder.id}
                   onClick={() => handleCancelOrder(selectedOrder)}

@@ -172,8 +172,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var order = await _db.Orders
                 .AsNoTracking()
                 .Include(o => o.Customer)
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Invoice)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
@@ -185,14 +184,32 @@ namespace SaoKim_ecommerce_BE.Controllers
                 code = $"ORD-{order.OrderId}",
                 total = order.Total,
                 status = order.Status,
-                paymentMethod = order.PaymentMethod,   // thêm cho rõ loại thanh toán
                 createdAt = order.CreatedAt,
 
+                // customer
                 customerId = order.UserId,
                 customerName = order.Customer?.Name,
                 customerEmail = order.Customer?.Email,
                 customerPhone = order.Customer?.PhoneNumber,
 
+                // payment snapshot
+                payment = new
+                {
+                    method = order.PaymentMethod,
+                    status = order.PaymentStatus,
+                    transactionCode = order.PaymentTransactionCode,
+                    paidAt = order.PaidAt
+                },
+
+                // shipping snapshot lấy từ các cột shipping_*
+                shippingRecipientName = order.ShippingRecipientName,
+                shippingPhoneNumber = order.ShippingPhoneNumber,
+                shippingLine1 = order.ShippingLine1,
+                shippingWard = order.ShippingWard,
+                shippingDistrict = order.ShippingDistrict,
+                shippingProvince = order.ShippingProvince,
+
+                // invoice
                 invoice = order.Invoice == null
                     ? null
                     : new
@@ -204,6 +221,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                         createdAt = order.Invoice.CreatedAt
                     },
 
+                // items
                 items = order.Items.Select(i => new
                 {
                     i.OrderItemId,
@@ -218,6 +236,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(dto);
         }
+
 
         // =========================================================
         // 3) UPDATE STATUS + AUTO CREATE INVOICE
