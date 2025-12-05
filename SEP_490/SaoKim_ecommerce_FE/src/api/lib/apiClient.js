@@ -26,6 +26,16 @@ export async function apiFetch(path, options = {}) {
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
+  if (res.status === 401 || res.status === 403) {
+    clearToken();
+
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+
+    throw new Error("Unauthorized");
+  }
+
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
