@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ClosedXML.Excel;
+using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
@@ -89,7 +90,7 @@ namespace SaoKim_ecommerce_BE.Services
                     var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
                     if (order != null)
                     {
-                        
+
                         if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
                         {
                             throw new InvalidOperationException("Đơn hàng đã bị hủy, không thể xác nhận phiếu xuất.");
@@ -589,7 +590,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             await _db.SaveChangesAsync();
         }
-        
+
         public async Task DeleteDispatchItemAsync(int itemId)
         {
             var item = await _db.DispatchItems.FindAsync(itemId);
@@ -598,6 +599,140 @@ namespace SaoKim_ecommerce_BE.Services
 
             _db.DispatchItems.Remove(item);
             await _db.SaveChangesAsync();
+        }
+
+        public async Task<byte[]> ExportDispatchSlipsAsync(List<int> ids, bool includeItems)
+        {
+            if (ids == null || ids.Count == 0)
+                throw new ArgumentException("Không có phiếu xuất để export.");
+
+            var sales = _db.Set<RetailDispatch>()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new DispatchSlipListItemDto
+                {
+                    Id = x.Id,
+                    Type = "Sales",
+                    ReferenceNo = x.ReferenceNo,
+                    SalesOrderNo = x.ReferenceNo,
+                    RequestNo = null,
+                    CustomerName = x.CustomerName,
+                    ProjectName = null,
+                    DispatchDate = x.DispatchDate,
+                    Status = x.Status,
+                    CreatedAt = x.CreatedAt,
+                    ConfirmedAt = x.ConfirmedAt,
+                    Note = x.Note
+                });
+
+            var projects = _db.Set<ProjectDispatch>()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new DispatchSlipListItemDto
+                {
+                    Id = x.Id,
+                    Type = "Project",
+                    ReferenceNo = x.ReferenceNo,
+                    SalesOrderNo = null,
+                    RequestNo = x.ReferenceNo,
+                    CustomerName = null,
+                    ProjectName = x.ProjectName,
+                    DispatchDate = x.DispatchDate,
+                    Status = x.Status,
+                    CreatedAt = x.CreatedAt,
+                    ConfirmedAt = x.ConfirmedAt,
+                    Note = x.Note
+                });
+
+            var slips = await sales.Concat(projects)
+                .OrderBy(x => x.DispatchDate)
+                .ThenBy(x => x.Id)
+                .ToListAsync();
+
+            using var wb = new XLWorkbook();
+
+            var wsSlips = wb.Worksheets.Add("DispatchSlips");
+            int row = 1;
+
+            wsSlips.Cell(row, 1).Value = "ID";
+            wsSlips.Cell(row, 2).Value = "Mã phiếu";
+            wsSlips.Cell(row, 3).Value = "Loại";
+            wsSlips.Cell(row, 4).Value = "Đơn bán / Yêu cầu";
+            wsSlips.Cell(row, 5).Value = "Khách hàng";
+            wsSlips.Cell(row, 6).Value = "Dự án";
+            wsSlips.Cell(row, 7).Value = "Ngày xuất";
+            wsSlips.Cell(row, 8).Value = "Trạng thái";
+            wsSlips.Cell(row, 9).Value = "Ngày tạo";
+            wsSlips.Cell(row, 10).Value = "Ngày xác nhận";
+            wsSlips.Cell(row, 11).Value = "Ghi chú";
+
+            wsSlips.Range(row, 1, row, 11).Style.Font.Bold = true;
+            row++;
+
+            foreach (var s in slips)
+            {
+                wsSlips.Cell(row, 1).Value = s.Id;
+                wsSlips.Cell(row, 2).Value = s.ReferenceNo;
+                wsSlips.Cell(row, 3).Value = s.Type;
+                wsSlips.Cell(row, 4).Value = s.SalesOrderNo ?? s.RequestNo;
+                wsSlips.Cell(row, 5).Value = s.CustomerName ?? "";
+                wsSlips.Cell(row, 6).Value = s.ProjectName ?? "";
+                wsSlips.Cell(row, 7).Value = s.DispatchDate;
+                wsSlips.Cell(row, 8).Value = s.Status.ToString();
+                wsSlips.Cell(row, 9).Value = s.CreatedAt;
+                wsSlips.Cell(row, 10).Value = s.ConfirmedAt;
+                wsSlips.Cell(row, 11).Value = s.Note ?? "";
+                row++;
+            }
+
+            wsSlips.Columns().AdjustToContents();
+
+            if (includeItems)
+            {
+                var itemRows = await _db.DispatchItems
+                    .Where(i => ids.Contains(i.DispatchId))
+                    .Join(_db.Products,
+                        i => i.ProductId,
+                        p => p.ProductID,
+                        (i, p) => new
+                        {
+                            Item = i,
+                            ProductCode = p.ProductCode
+                        })
+                    .ToListAsync();
+
+                var wsItems = wb.Worksheets.Add("DispatchItems");
+                int r2 = 1;
+
+                wsItems.Cell(r2, 1).Value = "Mã phiếu xuất";
+                wsItems.Cell(r2, 2).Value = "ID sản phẩm";
+                wsItems.Cell(r2, 3).Value = "Mã sản phẩm";
+                wsItems.Cell(r2, 4).Value = "Tên sản phẩm";
+                wsItems.Cell(r2, 5).Value = "Đơn vị";
+                wsItems.Cell(r2, 6).Value = "Số lượng";
+                wsItems.Cell(r2, 7).Value = "Đơn giá";
+                wsItems.Cell(r2, 8).Value = "Thành tiền";
+
+                wsItems.Range(r2, 1, r2, 8).Style.Font.Bold = true;
+                r2++;
+
+                foreach (var x in itemRows)
+                {
+                    wsItems.Cell(r2, 1).Value = x.Item.DispatchId;
+                    wsItems.Cell(r2, 2).Value = x.Item.Id;
+                    wsItems.Cell(r2, 3).Value = x.ProductCode;
+                    wsItems.Cell(r2, 4).Value = x.Item.ProductName;
+                    wsItems.Cell(r2, 5).Value = x.Item.Uom;
+                    wsItems.Cell(r2, 6).Value = x.Item.Quantity;
+                    wsItems.Cell(r2, 7).Value = x.Item.UnitPrice;
+                    wsItems.Cell(r2, 8).Value = x.Item.Total;
+                    r2++;
+                }
+
+                wsItems.Columns().AdjustToContents();
+            }
+
+            using var stream = new MemoryStream();
+            wb.SaveAs(stream);
+            return stream.ToArray();
         }
 
     }

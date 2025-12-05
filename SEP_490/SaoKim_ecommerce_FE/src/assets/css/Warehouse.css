@@ -852,6 +852,31 @@
   color: var(--wm-text);
 }
 
+.wm-stock-distribution-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e7eb; 
+  overflow: hidden;
+}
+
+.wm-stock-distribution-bar__segment {
+  height: 100%;
+  float: left;
+}
+
+.wm-stock-distribution-bar__segment--safe {
+  background-color: #16a34a; 
+}
+
+.wm-stock-distribution-bar__segment--alert {
+  background-color: #facc15; 
+}
+
+.wm-stock-distribution-bar__segment--critical {
+  background-color: #ef4444; 
+}
+
 @media (max-width: 1200px) {
   .warehouse-sidebar {
     width: 240px;

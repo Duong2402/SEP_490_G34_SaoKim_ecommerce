@@ -324,3 +324,9 @@ public class UpdateMinStockDto
 {
     public int MinStock { get; set; }
 }
+
+public class DispatchExportSelectedRequest
+{
+    public List<int> Ids { get; set; } = new();
+    public bool IncludeItems { get; set; } = true;
+}

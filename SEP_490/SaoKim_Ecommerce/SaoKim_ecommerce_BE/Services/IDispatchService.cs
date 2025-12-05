@@ -20,6 +20,7 @@ namespace SaoKim_ecommerce_BE.Services
         Task<(DispatchItem item, string productCode)> UpdateDispatchItemAsync(int itemId, DispatchItemDto dto);
         Task DeleteDispatchSlipAsync(int id); 
         Task DeleteDispatchItemAsync(int itemId);
+        Task<byte[]> ExportDispatchSlipsAsync(List<int> ids, bool includeItems);
 
     }
 }

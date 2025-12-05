@@ -11,7 +11,6 @@ import {
   InputGroup,
   Table,
   Spinner,
-  ProgressBar,
 } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Dropdown from "react-bootstrap/Dropdown";
@@ -65,6 +64,9 @@ export default function InventoryReport() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState("detail");
 
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const STATUS_OPTIONS = [
     { value: "all", label: "Tất cả trạng thái" },
     { value: "stock", label: "Đủ hàng" },
@@ -80,6 +82,8 @@ export default function InventoryReport() {
         pageSize: String(MAX_PAGE_SIZE),
         ...(search ? { search } : {}),
         ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        ...(fromDate ? { fromDate } : {}),
+        ...(toDate ? { toDate } : {}),
       });
 
       const res = await apiFetch(
@@ -107,10 +111,12 @@ export default function InventoryReport() {
           outboundQty: x.outboundQty ?? 0,
           closingQty: x.closingQty ?? x.onHand ?? 0,
         };
-        item.effectiveStatus = item.status ?? getStatus(item);
+
         item.gap =
           Number(item.closingQty ?? item.onHand ?? 0) -
-          Number(item.minStock || 0);
+          Number(item.openingQty || 0);
+
+        item.effectiveStatus = item.status ?? getStatus(item);
         return item;
       });
 
@@ -121,7 +127,8 @@ export default function InventoryReport() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, fromDate, toDate]);
+
 
   useEffect(() => {
     loadData();
@@ -250,21 +257,19 @@ export default function InventoryReport() {
         </div>
 
         <div className="wm-page-actions">
-          <div className="btn-group" role="group">
+          <div className="d-flex gap-2">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "detail" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "detail" ? "active" : ""
+                }`}
               onClick={() => setViewMode("detail")}
             >
               Chi tiết theo sản phẩm
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "overview" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "overview" ? "active" : ""
+                }`}
               onClick={() => setViewMode("overview")}
             >
               Tổng quan & top sản phẩm
@@ -333,35 +338,38 @@ export default function InventoryReport() {
           <div className="d-flex gap-3 small text-muted">
             <span>
               <Badge bg="success" className="me-1" /> Đủ hàng:{" "}
-              {summary.safePercent.toFixed(1)}%
+              <span className="text-success fw-semibold">
+                {summary.safePercent.toFixed(1)}%
+              </span>
             </span>
             <span>
               <Badge bg="warning" text="dark" className="me-1" /> Cần theo dõi:{" "}
-              {summary.alertPercent.toFixed(1)}%
+              <span className="text-warning fw-semibold">
+                {summary.alertPercent.toFixed(1)}%
+              </span>
             </span>
             <span>
               <Badge bg="danger" className="me-1" /> Thiếu hàng:{" "}
-              {summary.criticalPercent.toFixed(1)}%
+              <span className="text-danger fw-semibold">
+                {summary.criticalPercent.toFixed(1)}%
+              </span>
             </span>
           </div>
         </div>
-        <ProgressBar>
-          <ProgressBar
-            now={summary.safePercent}
-            variant="success"
-            key="safe"
+        <div className="wm-stock-distribution-bar">
+          <div
+            className="wm-stock-distribution-bar__segment wm-stock-distribution-bar__segment--safe"
+            style={{ width: `${summary.safePercent}%` }}
           />
-          <ProgressBar
-            now={summary.alertPercent}
-            variant="warning"
-            key="alert"
+          <div
+            className="wm-stock-distribution-bar__segment wm-stock-distribution-bar__segment--alert"
+            style={{ width: `${summary.alertPercent}%` }}
           />
-          <ProgressBar
-            now={summary.criticalPercent}
-            variant="danger"
-            key="critical"
+          <div
+            className="wm-stock-distribution-bar__segment wm-stock-distribution-bar__segment--critical"
+            style={{ width: `${summary.criticalPercent}%` }}
           />
-        </ProgressBar>
+        </div>
       </div>
 
       <div className="wm-surface wm-toolbar">
@@ -382,6 +390,19 @@ export default function InventoryReport() {
         </div>
 
         <div className="wm-toolbar__actions">
+          <div className="d-flex align-items-center gap-2 me-2">
+            <Form.Control
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+            <span className="text-muted small">đến</span>
+            <Form.Control
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
           <Dropdown>
             <Dropdown.Toggle
               variant="link"
@@ -529,22 +550,20 @@ export default function InventoryReport() {
                 <th>Nhập trong kỳ</th>
                 <th>Xuất trong kỳ</th>
                 <th>Tồn cuối kỳ</th>
-                <th>Định mức tối thiểu</th>
                 <th>Chênh lệch</th>
                 <th>Trạng thái</th>
-                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="wm-empty">
+                  <td colSpan={9} className="wm-empty">
                     <Spinner animation="border" size="sm" /> Đang tải...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="wm-empty">
+                  <td colSpan={9} className="wm-empty">
                     Không có dữ liệu phù hợp.
                   </td>
                 </tr>
@@ -573,8 +592,6 @@ export default function InventoryReport() {
                         {r.closingQty} {r.uomName}
                       </td>
 
-                      <td>{r.minStock}</td>
-
                       <td
                         className={
                           r.gap < 0 ? "text-danger fw-semibold" : ""
@@ -584,7 +601,6 @@ export default function InventoryReport() {
                       </td>
 
                       <td>{statusLabel(st)}</td>
-                      <td>{r.note || ""}</td>
                     </tr>
                   );
                 })

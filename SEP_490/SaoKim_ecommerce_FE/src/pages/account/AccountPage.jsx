@@ -1,12 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Container, Row, Col } from "react-bootstrap";
-import { getDistricts, getProvinces, getWards } from "sub-vn";
+import {
+  getAllProvince,
+  getDistrictsByProvinceId,
+} from "vietnam-provinces-js/provinces";
+import { getCommunesByDistrictId } from "vietnam-provinces-js/districts";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import HomepageHeader from "../../components/HomepageHeader";
 import EcommerceFooter from "../../components/EcommerceFooter";
 import "../../styles/account.css";
 
-// Reuse API base resolution from existing profile page
+
+
 let API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
   "https://localhost:7278";
@@ -21,7 +27,6 @@ function buildImageUrl(image) {
   return `${API_BASE}${relative}`;
 }
 
-// Profile tab keeps the existing fetch/update flow
 function ProfileTab() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -243,12 +248,11 @@ function ProfileTab() {
   );
 }
 
-// Addresses tab keeps the full CRUD + geocoding flow
 function AddressesTab() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || null;
-  const apiBase = "https://localhost:7278";
+  const apiBase = API_BASE;
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -269,32 +273,23 @@ function AddressesTab() {
   const [districtCode, setDistrictCode] = useState("");
   const [wardCode, setWardCode] = useState("");
 
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const provinces = useMemo(() => getProvinces(), []);
-
-  const districts = useMemo(() => {
-    if (!provinceCode) return [];
-    const raw = getDistricts(provinceCode);
-    return raw.filter(
-      (d) => String(d.province_code ?? d.parent_code) === String(provinceCode)
-    );
-  }, [provinceCode]);
-
-  const wards = useMemo(() => {
-    if (!districtCode) return [];
-    const raw = getWards(districtCode);
-    return raw.filter(
-      (w) => String(w.district_code ?? w.parent_code) === String(districtCode)
-    );
-  }, [districtCode]);
-
-  const findProvinceByName = (name) => provinces.find((p) => p.name === name);
-  const findDistrictByName = (provCode, name) =>
-    getDistricts(provCode).find((d) => d.name === name);
-  const findWardByName = (distCode, name) =>
-    getWards(distCode).find((w) => w.name === name);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getAllProvince();
+        setProvinces(data || []);
+      } catch (err) {
+        console.error("Lỗi tải danh sách tỉnh/thành:", err);
+      }
+    })();
+  }, []);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -319,41 +314,61 @@ function AddressesTab() {
       return;
     }
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const onProvinceChange = (code) => {
+  const onProvinceChange = async (code) => {
     const codeStr = String(code);
     setProvinceCode(codeStr);
     setDistrictCode("");
     setWardCode("");
+    setDistricts([]);
+    setWards([]);
 
-    const p = provinces.find((x) => String(x.code) === codeStr);
+    const p = provinces.find((x) => String(x.idProvince) === codeStr);
     setForm((prev) => ({
       ...prev,
       province: p ? p.name : "",
       district: "",
       ward: "",
     }));
+
+    if (codeStr) {
+      try {
+        const ds = await getDistrictsByProvinceId(codeStr);
+        setDistricts(ds || []);
+      } catch (err) {
+        console.error("Lỗi tải quận/huyện:", err);
+      }
+    }
   };
 
-  const onDistrictChange = (code) => {
+  const onDistrictChange = async (code) => {
     const codeStr = String(code);
     setDistrictCode(codeStr);
     setWardCode("");
+    setWards([]);
 
-    const d = districts.find((x) => String(x.code) === codeStr);
+    const d = districts.find((x) => String(x.idDistrict) === codeStr);
     setForm((prev) => ({
       ...prev,
       district: d ? d.name : "",
       ward: "",
     }));
+
+    if (codeStr) {
+      try {
+        const ws = await getCommunesByDistrictId(codeStr);
+        setWards(ws || []);
+      } catch (err) {
+        console.error("Lỗi tải phường/xã:", err);
+      }
+    }
   };
 
   const onWardChange = (code) => {
     const codeStr = String(code);
     setWardCode(codeStr);
-    const w = wards.find((x) => String(x.code) === codeStr);
+    const w = wards.find((x) => String(x.idCommune) === codeStr);
     setForm((prev) => ({
       ...prev,
       ward: w ? w.name : "",
@@ -374,6 +389,8 @@ function AddressesTab() {
     setProvinceCode("");
     setDistrictCode("");
     setWardCode("");
+    setDistricts([]);
+    setWards([]);
   };
 
   const submitForm = async (e) => {
@@ -475,7 +492,7 @@ function AddressesTab() {
     }
   };
 
-  const startEdit = (a) => {
+  const startEdit = async (a) => {
     setEditing(a.addressId);
     setForm({
       recipientName: a.recipientName || "",
@@ -487,18 +504,63 @@ function AddressesTab() {
       isDefault: a.isDefault || false,
     });
 
-    const p = a.province ? findProvinceByName(a.province) : null;
-    const pCode = p?.code ? String(p.code) : "";
-    setProvinceCode(pCode);
+    try {
+      if (a.province) {
+        const p = provinces.find((x) => x.name === a.province);
+        if (p) {
+          const pCode = String(p.idProvince);
+          setProvinceCode(pCode);
 
-    const d =
-      pCode && a.district ? findDistrictByName(pCode, a.district) : null;
-    const dCode = d?.code ? String(d.code) : "";
-    setDistrictCode(dCode);
+          const ds = await getDistrictsByProvinceId(pCode);
+          setDistricts(ds || []);
 
-    const w = dCode && a.ward ? findWardByName(dCode, a.ward) : null;
-    const wCode = w?.code ? String(w.code) : "";
-    setWardCode(wCode);
+          let dCode = "";
+          if (a.district) {
+            const d = (ds || []).find((x) => x.name === a.district);
+            if (d) {
+              dCode = String(d.idDistrict);
+              setDistrictCode(dCode);
+
+              const ws = await getCommunesByDistrictId(dCode);
+              setWards(ws || []);
+
+              if (a.ward) {
+                const w = (ws || []).find((x) => x.name === a.ward);
+                if (w) {
+                  setWardCode(String(w.idCommune));
+                } else {
+                  setWardCode("");
+                }
+              } else {
+                setWardCode("");
+              }
+            } else {
+              setDistrictCode("");
+              setWardCode("");
+              setWards([]);
+            }
+          } else {
+            setDistrictCode("");
+            setWardCode("");
+            setWards([]);
+          }
+        } else {
+          setProvinceCode("");
+          setDistrictCode("");
+          setWardCode("");
+          setDistricts([]);
+          setWards([]);
+        }
+      } else {
+        setProvinceCode("");
+        setDistrictCode("");
+        setWardCode("");
+        setDistricts([]);
+        setWards([]);
+      }
+    } catch (err) {
+      console.error("Lỗi map địa chỉ khi chỉnh sửa:", err);
+    }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -574,7 +636,7 @@ function AddressesTab() {
               >
                 <option value="">Chọn Tỉnh/Thành</option>
                 {provinces.map((p) => (
-                  <option key={p.code} value={String(p.code)}>
+                  <option key={p.idProvince} value={String(p.idProvince)}>
                     {p.name}
                   </option>
                 ))}
@@ -593,7 +655,7 @@ function AddressesTab() {
                   {provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}
                 </option>
                 {districts.map((d) => (
-                  <option key={d.code} value={String(d.code)}>
+                  <option key={d.idDistrict} value={String(d.idDistrict)}>
                     {d.name}
                   </option>
                 ))}
@@ -612,7 +674,7 @@ function AddressesTab() {
                   {districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}
                 </option>
                 {wards.map((w) => (
-                  <option key={w.code} value={String(w.code)}>
+                  <option key={w.idCommune} value={String(w.idCommune)}>
                     {w.name}
                   </option>
                 ))}
@@ -717,7 +779,6 @@ function AddressesTab() {
   );
 }
 
-// Password tab keeps the existing validation and API call
 function PasswordTab() {
   const navigate = useNavigate();
 

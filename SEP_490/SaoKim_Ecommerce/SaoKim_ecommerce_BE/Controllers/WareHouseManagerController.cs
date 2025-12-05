@@ -770,5 +770,22 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
+        [HttpPost("dispatch-slips/export-selected")]
+        public async Task<IActionResult> ExportDispatchSelected(
+    [FromBody] DispatchExportSelectedRequest request)
+        {
+            if (request.Ids == null || request.Ids.Count == 0)
+                return BadRequest(new { message = "Không có phiếu xuất nào được chọn." });
+
+            var bytes = await _dispatchService.ExportDispatchSlipsAsync(
+                request.Ids,
+                request.IncludeItems);
+
+            var fileName = $"dispatch-slips-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            return File(bytes, contentType, fileName);
+        }
+
     }
 }
