@@ -21,7 +21,7 @@ const STATUS_LABELS = {
   confirmed: { label: "Đã xác nhận", variant: "info" },
   paid: { label: "Đã thanh toán", variant: "info" },
   shipping: { label: "Đang giao", variant: "primary" },
-  completed: { label: "Hoàn thành", variant: "success" },
+  completed: { label: "Hoàn tất", variant: "success" },
   cancelled: { label: "Đã hủy", variant: "secondary" },
 };
 
@@ -46,7 +46,8 @@ export default function OrderDetailPage() {
   const [downloading, setDownloading] = useState(false);
 
   const apiBase =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+    (typeof import.meta !== "undefined" &&
+      import.meta.env?.VITE_API_BASE_URL) ||
     "https://localhost:7278";
   const apiBaseNormalized = (apiBase || "").replace(/\/+$/, "");
 
@@ -112,7 +113,8 @@ export default function OrderDetailPage() {
   const invoice = order?.invoice || order?.Invoice;
   const shippingAddress = order?.shippingAddress || order?.ShippingAddress;
   const payment = order?.payment || order?.Payment;
-  const invoiceId = invoice?.invoiceId ?? invoice?.InvoiceId ?? invoice?.id ?? invoice?.Id;
+  const invoiceId =
+    invoice?.invoiceId ?? invoice?.InvoiceId ?? invoice?.id ?? invoice?.Id;
 
   const subtotalFromItems = useMemo(
     () =>
@@ -124,7 +126,9 @@ export default function OrderDetailPage() {
   );
 
   const invoiceSubtotal = Number(invoice?.subtotal ?? invoice?.Subtotal ?? NaN);
-  const subtotal = Number.isFinite(invoiceSubtotal) ? invoiceSubtotal : subtotalFromItems;
+  const subtotal = Number.isFinite(invoiceSubtotal)
+    ? invoiceSubtotal
+    : subtotalFromItems;
 
   const discount = Number(invoice?.discount ?? invoice?.Discount ?? 0);
   const tax = Number(invoice?.tax ?? invoice?.Tax ?? 0);
@@ -156,14 +160,30 @@ export default function OrderDetailPage() {
     variant: "secondary",
   };
 
-  const paymentMethodKey = (payment?.method || payment?.Method || "").toLowerCase();
+  // loại thanh toán
+  const paymentMethodRaw = (
+    payment?.method ||
+    payment?.Method ||
+    order?.paymentMethod ||
+    order?.PaymentMethod ||
+    ""
+  ).toLowerCase();
+
+  const paymentMethodKey = paymentMethodRaw;
+  const isCod =
+    paymentMethodKey === "cod" || paymentMethodKey === "cash_on_delivery";
+
   const paymentMethod =
     PAYMENT_METHOD_LABELS[paymentMethodKey] ||
     payment?.method ||
     payment?.Method ||
     "Chưa cập nhật";
 
-  const paymentStatusKey = (payment?.status || payment?.Status || "").toLowerCase();
+  const paymentStatusKey = (
+    payment?.status ||
+    payment?.Status ||
+    ""
+  ).toLowerCase();
   const paymentStatus =
     PAYMENT_STATUS_LABELS[paymentStatusKey] || PAYMENT_STATUS_LABELS.pending;
 
@@ -201,10 +221,16 @@ export default function OrderDetailPage() {
     order?.OrderId ||
     orderId;
 
-  const statusSteps = ["pending", "paid", "shipping", "completed"];
-  const currentStepIndex = statusSteps.findIndex(
-    (s) => s === statusKey || (statusKey === "paid" && s === "paid")
+  // timeline: COD có bước Paid, QR không
+  const statusSteps = useMemo(
+    () =>
+      isCod
+        ? ["pending", "shipping", "paid", "completed"]
+        : ["pending", "shipping", "completed"],
+    [isCod]
   );
+
+  const currentStepIndex = statusSteps.findIndex((s) => s === statusKey);
 
   const renderTimeline = () => (
     <div className="order-timeline card-soft">
@@ -214,9 +240,7 @@ export default function OrderDetailPage() {
           const done =
             statusKey === "cancelled"
               ? false
-              : currentStepIndex === -1
-              ? false
-              : idx <= currentStepIndex;
+              : currentStepIndex !== -1 && idx <= currentStepIndex;
           return (
             <div key={step} className="timeline-step">
               <div className={`timeline-dot ${done ? "done" : ""}`}>
@@ -232,9 +256,7 @@ export default function OrderDetailPage() {
 
   const renderItems = () => {
     if (!items.length) {
-      return (
-        <div className="text-muted small">Đơn hàng chưa có sản phẩm.</div>
-      );
+      return <div className="text-muted small">Đơn hàng chưa có sản phẩm.</div>;
     }
 
     return items.map((item) => {
@@ -243,10 +265,14 @@ export default function OrderDetailPage() {
       const productId = item.productId || item.ProductId;
       const quantity = item.quantity ?? item.Quantity ?? 1;
       const unitPrice = item.unitPrice ?? item.UnitPrice ?? 0;
-      const lineTotal = item.lineTotal ?? item.LineTotal ?? quantity * unitPrice;
+      const lineTotal =
+        item.lineTotal ?? item.LineTotal ?? quantity * unitPrice;
 
       return (
-        <div key={item.orderItemId ?? item.OrderItemId ?? name} className="order-item-row">
+        <div
+          key={item.orderItemId ?? item.OrderItemId ?? name}
+          className="order-item-row"
+        >
           <div className="order-item-thumb">
             {img ? (
               <img src={img} alt={name} />
@@ -265,14 +291,20 @@ export default function OrderDetailPage() {
               )}
             </div>
             {(item.unit || item.Unit) && (
-              <div className="text-muted small">Đơn vị: {item.unit || item.Unit}</div>
+              <div className="text-muted small">
+                Đơn vị: {item.unit || item.Unit}
+              </div>
             )}
-            <div className="text-muted small">Mã sản phẩm: {item.productCode || item.ProductCode || "-"}</div>
+            <div className="text-muted small">
+              Mã sản phẩm: {item.productCode || item.ProductCode || "-"}
+            </div>
           </div>
           <div className="text-end">
             <div className="text-muted small">{formatCurrency(unitPrice)}</div>
             <div className="text-muted small">× {quantity}</div>
-            <div className="fw-bold text-accent">{formatCurrency(lineTotal)}</div>
+            <div className="fw-bold text-accent">
+              {formatCurrency(lineTotal)}
+            </div>
           </div>
         </div>
       );
@@ -299,7 +331,6 @@ export default function OrderDetailPage() {
 
       let res = await downloadPdf();
       if (res.status === 404) {
-        // Thử generate trước khi tải
         await fetch(`${apiBase}/api/invoices/${invoiceId}/generate-pdf`, {
           method: "POST",
           headers: {
@@ -328,6 +359,7 @@ export default function OrderDetailPage() {
       setDownloading(false);
     }
   };
+
   return (
     <div className="order-detail-page">
       <HomepageHeader />
@@ -338,7 +370,10 @@ export default function OrderDetailPage() {
               Trang chủ
             </Breadcrumb.Item>
             <Breadcrumb.Item>Trung tâm tài khoản</Breadcrumb.Item>
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/account/orders" }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/account/orders" }}
+            >
               Đơn hàng của tôi
             </Breadcrumb.Item>
             <Breadcrumb.Item active>Chi tiết đơn hàng</Breadcrumb.Item>
@@ -349,7 +384,8 @@ export default function OrderDetailPage() {
               Chi tiết đơn hàng
             </h1>
             <p className="text-muted mb-0">
-              Xem thông tin sản phẩm, địa chỉ giao hàng và trạng thái xử lý đơn hàng.
+              Xem thông tin sản phẩm, địa chỉ giao hàng và trạng thái xử lý đơn
+              hàng.
             </p>
           </div>
 
@@ -378,7 +414,9 @@ export default function OrderDetailPage() {
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <div>
                       <div className="text-muted small">Mã đơn</div>
-                      <div className="h5 fw-bold text-primary mb-0">#{orderCode}</div>
+                      <div className="h5 fw-bold text-primary mb-0">
+                        #{orderCode}
+                      </div>
                     </div>
                     <Badge bg={statusMeta.variant} className="status-pill">
                       {statusMeta.label}
@@ -399,7 +437,10 @@ export default function OrderDetailPage() {
                     <div className="info-row">
                       <span className="label">Trạng thái thanh toán</span>
                       <span className="value">
-                        <Badge bg={paymentStatus.variant} className="status-pill">
+                        <Badge
+                          bg={paymentStatus.variant}
+                          className="status-pill"
+                        >
                           {paymentStatus.label}
                         </Badge>
                       </span>
@@ -413,7 +454,9 @@ export default function OrderDetailPage() {
                     {payment?.paidAt && (
                       <div className="info-row">
                         <span className="label">Thời gian thanh toán</span>
-                        <span className="value">{formatDateTime(payment.paidAt)}</span>
+                        <span className="value">
+                          {formatDateTime(payment.paidAt)}
+                        </span>
                       </div>
                     )}
                     {invoice?.code && (
@@ -433,16 +476,25 @@ export default function OrderDetailPage() {
                     <div className="order-info-grid">
                       <div className="info-row">
                         <span className="label">Họ tên</span>
-                        <span className="value">{shippingAddress.recipientName || "-"}</span>
+                        <span className="value">
+                          {shippingAddress.recipientName || "-"}
+                        </span>
                       </div>
                       <div className="info-row">
                         <span className="label">Số điện thoại</span>
-                        <span className="value">{shippingAddress.phoneNumber || "-"}</span>
+                        <span className="value">
+                          {shippingAddress.phoneNumber || "-"}
+                        </span>
                       </div>
                       <div className="info-row">
                         <span className="label">Địa chỉ</span>
                         <span className="value">
-                          {[shippingAddress.line1, shippingAddress.ward, shippingAddress.district, shippingAddress.province]
+                          {[
+                            shippingAddress.line1,
+                            shippingAddress.ward,
+                            shippingAddress.district,
+                            shippingAddress.province,
+                          ]
                             .filter(Boolean)
                             .join(", ") || "-"}
                         </span>
@@ -472,15 +524,21 @@ export default function OrderDetailPage() {
 
                   <div className="summary-row">
                     <span>Tạm tính</span>
-                    <span className="fw-semibold">{formatCurrency(subtotal)}</span>
+                    <span className="fw-semibold">
+                      {formatCurrency(subtotal)}
+                    </span>
                   </div>
                   <div className="summary-row">
                     <span>Phí ship</span>
-                    <span className="fw-semibold">{formatCurrency(shippingFee)}</span>
+                    <span className="fw-semibold">
+                      {formatCurrency(shippingFee)}
+                    </span>
                   </div>
                   <div className="summary-row">
                     <span>Giảm giá</span>
-                    <span className="fw-semibold">-{formatCurrency(discount)}</span>
+                    <span className="fw-semibold">
+                      -{formatCurrency(discount)}
+                    </span>
                   </div>
                   <div className="summary-row">
                     <span>Thuế</span>
@@ -489,7 +547,9 @@ export default function OrderDetailPage() {
                   <hr />
                   <div className="summary-row total">
                     <span>Tổng cộng</span>
-                    <span className="total-amount">{formatCurrency(displayTotal)}</span>
+                    <span className="total-amount">
+                      {formatCurrency(displayTotal)}
+                    </span>
                   </div>
                   <div className="mt-3 text-muted small">
                     Phương thức thanh toán: {paymentMethod}
