@@ -121,6 +121,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     o.Total,
                     o.Status,
                     o.CreatedAt,
+                    o.PaymentMethod,              // thêm
                     HasInvoice = o.Invoice != null,
                     InvoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
                 })
@@ -145,6 +146,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 total = o.Total,
                 status = o.Status,
                 createdAt = o.CreatedAt,
+                paymentMethod = o.PaymentMethod,   // cho FE staff dùng
                 hasInvoice = o.HasInvoice,
                 invoiceId = o.InvoiceId,
                 dispatchConfirmed = confirmedRefs.Contains(o.ReferenceNo)
@@ -183,6 +185,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 code = $"ORD-{order.OrderId}",
                 total = order.Total,
                 status = order.Status,
+                paymentMethod = order.PaymentMethod,   // thêm cho rõ loại thanh toán
                 createdAt = order.CreatedAt,
 
                 customerId = order.UserId,
@@ -217,8 +220,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // =========================================================
-        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Completed/Hoàn tất
-        // PATCH /api/staff/orders/{id}/status
+        // 3) UPDATE STATUS + AUTO CREATE INVOICE
         // =========================================================
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest req)
@@ -239,6 +241,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                     return "Shipping";
                 if (string.Equals(s, "Đã hủy", StringComparison.OrdinalIgnoreCase))
                     return "Cancelled";
+                if (string.Equals(s, "Đã thanh toán", StringComparison.OrdinalIgnoreCase))
+                    return "Paid";
 
                 return s;
             }
@@ -262,6 +266,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             bool IsCompleted(string status)
                 => string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase);
 
+            bool IsPaid(string status)
+                => string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase);
+
             var order = await _db.Orders
                 .Include(o => o.Customer)
                 .Include(o => o.Items).ThenInclude(i => i.Product)
@@ -269,6 +276,24 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
+
+            // Xác định loại thanh toán
+            // PaymentMethod: "QR" / "COD"
+            var paymentMethod = (order.PaymentMethod ?? "").Trim().ToUpperInvariant();
+            var isCod = paymentMethod == "COD";
+            var isQr = paymentMethod == "QR";
+
+            // Đơn QR không cho set sang Paid (đã trả trước)
+            if (isQr && IsPaid(newStatus))
+            {
+                return BadRequest(new { message = "Đơn thanh toán QR không có bước 'Đã thanh toán' riêng." });
+            }
+
+            // Đơn COD: không cho nhảy thẳng sang Completed nếu chưa Paid
+            if (isCod && IsCompleted(newStatus) && !IsPaid(order.Status))
+            {
+                return BadRequest(new { message = "Đơn COD phải chuyển sang 'Đã thanh toán' trước khi hoàn tất." });
+            }
 
             // =====================================================
             // BẮT BUỘC KHO PHẢI XÁC NHẬN PHIẾU XUẤT TRƯỚC
@@ -299,10 +324,17 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return BadRequest(new { message = "Completed order cannot change status." });
             }
 
+            // Cập nhật trạng thái
             order.Status = newStatus;
 
-            // Tạo hóa đơn khi trạng thái mới là Completed và chưa có invoice
-            if (IsCompleted(newStatus) && order.Invoice == null)
+            // =========================
+            // TẠO HÓA ĐƠN THEO LUỒNG
+            // =========================
+            // Cả QR và COD: chỉ tạo invoice khi trạng thái mới là Completed
+            // (COD vẫn bị ép phải đi qua Paid trước Completed ở trên)
+            bool shouldCreateInvoice = IsCompleted(newStatus) && order.Invoice == null;
+
+            if (shouldCreateInvoice)
             {
                 var items = order.Items.ToList();
 

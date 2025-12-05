@@ -105,18 +105,18 @@ export default function ManageOrders() {
           Chờ xử lý
         </Badge>
       );
-    if (v === "paid") return <Badge bg="primary">Đang xử lý kho</Badge>;
+    if (v === "paid")
+      return <Badge bg="primary">Đã thanh toán</Badge>;
     if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
     if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
     if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
-  // MỚI: dùng cả status + dispatchConfirmed để hiển thị đúng “Đang xử lý kho”
+  // dùng cả status + dispatchConfirmed để hiển thị đúng “Đang xử lý kho”
   const renderStatusForRow = (order) => {
     const v = String(order.status || "").toLowerCase();
 
-    // Nếu đang ở bước chờ kho xác nhận phiếu xuất
     if (v === "pending" && !order.dispatchConfirmed) {
       return <Badge bg="primary">Đang xử lý kho</Badge>;
     }
@@ -208,6 +208,17 @@ export default function ManageOrders() {
     } finally {
       setDeletingOrderId(null);
     }
+  };
+
+  const isCodOrder = (order) => {
+    const m = String(
+      order.paymentMethod ||
+        order.PaymentMethod ||
+        order.payment?.method ||
+        order.Payment?.Method ||
+        ""
+    ).toLowerCase();
+    return m === "cod" || m === "cash_on_delivery";
   };
 
   return (
@@ -404,6 +415,7 @@ export default function ManageOrders() {
               {rows.map((o, idx) => {
                 const canShip = Boolean(o.dispatchConfirmed);
                 const disableShip = updatingOrderId === o.id || !canShip;
+                const cod = isCodOrder(o);
 
                 return (
                   <tr key={o.id}>
@@ -416,9 +428,10 @@ export default function ManageOrders() {
                         {o.customerPhone && ` / ${o.customerPhone}`}
                       </div>
                     </td>
-                    <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td>
+                      {(o.total ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
 
-                    {/* ĐỔI CHỖ NÀY: dùng renderStatusForRow */}
                     <td>{renderStatusForRow(o)}</td>
 
                     <td>{formatDate(o.createdAt)}</td>
@@ -460,13 +473,27 @@ export default function ManageOrders() {
                         </div>
                       )}
 
-                      {o.status === "Paid" && (
-                        <span className="text-muted small">
-                          Đang chờ kho xác nhận phiếu xuất
-                        </span>
+                      {o.status === "Shipping" && (
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          disabled={updatingOrderId === o.id}
+                          onClick={() =>
+                            handleUpdateOrderStatus(
+                              o.id,
+                              cod ? "Paid" : "Completed"
+                            )
+                          }
+                        >
+                          {updatingOrderId === o.id
+                            ? "Đang lưu..."
+                            : cod
+                            ? "Xác nhận đã thanh toán"
+                            : "Hoàn tất đơn"}
+                        </Button>
                       )}
 
-                      {o.status === "Shipping" && (
+                      {o.status === "Paid" && cod && (
                         <Button
                           size="sm"
                           variant="outline-success"
@@ -556,8 +583,12 @@ export default function ManageOrders() {
                     <td>{index + 1}</td>
                     <td>{item.productName}</td>
                     <td>{item.quantity}</td>
-                    <td>{(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫</td>
-                    <td>{(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td>
+                      {(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
+                    <td>
+                      {(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -572,7 +603,8 @@ export default function ManageOrders() {
               {selectedOrder && (
                 <>
                   <div className="mb-1">
-                    Trạng thái hiện tại: {renderStatusForRow(selectedOrder)}
+                    Trạng thái hiện tại:{" "}
+                    {renderStatusForRow(selectedOrder)}
                   </div>
                   <div className="small text-muted">
                     Tổng tiền:{" "}
