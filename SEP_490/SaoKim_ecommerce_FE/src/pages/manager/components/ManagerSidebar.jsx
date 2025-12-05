@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
   { to: "/manager/dashboard", label: "Tổng quan" },
+  { to: "/manager/orders", label: "Đơn hàng" },
   { to: "/manager/products", label: "Sản phẩm" },
   { to: "/manager/projects", label: "Dự án" },
   { to: "/manager/promotions", label: "Khuyến mãi" },
@@ -11,7 +12,7 @@ const NAV_ITEMS = [
 
 export default function ManagerSidebar() {
   return (
-    <nav className="manager-sidebar__nav" aria-label="Điều hướng trang quản lý">
+    <nav className="manager-sidebar__nav" aria-label="Điều hướng quản lý">
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
