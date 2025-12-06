@@ -23,7 +23,8 @@ export default function ManagerOrderDetailPage() {
 
   const [order, setOrder] = useState(initialOrder);
   const [items, setItems] = useState([]);
-  const [loadingOrder, setLoadingOrder] = useState(!initialOrder);
+  // Luôn tải lại chi tiết để chắc chắn có đủ thông tin (địa chỉ giao hàng, invoice...)
+  const [loadingOrder, setLoadingOrder] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [invoiceInfo, setInvoiceInfo] = useState(null);
@@ -36,20 +37,27 @@ export default function ManagerOrderDetailPage() {
       try {
         setLoadingOrder(true);
         const res = await fetchManagerOrderDetail(orderId);
-        if (!cancelled) setOrder(res?.data ?? res);
+        const payload = res?.data ?? res;
+        if (!cancelled) {
+          setOrder(payload);
+          // Nếu API detail trả kèm items thì tận dụng luôn
+          if (Array.isArray(payload?.items)) {
+            setItems(payload.items);
+            setLoadingItems(false);
+          }
+        }
       } catch (err) {
-        if (!cancelled) setError(err?.message || "Không tải được thông tin đơn hàng.");
+        if (!cancelled) setError(err?.message || "Không thể lấy thông tin đơn hàng.");
       } finally {
         if (!cancelled) setLoadingOrder(false);
       }
     };
 
-    if (!initialOrder) load();
-
+    load();
     return () => {
       cancelled = true;
     };
-  }, [orderId, initialOrder]);
+  }, [orderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,16 +71,23 @@ export default function ManagerOrderDetailPage() {
           setItems(Array.isArray(payload) ? payload : []);
         }
       } catch (err) {
-        if (!cancelled) setError(err?.message || "Không tải được danh sách sản phẩm.");
+        if (!cancelled) setError(err?.message || "Không thể lấy danh sách sản phẩm.");
       } finally {
         if (!cancelled) setLoadingItems(false);
       }
     };
 
-    loadItems();
+    // Nếu đã có items từ API detail thì không cần gọi lại
+    if (items.length === 0) {
+      loadItems();
+    } else {
+      setLoadingItems(false);
+    }
+
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   useEffect(() => {
@@ -90,7 +105,7 @@ export default function ManagerOrderDetailPage() {
             q: orderKey,
             orderCode: orderCode || undefined,
             orderId: order?.orderId || order?.id || orderId || undefined,
-            pageSize: 200, // lấy rộng hơn để tự lọc phía FE
+            pageSize: 200, // lấy rộng hơn để lọc phía FE
           },
         });
         const payload = res?.data ?? res;
@@ -116,7 +131,7 @@ export default function ManagerOrderDetailPage() {
         const match = matches[0] || null;
         if (!cancelled) setInvoiceInfo(match);
       } catch (err) {
-        console.error("Không tải được hóa đơn liên quan:", err);
+        console.error("Không thể lấy hóa đơn liên quan:", err);
       } finally {
         if (!cancelled) setLoadingInvoice(false);
       }
@@ -152,15 +167,62 @@ export default function ManagerOrderDetailPage() {
   const shippingAddress =
     order?.shippingAddress ||
     order?.ShippingAddress ||
+    order?.shipping_address ||
+    order?.shippingAddressDto ||
     order?.address ||
     order?.Address ||
-    "";
+    null;
+  const shippingLine1 =
+    order?.shippingLine1 ||
+    order?.ShippingLine1 ||
+    order?.shipping_address_line1 ||
+    order?.shippingLine ||
+    order?.ShippingLine ||
+    null;
+  const shippingWard =
+    order?.shippingWard || order?.ShippingWard || order?.shipping_address_ward || null;
+  const shippingDistrict =
+    order?.shippingDistrict || order?.ShippingDistrict || order?.shipping_address_district || null;
+  const shippingProvince =
+    order?.shippingProvince || order?.ShippingProvince || order?.shipping_address_province || null;
+  const shippingRecipientName =
+    order?.shippingRecipientName || order?.ShippingRecipientName || order?.customerName || null;
+  const shippingPhoneNumber =
+    order?.shippingPhoneNumber || order?.ShippingPhoneNumber || order?.customerPhone || null;
   const paymentMethod =
     order?.paymentMethod ||
     order?.PaymentMethod ||
     order?.payment?.method ||
     order?.Payment?.Method ||
     "";
+
+  const renderShippingAddress = () => {
+    const partsFromLines = [shippingLine1, shippingWard, shippingDistrict, shippingProvince]
+      .filter(Boolean)
+      .join(", ");
+    if (partsFromLines) {
+      const recipientPart = shippingRecipientName ? `${shippingRecipientName} - ` : "";
+      const phonePart = shippingPhoneNumber ? ` (${shippingPhoneNumber})` : "";
+      return `${recipientPart}${partsFromLines}${phonePart}`;
+    }
+    if (!shippingAddress) return "-";
+    // Try object with named fields
+    if (typeof shippingAddress === "object") {
+      const parts = [
+        shippingAddress.recipientName,
+        shippingAddress.phoneNumber,
+        shippingAddress.line1,
+        shippingAddress.ward,
+        shippingAddress.district,
+        shippingAddress.province,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      if (parts) return parts;
+    }
+    // Fallback string
+    return String(shippingAddress);
+  };
 
   return (
     <div className="manager-panel">
@@ -201,7 +263,7 @@ export default function ManagerOrderDetailPage() {
             <DetailRow label="Khách hàng" value={customerName} />
             <DetailRow label="Số điện thoại" value={customerPhone || "-"} />
             <DetailRow label="Email" value={customerEmail || "-"} />
-            <DetailRow label="Địa chỉ giao hàng" value={shippingAddress || "-"} />
+            <DetailRow label="Địa chỉ giao hàng" value={renderShippingAddress()} />
             <DetailRow label="Phương thức thanh toán" value={paymentMethod || "-"} />
             <DetailRow
               label="Mã hóa đơn"
