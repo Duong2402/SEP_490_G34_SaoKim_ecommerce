@@ -23,18 +23,20 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly SaoKimDBContext _context;
         private readonly ILogger<OrdersController> _logger;
         private readonly IDispatchService _dispatchService;
+        private readonly ICouponService _couponService;
 
         public OrdersController(
             SaoKimDBContext context,
             ILogger<OrdersController> logger,
-            IDispatchService dispatchService)
+            IDispatchService dispatchService,
+            ICouponService couponService)
         {
             _context = context;
             _logger = logger;
             _dispatchService = dispatchService;
+            _couponService = couponService;
         }
 
-        // Lấy user hiện tại từ email trong token
         private async Task<User?> GetCurrentUserAsync()
         {
             var email =
@@ -51,7 +53,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return user;
         }
 
-        // POST /api/orders  : tạo đơn cho user hiện tại
+        /// <summary>
+        /// Tạo đơn hàng cho user hiện tại.
+        /// </summary>
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateOrderRequest request)
         {
@@ -135,7 +139,11 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 // ================= LẤY GIÁ SẢN PHẨM TỪ DB =================
 
-                var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
+                var productIds = request.Items
+                    .Select(i => i.ProductId)
+                    .Distinct()
+                    .ToList();
+
                 if (productIds.Count == 0)
                     return BadRequest(new { message = "Order must have at least 1 valid product" });
 
@@ -149,11 +157,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                     return BadRequest(new { message = "Some products not found or have no details" });
 
                 var detailDict = details.ToDictionary(d => d.ProductID, d => d);
-                var productDict = await _context.Products
-                    .Where(p => productIds.Contains(p.ProductID))
-                    .ToDictionaryAsync(p => p.ProductID, p => p.ProductName);
 
-                decimal totalFromDb = 0m;
+                var products = await _context.Products
+                    .Where(p => productIds.Contains(p.ProductID))
+                    .ToListAsync();
+
+                var productDict = products.ToDictionary(p => p.ProductID, p => p.ProductName);
+
+                decimal subtotal = 0m;
                 var orderItems = new List<OrderItem>();
 
                 foreach (var i in request.Items)
@@ -163,7 +174,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                     var unitPrice = detail.Price;
                     var lineTotal = unitPrice * i.Quantity;
-                    totalFromDb += lineTotal;
+                    subtotal += lineTotal;
 
                     orderItems.Add(new OrderItem
                     {
@@ -171,6 +182,30 @@ namespace SaoKim_ecommerce_BE.Controllers
                         Quantity = i.Quantity,
                         UnitPrice = unitPrice
                     });
+                }
+
+                // ================= ÁP DỤNG MÃ GIẢM GIÁ (NẾU CÓ) =================
+
+                decimal discountAmount = 0m;
+                decimal finalTotal = subtotal;
+                string? appliedCouponCode = null;
+                CouponApplyResultDto? couponResult = null;
+
+                if (!string.IsNullOrWhiteSpace(request.CouponCode))
+                {
+                    couponResult = await _couponService.ValidateForOrderAsync(
+                        request.CouponCode,
+                        subtotal,
+                        user.UserID);
+
+                    if (!couponResult.IsValid)
+                    {
+                        return BadRequest(new { message = couponResult.Message });
+                    }
+
+                    discountAmount = couponResult.DiscountAmount;
+                    finalTotal = couponResult.FinalTotal;
+                    appliedCouponCode = couponResult.Code;
                 }
 
                 // ================= XỬ LÝ PAYMENT =================
@@ -191,8 +226,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                         break;
 
                     case "BANK_TRANSFER_QR":
-                    case "QR":
                     case "BANK_TRANSFER":
+                    case "QR":
                         if (!string.IsNullOrWhiteSpace(request.PaymentTransactionCode))
                         {
                             paymentStatus = "PAID";
@@ -215,8 +250,13 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var order = new Order
                 {
                     UserId = user.UserID,
-                    Total = totalFromDb,
-                    Status = "Pending", // giữ flow kho -> staff như cũ
+
+                    Subtotal = subtotal,
+                    DiscountAmount = discountAmount,
+                    CouponCode = appliedCouponCode,
+                    Total = finalTotal,
+
+                    Status = "Pending",
                     CreatedAt = DateTime.UtcNow,
                     Items = orderItems,
 
@@ -233,8 +273,23 @@ namespace SaoKim_ecommerce_BE.Controllers
                     ShippingProvince = shippingProvince
                 };
 
+                await using var tx = await _context.Database.BeginTransactionAsync();
+
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
+
+                // Tăng TotalRedeemed cho coupon nếu có sử dụng
+                if (couponResult != null && couponResult.IsValid)
+                {
+                    var couponEntity = await _context.Coupons
+                        .FirstOrDefaultAsync(c => c.Id == couponResult.CouponId);
+
+                    if (couponEntity != null)
+                    {
+                        couponEntity.TotalRedeemed++;
+                        await _context.SaveChangesAsync();
+                    }
+                }
 
                 // ================= TẠO PHIẾU XUẤT BÁN LẺ (DISPATCH) =================
 
@@ -254,12 +309,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                             ? name
                             : string.Empty,
                         Uom = detailDict.TryGetValue(oi.ProductId, out var d2)
-                            ? d2.Unit ?? "pcs"
+                            ? (d2.Unit ?? "pcs")
                             : "pcs"
                     }).ToList()
                 };
 
                 await _dispatchService.CreateSalesDispatchAsync(dispatchDto);
+
+                await tx.CommitAsync();
 
                 return Ok(new
                 {
@@ -271,14 +328,16 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi tạo order");
+                _logger.LogError(ex, "Lỗi tạo đơn hàng");
                 return StatusCode(500, new { message = "Lỗi server khi tạo đơn hàng", detail = ex.Message });
             }
         }
 
-        // GET /api/orders/my
+        /// <summary>
+        /// Lấy danh sách đơn hàng của user hiện tại.
+        /// </summary>
         [HttpGet("my")]
-        public async Task<IActionResult> GetMyOrders(int page = 1, int pageSize = 10)
+        public async Task<IActionResult> GetMyOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
@@ -291,8 +350,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 var query = _context.Orders
                     .AsNoTracking()
-                    .Include(o => o.Items)
-                        .ThenInclude(i => i.Product)
                     .Where(o => o.UserId == user.UserID)
                     .OrderByDescending(o => o.CreatedAt);
 
@@ -304,19 +361,15 @@ namespace SaoKim_ecommerce_BE.Controllers
                     .Select(o => new
                     {
                         o.OrderId,
+                        o.Subtotal,
+                        o.DiscountAmount,
                         o.Total,
+                        o.CouponCode,
                         o.Status,
                         o.CreatedAt,
-                        items = o.Items.Select(i => new
-                        {
-                            i.OrderItemId,
-                            i.ProductId,
-                            productName = i.Product != null ? i.Product.ProductName : null,
-                            productCode = i.Product != null ? i.Product.ProductCode : null,
-                            i.Quantity,
-                            i.UnitPrice,
-                            lineTotal = i.UnitPrice * i.Quantity
-                        }).ToList()
+                        o.PaymentStatus,
+                        o.PaymentMethod,
+                        o.ShippingRecipientName
                     })
                     .ToListAsync();
 
