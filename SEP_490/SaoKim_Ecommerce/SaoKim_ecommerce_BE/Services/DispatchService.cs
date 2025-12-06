@@ -389,6 +389,9 @@ namespace SaoKim_ecommerce_BE.Services
             if (!(dto.ProjectId is > 0))
                 throw new ArgumentException("ProjectID không tìm thấy");
 
+            if (dto.Items == null || dto.Items.Count == 0)
+                throw new ArgumentException("Phiếu xuất dự án phải có ít nhất 1 sản phẩm");
+
             var project = await _db.Projects
                 .FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
 
@@ -408,6 +411,37 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
 
             slip.ReferenceNo = $"DSP-PRJ-{slip.Id:D5}";
+            await _db.SaveChangesAsync();
+
+            foreach (var it in dto.Items)
+            {
+                if (!it.ProductId.HasValue || it.ProductId.Value <= 0)
+                    continue;
+
+                var product = await _db.Products
+                    .Where(p => p.ProductID == it.ProductId.Value)
+                    .Select(p => new { p.ProductID, p.ProductCode, p.ProductName })
+                    .FirstOrDefaultAsync();
+
+                if (product == null)
+                    continue;
+
+                var item = new DispatchItem
+                {
+                    DispatchId = slip.Id,
+                    ProductId = product.ProductID,
+                    ProductName = string.IsNullOrWhiteSpace(it.ProductName)
+                        ? product.ProductName
+                        : it.ProductName,
+                    Uom = string.IsNullOrWhiteSpace(it.Uom) ? "pcs" : it.Uom,
+                    Quantity = it.Quantity,
+                    UnitPrice = it.UnitPrice,
+                    Total = it.Quantity * it.UnitPrice
+                };
+
+                _db.DispatchItems.Add(item);
+            }
+
             await _db.SaveChangesAsync();
 
             return slip;
@@ -587,7 +621,7 @@ namespace SaoKim_ecommerce_BE.Services
                 throw new InvalidOperationException("Only Draft slips can be deleted");
 
             _db.DispatchItems.RemoveRange(slip.Items);
-            _db.Dispatches.Remove(slip);
+            slip.IsDeleted = true;
 
             await _db.SaveChangesAsync();
         }

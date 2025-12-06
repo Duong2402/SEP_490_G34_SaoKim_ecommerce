@@ -632,7 +632,7 @@ namespace SaoKim_ecommerce_BE.Services
                 join d in _db.Set<RetailDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
-                      //&& !d.IsDeleted
+                      && !d.IsDeleted
                       && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
@@ -652,7 +652,7 @@ namespace SaoKim_ecommerce_BE.Services
                 join d in _db.Set<ProjectDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
-                      //&& !d.IsDeleted
+                      && !d.IsDeleted
                       && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {

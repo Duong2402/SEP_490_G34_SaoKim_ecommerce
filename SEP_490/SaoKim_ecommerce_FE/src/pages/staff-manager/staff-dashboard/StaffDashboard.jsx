@@ -34,7 +34,7 @@ export default function StaffDashboard() {
 
   const [revenueRaw, setRevenueRaw] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
-  const [revenueMode, setRevenueMode] = useState("day"); 
+  const [revenueMode, setRevenueMode] = useState("day");
 
   const [latestOrders, setLatestOrders] = useState([]);
   const [loadingLatest, setLoadingLatest] = useState(true);
@@ -60,7 +60,7 @@ export default function StaffDashboard() {
     const loadRevenue = async () => {
       setLoadingRevenue(true);
       try {
-        const res = await getRevenueByDay(365); 
+        const res = await getRevenueByDay(365);
         setRevenueRaw(res ?? []);
       } catch (e) {
         console.error(e);
@@ -114,7 +114,7 @@ export default function StaffDashboard() {
       for (const x of normalized) {
         const d = x.dateObj;
         const year = d.getFullYear();
-        const week = getWeekNumber(d); 
+        const week = getWeekNumber(d);
         const key = `${year}-W${week}`;
         if (!groups[key]) {
           groups[key] = { label: `Tuần ${week}/${year}`, revenue: 0 };
@@ -129,7 +129,7 @@ export default function StaffDashboard() {
       for (const x of normalized) {
         const d = x.dateObj;
         const year = d.getFullYear();
-        const month = d.getMonth() + 1; 
+        const month = d.getMonth() + 1;
         const key = `${year}-${month}`;
         if (!groups[key]) {
           groups[key] = {
@@ -173,7 +173,10 @@ export default function StaffDashboard() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item active>Bảng điều khiển</Breadcrumb.Item>

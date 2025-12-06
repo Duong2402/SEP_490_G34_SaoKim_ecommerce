@@ -439,6 +439,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpGet("unit-of-measures")]
         public async Task<IActionResult> GetUnitOfMeasures()
         {

@@ -10,9 +10,8 @@ function AddProductForm({ onCancel, onSuccess }) {
       sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
-      unit: values.unit || "cái",
+      unit: values.unit,
       price: values.price,
-      // quantity lấy từ stock trong form
       quantity: values.stock,
       stock: values.stock,
       active: values.active,

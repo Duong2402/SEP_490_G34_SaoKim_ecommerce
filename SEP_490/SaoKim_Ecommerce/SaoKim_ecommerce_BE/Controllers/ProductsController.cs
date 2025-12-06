@@ -360,8 +360,26 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (product == null)
                 return NotFound(new { message = "Product not found" });
 
+            if (!string.IsNullOrWhiteSpace(model.Sku))
+            {
+                var skuExists = await _db.Products
+                    .AnyAsync(p => p.ProductCode == model.Sku && p.ProductID != id);
+
+                if (skuExists)
+                    return Conflict(new { message = "Product code already exists" });
+            }
+
             product.ProductCode = model.Sku;
             product.ProductName = model.Name;
+
+            if (string.IsNullOrWhiteSpace(model.Unit))
+                return BadRequest(new { message = "Đơn vị tính là bắt buộc" });
+
+            var uom = await _db.UnitOfMeasures
+                .FirstOrDefaultAsync(u => u.Name == model.Unit && u.Status == "Active");
+
+            if (uom == null)
+                return BadRequest(new { message = "Đơn vị tính không tồn tại hoặc đang ngưng sử dụng" });
 
             var detail = product.ProductDetails
                 .OrderByDescending(d => d.Id)
@@ -381,7 +399,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
 
             detail.CategoryId = model.CategoryId;
-            detail.Unit = model.Unit;
+            detail.Unit = uom.Name;
             detail.Price = model.Price;
             detail.Quantity = model.Quantity;
             detail.Status = model.Active ? "Active" : "Inactive";
@@ -389,7 +407,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             detail.Supplier = model.Supplier;
             detail.Note = model.Note;
             detail.UpdateAt = now;
-            detail.UpdateBy = model.UpdateBy;
+            detail.UpdateBy = model.UpdateBy ?? detail.UpdateBy;
 
             if (model.ImageFile != null && model.ImageFile.Length > 0)
             {
@@ -419,6 +437,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { message = "Product updated successfully" });
         }
+
 
         // DELETE: /api/products/{id}
         [HttpDelete("{id:int}")]
