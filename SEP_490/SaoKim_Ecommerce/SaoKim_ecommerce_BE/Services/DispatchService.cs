@@ -310,7 +310,6 @@ namespace SaoKim_ecommerce_BE.Services
             if (!(dto.CustomerId is > 0))
                 throw new ArgumentException("Vui lòng điền Customer ID");
 
-            // Check items sớm để test _Throws_When_No_Items_ ăn ngay, không dính EF
             if (dto.Items == null || dto.Items.Count == 0)
                 throw new ArgumentException("Phiếu xuất bán phải có ít nhất 1 sản phẩm");
 
