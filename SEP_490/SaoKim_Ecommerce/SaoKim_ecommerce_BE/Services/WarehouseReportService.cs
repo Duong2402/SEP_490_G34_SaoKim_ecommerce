@@ -613,6 +613,8 @@ namespace SaoKim_ecommerce_BE.Services
                 join slip in _db.ReceivingSlips.AsNoTracking()
                     on item.ReceivingSlipId equals slip.Id
                 where item.ProductId == productId
+                      && !slip.IsDeleted
+                      && slip.Status == ReceivingSlipStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "in",
@@ -625,12 +627,13 @@ namespace SaoKim_ecommerce_BE.Services
                     Note = slip.Note,
                     SlipId = slip.Id
                 };
-
             var salesOutboundQuery =
                 from item in _db.DispatchItems.AsNoTracking()
                 join d in _db.Set<RetailDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
+                      //&& !d.IsDeleted
+                      && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "out",
@@ -649,6 +652,8 @@ namespace SaoKim_ecommerce_BE.Services
                 join d in _db.Set<ProjectDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
+                      //&& !d.IsDeleted
+                      && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "out",
@@ -677,5 +682,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Movements = movements
             };
         }
+
     }
 }
