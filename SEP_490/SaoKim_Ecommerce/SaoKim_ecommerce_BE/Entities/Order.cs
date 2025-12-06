@@ -15,10 +15,33 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("user_id")]
         public int UserId { get; set; }
 
-        // Navigation tới User (customer)
         [ForeignKey(nameof(UserId))]
         public User Customer { get; set; } = null!;
 
+        // ============== TIỀN HÀNG ==============
+
+        /// <summary>
+        /// Tổng tiền trước giảm giá.
+        /// </summary>
+        [Column("subtotal")]
+        public decimal Subtotal { get; set; }
+
+        /// <summary>
+        /// Số tiền giảm từ coupon.
+        /// </summary>
+        [Column("discount_amount")]
+        public decimal DiscountAmount { get; set; }
+
+        /// <summary>
+        /// Mã giảm giá áp dụng cho đơn (nếu có).
+        /// </summary>
+        [Column("coupon_code")]
+        [MaxLength(64)]
+        public string? CouponCode { get; set; }
+
+        /// <summary>
+        /// Tổng tiền sau giảm giá.
+        /// </summary>
         [Column("total")]
         public decimal Total { get; set; }
 
@@ -30,6 +53,9 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // ============== PAYMENT ==============
+
+        [Column("paid_at")]
+        public DateTime? PaidAt { get; set; }
 
         [Column("payment_method")]
         [MaxLength(50)]
@@ -43,10 +69,7 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(100)]
         public string? PaymentTransactionCode { get; set; }
 
-        [Column("paid_at")]
-        public DateTime? PaidAt { get; set; }
-
-        // ============== SHIPPING (snapshot) ==============
+        // ============== SHIPPING SNAPSHOT ==============
 
         [Column("shipping_recipient_name")]
         [MaxLength(200)]
@@ -72,14 +95,10 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(100)]
         public string? ShippingProvince { get; set; }
 
-        //public bool isDelete = false;
-
         // ============== NAVIGATION ==============
 
-        // Navigation tới danh sách OrderItem
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 
-        // 1–1: mỗi Order có tối đa 1 Invoice
         public Invoice? Invoice { get; set; }
     }
 }
