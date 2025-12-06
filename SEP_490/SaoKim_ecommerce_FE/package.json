@@ -30,7 +30,7 @@
     "react-hook-form": "^7.65.0",
     "react-router-dom": "^7.9.4",
     "react-select": "^5.10.2",
-    "recharts": "^3.3.0",
+    "recharts": "^3.5.1",
     "vietnam-provinces-js": "^2.0.0"
   },
   "devDependencies": {
