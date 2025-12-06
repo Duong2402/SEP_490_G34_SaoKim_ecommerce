@@ -26,7 +26,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        [Range(0, 1_000_000_000)]
         public decimal? Budget { get; set; }
 
         [MaxLength(2000)]
@@ -53,7 +52,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        [Range(0, 1_000_000_000)]
         public decimal? Budget { get; set; }
 
         [MaxLength(2000)]

@@ -21,11 +21,7 @@ const formatBudgetInput = (raw) => {
 const normalizeBudgetValue = (formatted) =>
   formatted ? Number(String(formatted).replace(/[^\d]/g, "")) : null;
 
-export default function ManagerProjectForm({
-  initialValues,
-  onSubmit,
-  submitting,
-}) {
+export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
   const [values, setValues] = useState({
     name: "",
     customerName: "",
@@ -35,7 +31,7 @@ export default function ManagerProjectForm({
     endDate: "",
     budget: "",
     description: "",
-    projectManagerId: "", // string để bind với <select>
+    projectManagerId: "",
   });
 
   const [pmOptions, setPmOptions] = useState([]);
@@ -81,18 +77,12 @@ export default function ManagerProjectForm({
         customerName: initialValues.customerName ?? "",
         customerContact: initialValues.customerContact ?? "",
         status: initialValues.status ?? "Draft",
-        startDate: initialValues.startDate
-          ? initialValues.startDate.substring(0, 10)
-          : "",
-        endDate: initialValues.endDate
-          ? initialValues.endDate.substring(0, 10)
-          : "",
+        startDate: initialValues.startDate ? initialValues.startDate.substring(0, 10) : "",
+        endDate: initialValues.endDate ? initialValues.endDate.substring(0, 10) : "",
         budget: formatBudgetInput(initialValues.budget),
         description: initialValues.description ?? "",
         projectManagerId:
-          initialValues.projectManagerId != null
-            ? String(initialValues.projectManagerId)
-            : "",
+          initialValues.projectManagerId != null ? String(initialValues.projectManagerId) : "",
       }));
     }
   }, [initialValues]);
@@ -113,9 +103,7 @@ export default function ManagerProjectForm({
     const payload = {
       ...values,
       budget: normalizedBudget,
-      projectManagerId: values.projectManagerId
-        ? Number(values.projectManagerId)
-        : null,
+      projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : null,
     };
 
     await onSubmit(payload);
@@ -167,10 +155,7 @@ export default function ManagerProjectForm({
           ))}
         </select>
         {pmError && (
-          <div
-            className="manager-form__hint"
-            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
-          >
+          <div className="manager-form__hint" style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}>
             {pmError}
           </div>
         )}
@@ -240,11 +225,7 @@ export default function ManagerProjectForm({
       </div>
 
       <div className="manager-form__actions">
-        <button
-          type="submit"
-          className="manager-btn manager-btn--primary"
-          disabled={submitting}
-        >
+        <button type="submit" className="manager-btn manager-btn--primary" disabled={submitting}>
           {submitting ? "Đang lưu..." : "Lưu dự án"}
         </button>
       </div>
