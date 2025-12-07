@@ -1,5 +1,4 @@
-﻿using System.Net.Http;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -18,7 +17,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("check-vietqr")]
         public async Task<IActionResult> CheckVietQr([FromQuery] int amount)
         {
-            // URL Apps Script (loại bỏ /u/1 nếu có, dùng URL Deploy Web App chuẩn)
             var scriptUrl = "https://script.google.com/macros/s/AKfycbwKiGzxdPq4n_Xl-PvAokMhpDdmTrty8DUlEf63Vw_kr3UJY6rE2NfqwyabS5uhdU4LNw/exec";
 
             var response = await _httpClient.GetAsync(scriptUrl);

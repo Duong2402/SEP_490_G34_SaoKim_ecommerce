@@ -6,7 +6,7 @@ namespace SaoKim_ecommerce_BE.DTOs
     {
         [Required] public int ProductId { get; set; }
         [Required, Range(0.0001, double.MaxValue)] public decimal Quantity { get; set; }
-        [Range(0, double.MaxValue)] public decimal? UnitPrice { get; set; } // null -> lấy theo Product.Price
+        [Range(0, double.MaxValue)] public decimal? UnitPrice { get; set; } 
         [MaxLength(500)] public string? Note { get; set; }
     }
 

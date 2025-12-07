@@ -25,29 +25,24 @@ public class DashboardController : ControllerBase
         var today = DateTime.UtcNow.Date;
         var sevenDaysAgo = today.AddDays(-6);
 
-        // Tổng doanh thu mọi thời điểm (Completed)
         var totalRevenue = await _db.Orders
             .Where(o => o.Status == "Completed")
             .SumAsync(o => (decimal?)o.Total) ?? 0m;
 
-        // Doanh thu 7 ngày gần nhất
         var revenue7d = await _db.Orders
             .Where(o => o.Status == "Completed" &&
                         o.CreatedAt.Date >= sevenDaysAgo &&
                         o.CreatedAt.Date <= today)
             .SumAsync(o => (decimal?)o.Total) ?? 0m;
 
-        // Doanh thu hôm nay
         var revenueToday = await _db.Orders
             .Where(o => o.Status == "Completed" &&
                         o.CreatedAt.Date == today)
             .SumAsync(o => (decimal?)o.Total) ?? 0m;
 
-        // Số đơn hôm nay (mọi trạng thái)
         var ordersToday = await _db.Orders
             .CountAsync(o => o.CreatedAt.Date == today);
 
-        // Số đơn Pending
         var pendingOrders = await _db.Orders
             .CountAsync(o => o.Status == "Pending");
 
@@ -68,7 +63,7 @@ public class DashboardController : ControllerBase
         {
             totalRevenue,
             revenue7d,
-            revenueToday,   // thêm mới
+            revenueToday,   
             ordersToday,
             pendingOrders,
             productsCount,

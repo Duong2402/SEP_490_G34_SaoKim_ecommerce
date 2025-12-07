@@ -12,43 +12,38 @@ namespace SaoKim_ecommerce_BE.Entities
         public int Id { get; set; }
 
         [Column("code")]
-        public string Code { get; set; } = default!;                  // INV-YYYYMMDD-###
+        public string Code { get; set; } = default!;
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // FK sang users (customer)
         [Column("customer_id")]
         public int? CustomerId { get; set; }
 
         [ForeignKey(nameof(CustomerId))]
         public User? Customer { get; set; }
 
-        // optional: nếu muốn gắn 1–1 với Order
         [Column("order_id")]
         public int? OrderId { get; set; }
 
         [ForeignKey(nameof(OrderId))]
         public Order? Order { get; set; }
 
-        // “Customer” hiển thị ở FE
         [Column("customer_name")]
-        public string? CustomerName { get; set; }     // => FE field: customer
+        public string? CustomerName { get; set; }     
 
         [Column("email")]
-        public string? Email { get; set; }            // => FE field: email
+        public string? Email { get; set; }          
 
         [Column("phone")]
-        public string? Phone { get; set; }            // => FE field: phone
+        public string? Phone { get; set; }          
 
-        // optional: nếu là hoá đơn dự án
         [Column("project_id")]
         public int? ProjectId { get; set; }
 
         [Column("project_name")]
         public string? ProjectName { get; set; }
 
-        // Tổng tiền
         [Column("subtotal")]
         public decimal Subtotal { get; set; }
 
@@ -69,7 +64,6 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public List<InvoiceItem> Items { get; set; } = new();
 
-        // PDF metadata
         [Column("pdf_file_name")]
         public string? PdfFileName { get; set; }
 
@@ -102,7 +96,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public string Uom { get; set; } = "pcs";
 
         [Column("quantity")]
-        public decimal Quantity { get; set; }      // FE mapping: qty
+        public decimal Quantity { get; set; }      
 
         [Column("unit_price")]
         public decimal UnitPrice { get; set; }

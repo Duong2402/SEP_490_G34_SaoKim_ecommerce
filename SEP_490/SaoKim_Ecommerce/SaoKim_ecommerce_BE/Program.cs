@@ -11,23 +11,27 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 
-
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure QuestPDF community license (required before using QuestPDF)
 QuestPDF.Settings.License = LicenseType.Community;
 
-// SignalR
+// Register SignalR hubs (for real-time notifications)
 builder.Services.AddSignalR();
 
-// Controllers + JSON
+// Add controllers and configure System.Text.Json options
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
+        // Use camelCase for JSON properties
         o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        // Serialize enums as strings instead of numeric values
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        // Allow case-insensitive matching for JSON property names
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
-// Swagger + JWT security
+// Swagger configuration with JWT Bearer authentication support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -37,10 +41,10 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 
-    // Định nghĩa Bearer dạng HTTP (Swagger sẽ tự thêm "Bearer " vào header)
+    // Define HTTP Bearer scheme so Swagger UI can send JWT tokens
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Bearer. Chỉ cần dán token (không cần chữ 'Bearer').",
+        Description = "JWT Bearer. Just paste the token (no need to prefix with 'Bearer').",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
@@ -48,7 +52,7 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT"
     });
 
-    // Áp dụng security cho tất cả endpoint
+    // Apply the Bearer security requirement to all endpoints by default
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -65,9 +69,13 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// In-memory cache for application-level caching
 builder.Services.AddMemoryCache();
+
+// Register HttpClient factory (used by services and controllers)
 builder.Services.AddHttpClient();
-// DI services
+
+// Dependency Injection registrations for application services
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -81,18 +89,17 @@ builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
 builder.Services.AddScoped<ICustomerOrderService, CustomerOrderService>();
 
-
-
-// DbContext
+// Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// CORS
+// Read allowed CORS origins from configuration (fallback to localhost FE)
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? new[] { "http://localhost:5173" };
 
+// Configure CORS policy for frontend application
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFE", policy =>
@@ -105,7 +112,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// JWT Auth
+// Configure JWT Bearer authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -113,6 +120,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         var issuer = builder.Configuration["Jwt:Issuer"];
         var audience = builder.Configuration["Jwt:Audience"];
 
+        // Token validation rules
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -127,6 +135,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = ClaimTypes.Role
         };
 
+        // Custom JWT events
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -134,7 +143,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
 
-                // Cho phép truyền token qua query cho SignalR
+                // Allow passing JWT token via query string for SignalR hubs
                 if (!string.IsNullOrEmpty(accessToken) &&
                     path.StartsWithSegments("/hubs"))
                 {
@@ -145,6 +154,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnChallenge = ctx =>
             {
+                // Override default challenge response to return JSON instead of HTML
                 ctx.HandleResponse();
                 if (!ctx.Response.HasStarted)
                 {
@@ -156,6 +166,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnForbidden = ctx =>
             {
+                // Return JSON for forbidden responses
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 ctx.Response.ContentType = "application/json; charset=utf-8";
                 return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
@@ -163,7 +174,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Authorization: mặc định yêu cầu đăng nhập
+// Authorization: by default require authenticated user for all endpoints
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -173,9 +184,10 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// Migrate + seed DB
+// Example path for font used by QuestPDF (ensure the font file exists)
 var fontPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts", "NotoSans-Regular.ttf");
 
+// Apply pending migrations and seed initial data on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SaoKimDBContext>();
@@ -183,7 +195,7 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(db);
 }
 
-// Swagger
+// Enable Swagger UI in development; use HSTS in production
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -194,23 +206,32 @@ else
     app.UseHsts();
 }
 
+// Simple endpoint to inspect registered routes (for debugging)
 app.MapGet("/__routes", (EndpointDataSource eds) =>
     Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
 
+// Serve static files from wwwroot (and related folders)
 app.UseStaticFiles();
+
+// Redirect HTTP to HTTPS
 app.UseHttpsRedirection();
 
 app.UseRouting();
 
+// Apply CORS policy for frontend client(s)
 app.UseCors("AllowFE");
 
+// Authentication and authorization middlewares
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map API controllers
 app.MapControllers();
 
+// Map SignalR hubs for warehouse-related real-time updates
 app.MapHub<DispatchHub>("/hubs/dispatch");
 app.MapHub<ReceivingHub>("/hubs/receiving");
 app.MapHub<InventoryHub>("/hubs/inventory");
 
+// Start the application
 app.Run();

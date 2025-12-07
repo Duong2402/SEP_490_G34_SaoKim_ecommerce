@@ -4,10 +4,9 @@ namespace SaoKim_ecommerce_BE.Helpers
 {
     public static class GeoHelper
     {
-        // Công thức Haversine tính khoảng cách giữa 2 tọa độ (đơn vị: km)
         public static double DistanceInKm(double lat1, double lon1, double lat2, double lon2)
         {
-            const double R = 6371; // bán kính trái đất (km)
+            const double R = 6371;
 
             double dLat = ToRadians(lat2 - lat1);
             double dLon = ToRadians(lon2 - lon1);

@@ -98,10 +98,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<string>.Ok("OK"));
         }
 
-        /// <summary>
-        /// Validate & tính toán mã giảm giá cho đơn hàng hiện tại.
-        /// Yêu cầu user đăng nhập để check chính xác PerUserLimit.
-        /// </summary>
         [HttpGet("validate")]
         [Authorize]
         public async Task<IActionResult> Validate([FromQuery] string code, [FromQuery] decimal subtotal)
@@ -116,7 +112,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return BadRequest(new { message = "Giá trị đơn hàng không hợp lệ" });
             }
 
-            // Lấy userId từ token
             var userId = 0;
             var email =
                 User.FindFirstValue(ClaimTypes.Email) ??

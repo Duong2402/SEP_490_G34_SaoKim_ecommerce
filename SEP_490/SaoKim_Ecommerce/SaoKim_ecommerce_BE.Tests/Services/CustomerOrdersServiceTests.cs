@@ -99,7 +99,6 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             return (order, product);
         }
 
-        // 1. Trả về null khi order không tồn tại
         [Fact]
         public async Task GetOrderDetailAsync_ReturnsNull_WhenOrderNotFound()
         {
@@ -111,7 +110,6 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             Assert.Null(result);
         }
 
-        // 2. Trả về null khi order không thuộc current user
         [Fact]
         public async Task GetOrderDetailAsync_ReturnsNull_WhenOrderBelongsToAnotherUser()
         {
@@ -125,7 +123,6 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             Assert.Null(result);
         }
 
-        // 3. Mapping cơ bản: OrderId, CreatedAt, Status, Total
         [Fact]
         public async Task GetOrderDetailAsync_MapsBasicOrderFields()
         {
@@ -143,7 +140,6 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             Assert.Equal(order.Total, dto.Total);
         }
 
-        // 4. Mapping shipping address
         [Fact]
         public async Task GetOrderDetailAsync_MapsShippingAddress()
         {

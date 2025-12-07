@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
@@ -53,9 +48,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return user;
         }
 
-        /// <summary>
-        /// Tạo đơn hàng cho user hiện tại.
-        /// </summary>
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateOrderRequest request)
         {
@@ -70,8 +62,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var user = await GetCurrentUserAsync();
                 if (user == null)
                     return Unauthorized("Không tìm thấy user tương ứng với token");
-
-                // ================= LẤY ADDRESS SNAPSHOT =================
 
                 Address? address = null;
 
@@ -90,7 +80,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
                 else
                 {
-                    // Không truyền AddressId -> ưu tiên địa chỉ mặc định, nếu không có thì lấy địa chỉ tạo gần nhất
                     address = await _context.Addresses
                         .AsNoTracking()
                         .Where(a => a.UserId == user.UserID)
@@ -123,7 +112,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
                 else
                 {
-                    // Fallback: dùng address trong bảng users
                     if (string.IsNullOrWhiteSpace(user.Address))
                     {
                         return BadRequest(new
@@ -137,7 +125,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     shippingLine1 = user.Address;
                 }
 
-                // ================= LẤY GIÁ SẢN PHẨM TỪ DB =================
 
                 var productIds = request.Items
                     .Select(i => i.ProductId)
@@ -184,7 +171,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     });
                 }
 
-                // ================= ÁP DỤNG MÃ GIẢM GIÁ (NẾU CÓ) =================
 
                 decimal discountAmount = 0m;
                 decimal finalTotal = subtotal;
@@ -208,7 +194,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     appliedCouponCode = couponResult.Code;
                 }
 
-                // ================= XỬ LÝ PAYMENT =================
 
                 var rawPaymentMethod = (request.PaymentMethod ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(rawPaymentMethod))
@@ -245,7 +230,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                         break;
                 }
 
-                // ================= TẠO ORDER =================
 
                 var order = new Order
                 {
@@ -278,7 +262,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
-                // Tăng TotalRedeemed cho coupon nếu có sử dụng
                 if (couponResult != null && couponResult.IsValid)
                 {
                     var couponEntity = await _context.Coupons
@@ -290,8 +273,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                         await _context.SaveChangesAsync();
                     }
                 }
-
-                // ================= TẠO PHIẾU XUẤT BÁN LẺ (DISPATCH) =================
 
                 var dispatchDto = new RetailDispatchCreateDto
                 {
@@ -333,9 +314,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-        /// <summary>
-        /// Lấy danh sách đơn hàng của user hiện tại.
-        /// </summary>
         [HttpGet("my")]
         public async Task<IActionResult> GetMyOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {

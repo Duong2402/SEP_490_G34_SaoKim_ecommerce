@@ -112,7 +112,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             {
                 Supplier = "ABC",
                 ReceiptDate = DateTime.UtcNow,
-                Items = new List<ReceivingSlipItemDto>() // rỗng
+                Items = new List<ReceivingSlipItemDto>() 
             };
 
             var ex = await Assert.ThrowsAsync<ArgumentException>(
@@ -125,7 +125,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
         public async Task CreateReceivingSlipAsync_Throws_When_Uom_Not_Found()
         {
             using var db = CreateDbContext();
-            // không seed UnitOfMeasures
+
             db.Products.Add(new Product
             {
                 ProductID = 1,
@@ -146,7 +146,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
                     {
                         ProductId = 1,
                         ProductName = "P1",
-                        Uom = "pcs", // không có trong DB
+                        Uom = "pcs",
                         Quantity = 2,
                         UnitPrice = 10
                     }
@@ -181,7 +181,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
                 {
                     new ReceivingSlipItemDto
                     {
-                        ProductId = null, // hoặc <= 0
+                        ProductId = null, 
                         ProductName = "P1",
                         Uom = "pcs",
                         Quantity = 2,
@@ -207,7 +207,6 @@ namespace SaoKim_ecommerce_BE.Tests.Services
                 Status = "Active"
             });
             db.SaveChanges();
-            // không thêm Product
 
             var service = CreateService(db);
 
