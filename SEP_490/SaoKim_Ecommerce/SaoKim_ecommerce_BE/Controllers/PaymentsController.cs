@@ -1,5 +1,4 @@
-﻿using System.Net.Http;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SaoKim_ecommerce_BE.Controllers

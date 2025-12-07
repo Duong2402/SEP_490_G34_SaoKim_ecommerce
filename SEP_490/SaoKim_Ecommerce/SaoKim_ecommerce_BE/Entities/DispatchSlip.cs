@@ -28,6 +28,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime? ConfirmedAt { get; set; }
         public ICollection<DispatchItem> Items { get; set; } = new List<DispatchItem>();
         public abstract string Type { get; }
+        public bool IsDeleted { get; set; } = false;
     }
     public class RetailDispatch : DispatchBase
     {

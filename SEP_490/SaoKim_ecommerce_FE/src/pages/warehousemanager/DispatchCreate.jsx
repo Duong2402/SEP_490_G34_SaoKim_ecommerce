@@ -201,33 +201,47 @@ export default function DispatchCreate() {
     selectedProject,
   }) => {
     const urlBase = `/api/warehousemanager/dispatch-slips`;
+    const isoDate = new Date(dispatchDate).toISOString();
+
+    const mappedItems = items
+      .map((it) => {
+        const p = findProductById(it.productId);
+        return {
+          productId: Number(it.productId),
+          productName: p?.name || "",
+          uom: it.uom || p?.unit || "pcs",
+          quantity: Number(it.quantity || 0),
+          unitPrice: Number(it.unitPrice || 0),
+        };
+      })
+      .filter((x) => x.productId > 0 && x.quantity > 0);
+
     if (type === "Sales") {
       return {
         url: `${urlBase}/sales`,
         body: {
-          dispatchDate: new Date(dispatchDate).toISOString(),
+          dispatchDate: isoDate,
           customerId: Number(selectedCustomer?.value),
           note: note?.trim() || null,
+          items: mappedItems,
         },
       };
     }
+
     return {
       url: `${urlBase}/projects`,
       body: {
-        dispatchDate: new Date(dispatchDate).toISOString(),
+        dispatchDate: isoDate,
         projectId: Number(selectedProject?.value),
         note: note?.trim() || null,
+        items: mappedItems,
       },
     };
   };
 
+
   const handleSave = async () => {
     const ok = validate();
-    console.log("[Kết quả validate phiếu xuất]", ok, {
-      type,
-      selectedCustomer,
-      selectedProject,
-    });
     if (!ok) return;
 
     setSaving(true);
@@ -242,23 +256,13 @@ export default function DispatchCreate() {
       });
 
       console.log("[Tạo phiếu xuất] URL:", url);
-      console.log("[Tạo phiếu xuất] Dữ liệu gửi lên:", body, {
-        typeofCustomerId: typeof body.customerId,
-        typeofProjectId: typeof body.projectId,
-      });
+      console.log("[Tạo phiếu xuất] Payload gửi lên:", body);
 
       const resSlip = await apiFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
-      if (!resSlip.ok) {
-        const j = await resSlip.json().catch(() => ({}));
-        throw new Error(
-          j?.message || `Lỗi tạo phiếu xuất (${resSlip.status})`
-        );
-      }
 
       const created = await resSlip.json();
       const newId =
@@ -269,35 +273,9 @@ export default function DispatchCreate() {
 
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
-      for (const it of items) {
-        const p = findProductById(it.productId);
-        const itemPayload = {
-          productId: Number(it.productId),
-          productName: p?.name ?? "",
-          uom: p?.unit ?? "pcs",
-          quantity: Number(it.quantity || 0),
-          unitPrice: Number(it.unitPrice || 0),
-        };
-
-        const resItem = await apiFetch(
-          `/api/warehousemanager/dispatch-slips/${newId}/items`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(itemPayload),
-          }
-        );
-
-        if (!resItem.ok) {
-          const j = await resItem.json().catch(() => ({}));
-          throw new Error(
-            j?.message || `Lỗi thêm dòng hàng (SP ${itemPayload.productId})`
-          );
-        }
-      }
-
       navigate(`/warehouse-dashboard/dispatch-slips/${newId}/items`);
     } catch (e) {
+      console.error("[Tạo phiếu xuất] lỗi:", e);
       setToast({
         type: "danger",
         message: e.message || "Không thể tạo phiếu xuất.",
@@ -519,11 +497,10 @@ export default function DispatchCreate() {
                         value={
                           products.find((p) => p.id === it.productId)
                             ? {
-                                value: it.productId,
-                                label: `${it.productId} - ${
-                                  findProductById(it.productId)?.name
+                              value: it.productId,
+                              label: `${it.productId} - ${findProductById(it.productId)?.name
                                 }`,
-                              }
+                            }
                             : null
                         }
                         onChange={(option) =>
@@ -644,10 +621,10 @@ export default function DispatchCreate() {
               toast.type === "danger"
                 ? "danger"
                 : toast.type === "warning"
-                ? "warning"
-                : toast.type === "success"
-                ? "success"
-                : "light"
+                  ? "warning"
+                  : toast.type === "success"
+                    ? "success"
+                    : "light"
             }
             onClose={() => setToast(null)}
             show={!!toast}

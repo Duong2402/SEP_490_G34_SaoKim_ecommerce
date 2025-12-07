@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -31,93 +32,104 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromForm] RegisterRequest req)
     {
-        if (!ModelState.IsValid)
-            return ValidationProblem(ModelState);
-
-        if (await _context.Users.AnyAsync(u => u.Email == req.Email))
+        try
         {
-            ModelState.AddModelError("Email", "Email already exists");
-            return ValidationProblem(ModelState);
-        }
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
-        var roleName = string.IsNullOrWhiteSpace(req.Role) ? "customer" : req.Role;
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-        if (role == null)
-        {
-            ModelState.AddModelError("Role", "Role not found");
-            return ValidationProblem(ModelState);
-        }
-
-        string? imagePath = null;
-        if (req.Image != null && req.Image.Length > 0)
-        {
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            if (!Directory.Exists(uploadDir))
-                Directory.CreateDirectory(uploadDir);
-
-            var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
-            var filePath = Path.Combine(uploadDir, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            if (await _context.Users.AnyAsync(u => u.Email == req.Email))
             {
-                await req.Image.CopyToAsync(stream);
+                ModelState.AddModelError("Email", "Email đã tồn tại");
+                return ValidationProblem(ModelState);
+            }
+            if (!AuthHelper.HasLetterAndDigit(req.Password))
+            {
+                ModelState.AddModelError("Password", "Mật khẩu phải có 1 chữ cái và 1 chữ số");
+                return ValidationProblem(ModelState);
             }
 
-            imagePath = $"/uploads/{fileName}";
+            var roleName = string.IsNullOrWhiteSpace(req.Role) ? "customer" : req.Role;
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
+            if (role == null)
+            {
+                ModelState.AddModelError("Role", "Role not found");
+                return ValidationProblem(ModelState);
+            }
+
+            string? imagePath = null;
+            if (req.Image != null && req.Image.Length > 0)
+            {
+                var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadDir))
+                    Directory.CreateDirectory(uploadDir);
+
+                var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
+                var filePath = Path.Combine(uploadDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await req.Image.CopyToAsync(stream);
+                }
+
+                imagePath = $"/uploads/{fileName}";
+            }
+
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
+
+            var user = new User
+            {
+                Name = req.Name,
+                Email = req.Email,
+                Password = hashedPassword,
+                RoleId = role.RoleId,
+                PhoneNumber = req.PhoneNumber,
+                DOB = req.DOB.HasValue
+                    ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc)
+                    : (DateTime?)null,
+                Image = imagePath,
+                Status = "Active",
+                CreateAt = DateTime.UtcNow
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Register successful",
+                email = user.Email,
+                role = role.Name,
+                image = imagePath
+            });
         }
-
-        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
-        var user = new User
+        catch (Exception ex)
         {
-            Name = req.Name,
-            Email = req.Email,
-            Password = hashedPassword,
-            RoleId = role.RoleId,
-            PhoneNumber = req.PhoneNumber,
-            DOB = req.DOB.HasValue
-    ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc)
-    : (DateTime?)null,
-            Image = imagePath,
-            Status = "Active",
-            CreateAt = DateTime.UtcNow
-        };
-
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        return Ok(new
-        {
-            message = "Register successful",
-            email = user.Email,
-            role = role.Name,
-            image = imagePath
-        });
+            return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+        }
     }
-
 
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Email) && string.IsNullOrWhiteSpace(req.Password))
-            return BadRequest(new { message = "Invalid email or password" });
+            return BadRequest(new { message = "Thông tin đăng nhập sai" });
 
         if (string.IsNullOrWhiteSpace(req.Email))
-            return BadRequest(new { message = "Please enter your email" });
+            return BadRequest(new { message = "Vui lòng nhập email" });
 
         if (string.IsNullOrWhiteSpace(req.Password))
-            return BadRequest(new { message = "Please enter your password" });
+            return BadRequest(new { message = "Vui lòng nhập mật khẩu" });
 
         var user = await _context.Users
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Email == req.Email);
 
         if (user == null)
-            return Unauthorized(new { message = "Invalid email or password" });
+            return Unauthorized(new { message = "Thông tin đăng nhập sai" });
 
         if (!BCrypt.Net.BCrypt.Verify(req.Password, user.Password))
-            return Unauthorized(new { message = "Invalid email or password" });
+            return Unauthorized(new { message = "Thông tin đăng nhập sai" });
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
             return Unauthorized(new { message = "Tài khoản của bạn hiện đang bị tạm khoá. Vui lòng liên hệ hỗ trợ để kích hoạt lại." });
@@ -161,25 +173,26 @@ public class AuthController : ControllerBase
         [FromServices] IEmailService emailService)
     {
         if (string.IsNullOrWhiteSpace(req.Email))
-            return BadRequest(new { message = "Email required" });
+            return BadRequest(new { message = "Vui lòng nhập Email" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
         if (user == null)
-            return BadRequest(new { message = "Email not found" });
+            return BadRequest(new { message = "Không tìm thấy Email" });
 
         var ttl = TimeSpan.FromMinutes(5);
         var code = resetService.GenerateCode(req.Email, ttl);
 
         var resetLink = $"http://localhost:5173/reset-password/{code}";
 
-        var subject = "Reset your password";
+        var subject = "Đặt lại mật khẩu";
         var body = $@"
-        Hi {user.Email},
-        Click the link below to reset your password. This link will expire in {ttl.TotalMinutes} minutes: {resetLink}
-        If you didn't request this, you can safely ignore this email.
+        Xin chào {user.Email} !,
+        Chúng tôi nhận được yêu cầu đặt lại mật khẩu của bạn
+        Vui lòng nhấn link bên dưới để đặt lại mật khẩu. Link này sẽ tồn tại trong {ttl.TotalMinutes} phút: {resetLink}
+        Nếu không phải bạn xin hãy liên lạc với chúng tôi. Vui lòng không đưa thiết bị của bạn cho bất kỳ ai!
     ";
         await emailService.SendAsync(req.Email, subject, body);
-        return Ok(new { message = "Password reset link has been sent to your email." });
+        return Ok(new { message = "Link đặt lại mật khẩu đã gửi đến email của bạn" });
     }
 
 
@@ -192,12 +205,21 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Missing data" });
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null) return BadRequest(new { message = "User not found" });
+        if (user == null) return BadRequest(new { message = "Không tìm thấy người dùng" });
+
+        if (req.NewPassword.Length < 8)
+            return BadRequest(new { message = "Mật khẩu mới phải có ít nhất 8 kí tự" });
+
+        if (!AuthHelper.HasLetterAndDigit(req.NewPassword))
+        {
+            ModelState.AddModelError("Password", "Mật khẩu phải có 1 chữ cái và 1 chữ số");
+            return ValidationProblem(ModelState);
+        }
 
         user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Password reset successful" });
+        return Ok(new { message = "Đặt lại mật khẩu thành công" });
     }
 
     // POST: /api/auth/change-password
@@ -208,35 +230,40 @@ public class AuthController : ControllerBase
         var email = string.IsNullOrWhiteSpace(emailFromToken) ? req.Email : emailFromToken;
 
         if (string.IsNullOrWhiteSpace(email))
-            return BadRequest(new { message = "Email is required" });
+            return BadRequest(new { message = "Vui lòng nhập Email" });
 
         if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
-            return BadRequest(new { message = "CurrentPassword and NewPassword are required" });
+            return BadRequest(new { message = "Vui lòng nhập mật khẩu mới và mật khẩu cũ" });
+
+        if (req.NewPassword.Length < 8) 
+            return BadRequest(new { message = "Mật khẩu mới phải có ít nhất 8 kí tự" });
 
         if (req.CurrentPassword == req.NewPassword)
-            return BadRequest(new { message = "New password must be different from current password" });
+            return BadRequest(new { message = "Mật khẩu mới không được giống với mật khẩu cũ" });
+
+        if (!AuthHelper.HasLetterAndDigit(req.NewPassword))
+        {
+            ModelState.AddModelError("Password", "Mật khẩu phải có 1 chữ cái và 1 chữ số");
+            return ValidationProblem(ModelState);
+        }
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         if (user == null)
-            return NotFound(new { message = "User not found" });
+            return NotFound(new { message = "Không tìm thấy người dùng" });
 
         var ok = BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.Password);
         if (!ok)
-            return BadRequest(new { message = "Current password is incorrect" });
-
-        if (req.NewPassword.Length < 6)
-            return BadRequest(new { message = "New password must be at least 6 characters" });
+            return BadRequest(new { message = "Mật khẩu cũ không đúng" });
 
         user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Password changed successfully" });
+        return Ok(new { message = "Thay đổi mật khẩu thành ông" });
     }
-
 
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        return Ok(new { message = "Logged out" });
+        return Ok(new { message = "Đăng xuất thành công" });
     }
 }

@@ -1,82 +1,71 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import {
   PROJECT_STATUSES,
   formatBudget,
-  formatBudgetCompact,
   formatDate,
   getStatusBadgeClass,
   getStatusLabel,
-  formatNumber,
 } from "./projectHelpers";
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await ProjectAPI.getAll({ Page: 1, PageSize: 100, Sort: "-CreatedAt" });
-      const body = res || {};
-      const pageData = body.data || {};
-      setProjects(pageData.items || []);
-    } catch (err) {
-      console.error(err);
-      setProjects([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const statusOptions = useMemo(
+    () => [{ value: "all", label: "Tất cả trạng thái" }, ...PROJECT_STATUSES],
+    [],
+  );
 
   useEffect(() => {
     load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleDelete = async (id) => {
-    const confirmed = window.confirm("Bạn có chắc muốn xóa dự án này?");
-    if (!confirmed) return;
-
+  const load = async () => {
+    setLoading(true);
+    setError("");
     try {
-      await ProjectAPI.remove(id);
-      await load();
+      const params = {
+        q: search || undefined,
+        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+      };
+      const res = await ProjectAPI.getAll(params);
+      const body = res?.data || res || {};
+      setProjects(body.items || body.data?.items || body.data || []);
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || "Không thể xóa dự án");
+      setError("Không thể tải danh sách dự án.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const filteredProjects = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return projects.filter((project) => {
+    return (projects || []).filter((project) => {
+      const term = search.trim().toLowerCase();
       const matchesTerm =
         !term ||
         project.name?.toLowerCase().includes(term) ||
         project.code?.toLowerCase().includes(term) ||
         project.customerName?.toLowerCase().includes(term);
-
       const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-
       return matchesTerm && matchesStatus;
     });
   }, [projects, search, statusFilter]);
 
   const metrics = useMemo(() => {
-    if (!projects.length) {
-      return { total: 0, active: 0, completed: 0, budget: 0 };
-    }
-
     const total = projects.length;
-    const active = projects.filter((p) => p.status === "InProgress").length;
-    const completed = projects.filter((p) => p.status === "Done").length;
+    const active = projects.filter((p) => p.status === "InProgress" || p.status === "Active").length;
+    const completed = projects.filter((p) => p.status === "Done" || p.status === "Delivered").length;
     const budget = projects.reduce(
       (sum, project) => sum + (typeof project.budget === "number" ? project.budget : 0),
       0,
     );
-
     return { total, active, completed, budget };
   }, [projects]);
 
@@ -85,7 +74,7 @@ export default function ProjectList() {
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">Dự án</h1>
+            <h1 className="page-title">Danh sách dự án</h1>
             <p className="page-subtitle">
               Theo dõi tình trạng, giá trị dự án và tiến độ giao hàng ở một nơi.
             </p>
@@ -94,57 +83,49 @@ export default function ProjectList() {
             <button type="button" className="btn btn-ghost" onClick={load}>
               Làm mới
             </button>
-            <Link to="/projects/create" className="btn btn-primary">
-              + Tạo dự án
-            </Link>
           </div>
         </header>
 
-        <section className="metrics-grid">
-          <article className="metric-card">
-            <div className="metric-label">Tổng dự án</div>
-            <div className="metric-value">{formatNumber(projects.length) || "0"}</div>
-            <div className="metric-trend">
-              Đang hoạt động: {formatNumber(metrics.active) || "0"}
-            </div>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-label">Hoàn thành</div>
-            <div className="metric-value">{formatNumber(metrics.completed) || "0"}</div>
-            <div className="metric-trend">Dự án đã bàn giao</div>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-label">Giá trị dự án</div>
-            <div className="metric-value">{formatBudgetCompact(metrics.budget, "vi")}</div>
-            <div className="metric-trend">Tổng giá trị của các dự án</div>
-          </article>
-        </section>
-
-        <div className="project-actions">
+        <div className="filters-row">
           <input
-            type="search"
             className="input"
-            placeholder="Tìm theo tên, mã hoặc khách hàng"
+            placeholder="Tìm theo tên, mã dự án hoặc khách hàng"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Tìm dự án"
+            onChange={(e) => setSearch(e.target.value)}
           />
           <select
             className="select"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            aria-label="Lọc trạng thái"
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="all">Tất cả trạng thái</option>
-            {PROJECT_STATUSES.map((status) => (
-              <option key={status.value} value={status.value}>
-                {getStatusLabel(status.value)}
+            {statusOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
         </div>
+
+        <section className="metrics-grid">
+          <article className="metric-card">
+            <div className="metric-label">Tổng dự án</div>
+            <div className="metric-value">{metrics.total}</div>
+          </article>
+          <article className="metric-card">
+            <div className="metric-label">Đang triển khai</div>
+            <div className="metric-value">{metrics.active}</div>
+          </article>
+          <article className="metric-card">
+            <div className="metric-label">Hoàn tất</div>
+            <div className="metric-value">{metrics.completed}</div>
+          </article>
+          <article className="metric-card">
+            <div className="metric-label">Tổng ngân sách</div>
+            <div className="metric-value">{formatBudget(metrics.budget)}</div>
+          </article>
+        </section>
+
+        {error && <div className="alert alert-danger">{error}</div>}
 
         {loading ? (
           <div className="loading-state">Đang tải dự án...</div>
@@ -154,52 +135,56 @@ export default function ProjectList() {
               <thead>
                 <tr>
                   <th>Mã</th>
-                  <th>Tên</th>
+                  <th>Tên dự án</th>
                   <th>Khách hàng</th>
+                  <th className="table-nowrap">Ngày bắt đầu</th>
+                  <th className="table-nowrap">Ngày kết thúc</th>
                   <th>Trạng thái</th>
-                  <th>Tiến độ</th>
-                  <th>Giá trị dự án</th>
-                  <th>Thao tác</th>
+                  <th>Ngân sách</th>
+                  <th></th>
                 </tr>
               </thead>
-                  <tbody>
+              <tbody>
                 {filteredProjects.map((project) => (
                   <tr key={project.id}>
-                    <td>
-                      <Link to={`/projects/${project.id}`} className="link">
-                        {project.code}
-                      </Link>
+                    <td className="table-code">
+                      {project.id ? (
+                        <Link to={`/projects/${project.id}`} className="link">
+                          {project.code || "-"}
+                        </Link>
+                      ) : (
+                        project.code || "-"
+                      )}
                     </td>
                     <td>{project.name}</td>
                     <td>{project.customerName || "-"}</td>
+                    <td className="table-nowrap">
+                      {project.startDate ? formatDate(project.startDate, "vi") : "-"}
+                    </td>
+                    <td className="table-nowrap">
+                      {project.endDate ? formatDate(project.endDate, "vi") : "-"}
+                    </td>
                     <td>
                       <span className={getStatusBadgeClass(project.status)}>
                         <span className="badge-dot" />
                         {getStatusLabel(project.status)}
                       </span>
                     </td>
-                    <td>
-                      {project.startDate
-                        ? `${formatDate(project.startDate, "vi")} - ${formatDate(project.endDate, "vi")}`
-                        : "-"}
-                    </td>
                     <td>{formatBudget(project.budget, "vi")}</td>
                     <td className="table-actions">
-                      <div className="table-actions__buttons">
-                        <Link to={`/projects/${project.id}`} className="btn btn-ghost btn-sm">
-                          Xem
-                        </Link>
-                        <Link to={`/projects/${project.id}/edit`} className="btn btn-outline btn-sm">
-                          Chỉnh sửa
-                        </Link>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => handleDelete(project.id)}
-                        >
-                          Xóa
-                        </button>
-                      </div>
+                      <Link to={`/projects/${project.id}`} className="btn btn-ghost btn-sm">
+                        Xem
+                      </Link>
+                      <Link to={`/projects/${project.id}/edit`} className="btn btn-outline btn-sm">
+                        Chỉnh sửa
+                      </Link>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => alert("Không được phép xóa dự án từ tài khoản PM")}
+                      >
+                        Xóa
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -210,11 +195,8 @@ export default function ProjectList() {
           <div className="empty-state">
             <div className="empty-state-title">Chưa có dự án</div>
             <div className="empty-state-subtitle">
-              Tạo dự án đầu tiên để theo dõi mốc thời gian, giá trị dự án và tiến độ giao hàng.
+              Hiện chưa có dự án nào được gán cho bạn.
             </div>
-            <Link to="/projects/create" className="btn btn-primary">
-              Tạo dự án
-            </Link>
           </div>
         )}
       </div>

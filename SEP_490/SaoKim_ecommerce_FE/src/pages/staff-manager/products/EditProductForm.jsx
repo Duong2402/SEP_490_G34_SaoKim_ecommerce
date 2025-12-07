@@ -11,9 +11,8 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
       sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
-      unit: values.unit || initial?.unit || "cái",
+      unit: values.unit || initial?.unit,
       price: values.price,
-      // quantity lấy từ stock trong form
       quantity: values.stock,
       stock: values.stock,
       active: values.active,

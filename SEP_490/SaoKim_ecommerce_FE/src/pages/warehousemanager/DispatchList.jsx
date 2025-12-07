@@ -17,9 +17,9 @@ import {
   Button,
 } from "@themesberg/react-bootstrap";
 import { Toast, ToastContainer } from "react-bootstrap";
+import Dropdown from "react-bootstrap/Dropdown";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
-import Dropdown from "react-bootstrap/Dropdown";
 import { apiFetch } from "../../api/lib/apiClient";
 import { getDispatchHubConnection } from "../../signalr/dispatchHub";
 import * as signalR from "@microsoft/signalr";
@@ -57,17 +57,18 @@ const DispatchList = () => {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("dispatchDate");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const [pageSize] = useState(10);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-
-  const [sortBy, setSortBy] = useState("dispatchDate");
-  const [sortOrder, setSortOrder] = useState("desc");
-
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [notification, setNotification] = useState(null);
 
   const formatDate = (value) =>
@@ -78,7 +79,7 @@ const DispatchList = () => {
       case "All":
         return "Tất cả loại phiếu";
       case "Sales":
-        return "Phiếu xuất bán";
+        return "Phiếu bán lẻ";
       case "Project":
         return "Phiếu xuất dự án";
       default:
@@ -113,6 +114,15 @@ const DispatchList = () => {
 
       setRows(data.items || []);
       setTotal(data.total || 0);
+
+      setSelectedIds((prev) => {
+        const next = new Set();
+        const currentIds = new Set((data.items || []).map((r) => r.id));
+        prev.forEach((id) => {
+          if (currentIds.has(id)) next.add(id);
+        });
+        return next;
+      });
     } catch (error) {
       console.error("Lỗi khi tải danh sách phiếu xuất kho:", error);
       setNotification({
@@ -138,6 +148,7 @@ const DispatchList = () => {
 
       const { action } = payload || {};
       if (!action) return;
+
       switch (action) {
         case "created":
         case "deleted":
@@ -164,6 +175,124 @@ const DispatchList = () => {
       connection.off("DispatchSlipsUpdated");
     };
   }, [loadData]);
+
+  const toggleRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const selectAllCurrentPage = () => {
+    setSelectedIds(new Set(rows.map((r) => r.id)));
+  };
+
+  async function exportByIds(ids, includeItems) {
+    try {
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/export-selected`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, includeItems }),
+        }
+      );
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dispatch-slips-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setNotification({
+        type: "success",
+        message: "Xuất file thành công.",
+      });
+    } catch (e) {
+      console.error(e);
+      setNotification({
+        type: "danger",
+        message: e.message || "Xuất file thất bại.",
+      });
+    }
+  }
+
+  // Export tất cả phiếu theo bộ lọc hiện tại (không phụ thuộc page hiện tại)
+  async function exportAllByFilter(includeItems = true) {
+    try {
+      const body = {
+        page: 1,
+        pageSize: 1000000, // server sẽ override, nhưng gửi cho đủ
+        type: typeFilter !== "All" ? typeFilter : null,
+        search,
+        sortBy,
+        sortOrder,
+      };
+
+      const query = new URLSearchParams();
+      query.append("includeItems", includeItems ? "true" : "false");
+
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/export-by-filter?${query.toString()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dispatch-slips-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setNotification({
+        type: "success",
+        message: "Xuất file thành công.",
+      });
+    } catch (e) {
+      console.error(e);
+      setNotification({
+        type: "danger",
+        message: e.message || "Xuất file thất bại.",
+      });
+    }
+  }
+
+  async function handleExportSelected(includeItems = true) {
+    const ids = Array.from(selectedIds);
+
+    if (ids.length === 0) {
+      const confirmAll = window.confirm(
+        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu xuất theo bộ lọc hiện tại không?"
+      );
+      if (!confirmAll) return;
+
+      await exportAllByFilter(includeItems);
+      return;
+    }
+
+    await exportByIds(ids, includeItems);
+  }
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -220,8 +349,10 @@ const DispatchList = () => {
       });
       return;
     }
+
     const targetId = Number.isFinite(Number(id)) ? Number(id) : id;
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
+
     try {
       const res = await apiFetch(
         `/api/warehousemanager/dispatch-slips/${targetId}`,
@@ -230,13 +361,16 @@ const DispatchList = () => {
         }
       );
 
-      if (!res.ok) {
-        throw new Error(`Lỗi HTTP ${res.status}`);
-      }
-
+      // apiFetch sẽ ném lỗi nếu !ok, nên nếu tới đây là ok
       setRows((prev) =>
         prev.filter((r) => String(getSlipId(r)) !== String(targetId))
       );
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(targetId);
+        return next;
+      });
 
       setNotification({
         type: "success",
@@ -272,17 +406,36 @@ const DispatchList = () => {
         <div className="wm-page-actions">
           <button
             type="button"
+            className="wm-btn wm-btn--light"
+            onClick={selectAllCurrentPage}
+            disabled={rows.length === 0}
+          >
+            Chọn tất cả kết quả
+          </button>
+          <button
+            type="button"
+            className="wm-btn wm-btn--light"
+            onClick={clearSelection}
+          >
+            Bỏ chọn
+          </button>
+
+          <button
+            type="button"
+            className="wm-btn wm-btn--light"
+            onClick={() => handleExportSelected(true)}
+          >
+            <FontAwesomeIcon icon={faFileExport} /> Xuất báo cáo
+          </button>
+
+          <button
+            type="button"
             className="wm-btn wm-btn--primary"
             onClick={() =>
               navigate("/warehouse-dashboard/dispatch-slips/create")
             }
           >
-            <FontAwesomeIcon icon={faPlus} />
-            Tạo phiếu xuất kho
-          </button>
-          <button type="button" className="wm-btn wm-btn--primary">
-            <FontAwesomeIcon icon={faFileExport} />
-            Xuất báo cáo
+            <FontAwesomeIcon icon={faPlus} /> Tạo phiếu xuất kho
           </button>
         </div>
       </div>
@@ -332,6 +485,30 @@ const DispatchList = () => {
         <table className="table align-middle mb-0">
           <thead>
             <tr>
+              <th>
+                <Form.Check
+                  type="checkbox"
+                  checked={
+                    rows.length > 0 &&
+                    rows.every((r) => selectedIds.has(r.id))
+                  }
+                  onChange={() => {
+                    const pageIds = rows.map((r) => r.id);
+                    const allSelected = pageIds.every((id) =>
+                      selectedIds.has(id)
+                    );
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (allSelected) {
+                        pageIds.forEach((id) => next.delete(id));
+                      } else {
+                        pageIds.forEach((id) => next.add(id));
+                      }
+                      return next;
+                    });
+                  }}
+                />
+              </th>
               <th>#</th>
               <th role="button" onClick={() => handleSort("type")}>
                 Loại phiếu
@@ -359,13 +536,13 @@ const DispatchList = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={10} className="wm-empty">
+                <td colSpan={11} className="wm-empty">
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="wm-empty">
+                <td colSpan={11} className="wm-empty">
                   Không có phiếu phù hợp với bộ lọc hiện tại.
                 </td>
               </tr>
@@ -373,13 +550,21 @@ const DispatchList = () => {
               rows.map((r, index) => {
                 const normalizedType = normType(r.type, r);
                 const isSales = normalizedType === "Sales";
-                const typeLabel = isSales ? "Xuất bán" : "Xuất dự án";
+                const typeLabel = isSales ? "Bán lẻ" : "Dự án";
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
                 const slipId = getSlipId(r);
+                const checked = selectedIds.has(r.id);
 
                 return (
                   <tr key={r.id}>
+                    <td>
+                      <Form.Check
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRow(r.id)}
+                      />
+                    </td>
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
                       <Badge bg={isSales ? "info" : "secondary"}>
@@ -394,12 +579,9 @@ const DispatchList = () => {
                     <td>
                       {isSales ? r.customerName || "-" : r.projectName || "-"}
                     </td>
-
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
-
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
-
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
@@ -409,7 +591,6 @@ const DispatchList = () => {
                         </Badge>
                       )}
                     </td>
-
                     <td>{r.note || "-"}</td>
                     <td className="text-end">
                       <Button

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace SaoKim_ecommerce_BE.Dtos.Customers
 {
-    // Dùng cho màn danh sách khách hàng
     public record CustomerListItemDto(
         int Id,
         string Name,
@@ -23,7 +22,6 @@ namespace SaoKim_ecommerce_BE.Dtos.Customers
         DateTime CreatedAt
     );
 
-    // Dùng cho màn chi tiết khách hàng
     public record CustomerDetailDto(
         int Id,
         string Name,

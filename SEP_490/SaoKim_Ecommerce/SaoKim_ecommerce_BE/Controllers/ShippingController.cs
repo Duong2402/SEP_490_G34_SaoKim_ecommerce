@@ -22,7 +22,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             _storeLng = config.GetValue<double>("Shipping:StoreLng");
         }
 
-        // GET /api/shipping/fee?addressId=123
         [HttpGet("fee")]
         public async Task<IActionResult> GetFee([FromQuery] int addressId)
         {
@@ -35,7 +34,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             double distanceKm;
             decimal fee;
 
-            // Nếu chưa có tọa độ: fallback phí ship mặc định
             if (address.Latitude == null || address.Longitude == null)
             {
                 distanceKm = 0;

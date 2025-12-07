@@ -26,7 +26,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        [Range(0, 1_000_000_000)]
         public decimal? Budget { get; set; }
 
         [MaxLength(2000)]
@@ -53,7 +52,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
 
-        [Range(0, 1_000_000_000)]
         public decimal? Budget { get; set; }
 
         [MaxLength(2000)]
@@ -75,8 +73,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? EndDate { get; set; }
         public decimal? Budget { get; set; }
         public string? Description { get; set; }
-
-        // Thông tin PM
         public int? ProjectManagerId { get; set; }
         public string? ProjectManagerName { get; set; }
 
@@ -84,7 +80,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? CreatedBy { get; set; }
     }
 
-    // Query đơn giản cho Projects
     public class ProjectQuery
     {
         public string? Keyword { get; set; }
@@ -92,11 +87,7 @@ namespace SaoKim_ecommerce_BE.DTOs
 
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
-
-        // "-CreatedAt", "Name", "Code" ...
         public string? Sort { get; set; } = "-CreatedAt";
-
-        // Filter theo PM (controller sẽ set nếu user là PM)
         public int? ProjectManagerId { get; set; }
     }
 

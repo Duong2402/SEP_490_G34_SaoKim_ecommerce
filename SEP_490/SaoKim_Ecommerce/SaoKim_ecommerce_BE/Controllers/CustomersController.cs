@@ -5,11 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Dtos.Customers;
 using SaoKim_ecommerce_BE.Entities;
-using System;
-using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
-using System.Threading.Tasks;
 using static SaoKim_ecommerce_BE.Entities.CustomerNote;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -34,9 +31,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync();
         }
 
-        // ---------------------------------------------------------
         // GET /api/customers
-        // ---------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q = null,
@@ -133,9 +128,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // ---------------------------------------------------------
         // GET /api/customers/{id}
-        // ---------------------------------------------------------
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -190,9 +183,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(dto);
         }
 
-        // ---------------------------------------------------------
         // GET /api/customers/{id}/orders
-        // ---------------------------------------------------------
         [HttpGet("{id:int}/orders")]
         public async Task<IActionResult> GetOrders(
             int id,
@@ -229,11 +220,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { total, page, pageSize, items });
         }
 
-        // ---------------------------------------------------------
         // POST /api/customers/{id}/notes
-        // ---------------------------------------------------------
         [HttpPost("{id:int}/notes")]
-        [Authorize(Roles = "staff,manager,admin")] // thêm dòng này
+        [Authorize(Roles = "staff,manager,admin")]
         public async Task<IActionResult> AddNote(int id, [FromBody] CustomerNoteCreateRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Content))
@@ -244,7 +233,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (!customerExists) return NotFound();
 
-            // LẤY USER ID TỪ TOKEN CHO ĐÚNG
             var staffIdStr = User.FindFirstValue("UserId");
             if (!int.TryParse(staffIdStr, out var staffId))
                 return Forbid();
@@ -276,6 +264,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 note.StaffId
             });
         }
+
         // PUT /api/customers/{customerId}/notes/{noteId}
         [HttpPut("{customerId:int}/notes/{noteId:int}")]
         public async Task<IActionResult> UpdateNote(
@@ -306,6 +295,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 note.StaffId
             });
         }
+
         // DELETE /api/customers/{customerId}/notes/{noteId}
         [HttpDelete("{customerId:int}/notes/{noteId:int}")]
         public async Task<IActionResult> DeleteNote(int customerId, int noteId)
@@ -323,12 +313,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
-
-
-
-        // ---------------------------------------------------------
         // DELETE /api/customers/{id} (Soft delete)
-        // ---------------------------------------------------------
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> SoftDelete(int id)
         {
@@ -356,9 +341,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
-        // ---------------------------------------------------------
         // GET /api/customers/export
-        // ---------------------------------------------------------
         [HttpGet("export")]
         public async Task<IActionResult> ExportExcel(
     [FromQuery] string? q = null,
@@ -382,7 +365,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 cell.Style.Fill.BackgroundColor = XLColor.LightGray;
             }
 
-            // Lấy role customer và chỉ export user có RoleId là customer
             var customerRoleId = await GetCustomerRoleIdAsync();
 
             if (customerRoleId == 0)
@@ -438,7 +420,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 ws.Cell(row, 2).Value = r.Name;
                 ws.Cell(row, 3).Value = r.Email;
 
-                // để phone là text cho chắc
                 var phoneCell = ws.Cell(row, 4);
                 phoneCell.Value = r.PhoneNumber ?? "";
                 phoneCell.Style.NumberFormat.Format = "@";

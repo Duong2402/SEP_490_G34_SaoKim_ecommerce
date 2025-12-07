@@ -15,8 +15,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTimeOffset CreatedAt { get; set; }
 
         public string? Description { get; set; }
-
-        // Multimedia & rich-text
         public string? ImageUrl { get; set; }
         public string? LinkUrl { get; set; }
         public string? DescriptionHtml { get; set; }

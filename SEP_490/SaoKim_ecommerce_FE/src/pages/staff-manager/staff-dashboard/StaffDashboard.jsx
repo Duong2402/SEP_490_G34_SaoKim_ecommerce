@@ -1,11 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Badge, Breadcrumb, Card, Col, Form, Row, Spinner } from "@themesberg/react-bootstrap";
+import {
+  Badge,
+  Breadcrumb,
+  Card,
+  Col,
+  Form,
+  Row,
+  Spinner,
+} from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHome } from "@fortawesome/free-solid-svg-icons";
 
 import StaffLayout from "../../../layouts/StaffLayout";
 import useDashboardApi from "../api/useDashboard";
+
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
@@ -14,9 +32,9 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [revenueDays, setRevenueDays] = useState(7);
-  const [revenueData, setRevenueData] = useState([]);
+  const [revenueRaw, setRevenueRaw] = useState([]);
   const [loadingRevenue, setLoadingRevenue] = useState(true);
+  const [revenueMode, setRevenueMode] = useState("day");
 
   const [latestOrders, setLatestOrders] = useState([]);
   const [loadingLatest, setLoadingLatest] = useState(true);
@@ -36,25 +54,24 @@ export default function StaffDashboard() {
     };
 
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const loadRevenue = async () => {
       setLoadingRevenue(true);
       try {
-        const res = await getRevenueByDay(revenueDays);
-        setRevenueData(res ?? []);
+        const res = await getRevenueByDay(365);
+        setRevenueRaw(res ?? []);
       } catch (e) {
         console.error(e);
+        setRevenueRaw([]);
       } finally {
         setLoadingRevenue(false);
       }
     };
 
     loadRevenue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revenueDays]);
+  }, []);
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -70,11 +87,68 @@ export default function StaffDashboard() {
     };
 
     loadLatest();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  const revenueSeries = useMemo(() => {
+    if (!revenueRaw || !revenueRaw.length) return [];
+
+    const normalized = revenueRaw
+      .map((item) => ({
+        date: item.date,
+        revenue: item.revenue || 0,
+        dateObj: new Date(item.date),
+      }))
+      .sort((a, b) => a.dateObj - b.dateObj);
+
+    if (revenueMode === "day") {
+      const last30 = normalized.slice(-30);
+      return last30.map((x) => ({
+        label: formatDateShort(x.date),
+        revenue: x.revenue,
+      }));
+    }
+
+    if (revenueMode === "week") {
+      const groups = {};
+      for (const x of normalized) {
+        const d = x.dateObj;
+        const year = d.getFullYear();
+        const week = getWeekNumber(d);
+        const key = `${year}-W${week}`;
+        if (!groups[key]) {
+          groups[key] = { label: `Tuần ${week}/${year}`, revenue: 0 };
+        }
+        groups[key].revenue += x.revenue;
+      }
+      return Object.values(groups);
+    }
+
+    if (revenueMode === "month") {
+      const groups = {};
+      for (const x of normalized) {
+        const d = x.dateObj;
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1;
+        const key = `${year}-${month}`;
+        if (!groups[key]) {
+          groups[key] = {
+            label: `T${month}/${year}`,
+            revenue: 0,
+          };
+        }
+        groups[key].revenue += x.revenue;
+      }
+      return Object.values(groups);
+    }
+
+    return [];
+  }, [revenueRaw, revenueMode]);
+
   const maxRevenue =
-    revenueData && revenueData.length ? Math.max(...revenueData.map((x) => x.revenue || 0)) : 0;
+    revenueSeries && revenueSeries.length
+      ? Math.max(...revenueSeries.map((x) => x.revenue || 0))
+      : 0;
 
   const renderStatusBadge = (s) => {
     const v = String(s || "").toLowerCase();
@@ -99,13 +173,18 @@ export default function StaffDashboard() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item active>Bảng điều khiển</Breadcrumb.Item>
           </Breadcrumb>
           <h4 className="staff-page-title">Bảng điều khiển nhân viên</h4>
-          <p className="staff-page-lead">Tổng quan hiệu suất bán hàng và vận hành</p>
+          <p className="staff-page-lead">
+            Tổng quan hiệu suất bán hàng và vận hành
+          </p>
         </div>
       </div>
 
@@ -122,7 +201,9 @@ export default function StaffDashboard() {
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu tích lũy</div>
-                  <div className="fs-3">{stats.totalRevenue.toLocaleString("vi-VN")} ₫</div>
+                  <div className="fs-3">
+                    {stats.totalRevenue.toLocaleString("vi-VN")} ₫
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -131,7 +212,9 @@ export default function StaffDashboard() {
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu 7 ngày</div>
-                  <div className="fs-3">{stats.revenue7d.toLocaleString("vi-VN")} ₫</div>
+                  <div className="fs-3">
+                    {stats.revenue7d.toLocaleString("vi-VN")} ₫
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -140,7 +223,9 @@ export default function StaffDashboard() {
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu hôm nay</div>
-                  <div className="fs-3">{(stats.revenueToday || 0).toLocaleString("vi-VN")} ₫</div>
+                  <div className="fs-3">
+                    {(stats.revenueToday || 0).toLocaleString("vi-VN")} ₫
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -189,15 +274,18 @@ export default function StaffDashboard() {
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h5 className="staff-panel__title mb-0">Doanh thu theo ngày</h5>
+                    <h5 className="staff-panel__title mb-0">
+                      Doanh thu theo thời gian
+                    </h5>
                     <Form.Select
                       size="sm"
-                      style={{ width: 180 }}
-                      value={revenueDays}
-                      onChange={(e) => setRevenueDays(Number(e.target.value))}
+                      style={{ width: 220 }}
+                      value={revenueMode}
+                      onChange={(e) => setRevenueMode(e.target.value)}
                     >
-                      <option value={7}>7 ngày gần nhất</option>
-                      <option value={30}>30 ngày gần nhất</option>
+                      <option value="day">Theo ngày (30 ngày gần nhất)</option>
+                      <option value="week">Theo tuần</option>
+                      <option value="month">Theo tháng</option>
                     </Form.Select>
                   </div>
 
@@ -208,36 +296,74 @@ export default function StaffDashboard() {
                     </div>
                   )}
 
-                  {!loadingRevenue && revenueData.length === 0 && (
+                  {!loadingRevenue && revenueSeries.length === 0 && (
                     <div className="text-muted">Chưa có dữ liệu</div>
                   )}
 
-                  {!loadingRevenue && revenueData.length > 0 && (
-                    <div>
-                      {revenueData.map((item) => {
-                        const value = item.revenue || 0;
-                        const width = maxRevenue > 0 ? Math.max(5, (value / maxRevenue) * 100) : 0;
-
-                        return (
-                          <div key={item.date} className="d-flex align-items-center mb-2">
-                            <div style={{ width: 90 }} className="small text-muted">
-                              {formatDate(item.date)}
-                            </div>
-                            <div className="flex-grow-1">
-                              <div
-                                className="rounded-pill"
-                                style={{
-                                  height: 10,
-                                  width: `${width}%`,
-                                  transition: "width 0.3s ease",
-                                  background: "var(--staff-blue-600)",
-                                }}
+                  {!loadingRevenue && revenueSeries.length > 0 && (
+                    <div style={{ width: "100%", height: 260 }}>
+                      <ResponsiveContainer>
+                        <AreaChart data={revenueSeries} margin={{ left: 0 }}>
+                          <defs>
+                            <linearGradient
+                              id="revenueGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="0%"
+                                stopColor="#2563eb"
+                                stopOpacity={0.8}
                               />
-                            </div>
-                            <div className="ms-2 small">{value.toLocaleString("vi-VN")} ₫</div>
-                          </div>
-                        );
-                      })}
+                              <stop
+                                offset="100%"
+                                stopColor="#2563eb"
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            vertical={false}
+                          />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 11 }}
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11 }}
+                            tickFormatter={(v) =>
+                              v >= 1_000_000
+                                ? `${Math.round(v / 1_000_000)}tr`
+                                : v.toLocaleString("vi-VN")
+                            }
+                          />
+                          <Tooltip
+                            formatter={(value) =>
+                              `${Number(value).toLocaleString("vi-VN")} ₫`
+                            }
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#2563eb"
+                            fill="url(#revenueGradient)"
+                            strokeWidth={2}
+                            dot={false}
+                            isAnimationActive={true}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                      <div className="mt-2 small text-muted">
+                        Đỉnh gần nhất:{" "}
+                        {maxRevenue
+                          ? maxRevenue.toLocaleString("vi-VN")
+                          : 0}{" "}
+                        ₫
+                      </div>
                     </div>
                   )}
                 </Card.Body>
@@ -250,7 +376,9 @@ export default function StaffDashboard() {
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h5 className="staff-panel__title mb-0">Đơn hàng mới nhất</h5>
+                    <h5 className="staff-panel__title mb-0">
+                      Đơn hàng mới nhất
+                    </h5>
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-primary"
@@ -276,7 +404,7 @@ export default function StaffDashboard() {
                       <table className="table table-hover mb-0">
                         <thead>
                           <tr>
-                            <th>ID</th>
+                            <th>#</th>
                             <th>Khách hàng</th>
                             <th>Tổng tiền</th>
                             <th>Trạng thái</th>
@@ -288,7 +416,9 @@ export default function StaffDashboard() {
                             <tr key={o.orderId}>
                               <td>{idx + 1}</td>
                               <td>{o.customerName}</td>
-                              <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+                              <td>
+                                {(o.total ?? 0).toLocaleString("vi-VN")} ₫
+                              </td>
                               <td>{renderStatusBadge(o.status)}</td>
                               <td>{formatDate(o.createdAt)}</td>
                             </tr>
@@ -307,6 +437,7 @@ export default function StaffDashboard() {
   );
 }
 
+
 function formatDate(s) {
   if (!s) return "";
   try {
@@ -314,4 +445,26 @@ function formatDate(s) {
   } catch {
     return s;
   }
+}
+
+function formatDateShort(s) {
+  if (!s) return "";
+  try {
+    const d = new Date(s);
+    return d.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  } catch {
+    return s;
+  }
+}
+
+function getWeekNumber(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return weekNo;
 }

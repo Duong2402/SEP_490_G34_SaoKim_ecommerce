@@ -34,6 +34,14 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải đơn hàng");
   };
 
+  // LẤY CHI TIẾT 1 ĐƠN (bao gồm customer, shipping, payment, items)
+  const fetchOrderDetail = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}`, {
+      credentials: "include",
+    });
+    return handleJson(res, "Tải chi tiết đơn hàng");
+  };
+
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`${base}/${orderId}/status`, {
       method: "PATCH",
@@ -67,12 +75,6 @@ export default function useOrdersApi() {
     return true;
   };
 
-  const fetchOrderItems = async (orderId) => {
-    const res = await fetch(`${base}/${orderId}/items`, {
-      credentials: "include",
-    });
-    return handleJson(res, "Tải sản phẩm trong đơn");
-  };
   const deleteOrder = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       method: "DELETE",
@@ -90,8 +92,8 @@ export default function useOrdersApi() {
 
   return {
     fetchOrders,
+    fetchOrderDetail,
     updateOrderStatus,
-    fetchOrderItems,
     deleteOrder,
   };
 }

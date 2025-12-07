@@ -119,7 +119,6 @@ namespace SaoKim_ecommerce_BE.Services
                 query = query.Where(x => x.Status == q.Status);
             }
 
-            // filter theo PM nếu có
             if (q.ProjectManagerId.HasValue)
             {
                 query = query.Where(x => x.ProjectManagerId == q.ProjectManagerId.Value);
@@ -181,8 +180,6 @@ namespace SaoKim_ecommerce_BE.Services
             p.EndDate = dto.EndDate;
             p.Budget = dto.Budget;
             p.Description = dto.Description;
-
-            // cập nhật PM (Controller sẽ kiểm soát quyền)
             p.ProjectManagerId = dto.ProjectManagerId;
 
             await _db.SaveChangesAsync();

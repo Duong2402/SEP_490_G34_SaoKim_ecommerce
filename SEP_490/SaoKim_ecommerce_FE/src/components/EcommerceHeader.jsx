@@ -84,7 +84,7 @@ const EcommerceHeader = () => {
         {/* Brand */}
         <Navbar.Brand as={Link} to="/" className="brand-logo">
           <img
-            src="/images/saokim-logo.jpg"
+            src="/images/saokim-logo.png"
             alt="Sao Kim Lighting"
             className="brand-image"
             style={{ height: '80px', objectFit: 'contain' }}

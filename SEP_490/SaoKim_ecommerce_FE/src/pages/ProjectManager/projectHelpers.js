@@ -1,5 +1,6 @@
 const PROJECT_STATUSES = [
   { value: "Draft", label: "Bản nháp", tone: "neutral" },
+  { value: "Active", label: "Đang triển khai", tone: "warning" },
   { value: "InProgress", label: "Đang thực hiện", tone: "warning" },
   { value: "Delivered", label: "Đã bàn giao", tone: "success" },
   { value: "Done", label: "Hoàn thành", tone: "success" },
@@ -12,10 +13,10 @@ const STATUS_LOOKUP = PROJECT_STATUSES.reduce((acc, status) => {
 }, {});
 
 const BADGE_TONE_CLASS = {
-  success: "badge badge-success",
-  warning: "badge badge-warning",
-  danger: "badge badge-danger",
-  neutral: "badge badge-neutral",
+  success: "badge badge-status badge-status--success",
+  warning: "badge badge-status badge-status--warning",
+  danger: "badge badge-status badge-status--danger",
+  neutral: "badge badge-status badge-status--neutral",
 };
 
 const numberFormatters = {

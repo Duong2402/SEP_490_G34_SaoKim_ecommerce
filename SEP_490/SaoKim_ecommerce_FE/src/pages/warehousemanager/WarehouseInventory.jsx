@@ -18,7 +18,7 @@ import { Modal } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
 import { getInventoryHubConnection } from "../../signalr/inventoryHub";
 import * as signalR from "@microsoft/signalr";
-
+import "../../assets/css/Warehouse.css";
 const PAGE_SIZE = 10;
 
 const statusLabel = (s) => {
@@ -261,9 +261,6 @@ export default function WarehouseInventory() {
         </div>
 
         <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--light" onClick={() => navigate(-1)}>
-            <FontAwesomeIcon icon={faArrowLeft} /> Quay lại
-          </button>
           <button
             type="button"
             className="wm-btn wm-btn--primary"

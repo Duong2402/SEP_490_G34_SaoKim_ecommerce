@@ -36,13 +36,10 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? UpdateAt { get; set; }
     }
 
-    // CREATE DTO dùng [FromForm] để nhận cả file ảnh
     public class CreateProductDto
     {
         public string Sku { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-
-        // CategoryId đúng với entity Product
         public int? CategoryId { get; set; }
 
         public string? Unit { get; set; }
@@ -53,11 +50,7 @@ namespace SaoKim_ecommerce_BE.DTOs
         public bool Active { get; set; } = true;
         public string? Description { get; set; }
         public string? Supplier { get; set; }
-
-        // Không dùng string Image nữa
         public string? Note { get; set; }
-
-        // Nhận file upload
         public IFormFile? ImageFile { get; set; }
     }
 

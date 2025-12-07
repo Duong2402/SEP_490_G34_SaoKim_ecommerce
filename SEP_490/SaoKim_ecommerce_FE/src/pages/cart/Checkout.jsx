@@ -4,7 +4,7 @@ import {
   Breadcrumb,
   Button,
   Card,
-  Col,
+ Col,
   Container,
   Form,
   InputGroup,
@@ -188,8 +188,13 @@ export default function Checkout() {
     [selectedItems]
   );
 
+  // ĐÃ ĐỔI: dùng discountAmount từ BE nếu có
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
+    if (typeof selectedVoucher.discountAmount === "number") {
+      return selectedVoucher.discountAmount;
+    }
+    // fallback: logic cũ nếu dùng voucherList mock
     if (selectedVoucher.type === "percent")
       return Math.min((subtotal * selectedVoucher.value) / 100, 100000);
     if (selectedVoucher.type === "amount") return selectedVoucher.value;
@@ -248,17 +253,89 @@ export default function Checkout() {
     };
   }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount, paymentToken]);
 
-  // Apply voucher
-  const handleApplyVoucher = () => {
-    const found = voucherList.find(
-      (v) => v.code.toLowerCase() === voucherCode.toLowerCase()
-    );
-    if (found) {
-      setSelectedVoucher(found);
-      setVoucherStatus({ type: "success", message: `Đã áp dụng: ${found.label}` });
-    } else {
+  // ÁP DỤNG MÃ GIẢM GIÁ: GỌI BE /api/coupons/validate
+  const handleApplyVoucher = async () => {
+    const code = (voucherCode || "").trim();
+
+    if (!code) {
       setSelectedVoucher(null);
-      setVoucherStatus({ type: "error", message: "Mã giảm giá không hợp lệ" });
+      setVoucherStatus({
+        type: "error",
+        message: "Vui lòng nhập mã giảm giá",
+      });
+      return;
+    }
+
+    if (!selectedItems.length) {
+      setSelectedVoucher(null);
+      setVoucherStatus({
+        type: "error",
+        message: "Không có sản phẩm nào để áp dụng mã",
+      });
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Bạn cần đăng nhập trước");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setVoucherStatus(null);
+
+      const res = await fetch(
+        `${apiBase}/api/coupons/validate?code=${encodeURIComponent(
+          code
+        )}&subtotal=${encodeURIComponent(subtotal)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        let errMsg = "Mã giảm giá không hợp lệ";
+        try {
+          const errData = await res.json();
+          errMsg = errData.message || errData.Message || errMsg;
+        } catch {
+          // ignore
+        }
+        setSelectedVoucher(null);
+        setVoucherStatus({
+          type: "error",
+          message: errMsg,
+        });
+        return;
+      }
+
+      const data = await res.json();
+
+      // map từ DTO BE sang state FE
+      setSelectedVoucher({
+        code: data.code,
+        label: data.name || data.code,
+        discountAmount: data.discountAmount,
+        // giữ thêm mấy field cũ nếu cần
+        type: data.discountType,
+        value: data.discountValue,
+      });
+
+      setVoucherStatus({
+        type: "success",
+        message: `Đã áp dụng: ${data.name || data.code}`,
+      });
+    } catch (e) {
+      console.error("Apply voucher error", e);
+      setSelectedVoucher(null);
+      setVoucherStatus({
+        type: "error",
+        message: "Không áp dụng được mã giảm giá, vui lòng thử lại",
+      });
     }
   };
 
@@ -294,6 +371,8 @@ export default function Checkout() {
       const payload = {
         subtotal,
         addressId: selectedAddressId,
+        // ĐÃ THÊM: gửi couponCode lên BE
+        couponCode: selectedVoucher?.code || undefined,
         status: paymentMethod === "COD" ? "Pending" : "Paid",
         paymentMethod,
         shippingMethod,

@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
 import { Button, Form } from "@themesberg/react-bootstrap";
 import useCategoriesApi from "../api/useCategories";
+import useProductsApi from "../api/useProducts"; 
 
 const normalizeDefaults = (d = {}) => ({
   sku: d.sku ?? d.productCode ?? "",
@@ -43,7 +44,10 @@ export default function ProductForm({
   const disabled = loading || isSubmitting;
 
   const { getCategories, createCategory } = useCategoriesApi();
+  const { getUoms } = useProductsApi();          
+
   const [categories, setCategories] = useState([]);
+  const [uoms, setUoms] = useState([]);         
   const [addingNew, setAddingNew] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
@@ -53,10 +57,15 @@ export default function ProductForm({
   useEffect(() => {
     (async () => {
       try {
-        const list = await getCategories();
-        setCategories(list || []);
+        const [catList, uomList] = await Promise.all([
+          getCategories(),
+          getUoms(),
+        ]);
+        setCategories(catList || []);
+        setUoms(uomList || []);
       } catch {
         setCategories([]);
+        setUoms([]);
       }
     })();
   }, []);
@@ -227,12 +236,23 @@ export default function ProductForm({
         {/* Đơn vị tính */}
         <Form.Group>
           <Form.Label>Đơn vị tính</Form.Label>
-          <Form.Control
-            type="text"
-            placeholder="Ví dụ: cái, bộ, chiếc"
-            {...register("unit")}
-            disabled={disabled}
-          />
+          <Form.Select
+            {...register("unit", {
+              required: "Đơn vị tính là bắt buộc",
+            })}
+            isInvalid={!!errors.unit}
+            disabled={disabled || uoms.length === 0}
+          >
+            <option value="">-- Chọn đơn vị tính --</option>
+            {uoms.map((u) => (
+              <option key={u.id ?? u.Id} value={u.name ?? u.Name}>
+                {u.name ?? u.Name}
+              </option>
+            ))}
+          </Form.Select>
+          <Form.Control.Feedback type="invalid">
+            {errors.unit?.message}
+          </Form.Control.Feedback>
         </Form.Group>
 
         {/* Ảnh */}

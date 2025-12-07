@@ -202,7 +202,7 @@ export default function ReceivingList() {
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Export thất bại");
+        throw new Error(err.message || "Xuất file thất bại");
       }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -219,7 +219,7 @@ export default function ReceivingList() {
       setNotify("Xuất file thành công.");
     } catch (e) {
       console.error(e);
-      setNotify(e.message || "Export thất bại.");
+      setNotify(e.message || "Xuất file thất bại.");
     }
   }
 

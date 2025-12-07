@@ -1,13 +1,15 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ManagerSidebar from "../pages/manager/components/ManagerSidebar";
+import SaoKimLogo from "../components/SaoKimLogo";
 import "../styles/manager.css";
 
 const PAGE_TITLES = [
   { match: /^\/manager(\/dashboard)?$/, label: "Tổng quan hoạt động" },
-  { match: /^\/manager\/products/, label: "Danh mục sản phẩm" },
-  { match: /^\/manager\/projects/, label: "Quản lý dự án" },
-  { match: /^\/manager\/promotions/, label: "Chương trình khuyến mãi" },
+  { match: /^\/manager\/orders/, label: "Đơn hàng" },
+  { match: /^\/manager\/products/, label: "Sản phẩm" },
+  { match: /^\/manager\/projects/, label: "Dự án" },
+  { match: /^\/manager\/promotions/, label: "Khuyến mãi" },
   { match: /^\/manager\/coupons/, label: "Mã giảm giá" },
   { match: /^\/manager\/employees/, label: "Nhân sự" },
 ];
@@ -86,11 +88,7 @@ export default function ManagerLayout() {
     <div className="manager-shell">
       <aside className="manager-sidebar" aria-label="Điều hướng quản lý">
         <div className="manager-sidebar__brand">
-          <span className="manager-sidebar__mark">SK</span>
-          <div className="manager-sidebar__title">
-            <strong>Sao Kim Portal</strong>
-            <span>Không gian quản lý</span>
-          </div>
+          <SaoKimLogo size="large" showText />
         </div>
 
         <ManagerSidebar />

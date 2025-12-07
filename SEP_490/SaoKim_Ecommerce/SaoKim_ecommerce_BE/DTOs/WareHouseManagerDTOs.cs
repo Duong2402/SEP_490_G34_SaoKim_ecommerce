@@ -82,6 +82,8 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string ProjectName { get; set; } = "";
         public int? ProjectId { get; set; }
         public string? Note { get; set; }
+        public List<DispatchItemDto> Items { get; set; } = new();
+
     }
 
     public class DispatchItemDto
@@ -323,4 +325,10 @@ public class InventoryReportItemDto
 public class UpdateMinStockDto
 {
     public int MinStock { get; set; }
+}
+
+public class DispatchExportSelectedRequest
+{
+    public List<int> Ids { get; set; } = new();
+    public bool IncludeItems { get; set; } = true;
 }
