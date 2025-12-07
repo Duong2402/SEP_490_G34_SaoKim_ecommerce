@@ -555,12 +555,21 @@ namespace SaoKim_ecommerce_BE.Controllers
             try
             {
                 var result = await _dispatchService.GetDispatchItemsAsync(id, q);
+
+                var baseQuery = _db.DispatchItems.Where(i => i.DispatchId == id);
+
+                var totalQty = await baseQuery.SumAsync(i => (int?)i.Quantity) ?? 0;
+                var totalAmount = await baseQuery
+    .SumAsync(i => (double?)(i.Quantity * i.UnitPrice)) ?? 0;
+
                 return Ok(new
                 {
-                    total = result.TotalItems,
+                    total = result.TotalItems,       
                     page = result.Page,
                     pageSize = result.PageSize,
-                    items = result.Items
+                    items = result.Items,            
+                    totalQty = totalQty,
+                    totalAmount = totalAmount
                 });
             }
             catch (KeyNotFoundException ex)
@@ -568,6 +577,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return NotFound(new { message = ex.Message });
             }
         }
+
 
         [HttpPost("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> CreateDispatchItem(int id, [FromBody] DispatchItemDto dto)
@@ -771,6 +781,27 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
+        [HttpPost("dispatch-slips/export-by-filter")]
+        public async Task<IActionResult> ExportDispatchByFilter([FromBody] DispatchSlipListQuery q)
+        {
+            q.Page = 1;
+            q.PageSize = int.MaxValue;
+
+            var result = await _dispatchService.GetDispatchSlipsAsync(q);
+            var ids = result.Items.Select(x => x.Id).ToList();
+
+            if (!ids.Any())
+                return BadRequest(new { message = "Không có dữ liệu để xuất." });
+
+            var bytes = await _dispatchService.ExportDispatchSlipsAsync(ids, includeItems: true);
+
+            var fileName = $"dispatch-slips-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            return File(bytes, contentType, fileName);
+        }
+
+
         [HttpPost("dispatch-slips/export-selected")]
         public async Task<IActionResult> ExportDispatchSelected(
     [FromBody] DispatchExportSelectedRequest request)
@@ -787,6 +818,15 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return File(bytes, contentType, fileName);
         }
+
+        [HttpGet("dispatch-slips/{id}/print")]
+        public async Task<IActionResult> PrintDispatch(int id)
+        {
+            var pdf = await _dispatchService.ExportDispatchSlipPdfAsync(id);
+            var fileName = $"PhieuXuat_{id}.pdf";
+            return File(pdf, "application/pdf", fileName);
+        }
+
 
     }
 }

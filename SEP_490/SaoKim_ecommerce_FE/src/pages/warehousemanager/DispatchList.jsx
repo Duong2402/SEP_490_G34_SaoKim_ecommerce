@@ -202,10 +202,55 @@ const DispatchList = () => {
         }
       );
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Xuất file thất bại.");
-      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dispatch-slips-${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setNotification({
+        type: "success",
+        message: "Xuất file thành công.",
+      });
+    } catch (e) {
+      console.error(e);
+      setNotification({
+        type: "danger",
+        message: e.message || "Xuất file thất bại.",
+      });
+    }
+  }
+
+  // Export tất cả phiếu theo bộ lọc hiện tại (không phụ thuộc page hiện tại)
+  async function exportAllByFilter(includeItems = true) {
+    try {
+      const body = {
+        page: 1,
+        pageSize: 1000000, // server sẽ override, nhưng gửi cho đủ
+        type: typeFilter !== "All" ? typeFilter : null,
+        search,
+        sortBy,
+        sortOrder,
+      };
+
+      const query = new URLSearchParams();
+      query.append("includeItems", includeItems ? "true" : "false");
+
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/export-by-filter?${query.toString()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -238,20 +283,11 @@ const DispatchList = () => {
 
     if (ids.length === 0) {
       const confirmAll = window.confirm(
-        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu xuất đang hiển thị theo bộ lọc hiện tại?"
+        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu xuất theo bộ lọc hiện tại không?"
       );
       if (!confirmAll) return;
 
-      const allIds = rows.map((r) => r.id);
-      if (allIds.length === 0) {
-        setNotification({
-          type: "warning",
-          message: "Không có dữ liệu để xuất.",
-        });
-        return;
-      }
-
-      await exportByIds(allIds, includeItems);
+      await exportAllByFilter(includeItems);
       return;
     }
 
@@ -325,10 +361,7 @@ const DispatchList = () => {
         }
       );
 
-      if (!res.ok) {
-        throw new Error(`Lỗi HTTP ${res.status}`);
-      }
-
+      // apiFetch sẽ ném lỗi nếu !ok, nên nếu tới đây là ok
       setRows((prev) =>
         prev.filter((r) => String(getSlipId(r)) !== String(targetId))
       );
