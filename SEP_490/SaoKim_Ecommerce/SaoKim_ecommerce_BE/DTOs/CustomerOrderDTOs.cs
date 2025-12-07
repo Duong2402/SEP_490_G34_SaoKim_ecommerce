@@ -29,8 +29,8 @@ namespace SaoKim_ecommerce_BE.DTOs
 
     public class CustomerOrderPaymentDto
     {
-        public string? Method { get; set; }          // COD / BANK_TRANSFER_QR
-        public string? Status { get; set; }          // PENDING / PAID / ...
+        public string? Method { get; set; }       
+        public string? Status { get; set; }          
         public DateTime? PaidAt { get; set; }
         public string? TransactionCode { get; set; }
     }

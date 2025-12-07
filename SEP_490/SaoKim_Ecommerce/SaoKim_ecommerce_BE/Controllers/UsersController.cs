@@ -1,8 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
@@ -77,10 +73,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // NEW: GET /api/users/project-managers
-        // dùng cho Manager lấy danh sách PM làm dropdown
         [HttpGet("project-managers")]
-        [AllowAnonymous] // nếu muốn chỉ Manager gọi được thì đổi sang [Authorize]
+        [AllowAnonymous] 
         public async Task<IActionResult> GetProjectManagers()
         {
             var pms = await _db.Users
@@ -101,7 +95,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET /api/users/{id}
         [HttpGet("{id:int}")]
-        [AllowAnonymous]   // sau có thể đổi thành [Authorize(Roles="admin")]
+        [AllowAnonymous]  
         public async Task<IActionResult> GetById(int id)
         {
             var u = await _db.Users
@@ -126,10 +120,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // ======================= UPDATE USER (ADMIN) =======================
         // PUT /api/users/{id}
         [HttpPut("{id:int}")]
-        [AllowAnonymous]  // sau có thể đổi thành [Authorize(Roles="admin")]
+        [AllowAnonymous]  
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDto dto)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.UserID == id);
@@ -163,7 +156,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             public int? RoleId { get; set; }
         }
 
-        // ======================= ROLES LIST =======================
         // GET /api/users/roles  
         [HttpGet("roles")]
         [AllowAnonymous]
@@ -178,7 +170,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(roles);
         }
 
-        // ======================= GET CURRENT USER PROFILE =======================
         // GET /api/users/me
         [HttpGet("me")]
         [Authorize]
@@ -211,8 +202,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // ======================= UPDATE CURRENT USER PROFILE =======================
-        // DTO cho cập nhật profile của chính user
         public class UpdateProfileDto
         {
             public string? Name { get; set; }

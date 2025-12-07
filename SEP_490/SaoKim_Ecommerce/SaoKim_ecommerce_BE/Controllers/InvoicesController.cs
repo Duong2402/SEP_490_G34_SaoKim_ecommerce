@@ -7,12 +7,7 @@ using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
-using SaoKim_ecommerce_BE.Services;   
-using System;
-using System.IO;
-using System.Linq;
-using System.Text;                     
-using System.Threading.Tasks;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -331,14 +326,11 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "PDF generated successfully." });
         }
         
-        //thuế
         private void ApplyDefaultTax(Invoice inv)
         {
-            // số tiền chịu thuế = Subtotal - Discount (nếu âm thì đưa về 0)
             var baseAmount = inv.Subtotal - inv.Discount;
             if (baseAmount < 0) baseAmount = 0;
 
-            // thuế 10%
             inv.Tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
 
             // tổng = sau giảm + thuế
@@ -410,7 +402,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (string.IsNullOrEmpty(inv.PdfFileName))
                 return BadRequest(new { message = "PDF not generated yet." });
 
-            // Link tải/preview PDF
             var pdfUrl = $"{Request.Scheme}://{Request.Host}/api/invoices/{inv.Id}/pdf";
 
             var subject = $"Hóa đơn {inv.Code} từ Sao Kim Lighting";

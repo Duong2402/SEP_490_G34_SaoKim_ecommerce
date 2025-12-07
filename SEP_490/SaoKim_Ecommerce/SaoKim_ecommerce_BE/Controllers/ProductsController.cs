@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
@@ -237,7 +236,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return BadRequest(new { message = "Trạng thái mới không được để trống." });
             }
 
-            // chỉ cho phép Active / Inactive
             var allowed = new[] { "Active", "Inactive" };
 
             var canonicalStatus = allowed
@@ -452,7 +450,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (product == null)
                 return NotFound(new { message = "Product not found" });
 
-            // nếu sản phẩm đã nằm trong bất kỳ dự án nào -> không cho xóa
             var hasProjects = product.ProjectProducts != null && product.ProjectProducts.Any();
             if (hasProjects)
             {

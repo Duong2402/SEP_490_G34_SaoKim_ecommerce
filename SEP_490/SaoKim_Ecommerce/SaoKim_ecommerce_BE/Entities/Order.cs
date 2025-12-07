@@ -18,30 +18,16 @@ namespace SaoKim_ecommerce_BE.Entities
         [ForeignKey(nameof(UserId))]
         public User Customer { get; set; } = null!;
 
-        // ============== TIỀN HÀNG ==============
-
-        /// <summary>
-        /// Tổng tiền trước giảm giá.
-        /// </summary>
         [Column("subtotal")]
         public decimal Subtotal { get; set; }
 
-        /// <summary>
-        /// Số tiền giảm từ coupon.
-        /// </summary>
         [Column("discount_amount")]
         public decimal DiscountAmount { get; set; }
 
-        /// <summary>
-        /// Mã giảm giá áp dụng cho đơn (nếu có).
-        /// </summary>
         [Column("coupon_code")]
         [MaxLength(64)]
         public string? CouponCode { get; set; }
 
-        /// <summary>
-        /// Tổng tiền sau giảm giá.
-        /// </summary>
         [Column("total")]
         public decimal Total { get; set; }
 
@@ -52,7 +38,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // ============== PAYMENT ==============
 
         [Column("paid_at")]
         public DateTime? PaidAt { get; set; }
@@ -69,7 +54,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(100)]
         public string? PaymentTransactionCode { get; set; }
 
-        // ============== SHIPPING SNAPSHOT ==============
 
         [Column("shipping_recipient_name")]
         [MaxLength(200)]
@@ -95,7 +79,6 @@ namespace SaoKim_ecommerce_BE.Entities
         [MaxLength(100)]
         public string? ShippingProvince { get; set; }
 
-        // ============== NAVIGATION ==============
 
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 

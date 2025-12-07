@@ -2,7 +2,6 @@
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
-    // Dùng cho danh sách – khớp FE table
     public class InvoiceListItemDto
     {
         public int Id { get; set; }

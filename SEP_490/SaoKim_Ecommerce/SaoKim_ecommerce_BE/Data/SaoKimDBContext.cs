@@ -21,21 +21,12 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Project> Projects { get; set; }
         public DbSet<Address> Addresses { get; set; }
         public DbSet<Review> Reviews { get; set; }
-
-
-
-        //Customer
         public DbSet<CustomerNote> CustomerNotes { get; set; }
         public DbSet<StaffActionLog> StaffActionLogs { get; set; }
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
-
-        // Invoice
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
-
-
-        // NEW:
         public DbSet<TaskItem> TaskItems { get; set; }
         public DbSet<TaskDay> TaskDays { get; set; }
         public DbSet<DispatchBase> Dispatches { get; set; }
@@ -61,7 +52,6 @@ namespace SaoKim_ecommerce_BE.Data
                     .HasForeignKey(u => u.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Category
                 modelBuilder.Entity<Category>(e =>
                 {
                     e.ToTable("categories");
@@ -81,7 +71,6 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(x => x.Slug).HasDatabaseName("IX_categories_slug");
                 });
 
-                // products
                 modelBuilder.Entity<Product>(e =>
                 {
                     e.ToTable("products");
@@ -99,7 +88,6 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(x => x.ProductCode)
                         .IsUnique();
 
-                    // Quan hệ 1-n Product -> ProductDetail
                     e.HasMany(x => x.ProductDetails)
                         .WithOne(d => d.Product)
                         .HasForeignKey(d => d.ProductID)
@@ -151,7 +139,6 @@ namespace SaoKim_ecommerce_BE.Data
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-                // receiving_slips
                 modelBuilder.Entity<ReceivingSlip>(e =>
                 {
                     e.ToTable("receiving_slips");
@@ -183,7 +170,6 @@ namespace SaoKim_ecommerce_BE.Data
                      .OnDelete(DeleteBehavior.Restrict);
                 });
 
-                // dispatch (TPT)
                 modelBuilder.Entity<DispatchBase>(e =>
                 {
                     e.ToTable("dispatch_list");
@@ -283,7 +269,6 @@ namespace SaoKim_ecommerce_BE.Data
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
-                // projects + tasks
                 modelBuilder.Entity<Project>(e =>
                 {
                     e.HasIndex(p => p.Code).IsUnique();
@@ -294,7 +279,6 @@ namespace SaoKim_ecommerce_BE.Data
                     e.Property(p => p.StartDate).HasColumnType("date");
                     e.Property(p => p.EndDate).HasColumnType("date");
 
-                    // 1 User (PM) - N Projects
                     e.HasOne(p => p.ProjectManager)
                      .WithMany(u => u.ManagedProjects)
                      .HasForeignKey(p => p.ProjectManagerId)
@@ -337,8 +321,6 @@ namespace SaoKim_ecommerce_BE.Data
                     e.HasIndex(d => new { d.TaskItemId, d.Date }).IsUnique();
                 });
 
-
-                // Invoices
                 base.OnModelCreating(modelBuilder);
                 modelBuilder.Entity<Invoice>(e =>
                 {

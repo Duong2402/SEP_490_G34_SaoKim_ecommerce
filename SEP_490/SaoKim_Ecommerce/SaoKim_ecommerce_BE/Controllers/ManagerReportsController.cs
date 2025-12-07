@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
@@ -23,12 +19,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db = db;
         }
 
-        /// <summary>
-        /// Tổng quan cho Manager:
-        /// - Revenue: tổng doanh thu, 7 ngày, đơn hôm nay, pending
-        /// - Warehouse: tổng tồn kho, inbound/outbound tuần này vs tuần trước
-        /// - Projects: số lượng dự án, budget, chi phí thực tế
-        /// </summary>
         [HttpGet("overview")]
         [ProducesResponseType(typeof(ManagerOverviewDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOverview()
@@ -36,8 +26,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             var today = DateTime.UtcNow.Date;
             var sevenDaysAgo = today.AddDays(-6);
 
-            // ================== REVENUE / ORDERS ==================
-            // Dựa trên Orders (giống phong cách DashboardController)
             var totalRevenue = await _db.Orders
                 .Where(o => o.Status == "Completed")
                 .SumAsync(o => (decimal?)o.Total) ?? 0m;
@@ -63,12 +51,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 PendingOrders = pendingOrders
             };
 
-            // ================== WAREHOUSE PERFORMANCE ==================
             var totalStock = await _db.ProductDetails
                 .SumAsync(p => (int?)p.Quantity) ?? 0;
 
             var dayOfWeek = (int)today.DayOfWeek;
-            var startOfThisWeek = today.AddDays(-dayOfWeek + 1); // Monday
+            var startOfThisWeek = today.AddDays(-dayOfWeek + 1); 
             var startOfLastWeek = startOfThisWeek.AddDays(-7);
 
             var inboundThisWeek = await _db.ReceivingSlips
@@ -112,7 +99,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
             };
 
-            // ================== PROJECT OVERVIEW ==================
             var projectsQuery = _db.Projects.AsNoTracking();
 
             var totalProjects = await projectsQuery.CountAsync();
@@ -159,10 +145,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(overview);
         }
 
-        /// <summary>
-        /// Doanh thu theo ngày trong N ngày gần nhất (phục vụ vẽ chart).
-        /// </summary>
-        /// GET /api/manager/reports/revenue-by-day?days=7
         [HttpGet("revenue-by-day")]
         [ProducesResponseType(typeof(IEnumerable<RevenueByDayItemDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetRevenueByDay([FromQuery] int days = 7)
