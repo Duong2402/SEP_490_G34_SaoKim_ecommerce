@@ -1,4 +1,3 @@
-// src/components/PromotionProductsModal.jsx
 import React, { useEffect, useState } from "react";
 import { PromotionsAPI } from "../api/promotions";
 import ProductSelector from "./ProductSelector";

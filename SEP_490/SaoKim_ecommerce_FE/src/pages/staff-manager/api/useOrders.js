@@ -1,4 +1,4 @@
-// src/pages/staff-manager/api/useOrders.js
+
 export default function useOrdersApi() {
   const base = "/api/staff/orders";
 
@@ -12,7 +12,6 @@ export default function useOrdersApi() {
     return qs ? `?${qs}` : "";
   };
 
-  // lấy token cho staff
   const getAuthHeaders = () => {
     const token =
       localStorage.getItem("staffToken") || localStorage.getItem("token");
@@ -43,7 +42,6 @@ export default function useOrdersApi() {
     return res.json();
   }
 
-  // LẤY DANH SÁCH ĐƠN HÀNG
   const fetchOrders = async (params = {}) => {
     const cleaned = { ...params };
     if (cleaned.status === "all") {
@@ -61,7 +59,6 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải đơn hàng");
   };
 
-  // LẤY CHI TIẾT 1 ĐƠN
   const fetchOrderDetail = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       method: "GET",
@@ -73,7 +70,6 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải chi tiết đơn hàng");
   };
 
-  // LẤY LIST ITEMS CỦA 1 ĐƠN
   const fetchOrderItems = async (orderId) => {
     const res = await fetch(`${base}/${orderId}/items`, {
       method: "GET",
@@ -85,7 +81,6 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải danh sách sản phẩm của đơn");
   };
 
-  // CẬP NHẬT TRẠNG THÁI 1 ĐƠN
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`${base}/${orderId}/status`, {
       method: "PATCH",
@@ -120,7 +115,6 @@ export default function useOrdersApi() {
     return true;
   };
 
-  // XÓA ĐƠN HÀNG (PHẢI Ở TRẠNG THÁI Cancelled)
   const deleteOrder = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       method: "DELETE",

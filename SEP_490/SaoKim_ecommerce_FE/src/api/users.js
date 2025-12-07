@@ -13,12 +13,10 @@ const createFormData = (data) => {
 };
 
 export const UserAPI = {
-  // q, status, role, page, pageSize
   getAll: (params) => http.get("/users", { params }),
 
   getById: (id) => http.get(`/users/${id}`),
 
-  // Nếu có upload ảnh
   create: (data) => {
     const formData = createFormData(data);
     return http.post("/users", formData);
@@ -31,14 +29,11 @@ export const UserAPI = {
 
   remove: (id) => http.delete(`/users/${id}`),
 
-  // Lấy danh sách role
   getRoles: () => http.get("/users/roles"),
 
-  // Tiện ích thêm nếu cần
   getMe: () => http.get("/users/me"),
   updateMe: (data) => http.put("/users/me", createFormData(data)),
   setStatus: (id, status) => http.put(`/users/${id}`, { status }),
 
-  // NEW: danh sách Project Manager cho dropdown
   getProjectManagers: () => http.get("/users/project-managers"),
 };

@@ -1,4 +1,3 @@
-// src/api/promotions.js
 import http from "./http";
 
 export const PromotionsAPI = {

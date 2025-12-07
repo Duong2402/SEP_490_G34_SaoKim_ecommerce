@@ -30,7 +30,6 @@ export default function ForgotPassword() {
     setError("");
     setSuccess("");
 
-    // ✅ Kiểm tra thủ công thay vì để HTML báo lỗi
     if (!email) {
       setError("Vui lòng nhập email đã đăng ký!");
       return;
@@ -95,11 +94,9 @@ export default function ForgotPassword() {
         </p>
       </div>
 
-      {/* ✅ Hiển thị lỗi / thành công tùy theo state */}
       {error && <div className="alert alert-danger text-center">{error}</div>}
       {success && <div className="alert alert-success text-center">{success}</div>}
 
-      {/* ✅ Tắt validation mặc định bằng noValidate */}
       <Form className="auth-form" noValidate onSubmit={submit}>
         <Form.Group controlId="forgotPasswordEmail">
           <Form.Label>Email đã đăng ký</Form.Label>

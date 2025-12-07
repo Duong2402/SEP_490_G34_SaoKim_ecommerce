@@ -1,4 +1,4 @@
-// src/pages/staff-manager/invoices/ManageInvoices.jsx
+
 import {
   faCheck,
   faCog,
@@ -27,8 +27,6 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-// Modal bỏ luôn
-// import Modal from "react-bootstrap/Modal";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../../layouts/StaffLayout";
@@ -53,7 +51,6 @@ export default function ManageInvoices() {
   const {
     fetchInvoices,
     deleteInvoice,
-    // getInvoice không dùng ở list nữa, để cho detail page dùng
     getPdfBlob,
     deletePdf,
     generatePdf,
@@ -105,7 +102,6 @@ export default function ManageInvoices() {
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
-  // mở trang chi tiết
   const openView = (id) => {
     navigate(`/staff/manager-invoices/${id}`);
   };
@@ -358,7 +354,6 @@ export default function ManageInvoices() {
                     <td>{renderStatus(i.status)}</td>
                     <td>{formatDate(i.created)}</td>
                     <td className="text-end">
-                      {/* sang trang chi tiết */}
                       <Button
                         variant="outline-info"
                         size="sm"

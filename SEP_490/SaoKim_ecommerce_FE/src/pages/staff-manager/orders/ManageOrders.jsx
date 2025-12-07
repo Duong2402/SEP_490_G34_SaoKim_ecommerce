@@ -1,4 +1,4 @@
-// src/pages/staff-manager/orders/ManageOrders.jsx
+
 import {
   faCheck,
   faCog,
@@ -103,7 +103,6 @@ export default function ManageOrders() {
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
-  // dùng cả status + dispatchConfirmed để hiển thị đúng “Đang xử lý kho”
   const renderStatusForRow = (order) => {
     const v = String(order.status || "").toLowerCase();
 
@@ -127,7 +126,6 @@ export default function ManageOrders() {
     }
   };
 
-  // phân biệt đơn COD
   const isCodOrder = (order) => {
     const m = String(
       order.paymentMethod ||

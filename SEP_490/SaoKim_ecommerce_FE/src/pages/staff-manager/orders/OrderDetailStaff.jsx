@@ -1,4 +1,4 @@
-// src/pages/staff-manager/orders/OrderDetailStaff.jsx
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
@@ -149,7 +149,6 @@ export default function OrderDetailStaff() {
   const formatCurrency = (v) =>
     `${(Number(v) || 0).toLocaleString("vi-VN")} ₫`;
 
-  // ====== TÍNH TẠM TÍNH / PHÍ SHIP / GIẢM GIÁ / THUẾ ======
   const invoice = order?.invoice || order?.Invoice;
 
   const subtotalFromItems = items.reduce((sum, it) => {
@@ -184,8 +183,6 @@ export default function OrderDetailStaff() {
 
   const fallbackTotal = subtotal - discount + tax + shippingFee;
   const displayTotal = Number.isFinite(rawTotal) ? rawTotal : fallbackTotal;
-
-  // ========================================================
 
   return (
     <StaffLayout>
@@ -312,7 +309,6 @@ export default function OrderDetailStaff() {
                     </tbody>
                   </Table>
 
-                  {/* TÓM TẮT TIỀN HÀNG NGAY DƯỚI BẢNG */}
                   <Row className="mt-3">
                     <Col md={6} />
                     <Col md={6}>

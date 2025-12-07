@@ -47,7 +47,6 @@ export default function UserForm({
   const [imagePreview, setImagePreview] = useState(null);
   const [loadingRoles, setLoadingRoles] = useState(true);
 
-  // Load roles
   useEffect(() => {
     const loadRoles = async () => {
       try {
@@ -63,13 +62,10 @@ export default function UserForm({
     loadRoles();
   }, []);
 
-  // Helper: resolve roleId từ initialValues + list roles
   const resolveRoleIdFromInitial = (iv, roleList) => {
     if (!iv) return "";
-    // ưu tiên roleId nếu backend trả về
     let resolved = iv.roleId ?? iv.roleID ?? null;
 
-    // nếu không có roleId nhưng có tên role thì map sang
     if (!resolved && roleList && roleList.length) {
       const roleName =
         iv.roleName || iv.role || iv.role_name || iv.role_name_en || null;
@@ -90,7 +86,6 @@ export default function UserForm({
     return resolved ? resolved.toString() : "";
   };
 
-  // Set initial values (phụ thuộc cả initialValues và roles)
   useEffect(() => {
     if (initialValues) {
       const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
@@ -126,7 +121,6 @@ export default function UserForm({
     }
   }, [initialValues, roles]);
 
-  // Validation
   const errors = useMemo(() => {
     const issues = {};
     if (!form.name.trim()) issues.name = "Name is required";
@@ -148,7 +142,6 @@ export default function UserForm({
     return issues;
   }, [form, isEdit]);
 
-  // Handle input
   const handleChange = (event) => {
     const { name, value, files } = event.target;
 
@@ -164,7 +157,6 @@ export default function UserForm({
     }
   };
 
-  // Reset
   const handleReset = () => {
     if (initialValues) {
       const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
@@ -192,7 +184,6 @@ export default function UserForm({
     }
   };
 
-  // Submit
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -278,7 +269,6 @@ export default function UserForm({
       </Field>
 
       <div className="form-grid double">
-        {/* ROLE */}
         <Field label="Role" name="roleId" error={errors.roleId} required>
           <select
             id="roleId"
@@ -300,7 +290,6 @@ export default function UserForm({
           </select>
         </Field>
 
-        {/* STATUS READONLY */}
         <Field label="Status" name="status">
           <input
             id="status"

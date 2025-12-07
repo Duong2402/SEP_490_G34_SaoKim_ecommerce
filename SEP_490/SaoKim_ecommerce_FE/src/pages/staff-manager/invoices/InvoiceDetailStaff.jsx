@@ -1,4 +1,4 @@
-// src/pages/staff-manager/invoices/InvoiceDetailStaff.jsx
+
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
@@ -61,7 +61,6 @@ export default function InvoiceDetailStaff() {
       cancelled = true;
     };
 
-    // chỉ phụ thuộc id, không dùng getInvoice để tránh loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -125,7 +124,6 @@ export default function InvoiceDetailStaff() {
     );
   }
 
-  // normalize các field tiền
   const subtotal = invoice.subtotal ?? invoice.Subtotal ?? 0;
   const discount = invoice.discount ?? invoice.Discount ?? 0;
   const tax = invoice.tax ?? invoice.Tax ?? 0;
@@ -134,7 +132,6 @@ export default function InvoiceDetailStaff() {
 
   return (
     <StaffLayout>
-      {/* HEADER */}
       <div className="staff-page-header">
         <div>
           <Breadcrumb
@@ -181,7 +178,6 @@ export default function InvoiceDetailStaff() {
         </div>
       </div>
 
-      {/* BODY */}
       <Card className="p-3">
         <Row className="mb-3">
           <Col md={6}>
@@ -207,7 +203,6 @@ export default function InvoiceDetailStaff() {
           </Col>
         </Row>
 
-        {/* DANH SÁCH SẢN PHẨM */}
         <h5 className="mt-4 mb-3">Sản phẩm trong hóa đơn</h5>
 
         <Table bordered hover size="sm">
@@ -233,7 +228,6 @@ export default function InvoiceDetailStaff() {
           </tbody>
         </Table>
 
-        {/* SUMMARY BOX BÊN PHẢI */}
         <div className="d-flex justify-content-end mt-4">
           <div
             className="border rounded-3 p-3"

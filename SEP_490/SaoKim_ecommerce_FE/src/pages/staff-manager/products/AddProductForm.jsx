@@ -1,4 +1,4 @@
-// src/pages/staff-manager/products/AddProductForm.jsx
+
 import useProductsApi from "../api/useProducts";
 import ProductForm from "./ProductForm";
 

@@ -338,7 +338,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             inv.Tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
 
-            // tổng = sau giảm + thuế
             inv.Total = baseAmount + inv.Tax + inv.ShippingFee;
         }
 

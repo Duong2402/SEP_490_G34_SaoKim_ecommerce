@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./App.jsx";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-//dd/mm/yy
+
 import "react-datepicker/dist/react-datepicker.css";
 
 

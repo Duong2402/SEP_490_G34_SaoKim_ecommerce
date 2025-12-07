@@ -1,4 +1,4 @@
-// src/pages/staff-manager/staff-view-customers/CustomerDetail.jsx
+
 import { faHome, faUser } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {

@@ -25,7 +25,6 @@ const HomePage = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Mock Categories (Keep these static for now or fetch if API exists)
   const categories = [
     {
       id: 1,
@@ -61,10 +60,8 @@ const HomePage = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // Try to get home products first
         const data = await ProductsAPI.getHomeProducts();
 
-        // Handle different response structures
         let items = [];
         if (data?.newArrivals) {
           items = data.newArrivals;
@@ -74,7 +71,6 @@ const HomePage = () => {
           items = data.items;
         }
 
-        // Normalize data
         const normalized = items
           .map((p) => ({
             id: p.id || p.productID,
@@ -83,7 +79,7 @@ const HomePage = () => {
             image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
             category: p.category || "Đèn trang trí",
           }))
-          .slice(0, 8); // Limit to 8 items
+          .slice(0, 8); 
 
         setProducts(normalized);
       } catch (error) {
@@ -112,7 +108,7 @@ const HomePage = () => {
     sections.forEach((section) => observer.observe(section));
 
     return () => sections.forEach((section) => observer.unobserve(section));
-  }, [products]); // Re-run when products load to catch new elements
+  }, [products]); 
 
   const formatCurrency = (value) => {
     if (!value) return "Liên hệ";
@@ -139,7 +135,6 @@ const HomePage = () => {
     <div className="homepage-wrapper">
       <HomepageHeader />
 
-      {/* Toast Notification */}
       <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999, position: "fixed" }}>
         <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
           <Toast.Header>
@@ -150,7 +145,6 @@ const HomePage = () => {
         </Toast>
       </ToastContainer>
 
-      {/* Hero Section */}
       <section className="hero-section fade-in-section">
         <div className="hero-overlay"></div>
         <Container fluid className="hero-inner">
@@ -200,7 +194,6 @@ const HomePage = () => {
         </Container>
       </section>
 
-      {/* Stats Bar */}
       <div className="stats-bar fade-in-section">
         <Container>
           <Row className="justify-content-center text-center g-4">
@@ -244,7 +237,6 @@ const HomePage = () => {
         </Container>
       </div>
 
-      {/* Categories Section */}
       <section className="featured-categories section-padding fade-in-section">
         <Container fluid className="px-0">
           <Container className="featured-categories-inner">
@@ -282,7 +274,6 @@ const HomePage = () => {
           </Container>
         </Container>
       </section>
-      {/* Featured Products Section */}
       <section className="featured-products section-padding fade-in-section">
         <Container>
           <div className="featured-products-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
@@ -330,7 +321,6 @@ const HomePage = () => {
         </Container>
       </section>
 
-      {/* CTA Section */}
       <section className="cta-section fade-in-section" id="contact">
         <Container fluid className="px-0">
           <Container className="cta-inner">

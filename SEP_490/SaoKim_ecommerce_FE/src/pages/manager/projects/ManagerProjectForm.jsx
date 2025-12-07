@@ -1,4 +1,4 @@
-// src/pages/manager/projects/ManagerProjectForm.jsx
+
 import { useEffect, useState } from "react";
 import { UserAPI } from "../../../api/users";
 
@@ -38,7 +38,6 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
   const [pmLoading, setPmLoading] = useState(false);
   const [pmError, setPmError] = useState("");
 
-  // Load danh sách PM
   useEffect(() => {
     let mounted = true;
     async function loadPms() {
@@ -68,7 +67,6 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
     };
   }, []);
 
-  // Bind initial values (khi edit)
   useEffect(() => {
     if (initialValues) {
       setValues((prev) => ({

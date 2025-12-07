@@ -15,7 +15,6 @@ import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
 import "../../styles/checkout.css";
 
-// Helpers per user session
 function readCheckoutItemsForOwner() {
   try {
     const { checkoutKey } = getCartKeys();
@@ -63,7 +62,6 @@ export default function Checkout() {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [voucherStatus, setVoucherStatus] = useState(null);
 
-  // VietQR state
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [autoCheck, setAutoCheck] = useState(false);
 
@@ -79,7 +77,6 @@ export default function Checkout() {
       currency: "VND",
     }).format(Number(value) || 0);
 
-  // Sync storage
   useEffect(() => {
     const onStorage = () => {
       setCartItems(readCart());
@@ -104,7 +101,6 @@ export default function Checkout() {
     setSelectedIds(new Set(base.map((x) => x.id)));
   }, [checkoutItems, cartItems]);
 
-  // Load saved addresses
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -139,7 +135,6 @@ export default function Checkout() {
     })();
   }, [apiBase]);
 
-  // Shipping fee for selected address
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -164,7 +159,6 @@ export default function Checkout() {
     })();
   }, [selectedAddressId, apiBase]);
 
-  // Selected items / subtotal
   const selectedItems = useMemo(
     () => itemsForCheckout.filter((it) => selectedIds.has(it.id)),
     [itemsForCheckout, selectedIds]
@@ -179,13 +173,11 @@ export default function Checkout() {
     [selectedItems]
   );
 
-  // ĐÃ ĐỔI: dùng discountAmount từ BE nếu có
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (typeof selectedVoucher.discountAmount === "number") {
       return selectedVoucher.discountAmount;
     }
-    // fallback: logic cũ nếu dùng voucherList mock
     if (selectedVoucher.type === "percent")
       return Math.min((subtotal * selectedVoucher.value) / 100, 100000);
     if (selectedVoucher.type === "amount") return selectedVoucher.value;
@@ -196,7 +188,6 @@ export default function Checkout() {
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
 
-  // checkPaid: call backend to verify VietQR
   const checkPaid = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -224,7 +215,6 @@ export default function Checkout() {
     }
   };
 
-  // Polling auto-check when QR selected
   useEffect(() => {
     let interval;
 
@@ -242,7 +232,6 @@ export default function Checkout() {
     };
   }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount]);
 
-  // ÁP DỤNG MÃ GIẢM GIÁ: GỌI BE /api/coupons/validate
   const handleApplyVoucher = async () => {
     const code = (voucherCode || "").trim();
 
@@ -304,12 +293,10 @@ export default function Checkout() {
 
       const data = await res.json();
 
-      // map từ DTO BE sang state FE
       setSelectedVoucher({
         code: data.code,
         label: data.name || data.code,
         discountAmount: data.discountAmount,
-        // giữ thêm mấy field cũ nếu cần
         type: data.discountType,
         value: data.discountValue,
       });
@@ -328,7 +315,6 @@ export default function Checkout() {
     }
   };
 
-  // PAY
   const handlePay = async () => {
     if (!selectedItems.length) {
       alert("Không có sản phẩm nào để thanh toán");
@@ -360,7 +346,6 @@ export default function Checkout() {
       const payload = {
         subtotal,
         addressId: selectedAddressId,
-        // ĐÃ THÊM: gửi couponCode lên BE
         couponCode: selectedVoucher?.code || undefined,
         status: paymentMethod === "COD" ? "Pending" : "Paid",
         paymentMethod,

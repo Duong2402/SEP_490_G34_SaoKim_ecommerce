@@ -60,7 +60,6 @@ export default function useInvoicesApi() {
     return res;
   };
 
-  // NEW: gửi email hóa đơn tới khách
   const sendInvoiceEmail = async (id) => {
     const res = await http.post(`/invoices/${id}/send-email`);
     return res;
@@ -75,6 +74,6 @@ export default function useInvoicesApi() {
     getPdfBlob,
     generatePdf,
     deletePdf,
-    sendInvoiceEmail, // nhớ export ra
+    sendInvoiceEmail,
   };
 }

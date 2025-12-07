@@ -323,23 +323,18 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 var subtotal = items.Sum(it => it.UnitPrice * it.Quantity);
 
-                // tạm thời chưa có khuyến mãi => 0
                 var discount = 0m;
 
-                // nếu Order.Total đã bao gồm ship + thuế
                 var orderTotal = order.Total;
 
-                // thuế (10%) chỉ trên hàng hóa sau giảm, không tính ship
                 var taxBase = subtotal - discount;
                 if (taxBase < 0) taxBase = 0;
 
                 var tax = Math.Round(taxBase * 0.10m, 0, MidpointRounding.AwayFromZero);
 
-                // Shipping = Order.Total - (subtotal - discount + tax)
                 var shippingFee = orderTotal - (subtotal - discount + tax);
                 if (shippingFee < 0) shippingFee = 0;
 
-                // tổng cuối cùng
                 var total = subtotal - discount + tax + shippingFee;
 
                 var invoice = new Invoice

@@ -1,4 +1,3 @@
-// src/components/MultiAddPromotionProductsModal.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { PromotionsAPI } from "../api/promotions";
 import { ProductsAPI } from "../api/products";

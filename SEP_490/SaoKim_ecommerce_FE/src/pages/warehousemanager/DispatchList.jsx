@@ -228,12 +228,11 @@ const DispatchList = () => {
     }
   }
 
-  // Export tất cả phiếu theo bộ lọc hiện tại (không phụ thuộc page hiện tại)
   async function exportAllByFilter(includeItems = true) {
     try {
       const body = {
         page: 1,
-        pageSize: 1000000, // server sẽ override, nhưng gửi cho đủ
+        pageSize: 1000000, 
         type: typeFilter !== "All" ? typeFilter : null,
         search,
         sortBy,
@@ -361,7 +360,6 @@ const DispatchList = () => {
         }
       );
 
-      // apiFetch sẽ ném lỗi nếu !ok, nên nếu tới đây là ok
       setRows((prev) =>
         prev.filter((r) => String(getSlipId(r)) !== String(targetId))
       );

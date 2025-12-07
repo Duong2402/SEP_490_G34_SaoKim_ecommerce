@@ -1,4 +1,4 @@
-// src/pages/staff-manager/StaffManager.jsx (ManageProduct)
+
 import {
   faCheck,
   faCog,
@@ -128,7 +128,6 @@ export default function ManageProduct() {
     );
   };
 
-  // mở modal sửa: ưu tiên lấy detail đầy đủ trước
   const handleStartEdit = async (row) => {
     try {
       const res = await fetchProduct(row.id);
@@ -139,7 +138,6 @@ export default function ManageProduct() {
       });
     } catch (e) {
       console.error(e);
-      // nếu lỗi thì vẫn cho sửa với data đang có
       setEditing(row);
     }
   };
@@ -341,7 +339,6 @@ export default function ManageProduct() {
                     </td>
                     <td>{renderStatus(p.status)}</td>
                     <td className="text-end">
-                      {/* nút xem chi tiết: sang trang riêng */}
                       <Button
                         variant="outline-primary"
                         size="sm"
@@ -421,7 +418,6 @@ export default function ManageProduct() {
             </Pagination>
           </div>
 
-          {/* Modal thêm sản phẩm */}
           <Modal
             show={showCreate}
             onHide={() => setShowCreate(false)}
@@ -444,7 +440,6 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
-          {/* Modal chỉnh sửa sản phẩm */}
           <Modal
             show={!!editing}
             onHide={() => setEditing(null)}
@@ -484,7 +479,6 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
-          {/* Modal xác nhận xóa */}
           <ConfirmDeleteModal
             show={!!deleting}
             title="Xóa sản phẩm"

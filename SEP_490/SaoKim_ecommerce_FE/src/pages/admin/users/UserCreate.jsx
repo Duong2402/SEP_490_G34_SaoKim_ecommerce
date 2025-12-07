@@ -14,7 +14,6 @@ export default function UserCreate() {
       await UserAPI.create(payload);
 
       alert("User created successfully");
-      // FIX: quay về đúng route /admin/users
       navigate("/admin/users");
     } catch (err) {
       console.error(err);
