@@ -16,6 +16,7 @@ import {
   faSave,
   faTrash,
   faEdit,
+  faPrint,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
@@ -49,8 +50,11 @@ const DispatchSlipItems = () => {
   const [formErrs, setFormErrs] = useState({});
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
-  const [total, setTotal] = useState(0);
   const [notification, setNotification] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [totalQty, setTotalQty] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -113,21 +117,14 @@ const DispatchSlipItems = () => {
     };
   }, [id]);
 
-  const totals = useMemo(() => {
-    const totalQty = items.reduce(
-      (acc, item) => acc + Number(item.quantity || 0),
-      0
-    );
-    const deliveredQty = items.reduce(
-      (acc, item) => acc + Number(item.deliveredQuantity || 0),
-      0
-    );
-    return {
+  const totals = useMemo(
+    () => ({
       totalQty,
-      deliveredQty,
-      totalItems: items.length,
-    };
-  }, [items]);
+      totalItems: total,
+      totalAmount,
+    }),
+    [totalQty, total, totalAmount]
+  );
 
   async function load() {
     setLoading(true);
@@ -145,6 +142,8 @@ const DispatchSlipItems = () => {
 
       setItems(data.items || []);
       setTotal(data.total || 0);
+      setTotalQty(data.totalQty || 0);
+      setTotalAmount(data.totalAmount || 0);
     } catch (e) {
       const msg = e.message || "Không thể tải danh sách hàng hóa.";
       setError(msg);
@@ -317,6 +316,37 @@ const DispatchSlipItems = () => {
     }
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${id}/print`
+      );
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PhieuXuat_${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setNotification({
+        type: "success",
+        message: "Đã xuất file PDF phiếu xuất.",
+      });
+    } catch (err) {
+      setNotification({
+        type: "danger",
+        message: "Không thể xuất PDF: " + (err.message || ""),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <WarehouseLayout>
       <div className="wm-page-header">
@@ -350,6 +380,14 @@ const DispatchSlipItems = () => {
           </button>
           <button
             type="button"
+            className="wm-btn wm-btn--outline"
+            onClick={handleExportPdf} disabled={exporting}
+          >
+            <FontAwesomeIcon icon={faPrint} />
+            {exporting ? "Đang xuất PDF..." : "Xuất phiếu PDF"}
+          </button>
+          <button
+            type="button"
             className="wm-btn wm-btn--primary"
             onClick={openCreate}
           >
@@ -369,6 +407,13 @@ const DispatchSlipItems = () => {
           <span className="wm-summary__label">Tổng số lượng xuất</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
           <span className="wm-subtle-text">Theo kế hoạch xuất kho</span>
+        </div>
+        <div className="wm-summary__card">
+          <span className="wm-summary__label">Tổng tiền</span>
+          <span className="wm-summary__value">
+            {totals.totalAmount.toLocaleString("vi-VN")} VNĐ
+          </span>
+          <span className="wm-subtle-text">Tổng giá trị của cả phiếu</span>
         </div>
       </div>
 
@@ -483,9 +528,8 @@ const DispatchSlipItems = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -527,9 +571,9 @@ const DispatchSlipItems = () => {
                 value={
                   form.productId
                     ? {
-                        value: form.productId,
-                        label: `${form.productId} - ${form.productName}`,
-                      }
+                      value: form.productId,
+                      label: `${form.productId} - ${form.productName}`,
+                    }
                     : null
                 }
                 onChange={(option) => {
@@ -668,10 +712,10 @@ const DispatchSlipItems = () => {
               notification.type === "danger"
                 ? "danger"
                 : notification.type === "warning"
-                ? "warning"
-                : notification.type === "success"
-                ? "success"
-                : "light"
+                  ? "warning"
+                  : notification.type === "success"
+                    ? "success"
+                    : "light"
             }
             onClose={() => setNotification(null)}
             show={!!notification}
@@ -684,7 +728,7 @@ const DispatchSlipItems = () => {
             <Toast.Body
               className={
                 notification.type === "danger" ||
-                notification.type === "warning"
+                  notification.type === "warning"
                   ? "text-white"
                   : "text-dark"
               }

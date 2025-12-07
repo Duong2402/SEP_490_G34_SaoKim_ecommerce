@@ -21,6 +21,6 @@ namespace SaoKim_ecommerce_BE.Services
         Task DeleteDispatchSlipAsync(int id); 
         Task DeleteDispatchItemAsync(int itemId);
         Task<byte[]> ExportDispatchSlipsAsync(List<int> ids, bool includeItems);
-
+        Task<byte[]> ExportDispatchSlipPdfAsync(int id);
     }
 }
