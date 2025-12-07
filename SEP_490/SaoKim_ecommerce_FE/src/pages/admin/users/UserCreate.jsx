@@ -11,11 +11,11 @@ export default function UserCreate() {
     try {
       setSaving(true);
 
-      // http.js đã trả về thẳng res.data, nhưng ở đây mình không cần dùng kết quả
       await UserAPI.create(payload);
 
       alert("User created successfully");
-      navigate("/users");
+      // FIX: quay về đúng route /admin/users
+      navigate("/admin/users");
     } catch (err) {
       console.error(err);
       const errorMsg =
@@ -37,17 +37,13 @@ export default function UserCreate() {
             <p className="page-subtitle">Create a new user account</p>
           </div>
           <div className="actions">
-            <Link to="/users" className="btn btn-ghost">
+            <Link to="/admin/users" className="btn btn-ghost">
               Cancel
             </Link>
           </div>
         </header>
 
-        <UserForm
-          onSubmit={handleSubmit}
-          submitting={saving}
-          isEdit={false}
-        />
+        <UserForm onSubmit={handleSubmit} submitting={saving} isEdit={false} />
       </div>
     </div>
   );

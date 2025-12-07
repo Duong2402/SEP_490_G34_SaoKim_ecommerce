@@ -103,7 +103,9 @@ export default function UserList() {
             >
               Refresh
             </button>
-            <Link to="/users/create" className="btn btn-primary">
+
+            {/** FIX: đúng path /admin/users/create */}
+            <Link to="/admin/users/create" className="btn btn-primary">
               Add User
             </Link>
           </div>
@@ -119,7 +121,6 @@ export default function UserList() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            aria-label="Search users"
           />
 
           <select
@@ -129,7 +130,6 @@ export default function UserList() {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            aria-label="Filter by status"
           >
             <option value="all">All Statuses</option>
             <option value="Active">Active</option>
@@ -144,7 +144,6 @@ export default function UserList() {
               setRoleFilter(e.target.value);
               setPage(1);
             }}
-            aria-label="Filter by role"
           >
             <option value="all">All Roles</option>
             {roles.map((r) => (
@@ -174,21 +173,24 @@ export default function UserList() {
                   </tr>
                 </thead>
 
-                {/* 👇 THÊM SORT TẠI ĐÂY */}
                 <tbody>
                   {users
                     .slice()
-                    .sort((a, b) => a.id - b.id) // Sắp xếp theo ID tăng dần
+                    .sort((a, b) => a.id - b.id)
                     .map((u) => (
                       <tr key={u.id}>
                         <td>{u.id}</td>
+
                         <td>
-                          <Link className="link" to={`/users/${u.id}`}>
+                          {/** FIX: đúng path /admin/users/:id */}
+                          <Link className="link" to={`/admin/users/${u.id}`}>
                             {u.name}
                           </Link>
                         </td>
+
                         <td>{u.email || "-"}</td>
                         <td>{u.role || "-"}</td>
+
                         <td>
                           <span
                             className={getStatusBadgeClass(u.status)}
@@ -197,16 +199,21 @@ export default function UserList() {
                             {u.status || "Active"}
                           </span>
                         </td>
+
                         <td>{u.phone || "-"}</td>
+
                         <td>{formatDate(u.createdAt)}</td>
+
                         <td>
                           <div className="table-actions">
+                            {/** FIX: đúng path /admin/users/:id/edit */}
                             <Link
-                              to={`/users/${u.id}/edit`}
+                              to={`/admin/users/${u.id}/edit`}
                               className="btn btn-outline"
                             >
                               Edit
                             </Link>
+
                             {u.status === "Active" ? (
                               <button
                                 type="button"
@@ -242,9 +249,11 @@ export default function UserList() {
                 >
                   Previous
                 </button>
+
                 <span>
                   Page {page} of {totalPages} (Total: {totalItems} users)
                 </span>
+
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -259,12 +268,15 @@ export default function UserList() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-title">No users found</div>
+
             <div className="empty-state-subtitle">
               {search || statusFilter !== "all" || roleFilter !== "all"
                 ? "Try adjusting your filters"
                 : "Get started by creating a new user"}
             </div>
-            <Link to="/users/create" className="btn btn-primary">
+
+            {/** FIX: đúng path */}
+            <Link to="/admin/users/create" className="btn btn-primary">
               Add User
             </Link>
           </div>
