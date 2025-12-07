@@ -9,14 +9,14 @@ import {
   Col,
   Row,
   Spinner,
-  Table
+  Table,
 } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faArrowLeft,
   faFilePdf,
-  faDownload
+  faDownload,
 } from "@fortawesome/free-solid-svg-icons";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useInvoicesApi from "../api/useInvoices";
@@ -43,7 +43,10 @@ export default function InvoiceDetailStaff() {
       try {
         setLoading(true);
         const data = await getInvoice(id);
-        if (!cancelled) setInvoice(data);
+        if (!cancelled) {
+          setInvoice(data);
+          setError("");
+        }
       } catch (e) {
         console.error(e);
         if (!cancelled) setError("Không tải được chi tiết hóa đơn");
@@ -53,9 +56,13 @@ export default function InvoiceDetailStaff() {
     };
 
     load();
+
     return () => {
       cancelled = true;
     };
+
+    // chỉ phụ thuộc id, không dùng getInvoice để tránh loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const formatMoney = (v) =>
@@ -117,6 +124,13 @@ export default function InvoiceDetailStaff() {
       </StaffLayout>
     );
   }
+
+  // normalize các field tiền
+  const subtotal = invoice.subtotal ?? invoice.Subtotal ?? 0;
+  const discount = invoice.discount ?? invoice.Discount ?? 0;
+  const tax = invoice.tax ?? invoice.Tax ?? 0;
+  const shippingFee = invoice.shippingFee ?? invoice.ShippingFee ?? 0;
+  const total = invoice.total ?? invoice.Total ?? 0;
 
   return (
     <StaffLayout>
@@ -219,31 +233,38 @@ export default function InvoiceDetailStaff() {
           </tbody>
         </Table>
 
-        {/* TỔNG KẾT – SUMMARY BOX GỌN Ở BÊN PHẢI */}
+        {/* SUMMARY BOX BÊN PHẢI */}
         <div className="d-flex justify-content-end mt-4">
           <div
             className="border rounded-3 p-3"
             style={{
               minWidth: 320,
               maxWidth: 360,
-              backgroundColor: "#f8f9fa"
+              backgroundColor: "#f8f9fa",
             }}
           >
             <div className="d-flex justify-content-between py-1">
               <span className="text-muted">Tạm tính</span>
-              <span className="fw-semibold">{formatMoney(invoice.subtotal)}</span>
+              <span className="fw-semibold">{formatMoney(subtotal)}</span>
             </div>
+
             <div className="d-flex justify-content-between py-1">
               <span className="text-muted">Giảm giá</span>
               <span className="fw-semibold">
-                {invoice.discount > 0
-                  ? "-" + formatMoney(invoice.discount)
+                {discount > 0
+                  ? "-" + formatMoney(discount)
                   : formatMoney(0)}
               </span>
             </div>
+
+            <div className="d-flex justify-content-between py-1">
+              <span className="text-muted">Phí ship</span>
+              <span className="fw-semibold">{formatMoney(shippingFee)}</span>
+            </div>
+
             <div className="d-flex justify-content-between py-1">
               <span className="text-muted">Thuế</span>
-              <span className="fw-semibold">{formatMoney(invoice.tax)}</span>
+              <span className="fw-semibold">{formatMoney(tax)}</span>
             </div>
 
             <hr className="my-2" />
@@ -251,7 +272,7 @@ export default function InvoiceDetailStaff() {
             <div className="d-flex justify-content-between py-1">
               <span className="fw-bold">Tổng cộng</span>
               <span className="fw-bold" style={{ fontSize: "1.05rem" }}>
-                {formatMoney(invoice.total)}
+                {formatMoney(total)}
               </span>
             </div>
           </div>
