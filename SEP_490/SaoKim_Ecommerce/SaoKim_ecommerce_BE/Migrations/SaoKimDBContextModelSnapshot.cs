@@ -108,6 +108,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP AT TIME ZONE 'UTC'");
 
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -119,6 +122,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Property<string>("LinkUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()

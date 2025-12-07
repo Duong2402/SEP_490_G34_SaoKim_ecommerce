@@ -56,14 +56,11 @@ import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 //Orders
 import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
 
-//admindashboard
+//Admin
+import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-
-//banner
 import BannerList from "./pages/admin/banner/BannerList.jsx";
 import BannerForm from "./pages/admin/banner/BannerForm.jsx";
-
-// Users
 import UserList from "./pages/admin/users/UserList";
 import UserCreate from "./pages/admin/users/UserCreate";
 import UserEdit from "./pages/admin/users/UserEdit";
@@ -117,11 +114,17 @@ export default function App() {
             element={<AccountPage initialTab="password" />}
           />
           <Route path="/forbidden" element={<AccessDenied />} />
-          {/* Banner Management */}
-             <Route path="/admin/banner" element={<BannerList />} />
-            <Route path="/admin/banner/create" element={<BannerForm />} />
-            <Route path="/admin/banner/edit/:id" element={<BannerForm />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          {/* Admin protected group */}
+        <Route element={<ProtectedRoute allow={["admin"]} />}></Route>
+        <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="banner" element={<BannerList />} />
+        <Route path="banner/create" element={<BannerForm />} />
+        <Route path="banner/edit/:id" element={<BannerForm />} />
+        <Route path="users" element={<UserList />} />
+        <Route path="users/create" element={<UserCreate />} />
+        <Route path="users/:id/edit" element={<UserEdit />} />
+        </Route>
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -184,11 +187,6 @@ export default function App() {
           />
           <Route path="/account/orders" element={<CustomerOrder />} />
           <Route path="/account/orders/:orderId" element={<OrderDetailPage />} />
-
-          {/* Users Management */}
-          <Route path="/admin/users" element={<UserList />} />
-          <Route path="/admin/users/create" element={<UserCreate />} />
-          <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
           {/* Manager area protected group - Only manager */}
           <Route element={<ProtectedRoute allow={["manager"]} />}>

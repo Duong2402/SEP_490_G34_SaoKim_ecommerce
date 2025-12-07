@@ -21,7 +21,7 @@ export default function UserEdit() {
         setUser(res || null);
       } catch (err) {
         console.error(err);
-        setError(err?.response?.data?.message || "Failed to load user");
+        setError(err?.response?.data?.message || "Lỗi hiển thị người dùng");
       } finally {
         setLoading(false);
       }
@@ -36,7 +36,7 @@ export default function UserEdit() {
     try {
       setSaving(true);
       await UserAPI.update(id, payload);
-      alert("User updated successfully");
+      alert("Cập nhật người dùng thành công");
       navigate("/admin/users");
     } catch (err) {
       console.error(err);
@@ -54,7 +54,7 @@ export default function UserEdit() {
     return (
       <div className="container">
         <div className="panel">
-          <div className="loading-state">Loading user...</div>
+          <div className="loading-state">Loading...</div>
         </div>
       </div>
     );
@@ -91,8 +91,8 @@ export default function UserEdit() {
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">Edit User</h1>
-            <p className="page-subtitle">Update user information</p>
+            <h1 className="page-title">Chỉnh sửa</h1>
+            <p className="page-subtitle">Chỉnh sửa thông tin</p>
           </div>
           <div className="actions">
             <Link to="/admin/users" className="btn btn-ghost">

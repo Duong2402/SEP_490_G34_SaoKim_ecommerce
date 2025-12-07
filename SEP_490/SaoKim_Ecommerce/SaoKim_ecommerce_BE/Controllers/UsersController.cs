@@ -156,7 +156,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             public int? RoleId { get; set; }
         }
 
-        // GET /api/users/roles  
         [HttpGet("roles")]
         [AllowAnonymous]
         public async Task<IActionResult> GetRoles()
@@ -170,7 +169,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(roles);
         }
 
-        // GET /api/users/me
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe()
@@ -211,7 +209,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             public IFormFile? Image { get; set; }
         }
 
-        // PUT /api/users/me
         [HttpPut("me")]
         [Authorize]
         public async Task<IActionResult> UpdateMe([FromForm] UpdateProfileDto dto)

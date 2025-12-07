@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
 
+const formatDate = (value) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.valueOf())) return "-";
+  return d.toLocaleDateString("vi-VN");
+};
+
 export default function BannerList() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +67,12 @@ export default function BannerList() {
               Link
             </th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
+              Ngày bắt đầu
+            </th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
+              Ngày hết hạn
+            </th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
               Kích hoạt
             </th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
@@ -79,6 +92,8 @@ export default function BannerList() {
               </td>
               <td style={{ padding: "8px" }}>{b.title}</td>
               <td style={{ padding: "8px" }}>{b.linkUrl}</td>
+              <td style={{ padding: "8px" }}>{formatDate(b.startDate)}</td>
+              <td style={{ padding: "8px" }}>{formatDate(b.endDate)}</td>
               <td style={{ padding: "8px" }}>{b.isActive ? "Có" : "Không"}</td>
               <td style={{ padding: "8px" }}>
                 <button
@@ -93,7 +108,7 @@ export default function BannerList() {
           ))}
           {!banners.length && (
             <tr>
-              <td colSpan={5} style={{ padding: "8px", textAlign: "center" }}>
+              <td colSpan={7} style={{ padding: "8px", textAlign: "center" }}>
                 Chưa có banner nào
               </td>
             </tr>

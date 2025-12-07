@@ -581,7 +581,6 @@ function HomeProductsBody({
           </div>
         </div>
       </section>
-
       <section className="home-section" id="projects">
         <div className="home-container">
           <div className="home-section__header">

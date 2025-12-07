@@ -10,6 +10,7 @@ using SaoKim_ecommerce_BE.Services;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using SaoKim_ecommerce_BE.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -181,7 +182,7 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
-
+builder.Services.AddHostedService<BannerExpireService>();
 var app = builder.Build();
 
 // Example path for font used by QuestPDF (ensure the font file exists)

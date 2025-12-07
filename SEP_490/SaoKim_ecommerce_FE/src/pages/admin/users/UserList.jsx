@@ -48,29 +48,49 @@ export default function UserList() {
     })();
   }, []);
 
-  const handleToggle = async (id, currentStatus) => {
+  const handleToggle = async (id, currentStatus, role) => {
+    if (role === "admin") {
+      alert("Không thể thay đổi trạng thái tài khoản có vai trò Admin");
+      return;
+    }
+
     try {
       const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
       await UserAPI.setStatus(id, newStatus);
       await load();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to change status");
+      alert(
+        err?.response?.data?.message || "Thay đổi trạng thái người dùng thất bại"
+      );
     }
   };
 
-  const handleSetStatus = async (id, status) => {
+  const handleSetStatus = async (id, status, role) => {
+    if (role === "admin") {
+      alert("Không thể thay đổi trạng thái tài khoản có vai trò Admin");
+      return;
+    }
+
     try {
       await UserAPI.setStatus(id, status);
       await load();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update status");
+      alert(
+        err?.response?.data?.message || "Cập nhật trạng thái người dùng thất bại"
+      );
     }
   };
 
   const formatDate = (v) => {
     if (!v) return "-";
     const d = new Date(v);
-    return Number.isNaN(d.valueOf()) ? "-" : d.toLocaleDateString();
+    return Number.isNaN(d.valueOf())
+      ? "-"
+      : d.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
   };
 
   const getStatusBadgeClass = (status) => {
@@ -86,13 +106,28 @@ export default function UserList() {
     }
   };
 
+  const renderStatusText = (status) => {
+    switch (status) {
+      case "Active":
+        return "Đang hoạt động";
+      case "Inactive":
+        return "Ngừng hoạt động";
+      case "Suspended":
+        return "Tạm khóa";
+      default:
+        return "Không xác định";
+    }
+  };
+
   return (
     <div className="container">
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">User Management</h1>
-            <p className="page-subtitle">Manage user accounts and permissions</p>
+            <h1 className="page-title">Quản lý người dùng</h1>
+            <p className="page-subtitle">
+              Quản lý tài khoản người dùng và phân quyền
+            </p>
           </div>
           <div className="actions">
             <button
@@ -101,12 +136,11 @@ export default function UserList() {
               onClick={load}
               disabled={loading}
             >
-              Refresh
+              Tải lại
             </button>
 
-            {/** FIX: đúng path /admin/users/create */}
-            <Link to="/admin/users/create" className="btn btn-primary">
-              Add User
+            <Link to="/users/create" className="btn btn-primary">
+              Thêm người dùng
             </Link>
           </div>
         </header>
@@ -115,7 +149,7 @@ export default function UserList() {
           <input
             className="input"
             type="search"
-            placeholder="Search by name, email, or phone..."
+            placeholder="Tìm theo tên, email hoặc số điện thoại..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -131,10 +165,10 @@ export default function UserList() {
               setPage(1);
             }}
           >
-            <option value="all">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Active">Đang hoạt động</option>
+            <option value="Inactive">Ngừng hoạt động</option>
+            <option value="Suspended">Tạm khóa</option>
           </select>
 
           <select
@@ -145,7 +179,7 @@ export default function UserList() {
               setPage(1);
             }}
           >
-            <option value="all">All Roles</option>
+            <option value="all">Tất cả vai trò</option>
             {roles.map((r) => (
               <option key={r.id} value={r.name}>
                 {r.name}
@@ -155,7 +189,7 @@ export default function UserList() {
         </div>
 
         {loading ? (
-          <div className="loading-state">Loading users...</div>
+          <div className="loading-state">Đang tải danh sách người dùng...</div>
         ) : users.length ? (
           <>
             <div className="table-responsive">
@@ -163,13 +197,13 @@ export default function UserList() {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Name</th>
+                    <th>Họ và tên</th>
                     <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Phone</th>
-                    <th>Created At</th>
-                    <th>Actions</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th>Số điện thoại</th>
+                    <th>Ngày tạo</th>
+                    <th>Thao tác</th>
                   </tr>
                 </thead>
 
@@ -182,8 +216,7 @@ export default function UserList() {
                         <td>{u.id}</td>
 
                         <td>
-                          {/** FIX: đúng path /admin/users/:id */}
-                          <Link className="link" to={`/admin/users/${u.id}`}>
+                          <Link className="link" to={`/users/${u.id}`}>
                             {u.name}
                           </Link>
                         </td>
@@ -196,7 +229,7 @@ export default function UserList() {
                             className={getStatusBadgeClass(u.status)}
                             style={{ marginRight: 8 }}
                           >
-                            {u.status || "Active"}
+                            {renderStatusText(u.status || "Active")}
                           </span>
                         </td>
 
@@ -206,29 +239,42 @@ export default function UserList() {
 
                         <td>
                           <div className="table-actions">
-                            {/** FIX: đúng path /admin/users/:id/edit */}
                             <Link
-                              to={`/admin/users/${u.id}/edit`}
+                              to={`/users/${u.id}/edit`}
                               className="btn btn-outline"
                             >
-                              Edit
+                              Sửa
                             </Link>
 
-                            {u.status === "Active" ? (
+                            {u.role === "admin" ? (
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  opacity: 0.7,
+                                  marginLeft: 8,
+                                }}
+                              >
+                                Không thể đổi trạng thái Admin
+                              </span>
+                            ) : u.status === "Active" ? (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-danger"
-                                onClick={() => handleToggle(u.id, u.status)}
+                                onClick={() =>
+                                  handleToggle(u.id, u.status, u.role)
+                                }
                               >
-                                Deactivate
+                                Ngừng hoạt động
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 className="btn btn-primary"
-                                onClick={() => handleToggle(u.id, u.status)}
+                                onClick={() =>
+                                  handleToggle(u.id, u.status, u.role)
+                                }
                               >
-                                Activate
+                                Kích hoạt
                               </button>
                             )}
                           </div>
@@ -247,11 +293,11 @@ export default function UserList() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
                 >
-                  Previous
+                  Trước
                 </button>
 
                 <span>
-                  Page {page} of {totalPages} (Total: {totalItems} users)
+                  Trang {page} / {totalPages} (Tổng: {totalItems} người dùng)
                 </span>
 
                 <button
@@ -260,24 +306,23 @@ export default function UserList() {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
                 >
-                  Next
+                  Sau
                 </button>
               </div>
             )}
           </>
         ) : (
           <div className="empty-state">
-            <div className="empty-state-title">No users found</div>
+            <div className="empty-state-title">Không tìm thấy người dùng</div>
 
             <div className="empty-state-subtitle">
               {search || statusFilter !== "all" || roleFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Get started by creating a new user"}
+                ? "Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm"
+                : "Bắt đầu bằng cách tạo mới một người dùng"}
             </div>
 
-            {/** FIX: đúng path */}
-            <Link to="/admin/users/create" className="btn btn-primary">
-              Add User
+            <Link to="/users/create" className="btn btn-primary">
+              Thêm người dùng
             </Link>
           </div>
         )}

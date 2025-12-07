@@ -47,7 +47,6 @@ export default function UserForm({
   const [imagePreview, setImagePreview] = useState(null);
   const [loadingRoles, setLoadingRoles] = useState(true);
 
-  // Load roles
   useEffect(() => {
     const loadRoles = async () => {
       try {
@@ -63,13 +62,10 @@ export default function UserForm({
     loadRoles();
   }, []);
 
-  // Helper: resolve roleId từ initialValues + list roles
   const resolveRoleIdFromInitial = (iv, roleList) => {
     if (!iv) return "";
-    // ưu tiên roleId nếu backend trả về
     let resolved = iv.roleId ?? iv.roleID ?? null;
 
-    // nếu không có roleId nhưng có tên role thì map sang
     if (!resolved && roleList && roleList.length) {
       const roleName =
         iv.roleName || iv.role || iv.role_name || iv.role_name_en || null;
@@ -90,7 +86,6 @@ export default function UserForm({
     return resolved ? resolved.toString() : "";
   };
 
-  // Set initial values (phụ thuộc cả initialValues và roles)
   useEffect(() => {
     if (initialValues) {
       const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
@@ -126,24 +121,23 @@ export default function UserForm({
     }
   }, [initialValues, roles]);
 
-  // Validation
   const errors = useMemo(() => {
     const issues = {};
-    if (!form.name.trim()) issues.name = "Name is required";
+    if (!form.name.trim()) issues.name = "Tên không được để trống";
 
     if (!form.email.trim()) {
-      issues.email = "Email is required";
+      issues.email = "Email không được để trống";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      issues.email = "Invalid email format";
+      issues.email = "Email không đúng định dạng";
     }
 
     if (!isEdit && !form.password.trim()) {
-      issues.password = "Password is required";
+      issues.password = "Mật khẩu không được để trống";
     } else if (form.password && form.password.length < 8) {
-      issues.password = "Password must be at least 8 characters";
+      issues.password = "Mật khẩu phải có ít nhất 8 ký tự";
     }
 
-    if (!form.roleId) issues.roleId = "Role is required";
+    if (!form.roleId) issues.roleId = "Vui lòng chọn vai trò";
 
     return issues;
   }, [form, isEdit]);
@@ -197,7 +191,7 @@ export default function UserForm({
     event.preventDefault();
 
     if (!form.roleId || isNaN(parseInt(form.roleId))) {
-      alert("Role is required!");
+      alert("Vui lòng chọn vai trò!");
       return;
     }
 
@@ -226,11 +220,18 @@ export default function UserForm({
   };
 
   const resolvedSubmitLabel =
-    submitLabel || (isEdit ? "Update User" : "Create User");
+    submitLabel || (isEdit ? "Cập nhật người dùng" : "Tạo người dùng");
+
+  const displayStatus =
+    form.status === "Active"
+      ? "Đang hoạt động"
+      : form.status === "Inactive"
+      ? "Không hoạt động"
+      : form.status;
 
   return (
     <form onSubmit={handleSubmit} className="form-grid">
-      <Field label="Name" name="name" error={errors.name} required>
+      <Field label="Họ và tên" name="name" error={errors.name} required>
         <input
           id="name"
           name="name"
@@ -238,7 +239,7 @@ export default function UserForm({
           onChange={handleChange}
           className="input"
           disabled={submitting}
-          placeholder="Enter full name"
+          placeholder="Nhập họ và tên"
         />
       </Field>
 
@@ -251,12 +252,12 @@ export default function UserForm({
           onChange={handleChange}
           className="input"
           disabled={submitting}
-          placeholder="Enter email"
+          placeholder="Nhập email"
         />
       </Field>
 
       <Field
-        label="Password"
+        label="Mật khẩu"
         name="password"
         error={errors.password}
         required={!isEdit}
@@ -271,15 +272,15 @@ export default function UserForm({
           disabled={submitting}
           placeholder={
             isEdit
-              ? "Leave blank to keep current password"
-              : "Enter password (min 8 characters)"
+              ? "Để trống nếu không muốn đổi mật khẩu"
+              : "Nhập mật khẩu (tối thiểu 8 ký tự)"
           }
         />
       </Field>
 
       <div className="form-grid double">
         {/* ROLE */}
-        <Field label="Role" name="roleId" error={errors.roleId} required>
+        <Field label="Vai trò" name="roleId" error={errors.roleId} required>
           <select
             id="roleId"
             name="roleId"
@@ -288,7 +289,7 @@ export default function UserForm({
             className="select"
             disabled={submitting || loadingRoles}
           >
-            <option value="">Select a role</option>
+            <option value="">Chọn vai trò</option>
             {roles.map((role, idx) => (
               <option
                 key={role.roleId || role.id || idx}
@@ -301,18 +302,18 @@ export default function UserForm({
         </Field>
 
         {/* STATUS READONLY */}
-        <Field label="Status" name="status">
+        <Field label="Trạng thái" name="status">
           <input
             id="status"
             name="status"
-            value={form.status}
+            value={displayStatus}
             className="input"
             readOnly
           />
         </Field>
       </div>
 
-      <Field label="Phone Number" name="phoneNumber">
+      <Field label="Số điện thoại" name="phoneNumber">
         <input
           id="phoneNumber"
           name="phoneNumber"
@@ -323,7 +324,7 @@ export default function UserForm({
         />
       </Field>
 
-      <Field label="Address" name="address">
+      <Field label="Địa chỉ" name="address">
         <input
           id="address"
           name="address"
@@ -334,7 +335,7 @@ export default function UserForm({
         />
       </Field>
 
-      <Field label="Date of Birth" name="dob">
+      <Field label="Ngày sinh" name="dob">
         <input
           id="dob"
           name="dob"
@@ -346,7 +347,7 @@ export default function UserForm({
         />
       </Field>
 
-      <Field label="Profile Image" name="image">
+      <Field label="Ảnh đại diện" name="image">
         <div>
           <input
             id="image"
@@ -361,7 +362,7 @@ export default function UserForm({
             <div style={{ marginTop: "8px" }}>
               <img
                 src={imagePreview}
-                alt="Preview"
+                alt="Xem trước ảnh"
                 style={{
                   maxWidth: "200px",
                   maxHeight: "200px",
@@ -382,7 +383,7 @@ export default function UserForm({
           onClick={handleReset}
           disabled={submitting}
         >
-          Reset
+          Làm mới
         </button>
 
         <button
@@ -390,7 +391,7 @@ export default function UserForm({
           className="btn btn-primary"
           disabled={submitting || Object.keys(errors).length > 0}
         >
-          {submitting ? "Saving..." : resolvedSubmitLabel}
+          {submitting ? "Đang lưu..." : resolvedSubmitLabel}
         </button>
       </div>
     </form>

@@ -13,8 +13,7 @@ export default function UserCreate() {
 
       await UserAPI.create(payload);
 
-      alert("User created successfully");
-      // FIX: quay về đúng route /admin/users
+      alert("Thêm tài khoản thành công");
       navigate("/admin/users");
     } catch (err) {
       console.error(err);
@@ -33,8 +32,8 @@ export default function UserCreate() {
       <div className="panel">
         <header className="page-header">
           <div>
-            <h1 className="page-title">Add User</h1>
-            <p className="page-subtitle">Create a new user account</p>
+            <h1 className="page-title">Thêm tài khoản</h1>
+            <p className="page-subtitle">Thêm người dùng mới</p>
           </div>
           <div className="actions">
             <Link to="/admin/users" className="btn btn-ghost">

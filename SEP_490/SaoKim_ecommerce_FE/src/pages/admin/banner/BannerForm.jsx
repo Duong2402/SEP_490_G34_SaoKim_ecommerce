@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
 
+const toInputDate = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return "";
+};
+
 export default function BannerForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -11,6 +18,8 @@ export default function BannerForm() {
     imageUrl: "",
     linkUrl: "",
     isActive: true,
+    startDate: "",
+    endDate: "",
   });
   const [loading, setLoading] = useState(!!id);
 
@@ -20,11 +29,14 @@ export default function BannerForm() {
     const load = async () => {
       try {
         const data = await BannerAPI.getById(id);
+
         setForm({
           title: data.title ?? "",
           imageUrl: data.imageUrl ?? "",
           linkUrl: data.linkUrl ?? "",
           isActive: data.isActive ?? true,
+          startDate: toInputDate(data.startDate),
+          endDate: toInputDate(data.endDate),
         });
       } catch (err) {
         console.error(err);
@@ -51,15 +63,20 @@ export default function BannerForm() {
       imageUrl: form.imageUrl?.trim() || "",
       linkUrl: form.linkUrl?.trim() || null,
       isActive: !!form.isActive,
+      startDate: form.startDate || null,
+      endDate: form.endDate || null,
     };
 
-  
     if (!payload.title) {
       alert("Vui lòng nhập tiêu đề");
       return;
     }
     if (!payload.imageUrl) {
       alert("Vui lòng nhập URL ảnh");
+      return;
+    }
+    if (!payload.endDate) {
+      alert("Vui lòng chọn ngày hết hạn banner");
       return;
     }
 
@@ -129,6 +146,24 @@ export default function BannerForm() {
             value={form.linkUrl}
             onChange={handleChange("linkUrl")}
             placeholder="Có thể để trống"
+          />
+        </div>
+
+        <div>
+          <label>Ngày bắt đầu</label>
+          <input
+            type="date"
+            value={form.startDate}
+            onChange={handleChange("startDate")}
+          />
+        </div>
+
+        <div>
+          <label>Ngày hết hạn</label>
+          <input
+            type="date"
+            value={form.endDate}
+            onChange={handleChange("endDate")}
           />
         </div>
 

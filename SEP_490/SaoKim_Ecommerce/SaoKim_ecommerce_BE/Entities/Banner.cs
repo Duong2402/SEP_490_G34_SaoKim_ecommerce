@@ -21,5 +21,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
 }
