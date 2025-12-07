@@ -9,7 +9,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/customer/orders")]
-    [Authorize] // bắt buộc đăng nhập
+    [Authorize]
     public class CustomerOrdersController : ControllerBase
     {
         private readonly ICustomerOrderService _service;
@@ -21,7 +21,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         private int? GetCurrentUserId()
         {
-            // Login hiện tại set claim "UserId" trong AuthController
             var userIdClaim = User.FindFirst("UserId") ?? User.FindFirst("userId");
             if (userIdClaim == null) return null;
 

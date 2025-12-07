@@ -5,7 +5,7 @@
 namespace SaoKim_ecommerce_BE.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateSaoKimModel : Migration
+    public partial class DatabaseUpdate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

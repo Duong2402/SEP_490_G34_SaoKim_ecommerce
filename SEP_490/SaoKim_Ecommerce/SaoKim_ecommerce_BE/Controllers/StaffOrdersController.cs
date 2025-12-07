@@ -14,7 +14,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/staff/orders")]
-    [AllowAnonymous] // tạm thời; sau này dùng [Authorize(Roles="staff,admin,...")]
+    [Authorize(Roles = "staff")]
     public class StaffOrdersController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
@@ -36,10 +36,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             public string Status { get; set; } = string.Empty;
         }
 
-        // =========================================================
-        // 1) LIST ORDERS CHO STAFF
-        // GET /api/staff/orders
-        // =========================================================
         [HttpGet]
         public async Task<IActionResult> GetList(
             [FromQuery] string? q = null,
@@ -60,7 +56,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .Include(o => o.Invoice)
                 .Where(o => o.Customer.DeletedAt == null);
 
-            // Search theo id / tên KH / email / phone
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = q.Trim().ToLower();
@@ -71,21 +66,18 @@ namespace SaoKim_ecommerce_BE.Controllers
                     (o.Customer.PhoneNumber != null && o.Customer.PhoneNumber.ToLower().Contains(term)));
             }
 
-            // Filter status
             if (!string.IsNullOrWhiteSpace(status))
             {
                 var st = status.Trim().ToLower();
                 baseQuery = baseQuery.Where(o => o.Status.ToLower() == st);
             }
 
-            // Filter createdFrom / createdTo
             if (createdFrom.HasValue)
                 baseQuery = baseQuery.Where(o => o.CreatedAt >= createdFrom.Value);
 
             if (createdTo.HasValue)
                 baseQuery = baseQuery.Where(o => o.CreatedAt < createdTo.Value);
 
-            // Sort
             var desc = sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase);
             baseQuery = (sortBy ?? "").ToLower() switch
             {
@@ -121,7 +113,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     o.Total,
                     o.Status,
                     o.CreatedAt,
-                    o.PaymentMethod,              // thêm
+                    o.PaymentMethod,              
                     HasInvoice = o.Invoice != null,
                     InvoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
                 })
@@ -146,7 +138,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 total = o.Total,
                 status = o.Status,
                 createdAt = o.CreatedAt,
-                paymentMethod = o.PaymentMethod,   // cho FE staff dùng
+                paymentMethod = o.PaymentMethod,   
                 hasInvoice = o.HasInvoice,
                 invoiceId = o.InvoiceId,
                 dispatchConfirmed = confirmedRefs.Contains(o.ReferenceNo)
@@ -162,10 +154,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // =========================================================
-        // 2) ORDER DETAIL CHO STAFF
-        // GET /api/staff/orders/{id}
-        // =========================================================
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -186,13 +174,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 status = order.Status,
                 createdAt = order.CreatedAt,
 
-                // customer
                 customerId = order.UserId,
                 customerName = order.Customer?.Name,
                 customerEmail = order.Customer?.Email,
                 customerPhone = order.Customer?.PhoneNumber,
 
-                // payment snapshot
                 payment = new
                 {
                     method = order.PaymentMethod,
@@ -201,7 +187,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     paidAt = order.PaidAt
                 },
 
-                // shipping snapshot lấy từ các cột shipping_*
                 shippingRecipientName = order.ShippingRecipientName,
                 shippingPhoneNumber = order.ShippingPhoneNumber,
                 shippingLine1 = order.ShippingLine1,
@@ -209,7 +194,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 shippingDistrict = order.ShippingDistrict,
                 shippingProvince = order.ShippingProvince,
 
-                // invoice
                 invoice = order.Invoice == null
                     ? null
                     : new
@@ -221,7 +205,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                         createdAt = order.Invoice.CreatedAt
                     },
 
-                // items
                 items = order.Items.Select(i => new
                 {
                     i.OrderItemId,
@@ -238,9 +221,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
 
-        // =========================================================
-        // 3) UPDATE STATUS + AUTO CREATE INVOICE
-        // =========================================================
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest req)
         {
@@ -249,7 +229,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (string.IsNullOrWhiteSpace(rawStatus))
                 return BadRequest(new { message = "Status is required" });
 
-            // Chuẩn hóa text hiển thị tiếng Việt -> status nội bộ
             string NormalizeStatus(string s)
             {
                 if (string.Equals(s, "Hoàn tất", StringComparison.OrdinalIgnoreCase))
@@ -296,28 +275,20 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (order == null) return NotFound();
 
-            // Xác định loại thanh toán
-            // PaymentMethod: "QR" / "COD"
             var paymentMethod = (order.PaymentMethod ?? "").Trim().ToUpperInvariant();
             var isCod = paymentMethod == "COD";
             var isQr = paymentMethod == "QR";
 
-            // Đơn QR không cho set sang Paid (đã trả trước)
             if (isQr && IsPaid(newStatus))
             {
                 return BadRequest(new { message = "Đơn thanh toán QR không có bước 'Đã thanh toán' riêng." });
             }
 
-            // Đơn COD: không cho nhảy thẳng sang Completed nếu chưa Paid
             if (isCod && IsCompleted(newStatus) && !IsPaid(order.Status))
             {
                 return BadRequest(new { message = "Đơn COD phải chuyển sang 'Đã thanh toán' trước khi hoàn tất." });
             }
 
-            // =====================================================
-            // BẮT BUỘC KHO PHẢI XÁC NHẬN PHIẾU XUẤT TRƯỚC
-            // KHI STAFF ĐƯỢC PHÉP ĐỔI TRẠNG THÁI (TRỪ KHI HỦY ĐƠN)
-            // =====================================================
             var isCancelling = string.Equals(newStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
 
             if (!isCancelling)
@@ -337,20 +308,13 @@ namespace SaoKim_ecommerce_BE.Controllers
                 }
             }
 
-            // Nếu đơn đã hoàn tất thì không cho đổi sang trạng thái khác (trừ việc set lại Completed chính nó)
             if (IsCompleted(order.Status) && !IsCompleted(newStatus))
             {
                 return BadRequest(new { message = "Completed order cannot change status." });
             }
 
-            // Cập nhật trạng thái
             order.Status = newStatus;
 
-            // =========================
-            // TẠO HÓA ĐƠN THEO LUỒNG
-            // =========================
-            // Cả QR và COD: chỉ tạo invoice khi trạng thái mới là Completed
-            // (COD vẫn bị ép phải đi qua Paid trước Completed ở trên)
             bool shouldCreateInvoice = IsCompleted(newStatus) && order.Invoice == null;
 
             if (shouldCreateInvoice)
@@ -416,10 +380,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return NoContent();
         }
 
-        // =========================================================
-        // 4) LẤY ITEMS CHO 1 ORDER
-        // GET /api/staff/orders/{id}/items
-        // =========================================================
         [HttpGet("{id:int}/items")]
         public async Task<IActionResult> GetItems(int id)
         {
@@ -451,10 +411,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-        // =========================================================
-        // 5) XÓA ĐƠN ĐÃ HỦY
-        // DELETE /api/staff/orders/{id}
-        // =========================================================
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {

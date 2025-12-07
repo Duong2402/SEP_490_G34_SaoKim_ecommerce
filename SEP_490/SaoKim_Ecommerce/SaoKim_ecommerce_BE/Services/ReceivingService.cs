@@ -440,7 +440,6 @@ namespace SaoKim_ecommerce_BE.Services
             _db.ReceivingSlipItems.Remove(item);
             await _db.SaveChangesAsync();
 
-            // trả ra để controller dùng bắn SignalR
             return (slipId, deletedItemId);
         }
         public async Task<int> ImportReceivingSlipsAsync(Stream excelStream, string actor = "warehouse-manager")

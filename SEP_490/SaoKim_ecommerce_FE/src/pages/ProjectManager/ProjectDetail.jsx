@@ -1133,7 +1133,7 @@ function ProjectDetail() {
                         const dayEntry = dayPickerTask.days?.find((entry) => entry.date === key);
                         const inRange = isInTaskRange(dayPickerTask, date);
                         const statusColor = dayEntry ? STATUS_COLORS[dayEntry.status] || DEFAULT_CELL_COLOR : undefined;
-                        const bg = statusColor || (inRange ? "rgba(59,130,246,0.10)" : "#fff");
+                        const bg = statusColor || (inRange ? "rgba(78, 52, 226, 1)" : "#fff");
                         return (
                           <button
                             key={key}

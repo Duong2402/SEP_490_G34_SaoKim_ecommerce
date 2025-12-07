@@ -62,8 +62,6 @@ namespace SaoKim_ecommerce_BE.Data
             }
 
 
-
-
             // Lấy id danh mục cần dùng
             var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();
 

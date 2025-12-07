@@ -20,9 +20,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         Task DeactivateAsync(int id);
 
-        /// <summary>
-        /// Validate + tính toán mã giảm giá cho một đơn hàng cụ thể.
-        /// </summary>
         Task<CouponApplyResultDto> ValidateForOrderAsync(string code, decimal orderSubtotal, int userId);
     }
 }

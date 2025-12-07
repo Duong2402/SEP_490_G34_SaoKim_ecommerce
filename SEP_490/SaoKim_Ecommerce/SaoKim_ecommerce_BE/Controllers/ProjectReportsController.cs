@@ -1,18 +1,13 @@
-﻿// Controllers/ProjectReportsController.cs
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models;
 using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
 
-// Tránh xung đột với System.Threading.Tasks.TaskStatus
 using TaskStatusEnum = SaoKim_ecommerce_BE.Entities.TaskStatus;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -28,7 +23,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             _db = db;
         }
 
-        // GET: /api/projects/{id}/report  -> JSON
+        // GET: /api/projects/{id}/report
         [HttpGet("{id:int}/report")]
         public async Task<IActionResult> GetReportJson(int id)
         {
@@ -39,7 +34,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<ProjectReportDto>.Ok(dto));
         }
 
-        // GET: /api/projects/{id}/report/pdf  -> PDF file
+        // GET: /api/projects/{id}/report/pdf
         [HttpGet("{id:int}/report/pdf")]
         public async Task<IActionResult> GetReportPdf(int id)
         {
@@ -199,7 +194,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                             });
                         });
 
-                        // Financial Details
                         col.Item().PaddingTop(6).Grid(grid =>
                         {
                             grid.Columns(3);
@@ -227,7 +221,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                             });
                         });
 
-                        // Progress & Issues
                         col.Item().PaddingTop(8).Text("Progress & Milestones").SemiBold();
 
                         col.Item().Table(table =>
@@ -262,7 +255,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                             static IContainer Cell(IContainer c) => c.Padding(4);
                         });
 
-                        // Issues
                         col.Item().PaddingTop(8).Text("Issues (Delayed Tasks)").SemiBold();
                         if (dto.Issues != null && dto.Issues.Count > 0)
                         {
