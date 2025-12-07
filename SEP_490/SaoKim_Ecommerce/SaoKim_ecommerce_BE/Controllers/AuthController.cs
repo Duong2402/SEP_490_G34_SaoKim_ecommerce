@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
 
             if (await _context.Users.AnyAsync(u => u.Email == req.Email))
             {
-                ModelState.AddModelError("Email", "Email already exists");
+                ModelState.AddModelError("Email", "Email đã tồn tại");
                 return ValidationProblem(ModelState);
             }
             if (!AuthHelper.HasLetterAndDigit(req.Password))
@@ -104,9 +104,6 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            // dùng ILogger<AuthController> _logger để log cho chuẩn
-            // _logger.LogError(ex, "Register error");
-
             return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
         }
     }

@@ -68,7 +68,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ok)
                 return NotFound(ApiResponse<object>.Fail("Not found"));
 
-            // trả object rỗng cho đồng nhất kiểu generic
             return Ok(ApiResponse<object>.Ok(new { }));
         }
 

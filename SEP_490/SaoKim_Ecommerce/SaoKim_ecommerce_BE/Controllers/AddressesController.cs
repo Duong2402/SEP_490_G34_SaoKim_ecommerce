@@ -45,7 +45,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             return null;
         }
 
-        // Helper: gọi Google Geocoding để lấy lat/lng từ chuỗi địa chỉ
         private async Task<(double? lat, double? lng)> GeocodeAsync(string address)
         {
             if (string.IsNullOrWhiteSpace(_googleApiKey))
@@ -141,7 +140,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(list);
         }
 
-        // POST /api/addresses  => tạo địa chỉ mới
+        // POST /api/addresses  
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateAddressRequest req)
         {
@@ -150,7 +149,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            // nếu set default thì bỏ default cũ
             if (req.IsDefault)
             {
                 var prev = await _db.Addresses
@@ -175,7 +173,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 CreateAt = DateTime.UtcNow
             };
 
-            // Luôn thử geocode nếu thiếu toạ độ
             if (entity.Latitude == null || entity.Longitude == null)
             {
                 var fullAddress =
@@ -208,7 +205,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
-        // PUT /api/addresses/{id}  => cập nhật địa chỉ
+        // PUT /api/addresses/{id}
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] AddressUpdateRequest req)
         {
@@ -221,7 +218,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(a => a.AddressId == id && a.UserId == userId);
             if (entity == null) return NotFound();
 
-            // xử lý default
             if (req.IsDefault && !entity.IsDefault)
             {
                 var prev = await _db.Addresses

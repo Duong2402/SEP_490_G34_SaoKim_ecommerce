@@ -29,7 +29,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             var query = _db.Coupons.AsNoTracking().AsQueryable();
 
-            // Tìm kiếm theo code / name
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var s = q.Trim().ToLower();
@@ -38,13 +37,11 @@ namespace SaoKim_ecommerce_BE.Services
                     x.Code.ToLower().Contains(s));
             }
 
-            // Lọc theo Status thô (Active/Inactive/…)
             if (!string.IsNullOrWhiteSpace(status))
             {
                 query = query.Where(x => x.Status == status);
             }
 
-            // Sort
             sortBy = sortBy?.ToLower() ?? "createdat";
             sortDir = sortDir?.ToLower() ?? "desc";
 
@@ -78,7 +75,6 @@ namespace SaoKim_ecommerce_BE.Services
             var items = entities
                 .Select(c =>
                 {
-                    // Tính trạng thái hiển thị
                     var effectiveStatus = c.Status;
                     if (c.EndDate.HasValue && c.EndDate.Value < now && c.Status != "Inactive")
                     {
@@ -286,7 +282,6 @@ namespace SaoKim_ecommerce_BE.Services
                 return result;
             }
 
-            // Giới hạn số lần dùng / user
             if (coupon.PerUserLimit.HasValue && coupon.PerUserLimit.Value > 0 && userId > 0)
             {
                 var usedCount = await _db.Orders

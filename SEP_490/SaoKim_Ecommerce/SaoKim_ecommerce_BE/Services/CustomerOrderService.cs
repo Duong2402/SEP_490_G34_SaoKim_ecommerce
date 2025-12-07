@@ -19,7 +19,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<CustomerOrderDetailDto?> GetOrderDetailAsync(int orderId, int currentUserId)
         {
-            // 1) Lấy order + items + product + invoice, đảm bảo đúng owner
             var order = await _db.Orders
                 .AsNoTracking()
                 .Include(o => o.Items)
@@ -35,14 +34,12 @@ namespace SaoKim_ecommerce_BE.Services
                 .Distinct()
                 .ToList();
 
-            // 2) Lấy detail mới nhất cho mỗi product để lấy image + unit
             var detailDict = await _db.ProductDetails
                 .Where(d => productIds.Contains(d.ProductID))
                 .GroupBy(d => d.ProductID)
                 .Select(g => g.OrderByDescending(d => d.Id).First())
                 .ToDictionaryAsync(d => d.ProductID, d => d);
 
-            // 3) Map items
             var items = order.Items
                 .Select(i =>
                 {
@@ -63,7 +60,6 @@ namespace SaoKim_ecommerce_BE.Services
                 })
                 .ToList();
 
-            // 4) Shipping snapshot (đọc trực tiếp từ Order)
             var shipping = new CustomerOrderAddressDto
             {
                 RecipientName = order.ShippingRecipientName,
@@ -74,7 +70,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Province = order.ShippingProvince
             };
 
-            // 5) Payment info (ưu tiên cột mới, fallback từ Status/Invoice)
             static bool LooksPaid(string value)
             {
                 var v = (value ?? string.Empty).Trim().ToLowerInvariant();
@@ -114,7 +109,6 @@ namespace SaoKim_ecommerce_BE.Services
                 TransactionCode = order.PaymentTransactionCode
             };
 
-            // 6) Invoice (nếu có)
             CustomerOrderInvoiceDto? invoiceDto = null;
             if (order.Invoice != null)
             {
@@ -129,7 +123,6 @@ namespace SaoKim_ecommerce_BE.Services
                 };
             }
 
-            // 7) Map DTO tổng
             var dto = new CustomerOrderDetailDto
             {
                 OrderId = order.OrderId,

@@ -147,7 +147,7 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
 
             var notFound = Assert.IsType<NotFoundObjectResult>(result);
             var msg = GetMessageFromResult(notFound.Value!);
-            Assert.Equal("User not found", msg);
+            Assert.Equal("Không tìm thấy người dùng", msg);
         }
 
         [Fact]
@@ -203,7 +203,7 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
 
             var notFound = Assert.IsType<NotFoundObjectResult>(result);
             var msg = GetMessageFromResult(notFound.Value!);
-            Assert.Equal("User not found", msg);
+            Assert.Equal("Không tìm thấy người dùng", msg);
         }
 
         [Fact]
@@ -300,7 +300,7 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
 
             var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result);
             var msg = GetMessageFromResult(unauthorized.Value!);
-            Assert.Equal("User not logged in", msg);
+            Assert.Equal("Chưa đăng nhập", msg);
         }
 
         [Fact]
@@ -313,7 +313,7 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
 
             var notFound = Assert.IsType<NotFoundObjectResult>(result);
             var msg = GetMessageFromResult(notFound.Value!);
-            Assert.Equal("User not found", msg);
+            Assert.Equal("Không tìm thấy người dùng", msg);
         }
 
         [Fact]

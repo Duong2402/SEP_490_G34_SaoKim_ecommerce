@@ -17,7 +17,6 @@ namespace SaoKim_ecommerce_BE.Controllers
     [ApiController]
     [Route("api/manager/employees")]
     [Authorize(Roles = "manager")]
-    // Nếu hệ thống auth/role chưa set xong, m có thể tạm đổi thành [AllowAnonymous] để test
     public class ManagerEmployeesController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
@@ -58,34 +57,25 @@ namespace SaoKim_ecommerce_BE.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            // Đường dẫn lưu vào DB, FE sẽ build URL dựa trên VITE_API_BASE_URL
             return $"/uploads/{fileName}";
         }
 
-        // Rule: Manager không được sửa Admin
         private IQueryable<User> EmployeesBaseQuery()
         {
-            // Soft delete: bỏ user có DeletedAt != null
             var query = _db.Users
                 .Include(u => u.Role)
                 .Where(u => u.DeletedAt == null);
-
-            // Nếu m muốn giới hạn “nhân viên” là các role cụ thể, có thể filter thêm:
-            // var employeeRoles = new[] { "Staff", "WarehouseManager", "CustomerService" };
-            // query = query.Where(u => u.Role != null && employeeRoles.Contains(u.Role.Name));
 
             return query;
         }
 
         private bool IsProtectedUser(User user)
         {
-            // Bảo vệ các tài khoản đặc biệt, ví dụ Admin
             if (user.Role?.Name == "Admin")
                 return true;
             return false;
         }
 
-        // Chuẩn hóa DateTime trước khi ghi vào PostgreSQL (timestamptz yêu cầu Kind = Utc)
         private static DateTime? ToUtc(DateTime? value)
         {
             if (!value.HasValue) return null;
@@ -93,7 +83,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             var dt = value.Value;
             if (dt.Kind == DateTimeKind.Unspecified)
             {
-                // Xem date FE gửi lên là UTC; nếu muốn coi là local VN thì đổi sang ToUniversalTime()
                 return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
             }
 
@@ -102,7 +91,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return dt.ToUniversalTime();
             }
 
-            return dt; // đã là Utc
+            return dt; 
         }
 
         #endregion
@@ -167,7 +156,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         #endregion
 
         // GET /api/manager/employees
-        // Cho Manager xem danh sách nhân viên
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? q,
@@ -231,7 +219,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var u = await EmployeesBaseQuery()
                 .FirstOrDefaultAsync(x => x.UserID == id);
 
-            if (u == null) return NotFound(new { message = "Employee not found" });
+            if (u == null) return NotFound(new { message = "Không tìm thấy nhân viên" });
 
             return Ok(new
             {
@@ -250,7 +238,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // POST /api/manager/employees
-        // Manager tạo nhân viên mới
         [HttpPost]
         [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> CreateEmployee([FromForm] EmployeeCreateDto dto)
@@ -258,10 +245,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Check email trùng (chỉ tính user chưa bị xóa mềm)
             var exists = await _db.Users.AnyAsync(u => u.Email == dto.Email && u.DeletedAt == null);
             if (exists)
-                return Conflict(new { message = "Email already exists" });
+                return Conflict(new { message = "Email đã tồn tại" });
 
             var user = new User
             {
@@ -288,13 +274,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new
             {
-                message = "Employee created",
+                message = "Nhân viên tạo thành công",
                 id = user.UserID
             });
         }
 
         // PUT /api/manager/employees/{id}
-        // Manager chỉnh sửa thông tin nhân viên
         [HttpPut("{id:int}")]
         [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> UpdateEmployee(int id, [FromForm] EmployeeUpdateDto dto)
@@ -304,15 +289,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(u => u.UserID == id && u.DeletedAt == null);
 
             if (user == null)
-                return NotFound(new { message = "Employee not found" });
+                return NotFound(new { message = "Không tìm thấy nhân viên" });
 
             if (IsProtectedUser(user))
-                return BadRequest(new { message = "You are not allowed to modify this account" });
+                return BadRequest(new { message = "Bạn không được phép chỉnh sửa thông tin tài khoản này" });
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            // Đổi email: check trùng
             if (!string.IsNullOrWhiteSpace(dto.Email) &&
                 !string.Equals(dto.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase))
             {
@@ -320,7 +304,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     u => u.Email == dto.Email && u.UserID != id && u.DeletedAt == null);
 
                 if (emailExists)
-                    return Conflict(new { message = "Email already exists" });
+                    return Conflict(new { message = "Email đã tồn tại" });
 
                 user.Email = dto.Email.Trim();
             }
@@ -362,11 +346,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             user.UpdateAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-            return Ok(new { message = "Employee updated" });
+            return Ok(new { message = "Nhân viên đã được cập nhật "});
         }
 
         // DELETE /api/manager/employees/{id}
-        // Manager ngưng / xóa nhân viên (soft delete)
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteEmployee(int id)
         {
@@ -375,23 +358,22 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .FirstOrDefaultAsync(u => u.UserID == id);
 
             if (user == null)
-                return NotFound(new { message = "Employee not found" });
+                return NotFound(new { message = "Không tìm thấy nhân viên" });
 
             if (IsProtectedUser(user))
-                return BadRequest(new { message = "You are not allowed to delete this account" });
+                return BadRequest(new { message = "Bạn không được phép xóa tài khoản này" });
 
             if (user.DeletedAt != null)
-                return BadRequest(new { message = "Employee already deleted" });
+                return BadRequest(new { message = "Nhân viên đã bị xóa" });
 
             user.DeletedAt = DateTime.UtcNow;
             user.Status = "Inactive";
 
             await _db.SaveChangesAsync();
-            return Ok(new { message = "Employee deleted" });
+            return Ok(new { message = "Nhân viên đã bị xóa" });
         }
 
         // GET /api/manager/employees/roles
-        // Nếu Manager cần dropdown role khi tạo/sửa nhân viên
         [HttpGet("roles")]
         public async Task<IActionResult> GetRolesForEmployees()
         {

@@ -90,7 +90,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             var role = User?.FindFirstValue(ClaimTypes.Role);
             var userIdStr = User?.FindFirstValue("UserId");
 
-            // Lấy project hiện tại để check quyền + giữ nguyên PM nếu cần
             var existing = await _service.GetByIdAsync(id);
             if (existing == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
 
@@ -99,11 +98,9 @@ namespace SaoKim_ecommerce_BE.Controllers
                 if (!int.TryParse(userIdStr, out var userId))
                     return Forbid();
 
-                // PM chỉ được sửa project của mình
                 if (!existing.ProjectManagerId.HasValue || existing.ProjectManagerId.Value != userId)
                     return Forbid();
 
-                // PM không được đổi PM của dự án
                 dto.ProjectManagerId = existing.ProjectManagerId;
             }
 
@@ -124,7 +121,6 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var role = User?.FindFirstValue(ClaimTypes.Role);
 
-            // Chỉ Manager/Admin được xóa
             if (!IsManager(role))
                 return Forbid();
 

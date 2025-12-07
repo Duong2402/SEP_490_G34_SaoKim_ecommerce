@@ -133,7 +133,6 @@ namespace SaoKim_ecommerce_BE.Services
                 DiscountType = discountTypeParsed,
                 DiscountValue = dto.DiscountValue,
 
-                // ép về UTC để tránh lỗi Npgsql (chỉ chấp nhận offset 0)
                 StartDate = dto.StartDate.ToUniversalTime(),
                 EndDate = dto.EndDate.ToUniversalTime(),
 
@@ -185,7 +184,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             entity.DiscountValue = dto.DiscountValue;
 
-            // ép về UTC
             entity.StartDate = dto.StartDate.ToUniversalTime();
             entity.EndDate = dto.EndDate.ToUniversalTime();
 
@@ -200,7 +198,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             entity.UpdatedAt = DateTimeOffset.UtcNow;
 
-            // Cập nhật danh sách sản phẩm nếu client gửi kèm
             if (dto.ProductIds != null)
             {
                 var validIds = await _db.Products
