@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faChevronDown,
-  faKey,
-  faRightFromBracket,
-  faUserPen,
-} from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faKey, faRightFromBracket, faUserPen } from "@fortawesome/free-solid-svg-icons";
 import StaffSidebar from "../components/StaffSidebar";
+import SaoKimLogo from "../components/SaoKimLogo";
 import "../styles/staff.css";
 
 const PAGE_TITLES = [
@@ -69,7 +65,7 @@ const StaffLayout = ({ children }) => {
   }, [userMenuOpen]);
 
   const handleLogout = () => {
-    if (!window.confirm("Bạn chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
     try {
       ["token", "userEmail", "userName", "role"].forEach((k) => localStorage.removeItem(k));
     } catch (err) {
@@ -93,11 +89,7 @@ const StaffLayout = ({ children }) => {
     <div className="staff-shell">
       <aside className="staff-sidebar" aria-label="Khu vực Nhân viên">
         <div className="staff-sidebar__brand">
-          <span className="staff-sidebar__mark">SK</span>
-          <div className="staff-sidebar__title">
-            <strong>Sao Kim Staff</strong>
-            <span>Vận hành bán hàng</span>
-          </div>
+          <SaoKimLogo size="large" showText title="Sao Kim Staff" tagline="Vận hành bán hàng" />
         </div>
 
         <StaffSidebar />
@@ -132,9 +124,7 @@ const StaffLayout = ({ children }) => {
                 aria-haspopup="true"
                 aria-expanded={userMenuOpen}
               >
-                <span className="staff-user__avatar">
-                  {getInitials(identity.name || identity.email)}
-                </span>
+                <span className="staff-user__avatar">{getInitials(identity.name || identity.email)}</span>
                 <span className="staff-user__meta">
                   {identity.name || "Nhân viên Sao Kim"}
                   <span>{identity.email}</span>
@@ -146,7 +136,7 @@ const StaffLayout = ({ children }) => {
                 <div className="staff-user__dropdown" role="menu">
                   <button type="button" onClick={goToProfile}>
                     <FontAwesomeIcon icon={faUserPen} className="me-2" />
-                    Cập nhật thông tin
+                    Hồ sơ cá nhân
                   </button>
                   <button type="button" onClick={goToChangePassword}>
                     <FontAwesomeIcon icon={faKey} className="me-2" />

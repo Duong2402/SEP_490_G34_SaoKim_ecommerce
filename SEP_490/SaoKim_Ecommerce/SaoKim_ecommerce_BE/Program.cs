@@ -66,7 +66,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddMemoryCache();
-
+builder.Services.AddHttpClient();
 // DI services
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -79,6 +79,8 @@ builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IReceivingService, ReceivingService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
+builder.Services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+
 
 
 // DbContext

@@ -4,6 +4,7 @@ import {
   faCog,
   faHome,
   faSearch,
+  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -29,7 +30,8 @@ import StaffLayout from "../../../layouts/StaffLayout";
 import useOrdersApi from "../api/useOrders";
 
 export default function ManageOrders() {
-  const { fetchOrders, updateOrderStatus, fetchOrderItems } = useOrdersApi();
+  const { fetchOrders, fetchOrderDetail, updateOrderStatus, deleteOrder } =
+    useOrdersApi();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -50,6 +52,9 @@ export default function ManageOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
   const [loadingOrderItems, setLoadingOrderItems] = useState(false);
+
+  const [cancellingOrderId, setCancellingOrderId] = useState(null);
+  const [deletingOrderId, setDeletingOrderId] = useState(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -81,7 +86,16 @@ export default function ManageOrders() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, status, createdFrom, createdTo, page, pageSize, sortBy, sortDir]);
+  }, [
+    debouncedSearch,
+    status,
+    createdFrom,
+    createdTo,
+    page,
+    pageSize,
+    sortBy,
+    sortDir,
+  ]);
 
   const renderStatus = (s) => {
     const v = String(s || "").toLowerCase();
@@ -91,12 +105,22 @@ export default function ManageOrders() {
           Chờ xử lý
         </Badge>
       );
-    if (v === "paid")
-      return <Badge bg="primary">Đang xử lý kho</Badge>;
+    if (v === "paid") return <Badge bg="primary">Đã thanh toán</Badge>;
     if (v === "shipping") return <Badge bg="info">Đang giao</Badge>;
     if (v === "completed") return <Badge bg="success">Hoàn tất</Badge>;
     if (v === "cancelled") return <Badge bg="secondary">Đã hủy</Badge>;
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
+  };
+
+  // dùng cả status + dispatchConfirmed để hiển thị đúng “Đang xử lý kho”
+  const renderStatusForRow = (order) => {
+    const v = String(order.status || "").toLowerCase();
+
+    if (v === "pending" && !order.dispatchConfirmed) {
+      return <Badge bg="primary">Đang xử lý kho</Badge>;
+    }
+
+    return renderStatus(order.status);
   };
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
@@ -106,27 +130,120 @@ export default function ManageOrders() {
       await load();
     } catch (e) {
       console.error(e);
-      alert("Không cập nhật được trạng thái đơn hàng");
+      alert(e?.message || "Không cập nhật được trạng thái đơn hàng");
     } finally {
       setUpdatingOrderId(null);
     }
   };
 
-  const handleViewOrderItems = async (order) => {
-    setSelectedOrder(order);
+  // phân biệt đơn COD
+  const isCodOrder = (order) => {
+    const m = String(
+      order.paymentMethod ||
+        order.PaymentMethod ||
+        order.payment?.method ||
+        order.Payment?.Method ||
+        ""
+    ).toLowerCase();
+    return m === "cod" || m === "cash_on_delivery";
+  };
+
+  // mở modal chi tiết: lấy luôn customer + shipping + payment + items
+  const handleViewOrderDetail = async (order) => {
     setShowOrderItemsModal(true);
     setLoadingOrderItems(true);
+    setSelectedOrder(order);
     setSelectedOrderItems([]);
 
     try {
-      const items = await fetchOrderItems(order.id);
+      const detail = await fetchOrderDetail(order.id);
+      setSelectedOrder(detail);
+      const items = detail.items || detail.Items || [];
       setSelectedOrderItems(items);
     } catch (e) {
       console.error(e);
-      alert("Không tải được danh sách sản phẩm của đơn hàng");
+      alert("Không tải được chi tiết đơn hàng");
     } finally {
       setLoadingOrderItems(false);
     }
+  };
+
+  const canCancel = (order) => {
+    if (!order) return false;
+    const s = String(order.status || "").toLowerCase();
+    return s === "pending" || s === "shipping" || s === "paid";
+  };
+
+  const handleCancelOrder = async (order) => {
+    if (!order || !canCancel(order)) return;
+
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
+
+    setCancellingOrderId(order.id);
+    try {
+      await updateOrderStatus(order.id, "Cancelled");
+      await load();
+
+      setSelectedOrder((prev) =>
+        prev && prev.id === order.id ? { ...prev, status: "Cancelled" } : prev
+      );
+    } catch (e) {
+      console.error(e);
+      alert("Không hủy được đơn hàng");
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    if (!order) return;
+
+    const status = String(order.status || "").toLowerCase();
+    if (status !== "cancelled") {
+      alert("Chỉ được xóa đơn hàng đã ở trạng thái Đã hủy");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Xóa vĩnh viễn đơn hàng này? Hành động không thể hoàn tác."
+      )
+    )
+      return;
+
+    setDeletingOrderId(order.id);
+    try {
+      await deleteOrder(order.id);
+      setShowOrderItemsModal(false);
+      await load();
+    } catch (e) {
+      console.error(e);
+      alert("Không xóa được đơn hàng");
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
+  // Nhận luôn cả order, tự lôi ra paymentMethod và fallback COD nếu trống
+  const paymentMethodLabel = (order) => {
+    const raw =
+      order?.paymentMethod ||
+      order?.PaymentMethod ||
+      order?.payment?.method ||
+      order?.Payment?.Method ||
+      "";
+
+    const v = raw.toString().toLowerCase();
+
+    if (!v || v === "cod" || v === "cash_on_delivery") {
+      return "Thanh toán khi nhận hàng (COD)";
+    }
+
+    if (v === "qr" || v === "bank_transfer_qr") {
+      return "Chuyển khoản qua QR";
+    }
+
+    return raw;
   };
 
   return (
@@ -137,7 +254,10 @@ export default function ManageOrders() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-dashboard" }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Đơn hàng</Breadcrumb.Item>
@@ -145,7 +265,9 @@ export default function ManageOrders() {
           </Breadcrumb>
 
           <h4 className="staff-page-title">Quản lý đơn hàng</h4>
-          <p className="staff-page-lead">Lọc, cập nhật trạng thái và theo dõi chi tiết đơn</p>
+          <p className="staff-page-lead">
+            Lọc, cập nhật trạng thái và theo dõi chi tiết đơn
+          </p>
         </div>
       </div>
 
@@ -219,7 +341,12 @@ export default function ManageOrders() {
 
           <Col md="auto" className="ms-auto">
             <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+              <Dropdown.Toggle
+                split
+                as={Button}
+                variant="link"
+                className="text-dark m-0 p-0"
+              >
                 <FontAwesomeIcon icon={faCog} />
               </Dropdown.Toggle>
               <Dropdown.Menu>
@@ -234,7 +361,9 @@ export default function ManageOrders() {
                     }}
                   >
                     {n} dòng
-                    {pageSize === n && <FontAwesomeIcon icon={faCheck} className="ms-2" />}
+                    {pageSize === n && (
+                      <FontAwesomeIcon icon={faCheck} className="ms-2" />
+                    )}
                   </Dropdown.Item>
                 ))}
 
@@ -308,59 +437,103 @@ export default function ManageOrders() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((o, idx) => (
-                <tr key={o.id}>
-                  <td>{(page - 1) * pageSize + idx + 1}</td>
-                  <td>{o.id}</td>
-                  <td>
-                    <div>{o.customerName}</div>
-                    <div className="small text-muted">
-                      {o.customerEmail} {o.customerPhone && ` / ${o.customerPhone}`}
-                    </div>
-                  </td>
-                  <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
-                  <td>{renderStatus(o.status)}</td>
-                  <td>{formatDate(o.createdAt)}</td>
-                  <td className="text-end">
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      className="me-2"
-                      onClick={() => handleViewOrderItems(o)}
-                    >
-                      Xem sản phẩm
-                    </Button>
+              {rows.map((o, idx) => {
+                const canShip = Boolean(o.dispatchConfirmed);
+                const disableShip = updatingOrderId === o.id || !canShip;
+                const cod = isCodOrder(o);
 
-                    {o.status === "Pending" && (
+                return (
+                  <tr key={o.id}>
+                    <td>{(page - 1) * pageSize + idx + 1}</td>
+                    <td>{o.id}</td>
+                    <td>
+                      <div>{o.customerName}</div>
+                      <div className="small text-muted">
+                        {o.customerEmail}{" "}
+                        {o.customerPhone && ` / ${o.customerPhone}`}
+                      </div>
+                    </td>
+                    <td>{(o.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+
+                    <td>{renderStatusForRow(o)}</td>
+
+                    <td>{formatDate(o.createdAt)}</td>
+                    <td className="text-end">
                       <Button
                         size="sm"
-                        variant="outline-secondary"
-                        disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Shipping")}
+                        variant="outline-primary"
+                        className="me-2"
+                        onClick={() => handleViewOrderDetail(o)}
+                        title="Xem chi tiết đơn hàng"
                       >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Chuyển giao hàng"}
+                        <FontAwesomeIcon icon={faEye} />
                       </Button>
-                    )}
 
-                    {o.status === "Paid" && (
-                      <span className="text-muted small">
-                        Đang chờ kho xác nhận phiếu xuất
-                      </span>
-                    )}
+                      {o.status === "Pending" && (
+                        <div className="d-inline-flex flex-column align-items-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            disabled={disableShip}
+                            title={
+                              !canShip
+                                ? "Chờ kho xác nhận phiếu xuất"
+                                : undefined
+                            }
+                            onClick={() =>
+                              handleUpdateOrderStatus(o.id, "Shipping")
+                            }
+                          >
+                            {updatingOrderId === o.id
+                              ? "Đang lưu..."
+                              : "Chuyển giao hàng"}
+                          </Button>
+                          {!canShip && (
+                            <span className="text-muted small">
+                              Chờ kho xác nhận phiếu xuất
+                            </span>
+                          )}
+                        </div>
+                      )}
 
-                    {o.status === "Shipping" && (
-                      <Button
-                        size="sm"
-                        variant="outline-success"
-                        disabled={updatingOrderId === o.id}
-                        onClick={() => handleUpdateOrderStatus(o.id, "Completed")}
-                      >
-                        {updatingOrderId === o.id ? "Đang lưu..." : "Hoàn tất đơn"}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      {o.status === "Shipping" && (
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          disabled={updatingOrderId === o.id}
+                          onClick={() =>
+                            handleUpdateOrderStatus(
+                              o.id,
+                              cod ? "Paid" : "Completed"
+                            )
+                          }
+                        >
+                          {updatingOrderId === o.id
+                            ? "Đang lưu..."
+                            : cod
+                            ? "Xác nhận đã thanh toán"
+                            : "Hoàn tất đơn"}
+                        </Button>
+                      )}
+
+                      {o.status === "Paid" && cod && (
+                        <Button
+                          size="sm"
+                          variant="outline-success"
+                          disabled={updatingOrderId === o.id}
+                          onClick={() =>
+                            handleUpdateOrderStatus(o.id, "Completed")
+                          }
+                        >
+                          {updatingOrderId === o.id
+                            ? "Đang lưu..."
+                            : "Hoàn tất đơn"}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
 
               {!loading && rows.length === 0 && (
                 <tr>
@@ -377,19 +550,29 @@ export default function ManageOrders() {
               Trang {page} / {totalPages}
             </div>
             <Pagination>
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
+              <Pagination.Prev
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
               {renderPageItems(page, totalPages, setPage)}
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
-              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
+              <Pagination.Last
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              />
             </Pagination>
           </div>
         </Card.Body>
       </Card>
 
+      {/* MODAL CHI TIẾT ĐƠN */}
       <Modal
         show={showOrderItemsModal}
         onHide={() => setShowOrderItemsModal(false)}
@@ -398,42 +581,151 @@ export default function ManageOrders() {
       >
         <Modal.Header closeButton>
           <Modal.Title className="staff-modal__title">
-            Sản phẩm trong đơn #{selectedOrder?.id}
+            Chi tiết đơn hàng #{selectedOrder?.id}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
           {loadingOrderItems ? (
             <div className="d-flex align-items-center gap-2 my-3">
               <Spinner animation="border" size="sm" />
-              <span>Đang tải sản phẩm...</span>
+              <span>Đang tải chi tiết đơn...</span>
             </div>
-          ) : selectedOrderItems.length > 0 ? (
-            <Table hover responsive size="sm" className="mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Sản phẩm</th>
-                  <th>Số lượng</th>
-                  <th>Đơn giá</th>
-                  <th>Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedOrderItems.map((item, index) => (
-                  <tr key={item.orderItemId ?? index}>
-                    <td>{index + 1}</td>
-                    <td>{item.productName}</td>
-                    <td>{item.quantity}</td>
-                    <td>{(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫</td>
-                    <td>{(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
           ) : (
-            <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
+            <>
+              {/* Thông tin khách hàng */}
+              <section className="mb-3">
+                <h5>Thông tin khách hàng</h5>
+                <div>Khách hàng: {selectedOrder?.customerName}</div>
+                <div>Email: {selectedOrder?.customerEmail}</div>
+                <div>Số điện thoại: {selectedOrder?.customerPhone}</div>
+              </section>
+
+              {/* Địa chỉ giao hàng */}
+              <section className="mb-3">
+                <h5>Địa chỉ giao hàng</h5>
+                <div>
+                  Người nhận:{" "}
+                  {selectedOrder?.shippingRecipientName ||
+                    selectedOrder?.customerName}
+                </div>
+                <div>
+                  SĐT người nhận:{" "}
+                  {selectedOrder?.shippingPhoneNumber ||
+                    selectedOrder?.customerPhone}
+                </div>
+                <div>
+                  Địa chỉ:{" "}
+                  {[
+                    selectedOrder?.shippingLine1,
+                    selectedOrder?.shippingWard,
+                    selectedOrder?.shippingDistrict,
+                    selectedOrder?.shippingProvince,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </section>
+
+              {/* Thanh toán */}
+              <section className="mb-3">
+                <h5>Thanh toán</h5>
+                <div>Phương thức: {paymentMethodLabel(selectedOrder)}</div>
+              </section>
+
+              <hr />
+
+              {/* Sản phẩm trong đơn */}
+              <section>
+                <h5 className="mb-3">Sản phẩm trong đơn</h5>
+                {selectedOrderItems.length === 0 ? (
+                  <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
+                ) : (
+                  <Table hover responsive size="sm" className="mb-0">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Đơn giá</th>
+                        <th>Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrderItems.map((item, index) => (
+                        <tr key={item.orderItemId ?? index}>
+                          <td>{index + 1}</td>
+                          <td>{item.productName}</td>
+                          <td>{item.quantity}</td>
+                          <td>
+                            {(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
+                          </td>
+                          <td>
+                            {(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </section>
+            </>
           )}
         </Modal.Body>
+        <Modal.Footer>
+          <div className="w-100 d-flex justify-content-between align-items-center">
+            <div>
+              {selectedOrder && (
+                <>
+                  <div className="mb-1">
+                    Trạng thái hiện tại: {renderStatusForRow(selectedOrder)}
+                  </div>
+                  <div className="small text-muted">
+                    Tổng tiền:{" "}
+                    {(selectedOrder.total ?? 0).toLocaleString("vi-VN")} ₫
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="d-flex gap-2">
+              {selectedOrder && canCancel(selectedOrder) && (
+                <Button
+                  size="small"
+                  variant="outline-danger"
+                  disabled={cancellingOrderId === selectedOrder.id}
+                  onClick={() => handleCancelOrder(selectedOrder)}
+                >
+                  {cancellingOrderId === selectedOrder.id
+                    ? "Đang hủy..."
+                    : "Hủy đơn hàng"}
+                </Button>
+              )}
+
+              {selectedOrder &&
+                String(selectedOrder.status || "").toLowerCase() ===
+                  "cancelled" && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={deletingOrderId === selectedOrder.id}
+                    onClick={() => handleDeleteOrder(selectedOrder)}
+                  >
+                    {deletingOrderId === selectedOrder.id
+                      ? "Đang xóa..."
+                      : "Xóa đơn đã hủy"}
+                  </Button>
+                )}
+
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowOrderItemsModal(false)}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal.Footer>
       </Modal>
     </StaffLayout>
   );
@@ -470,19 +762,25 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

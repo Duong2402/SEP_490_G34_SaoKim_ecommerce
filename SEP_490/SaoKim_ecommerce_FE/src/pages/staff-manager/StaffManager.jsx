@@ -2,6 +2,7 @@ import {
   faCheck,
   faCog,
   faEdit,
+  faEye,
   faHome,
   faPlus,
   faSearch,
@@ -48,7 +49,11 @@ export default function ManageProduct() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingTable, setLoadingTable] = useState(false);
 
-  const { fetchProducts, deleteProduct, updateProductStatus } = useProductsApi();
+  // xem chi tiết
+  const [viewing, setViewing] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const { fetchProducts, deleteProduct, fetchProduct } = useProductsApi();
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async (opts) => {
@@ -95,7 +100,9 @@ export default function ManageProduct() {
   };
 
   const normalizeStatus = (status) =>
-    String(status || "").trim().toLowerCase();
+    String(status || "")
+      .trim()
+      .toLowerCase();
 
   const renderStatus = (status) => {
     const s = normalizeStatus(status);
@@ -116,14 +123,6 @@ export default function ManageProduct() {
       );
     }
 
-    if (s === "processing") {
-      return (
-        <Badge bg="warning" text="dark">
-          Đang luân chuyển
-        </Badge>
-      );
-    }
-
     return (
       <Badge bg="light" text="dark">
         {status || "Không xác định"}
@@ -131,12 +130,33 @@ export default function ManageProduct() {
     );
   };
 
-  const handleChangeStatus = async (product, newStatus) => {
+  // mở modal xem chi tiết: gọi API /api/Products/{id}
+  const handleView = async (id) => {
+    setLoadingDetail(true);
     try {
-      await updateProductStatus(product.id, newStatus);
-      await load();
-    } catch (err) {
-      alert("Cập nhật trạng thái thất bại: " + (err.message || err));
+      const res = await fetchProduct(id); // { product, related }
+      setViewing(res?.product || null);
+    } catch (e) {
+      console.error(e);
+      setViewing(null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // mở modal sửa: ưu tiên lấy detail đầy đủ trước
+  const handleStartEdit = async (row) => {
+    try {
+      const res = await fetchProduct(row.id);
+      const detail = res?.product || {};
+      setEditing({
+        ...row,
+        ...detail,
+      });
+    } catch (e) {
+      console.error(e);
+      // nếu lỗi thì vẫn cho sửa với data đang có
+      setEditing(row);
     }
   };
 
@@ -305,8 +325,8 @@ export default function ManageProduct() {
             </thead>
             <tbody>
               {(rows || []).map((p) => {
-                const statusNorm = normalizeStatus(p.status);
-                const isProcessing = statusNorm === "processing";
+                const inProject = !!p.inProject;
+                const canDelete = !inProject;
 
                 return (
                   <tr key={p.id}>
@@ -337,50 +357,43 @@ export default function ManageProduct() {
                     </td>
                     <td>{renderStatus(p.status)}</td>
                     <td className="text-end">
-                      {/* Nút đổi trạng thái */}
-                      {isProcessing ? (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          title="Mở bán lại sản phẩm này"
-                          onClick={() => handleChangeStatus(p, "Active")}
-                        >
-                          Mở bán lại
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          title="Đưa sản phẩm vào trạng thái xử lý / luân chuyển"
-                          onClick={() => handleChangeStatus(p, "Processing")}
-                        >
-                          Đưa vào xử lý
-                        </Button>
-                      )}
+                      {/* nút xem chi tiết (con mắt) */}
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        title="Xem chi tiết"
+                        onClick={() => handleView(p.id)}
+                      >
+                        <FontAwesomeIcon
+                          icon={faEye}
+                          className="text-primary"
+                        />
+                      </Button>
 
                       <Button
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
                         title="Chỉnh sửa"
-                        onClick={() => setEditing(p)}
+                        onClick={() => handleStartEdit(p)}
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </Button>
 
                       <Button
-                        variant={isProcessing ? "outline-secondary" : "outline-danger"}
+                        variant={
+                          canDelete ? "outline-danger" : "outline-secondary"
+                        }
                         size="sm"
                         title={
-                          isProcessing
-                            ? "Không thể xóa khi sản phẩm đang ở trạng thái xử lý / luân chuyển"
-                            : "Xóa sản phẩm"
+                          canDelete
+                            ? "Xóa sản phẩm"
+                            : "Sản phẩm đang được sử dụng trong dự án, không thể xóa"
                         }
-                        disabled={isProcessing}
+                        disabled={!canDelete}
                         onClick={() => {
-                          if (!isProcessing) setDeleting(p);
+                          if (canDelete) setDeleting(p);
                         }}
                       >
                         <FontAwesomeIcon icon={faTrash} />
@@ -425,6 +438,7 @@ export default function ManageProduct() {
             </Pagination>
           </div>
 
+          {/* Modal thêm sản phẩm */}
           <Modal
             show={showCreate}
             onHide={() => setShowCreate(false)}
@@ -447,6 +461,7 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
+          {/* Modal chỉnh sửa sản phẩm */}
           <Modal
             show={!!editing}
             onHide={() => setEditing(null)}
@@ -465,11 +480,15 @@ export default function ManageProduct() {
                   initial={{
                     sku: editing.sku,
                     name: editing.name,
-                    category: editing.category,
+                    // để ProductForm dùng categoryId, còn category (string) chỉ để hiển thị ở view
+                    categoryId: editing.categoryId,
+                    unit: editing.unit,
                     price: editing.price,
-                    stock: editing.stock,
+                    stock: editing.stock ?? editing.quantity ?? 0,
                     active:
                       editing.status === "Active" || editing.active === true,
+                    description: editing.description,
+                    updateAt: editing.updateAt,
                   }}
                   onCancel={() => setEditing(null)}
                   onSuccess={() => {
@@ -477,6 +496,109 @@ export default function ManageProduct() {
                     load();
                   }}
                 />
+              )}
+            </Modal.Body>
+          </Modal>
+
+          {/* Modal xem chi tiết sản phẩm */}
+          <Modal
+            show={!!viewing}
+            onHide={() => setViewing(null)}
+            centered
+            dialogClassName="staff-modal"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title className="staff-modal__title">
+                Chi tiết sản phẩm
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {loadingDetail && (
+                <div className="d-flex align-items-center gap-2">
+                  <Spinner animation="border" size="sm" />
+                  <span>Đang tải...</span>
+                </div>
+              )}
+
+              {!loadingDetail && viewing && (
+                <>
+                  {viewing.image && (
+                    <div className="text-center mb-3">
+                      <img
+                        src={viewing.image}
+                        alt={viewing.name}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: 220,
+                          objectFit: "contain",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <Table borderless size="sm" className="mb-0">
+                    <tbody>
+                      <tr>
+                        <th style={{ width: 130 }}>SKU</th>
+                        <td>{viewing.sku}</td>
+                      </tr>
+                      <tr>
+                        <th>Tên</th>
+                        <td>{viewing.name}</td>
+                      </tr>
+                      <tr>
+                        <th>Danh mục</th>
+                        <td>{viewing.category || "-"}</td>
+                      </tr>
+                      <tr>
+                        <th>Giá</th>
+                        <td>
+                          {(viewing.price ?? 0).toLocaleString("vi-VN")} ₫
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Đơn vị</th>
+                        <td>{viewing.unit || "-"}</td>
+                      </tr>
+                      <tr>
+                        <th>Số lượng</th>
+                        <td>{viewing.quantity ?? viewing.stock ?? 0}</td>
+                      </tr>
+                      <tr>
+                        <th>Trạng thái</th>
+                        <td>{renderStatus(viewing.status)}</td>
+                      </tr>
+                      <tr>
+                        <th>Mô tả</th>
+                        <td>{viewing.description || "-"}</td>
+                      </tr>
+                      <tr>
+                        <th>Nhà cung cấp</th>
+                        <td>{viewing.supplier || "-"}</td>
+                      </tr>
+                      <tr>
+                        <th>Ghi chú</th>
+                        <td>{viewing.note || "-"}</td>
+                      </tr>
+                      <tr>
+                        <th>Ngày tạo</th>
+                        <td>
+                          {viewing.created
+                            ? new Date(viewing.created).toLocaleString("vi-VN")
+                            : "-"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Cập nhật lần cuối</th>
+                        <td>
+                          {viewing.updateAt
+                            ? new Date(viewing.updateAt).toLocaleString("vi-VN")
+                            : "-"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </Table>
+                </>
               )}
             </Modal.Body>
           </Modal>

@@ -7,11 +7,11 @@ using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
-using SaoKim_ecommerce_BE.Services;   // thêm
+using SaoKim_ecommerce_BE.Services;   
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;                     // thêm
+using System.Text;                     
 using System.Threading.Tasks;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -22,9 +22,9 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class InvoicesController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
-        private readonly IEmailService _emailService;   // thêm
+        private readonly IEmailService _emailService;   
 
-        public InvoicesController(SaoKimDBContext db, IEmailService emailService)   // sửa ctor
+        public InvoicesController(SaoKimDBContext db, IEmailService emailService)   
         {
             _db = db;
             _emailService = emailService;
@@ -178,6 +178,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (inv.Status != InvoiceStatus.Paid)
                 return BadRequest(new { message = "Invoice must be Paid before generating PDF." });
 
+            ApplyDefaultTax(inv);
+
             var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
             Directory.CreateDirectory(folder);
 
@@ -324,6 +326,20 @@ namespace SaoKim_ecommerce_BE.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "PDF generated successfully." });
+        }
+        
+        //thuế
+        private void ApplyDefaultTax(Invoice inv)
+        {
+            // số tiền chịu thuế = Subtotal - Discount (nếu âm thì đưa về 0)
+            var baseAmount = inv.Subtotal - inv.Discount;
+            if (baseAmount < 0) baseAmount = 0;
+
+            // thuế 10%
+            inv.Tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
+
+            // tổng = sau giảm + thuế
+            inv.Total = baseAmount + inv.Tax;
         }
 
         // GET /api/invoices/{id}/pdf

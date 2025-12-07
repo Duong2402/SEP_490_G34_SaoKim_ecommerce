@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import {
@@ -85,7 +85,6 @@ export default function ProjectReport() {
     totalOtherExpenses,
     actualAllIn,
     variance,
-    profitApprox,
     taskCompleted,
     taskDelayed,
     taskActive,
@@ -100,7 +99,7 @@ export default function ProjectReport() {
           <div>
             <h1 className="page-title">Báo cáo dự án</h1>
             <p className="page-subtitle">
-              #{code || "-"} - {name} {customerName ? `· ${customerName}` : ""}
+              #{code || "-"} - {name} {customerName ? `• ${customerName}` : ""}
             </p>
           </div>
           <div className="actions">
@@ -140,15 +139,14 @@ export default function ProjectReport() {
             <div className="project-overview__label">Mức hoàn thành</div>
             <div className="project-overview__value">{progressPercent}%</div>
             <div className="project-overview__description">
-              {formatNumber(taskCompleted)} hoàn thành · {formatNumber(taskActive)} đang làm ·{" "}
-              {formatNumber(taskDelayed)} trễ.
+              {formatNumber(taskCompleted)} hoàn thành • {formatNumber(taskActive)} đang làm • {formatNumber(taskDelayed)} trễ.
             </div>
           </article>
         </div>
 
         <section className="metrics-grid">
           <article className="metric-card">
-            <div className="metric-label">Doanh thu (sản phẩm)</div>
+            <div className="metric-label">Sản phẩm</div>
             <div className="metric-value">{formatBudget(totalProductAmount)}</div>
             <div className="metric-trend">Tổng thành tiền sản phẩm</div>
           </article>
@@ -175,13 +173,6 @@ export default function ProjectReport() {
             <div className="metric-trend">
               {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
             </div>
-          </article>
-          <article className="metric-card">
-            <div className="metric-label">Lợi nhuận (ước tính)</div>
-            <div className="metric-value" style={{ color: profitApprox < 0 ? "#dc2626" : undefined }}>
-              {formatBudget(profitApprox)}
-            </div>
-            <div className="metric-trend">Doanh thu - Chi phí</div>
           </article>
         </section>
 

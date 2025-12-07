@@ -34,6 +34,14 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải đơn hàng");
   };
 
+  // LẤY CHI TIẾT 1 ĐƠN (bao gồm customer, shipping, payment, items)
+  const fetchOrderDetail = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}`, {
+      credentials: "include",
+    });
+    return handleJson(res, "Tải chi tiết đơn hàng");
+  };
+
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`${base}/${orderId}/status`, {
       method: "PATCH",
@@ -45,24 +53,47 @@ export default function useOrdersApi() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, text);
-      throw new Error(`Cập nhật trạng thái đơn thất bại (mã ${res.status})`);
+      let message = `Cập nhật trạng thái đơn thất bại (mã ${res.status})`;
+      try {
+        const text = await res.text();
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            message = data?.message || data?.error || text;
+          } catch {
+            message = text;
+          }
+        }
+      } catch {
+        // fall back to default message
+      }
+
+      console.error("[Cập nhật trạng thái đơn] lỗi", res.status, message);
+      throw new Error(message);
     }
 
     return true;
   };
 
-  const fetchOrderItems = async (orderId) => {
-    const res = await fetch(`${base}/${orderId}/items`, {
+  const deleteOrder = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}`, {
+      method: "DELETE",
       credentials: "include",
     });
-    return handleJson(res, "Tải sản phẩm trong đơn");
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("[Xóa đơn hàng] lỗi", res.status, text);
+      throw new Error(`Xóa đơn hàng thất bại (mã ${res.status})`);
+    }
+
+    return true;
   };
 
   return {
     fetchOrders,
+    fetchOrderDetail,
     updateOrderStatus,
-    fetchOrderItems,
+    deleteOrder,
   };
 }

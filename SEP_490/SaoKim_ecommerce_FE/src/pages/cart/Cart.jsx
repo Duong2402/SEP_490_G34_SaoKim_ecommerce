@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import HomepageHeader from "../../components/HomepageHeader";
+import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
+import "../../styles/cart.css";
 
 export default function Cart() {
   const [items, setItems] = useState(() => readCart());
@@ -107,6 +109,9 @@ export default function Cart() {
     else setSelectedIds(new Set(items.map((it) => it.id)));
   };
 
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(value) || 0);
+
   // Chỉ lưu selectedItems rồi sang trang checkout
   const proceedCheckout = () => {
     const selectedItems = items.filter((it) => selectedIds.has(it.id));
@@ -123,204 +128,132 @@ export default function Cart() {
 
   return (
     <div className="cart-page">
-      <EcommerceHeader />
-      <main className="cart-main" style={{ padding: 24 }}>
-        <div
-          className="cart-container"
-          style={{ maxWidth: 1040, margin: "0 auto" }}
-        >
-          <h1 style={{ marginBottom: 16 }}>Giỏ hàng</h1>
+      <HomepageHeader />
+      <main className="cart-main">
+        <div className="cart-hero container">
+          <div className="breadcrumb-text">Trang chủ / Giỏ hàng</div>
+          <h1 className="cart-title">Giỏ hàng</h1>
+        </div>
+
+        <div className="cart-container container">
           {items.length === 0 ? (
-            <div>
-              <p>Giỏ hàng trống.</p>
-              <Link to="/" className="btn btn-primary">
-                Tiếp tục mua sắm
+            <div className="empty-cart text-center">
+              <div className="empty-cart-icon">🛒</div>
+              <h3>Giỏ hàng của bạn đang trống</h3>
+              <p className="text-muted">Hãy thêm sản phẩm để bắt đầu mua sắm.</p>
+              <Link to="/products" className="btn btn-primary brand-primary">
+                Xem sản phẩm
               </Link>
             </div>
           ) : (
-            <div
-              className="cart-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 320px",
-                gap: 24,
-              }}
-            >
-              <section>
-                <div style={{ marginBottom: 8 }}>
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
+            <div className="cart-grid">
+              <section className="cart-items">
+                <div className="cart-select-all">
+                  <label className="d-flex align-items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={
-                        selectedIds.size === items.length &&
-                        items.length > 0
-                      }
+                      className="form-check-input"
+                      checked={selectedIds.size === items.length && items.length > 0}
                       onChange={selectAll}
                     />
-                    <span>Chọn tất cả ({items.length})</span>
+                    <span className="fw-semibold">Chọn tất cả ({items.length})</span>
                   </label>
+                  <div className="text-muted small">Đã chọn {selectedIds.size} sản phẩm</div>
                 </div>
 
-                <ul
-                  style={{
-                    listStyle: "none",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
+                <ul className="cart-item-list">
                   {items.map((it) => (
-                    <li
-                      key={it.id}
-                      style={{
-                        display: "flex",
-                        gap: 16,
-                        padding: "12px 0",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(it.id)}
-                        onChange={() => toggleSelect(it.id)}
-                        style={{ alignSelf: "center" }}
-                      />
+                    <li key={it.id} className="cart-item-card">
+                      <div className="cart-item-left">
+                        <input
+                          type="checkbox"
+                          className="form-check-input mt-1"
+                          checked={selectedIds.has(it.id)}
+                          onChange={() => toggleSelect(it.id)}
+                        />
+                        <div className="cart-item-thumb">
+                          <img
+                            src={it.image}
+                            alt={it.name}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "/placeholder-product.png";
+                            }}
+                          />
+                        </div>
+                        <div className="cart-item-info">
+                          <div className="cart-item-name">{it.name}</div>
+                          <div className="cart-item-meta">Mã: {it.code || it.sku || it.id}</div>
+                        </div>
+                      </div>
 
-                      <img
-                        src={it.image}
-                        alt={it.name}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "/placeholder-product.png";
-                        }}
-                        style={{
-                          width: 92,
-                          height: 92,
-                          objectFit: "cover",
-                          borderRadius: 8,
-                        }}
-                      />
-
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600 }}>{it.name}</div>
-                        <div
-                          style={{ color: "#667", fontSize: 14 }}
-                        >
-                          Mã: {it.code || it.sku || it.id}
+                      <div className="cart-item-right">
+                        <div className="cart-item-price">
+                          <span className="text-muted small">Đơn giá</span>
+                          <strong>{formatCurrency(it.price)}</strong>
                         </div>
 
-                        <div
-                          style={{
-                            marginTop: 8,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
+                        <div className="cart-item-qty">
                           <button
                             type="button"
-                            className="btn btn-outline btn-small"
+                            className="qty-btn"
                             disabled={Number(it.quantity) <= 1}
                             onClick={() => throttledUpdate(it.id, -1)}
                           >
                             -
                           </button>
-
-                          <span style={{ minWidth: 28, textAlign: "center" }}>
-                            {Number(it.quantity) || 1}
-                          </span>
-
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-small"
-                            onClick={() => throttledUpdate(it.id, +1)}
-                          >
+                          <span className="qty-value">{Number(it.quantity) || 1}</span>
+                          <button type="button" className="qty-btn" onClick={() => throttledUpdate(it.id, +1)}>
                             +
                           </button>
-
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-small"
-                            onClick={() => removeItem(it.id)}
-                            style={{ marginLeft: 12 }}
-                          >
-                            Xóa
-                          </button>
                         </div>
-                      </div>
 
-                      <div style={{ fontWeight: 600 }}>
-                        {new Intl.NumberFormat("vi-VN", {
-                          style: "currency",
-                          currency: "VND",
-                        }).format(
-                          (Number(it.price) || 0) *
-                            (Number(it.quantity) || 0)
-                        )}
+                        <div className="cart-item-subtotal">
+                          <span className="text-muted small">Thành tiền</span>
+                          <strong className="text-accent">
+                            {formatCurrency((Number(it.price) || 0) * (Number(it.quantity) || 0))}
+                          </strong>
+                        </div>
+
+                        <button type="button" className="cart-item-remove" onClick={() => removeItem(it.id)}>
+                          Xóa
+                        </button>
                       </div>
                     </li>
                   ))}
                 </ul>
               </section>
 
-              <aside
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 16,
-                  height: "fit-content",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                  }}
-                >
-                  <span>
-                    Tạm tính ({selectedIds.size} sản phẩm)
-                  </span>
-                  <strong>
-                    {new Intl.NumberFormat("vi-VN", {
-                      style: "currency",
-                      currency: "VND",
-                    }).format(total)}
-                  </strong>
+              <aside className="cart-summary">
+                <div className="cart-summary-header">
+                  <div>
+                    <div className="summary-eyebrow">Tổng kết</div>
+                    <h5 className="mb-1">Tạm tính</h5>
+                  </div>
+                  <div className="text-muted small">({selectedIds.size} sản phẩm)</div>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 16,
-                    color: "#667",
-                  }}
-                >
+                <div className="summary-row">
+                  <span>Tạm tính</span>
+                  <strong className="text-accent">{formatCurrency(total)}</strong>
+                </div>
+                <div className="summary-row">
                   <span>Phí vận chuyển</span>
-                  <span>Tính ở bước sau</span>
+                  <span className="text-muted">Tính ở bước sau</span>
                 </div>
 
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  style={{ width: "100%" }}
+                  className="btn brand-primary w-100"
                   disabled={selectedIds.size === 0}
                   onClick={proceedCheckout}
                 >
                   Tiến hành thanh toán
                 </button>
-
-                <Link
-                  to="/"
-                  className="btn btn-outline"
-                  style={{ width: "100%", marginTop: 8 }}
-                >
+                {selectedIds.size === 0 && (
+                  <div className="text-muted small mt-2">Vui lòng chọn sản phẩm để tiến hành thanh toán.</div>
+                )}
+                <Link to="/products" className="btn continue-btn w-100 mt-2">
                   Tiếp tục mua sắm
                 </Link>
               </aside>
@@ -328,6 +261,7 @@ export default function Cart() {
           )}
         </div>
       </main>
+      <EcommerceFooter />
     </div>
   );
 }

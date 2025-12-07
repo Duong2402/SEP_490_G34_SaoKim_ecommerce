@@ -60,8 +60,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 if (!int.TryParse(userIdStr, out var userId))
                     return Forbid();
-
-                // PM chỉ xem được project của chính mình
                 if (!project.ProjectManagerId.HasValue || project.ProjectManagerId.Value != userId)
                     return Forbid();
             }
@@ -77,7 +75,6 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             if (IsPm(role) && int.TryParse(userIdStr, out var userId))
             {
-                // PM chỉ thấy project được assign, override mọi filter client gửi
                 q.ProjectManagerId = userId;
             }
 

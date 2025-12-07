@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Entities;
+using System.Collections.Generic;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -17,11 +19,16 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         private readonly ILogger<StaffOrdersController> _logger;
+        private readonly IDispatchService _dispathservice;
 
-        public StaffOrdersController(SaoKimDBContext db, ILogger<StaffOrdersController> logger)
+        public StaffOrdersController(
+            SaoKimDBContext db,
+            ILogger<StaffOrdersController> logger,
+            IDispatchService dispathservice)
         {
             _db = db;
             _logger = logger;
+            _dispathservice = dispathservice;
         }
 
         public class UpdateOrderStatusRequest
@@ -101,23 +108,49 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             var total = await baseQuery.CountAsync();
 
-            var items = await baseQuery
+            var orders = await baseQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(o => new
                 {
-                    id = o.OrderId,
-                    code = $"ORD-{o.OrderId}",
-                    customerName = o.Customer.Name,
-                    customerEmail = o.Customer.Email,
-                    customerPhone = o.Customer.PhoneNumber,
-                    total = o.Total,
-                    status = o.Status,
-                    createdAt = o.CreatedAt,
-                    hasInvoice = o.Invoice != null,
-                    invoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
+                    o.OrderId,
+                    ReferenceNo = $"ORD-{o.OrderId}",
+                    CustomerName = o.Customer.Name,
+                    CustomerEmail = o.Customer.Email,
+                    CustomerPhone = o.Customer.PhoneNumber,
+                    o.Total,
+                    o.Status,
+                    o.CreatedAt,
+                    o.PaymentMethod,              // thêm
+                    HasInvoice = o.Invoice != null,
+                    InvoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
                 })
                 .ToListAsync();
+
+            var referenceNos = orders.Select(o => o.ReferenceNo).ToList();
+            var confirmedRefs = referenceNos.Count == 0
+                ? new HashSet<string>()
+                : new HashSet<string>(await _db.Dispatches
+                    .AsNoTracking()
+                    .Where(d => referenceNos.Contains(d.ReferenceNo) && d.ConfirmedAt != null)
+                    .Select(d => d.ReferenceNo)
+                    .ToListAsync());
+
+            var items = orders.Select(o => new
+            {
+                id = o.OrderId,
+                code = o.ReferenceNo,
+                customerName = o.CustomerName,
+                customerEmail = o.CustomerEmail,
+                customerPhone = o.CustomerPhone,
+                total = o.Total,
+                status = o.Status,
+                createdAt = o.CreatedAt,
+                paymentMethod = o.PaymentMethod,   // cho FE staff dùng
+                hasInvoice = o.HasInvoice,
+                invoiceId = o.InvoiceId,
+                dispatchConfirmed = confirmedRefs.Contains(o.ReferenceNo)
+            });
 
             return Ok(new
             {
@@ -139,8 +172,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var order = await _db.Orders
                 .AsNoTracking()
                 .Include(o => o.Customer)
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Invoice)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
@@ -154,11 +186,30 @@ namespace SaoKim_ecommerce_BE.Controllers
                 status = order.Status,
                 createdAt = order.CreatedAt,
 
+                // customer
                 customerId = order.UserId,
                 customerName = order.Customer?.Name,
                 customerEmail = order.Customer?.Email,
                 customerPhone = order.Customer?.PhoneNumber,
 
+                // payment snapshot
+                payment = new
+                {
+                    method = order.PaymentMethod,
+                    status = order.PaymentStatus,
+                    transactionCode = order.PaymentTransactionCode,
+                    paidAt = order.PaidAt
+                },
+
+                // shipping snapshot lấy từ các cột shipping_*
+                shippingRecipientName = order.ShippingRecipientName,
+                shippingPhoneNumber = order.ShippingPhoneNumber,
+                shippingLine1 = order.ShippingLine1,
+                shippingWard = order.ShippingWard,
+                shippingDistrict = order.ShippingDistrict,
+                shippingProvince = order.ShippingProvince,
+
+                // invoice
                 invoice = order.Invoice == null
                     ? null
                     : new
@@ -170,6 +221,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                         createdAt = order.Invoice.CreatedAt
                     },
 
+                // items
                 items = order.Items.Select(i => new
                 {
                     i.OrderItemId,
@@ -185,43 +237,123 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(dto);
         }
 
+
         // =========================================================
-        // 3) UPDATE STATUS + AUTO CREATE INVOICE KHI Paid
-        // PATCH /api/staff/orders/{id}/status
+        // 3) UPDATE STATUS + AUTO CREATE INVOICE
         // =========================================================
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest req)
         {
-            var newStatus = (req.Status ?? "").Trim();
+            var rawStatus = (req.Status ?? "").Trim();
 
-            if (string.IsNullOrWhiteSpace(newStatus))
+            if (string.IsNullOrWhiteSpace(rawStatus))
                 return BadRequest(new { message = "Status is required" });
 
-            var allowedStatuses = new[] { "Pending", "Shipping", "Paid", "Completed", "Cancelled" };
+            // Chuẩn hóa text hiển thị tiếng Việt -> status nội bộ
+            string NormalizeStatus(string s)
+            {
+                if (string.Equals(s, "Hoàn tất", StringComparison.OrdinalIgnoreCase))
+                    return "Completed";
+                if (string.Equals(s, "Chờ xử lý", StringComparison.OrdinalIgnoreCase))
+                    return "Pending";
+                if (string.Equals(s, "Đang giao", StringComparison.OrdinalIgnoreCase))
+                    return "Shipping";
+                if (string.Equals(s, "Đã hủy", StringComparison.OrdinalIgnoreCase))
+                    return "Cancelled";
+                if (string.Equals(s, "Đã thanh toán", StringComparison.OrdinalIgnoreCase))
+                    return "Paid";
+
+                return s;
+            }
+
+            var newStatus = NormalizeStatus(rawStatus);
+
+            var allowedStatuses = new[]
+            {
+                "Pending",
+                "Shipping",
+                "Paid",
+                "Completed",
+                "Cancelled"
+            };
+
             if (!allowedStatuses.Contains(newStatus, StringComparer.OrdinalIgnoreCase))
             {
-                return BadRequest(new { message = $"Invalid status: {newStatus}" });
+                return BadRequest(new { message = $"Invalid status: {rawStatus}" });
             }
+
+            bool IsCompleted(string status)
+                => string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase);
+
+            bool IsPaid(string status)
+                => string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase);
 
             var order = await _db.Orders
                 .Include(o => o.Customer)
-                .Include(o => o.Items)
-                    .ThenInclude(i => i.Product)
+                .Include(o => o.Items).ThenInclude(i => i.Product)
                 .Include(o => o.Invoice)
                 .FirstOrDefaultAsync(o => o.OrderId == id);
 
             if (order == null) return NotFound();
 
-            if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(newStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+            // Xác định loại thanh toán
+            // PaymentMethod: "QR" / "COD"
+            var paymentMethod = (order.PaymentMethod ?? "").Trim().ToUpperInvariant();
+            var isCod = paymentMethod == "COD";
+            var isQr = paymentMethod == "QR";
+
+            // Đơn QR không cho set sang Paid (đã trả trước)
+            if (isQr && IsPaid(newStatus))
+            {
+                return BadRequest(new { message = "Đơn thanh toán QR không có bước 'Đã thanh toán' riêng." });
+            }
+
+            // Đơn COD: không cho nhảy thẳng sang Completed nếu chưa Paid
+            if (isCod && IsCompleted(newStatus) && !IsPaid(order.Status))
+            {
+                return BadRequest(new { message = "Đơn COD phải chuyển sang 'Đã thanh toán' trước khi hoàn tất." });
+            }
+
+            // =====================================================
+            // BẮT BUỘC KHO PHẢI XÁC NHẬN PHIẾU XUẤT TRƯỚC
+            // KHI STAFF ĐƯỢC PHÉP ĐỔI TRẠNG THÁI (TRỪ KHI HỦY ĐƠN)
+            // =====================================================
+            var isCancelling = string.Equals(newStatus, "Cancelled", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCancelling)
+            {
+                var referenceNo = $"ORD-{order.OrderId}";
+
+                var dispatch = await _db.Dispatches
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.ReferenceNo == referenceNo);
+
+                if (dispatch == null || dispatch.ConfirmedAt == null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Kho chưa xác nhận phiếu xuất, không thể cập nhật trạng thái đơn hàng."
+                    });
+                }
+            }
+
+            // Nếu đơn đã hoàn tất thì không cho đổi sang trạng thái khác (trừ việc set lại Completed chính nó)
+            if (IsCompleted(order.Status) && !IsCompleted(newStatus))
             {
                 return BadRequest(new { message = "Completed order cannot change status." });
             }
 
+            // Cập nhật trạng thái
             order.Status = newStatus;
 
-            if (string.Equals(newStatus, "Paid", StringComparison.OrdinalIgnoreCase)
-                && order.Invoice == null)
+            // =========================
+            // TẠO HÓA ĐƠN THEO LUỒNG
+            // =========================
+            // Cả QR và COD: chỉ tạo invoice khi trạng thái mới là Completed
+            // (COD vẫn bị ép phải đi qua Paid trước Completed ở trên)
+            bool shouldCreateInvoice = IsCompleted(newStatus) && order.Invoice == null;
+
+            if (shouldCreateInvoice)
             {
                 var items = order.Items.ToList();
 
@@ -266,7 +398,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         // =========================================================
-        // 4) LẤY ITEMS CHO 1 ORDER (NẾU MUỐN DÙNG RIÊNG)
+        // 4) LẤY ITEMS CHO 1 ORDER
         // GET /api/staff/orders/{id}/items
         // =========================================================
         [HttpGet("{id:int}/items")]
@@ -298,6 +430,52 @@ namespace SaoKim_ecommerce_BE.Controllers
                 _logger.LogError(ex, "Error fetching items for order {OrderId}", id);
                 return StatusCode(500, new { message = "Error fetching order items", detail = ex.Message });
             }
+        }
+
+        // =========================================================
+        // 5) XÓA ĐƠN ĐÃ HỦY
+        // DELETE /api/staff/orders/{id}
+        // =========================================================
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                .Include(o => o.Invoice)
+                .FirstOrDefaultAsync(o => o.OrderId == id);
+
+            if (order == null)
+                return NotFound(new { message = "Order not found" });
+
+            if (!string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Chỉ được xóa đơn hàng đã ở trạng thái Đã hủy." });
+            }
+
+            if (order.Invoice != null)
+            {
+                return BadRequest(new { message = "Không thể xóa đơn đã có hóa đơn." });
+            }
+
+            var salesOrderNo = $"ORD-{id}";
+
+            var dispatchIds = await _db.Dispatches
+                .Where(d => d.ReferenceNo == salesOrderNo)
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            foreach (var dispatchId in dispatchIds)
+            {
+                await _dispathservice.DeleteDispatchSlipAsync(dispatchId);
+            }
+
+            _db.OrderItems.RemoveRange(order.Items);
+
+            _db.Orders.Remove(order);
+
+            await _db.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }

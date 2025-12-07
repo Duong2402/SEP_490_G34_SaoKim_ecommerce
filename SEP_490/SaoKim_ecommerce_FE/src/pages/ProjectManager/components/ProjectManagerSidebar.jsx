@@ -1,11 +1,10 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartPie, faListCheck, faPlusCircle } from "@fortawesome/free-solid-svg-icons";
 
 const NAV_ITEMS = [
   { to: "/projects/overview", label: "Tổng quan", icon: faChartPie },
-  { to: "/projects", label: "Danh sách dự án", icon: faListCheck },
-  { to: "/projects/create", label: "Tạo dự án", icon: faPlusCircle },
+  { to: "/projects", label: "Danh sách dự án", icon: faListCheck, exact: true },
 ];
 
 export default function ProjectManagerSidebar() {
@@ -15,6 +14,7 @@ export default function ProjectManagerSidebar() {
         <NavLink
           key={item.to}
           to={item.to}
+          end={item.exact || false}
           className={({ isActive }) => `pm-nav-link${isActive ? " pm-nav-link--active" : ""}`}
         >
           <span className="pm-nav-link__icon" aria-hidden="true">

@@ -1,12 +1,13 @@
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faKey, faRightFromBracket, faUserPen } from "@fortawesome/free-solid-svg-icons";
 import ProjectManagerSidebar from "../pages/ProjectManager/components/ProjectManagerSidebar";
+import SaoKimLogo from "../components/SaoKimLogo";
 import "../styles/project-manager.css";
 
 const PAGE_TITLES = [
-  { match: /^\/(projects)\/?$/, label: "Danh sách dự án" },
+  { match: /^\/projects\/?$/, label: "Danh sách dự án" },
   { match: /^\/projects\/overview/, label: "Tổng quan dự án" },
   { match: /^\/projects\/create/, label: "Tạo dự án" },
   { match: /^\/projects\/\d+$/, label: "Chi tiết dự án" },
@@ -66,7 +67,7 @@ export default function ProjectManagerLayout() {
   }, [location.pathname]);
 
   const handleLogout = () => {
-    if (!window.confirm("Bạn chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
     ["token", "role", "userEmail", "userName"].forEach((key) => localStorage.removeItem(key));
     window.dispatchEvent(new Event("auth:changed"));
     navigate("/login", { replace: true });
@@ -82,17 +83,11 @@ export default function ProjectManagerLayout() {
     navigate("/change-password");
   };
 
-  const goToCreateProject = () => navigate("/projects/create");
-
   return (
     <div className="pm-shell">
       <aside className="pm-sidebar" aria-label="Khu vực Project Manager">
         <div className="pm-sidebar__brand">
-          <span className="pm-sidebar__mark">SK</span>
-          <div className="pm-sidebar__title">
-            <strong>Sao Kim Projects</strong>
-            <span>Khu vực Quản lý dự án</span>
-          </div>
+          <SaoKimLogo size="large" showText title="Sao Kim Projects" tagline="Khu vực Quản lý dự án" />
         </div>
 
         <ProjectManagerSidebar />
@@ -112,9 +107,6 @@ export default function ProjectManagerLayout() {
           </div>
 
           <div className="pm-topbar__actions">
-            <button type="button" className="btn btn-outline pm-topbar__cta" onClick={goToCreateProject}>
-              + Tạo dự án
-            </button>
             <div className="pm-user" ref={userMenuRef}>
               <button
                 type="button"
@@ -135,7 +127,7 @@ export default function ProjectManagerLayout() {
                 <div className="pm-user__dropdown" role="menu">
                   <button type="button" onClick={goToProfile}>
                     <FontAwesomeIcon icon={faUserPen} className="me-2" />
-                    Cập nhật thông tin
+                    Hồ sơ cá nhân
                   </button>
                   <button type="button" onClick={goToChangePassword}>
                     <FontAwesomeIcon icon={faKey} className="me-2" />

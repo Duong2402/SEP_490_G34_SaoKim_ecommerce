@@ -205,14 +205,19 @@ export default function ManageInvoices() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-dashboard" }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Hóa đơn</Breadcrumb.Item>
             <Breadcrumb.Item active>Quản lý hóa đơn</Breadcrumb.Item>
           </Breadcrumb>
           <h4 className="staff-page-title">Quản lý hóa đơn</h4>
-          <p className="staff-page-lead">Xem, lọc, tải và gửi hóa đơn điện tử cho khách</p>
+          <p className="staff-page-lead">
+            Xem, lọc, tải và gửi hóa đơn điện tử cho khách
+          </p>
         </div>
         <div className="btn-toolbar mb-2 mb-md-0" />
       </div>
@@ -238,7 +243,12 @@ export default function ManageInvoices() {
 
           <Col xs="auto" className="ps-md-0 text-end">
             <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+              <Dropdown.Toggle
+                split
+                as={Button}
+                variant="link"
+                className="text-dark m-0 p-0"
+              >
                 <span className="icon icon-sm icon-gray">
                   <FontAwesomeIcon icon={faCog} />
                 </span>
@@ -335,7 +345,8 @@ export default function ManageInvoices() {
             </thead>
             <tbody>
               {(rows || []).map((i) => {
-                const canSend = Boolean(i.email && i.hasPdf);
+                const hasPdf = Boolean(i.hasPdf);
+                const canSend = Boolean(i.email && hasPdf);
                 const isSending = sendingId === i.id;
 
                 return (
@@ -344,10 +355,13 @@ export default function ManageInvoices() {
                     <td>{i.customer}</td>
                     <td>{i.email}</td>
                     <td>{i.phone}</td>
-                    <td className="text-end">{(i.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td className="text-end">
+                      {(i.total ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
                     <td>{renderStatus(i.status)}</td>
                     <td>{formatDate(i.created)}</td>
                     <td className="text-end">
+                      {/* Xem nhanh luôn hiện */}
                       <Button
                         variant="outline-info"
                         size="sm"
@@ -358,62 +372,78 @@ export default function ManageInvoices() {
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
 
-                      <Button
-                        variant="outline-dark"
-                        size="sm"
-                        className="me-2"
-                        title="Xem PDF"
-                        onClick={() => onPreviewPdf(i.id)}
-                        disabled={!i.hasPdf}
-                      >
-                        <FontAwesomeIcon icon={faFilePdf} />
-                      </Button>
-
+                      {/* Tạo PDF luôn hiện, nhưng chỉ enable khi Paid và chưa có PDF */}
                       <Button
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
                         title="Tạo PDF"
                         onClick={() => onGeneratePdf(i.id)}
-                        disabled={String(i.status || "").toLowerCase() !== "paid" || i.hasPdf}
+                        disabled={
+                          String(i.status || "").toLowerCase() !== "paid" ||
+                          hasPdf
+                        }
                       >
                         <FontAwesomeIcon icon={faWandMagicSparkles} />
                       </Button>
 
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        className="me-2"
-                        title="Tải PDF"
-                        onClick={() => onDownloadPdf(i.id, i.code)}
-                        disabled={!i.hasPdf}
-                      >
-                        <FontAwesomeIcon icon={faDownload} />
-                      </Button>
+                      {/* CÁC NÚT CHỈ HIỆN KHI ĐÃ CÓ PDF */}
+                      {hasPdf && (
+                        <>
+                          <Button
+                            variant="outline-dark"
+                            size="sm"
+                            className="me-2"
+                            title="Xem PDF"
+                            onClick={() => onPreviewPdf(i.id)}
+                          >
+                            <FontAwesomeIcon icon={faFilePdf} />
+                          </Button>
 
-                      <Button
-                        variant="outline-success"
-                        size="sm"
-                        className="me-2"
-                        title="Gửi email hóa đơn"
-                        onClick={() => onSendEmail(i)}
-                        disabled={!canSend || isSending}
-                      >
-                        {isSending ? <Spinner animation="border" size="sm" /> : <FontAwesomeIcon icon={faPaperPlane} />}
-                      </Button>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            className="me-2"
+                            title="Tải PDF"
+                            onClick={() => onDownloadPdf(i.id, i.code)}
+                          >
+                            <FontAwesomeIcon icon={faDownload} />
+                          </Button>
 
-                      <Button
-                        variant="outline-warning"
-                        size="sm"
-                        className="me-2"
-                        title="Xóa PDF"
-                        onClick={() => onDeletePdf(i.id)}
-                        disabled={!i.hasPdf}
-                      >
-                        <FontAwesomeIcon icon={faFilePdf} />
-                      </Button>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            className="me-2"
+                            title="Gửi email hóa đơn"
+                            onClick={() => onSendEmail(i)}
+                            disabled={!canSend || isSending}
+                          >
+                            {isSending ? (
+                              <Spinner animation="border" size="sm" />
+                            ) : (
+                              <FontAwesomeIcon icon={faPaperPlane} />
+                            )}
+                          </Button>
 
-                      <Button variant="outline-danger" size="sm" title="Xóa hóa đơn" onClick={() => onDelete(i.id)}>
+                          <Button
+                            variant="outline-warning"
+                            size="sm"
+                            className="me-2"
+                            title="Xóa PDF"
+                            onClick={() => onDeletePdf(i.id)}
+                          >
+                            <FontAwesomeIcon icon={faFilePdf} />
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Xóa hóa đơn luôn hiện */}
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        title="Xóa hóa đơn"
+                        onClick={() => onDelete(i.id)}
+                      >
                         <FontAwesomeIcon icon={faTrash} />
                       </Button>
                     </td>
@@ -435,22 +465,39 @@ export default function ManageInvoices() {
               Trang {page} / {totalPages}
             </div>
             <Pagination className="mb-0">
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
+              <Pagination.Prev
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
               {renderPageItems(page, totalPages, (p) => setPage(p))}
               <Pagination.Next
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               />
-              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
+              <Pagination.Last
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              />
             </Pagination>
           </div>
         </Card.Body>
       </Card>
 
-      <Modal show={Boolean(viewing)} onHide={() => setViewing(null)} size="lg" centered dialogClassName="staff-modal">
+      <Modal
+        show={Boolean(viewing)}
+        onHide={() => setViewing(null)}
+        size="lg"
+        centered
+        dialogClassName="staff-modal"
+      >
         <Modal.Header closeButton>
-          <Modal.Title className="staff-modal__title">Chi tiết hóa đơn</Modal.Title>
+          <Modal.Title className="staff-modal__title">
+            Chi tiết hóa đơn
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {!viewing ? (
@@ -467,7 +514,9 @@ export default function ManageInvoices() {
                 </Col>
                 <Col md={6}>
                   <div className="fw-bold">Trạng thái:</div>
-                  <div>{renderStatus(viewing.paymentStatus || viewing.status)}</div>
+                  <div>
+                    {renderStatus(viewing.paymentStatus || viewing.status)}
+                  </div>
                 </Col>
               </Row>
               <Row className="mb-3">
@@ -478,7 +527,8 @@ export default function ManageInvoices() {
                 <Col md={6}>
                   <div className="fw-bold">Email / SĐT:</div>
                   <div>
-                    {(viewing.customerEmail || viewing.email) ?? "-"} / {(viewing.customerPhone || viewing.phone) ?? "-"}
+                    {(viewing.customerEmail || viewing.email) ?? "-"} /{" "}
+                    {(viewing.customerPhone || viewing.phone) ?? "-"}
                   </div>
                 </Col>
               </Row>
@@ -498,9 +548,14 @@ export default function ManageInvoices() {
                       <td>{idx + 1}</td>
                       <td>{it.productName}</td>
                       <td className="text-end">{it.qty ?? it.quantity}</td>
-                      <td className="text-end">{(it.unitPrice ?? 0).toLocaleString("vi-VN")} ₫</td>
                       <td className="text-end">
-                        {(it.lineTotal ?? (it.qty || 0) * (it.unitPrice || 0)).toLocaleString("vi-VN")} ₫
+                        {(it.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
+                      </td>
+                      <td className="text-end">
+                        {(
+                          it.lineTotal ?? (it.qty || 0) * (it.unitPrice || 0)
+                        ).toLocaleString("vi-VN")}{" "}
+                        ₫
                       </td>
                     </tr>
                   ))}
@@ -512,19 +567,27 @@ export default function ManageInvoices() {
                     <tbody>
                       <tr>
                         <td className="text-muted">Tạm tính</td>
-                        <td className="text-end">{(viewing.subtotal ?? 0).toLocaleString("vi-VN")} ₫</td>
+                        <td className="text-end">
+                          {(viewing.subtotal ?? 0).toLocaleString("vi-VN")} ₫
+                        </td>
                       </tr>
                       <tr>
                         <td className="text-muted">Giảm giá</td>
-                        <td className="text-end">{(viewing.discount ?? 0).toLocaleString("vi-VN")} ₫</td>
+                        <td className="text-end">
+                          {(viewing.discount ?? 0).toLocaleString("vi-VN")} ₫
+                        </td>
                       </tr>
                       <tr>
                         <td className="text-muted">Thuế</td>
-                        <td className="text-end">{(viewing.tax ?? 0).toLocaleString("vi-VN")} ₫</td>
+                        <td className="text-end">
+                          {(viewing.tax ?? 0).toLocaleString("vi-VN")} ₫
+                        </td>
                       </tr>
                       <tr>
                         <td className="fw-bold">Tổng cộng</td>
-                        <td className="text-end fw-bold">{(viewing.total ?? 0).toLocaleString("vi-VN")} ₫</td>
+                        <td className="text-end fw-bold">
+                          {(viewing.total ?? 0).toLocaleString("vi-VN")} ₫
+                        </td>
                       </tr>
                     </tbody>
                   </Table>
@@ -566,7 +629,11 @@ function renderPageItems(current, total, onClick) {
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );

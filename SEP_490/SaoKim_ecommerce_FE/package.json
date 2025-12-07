@@ -13,6 +13,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-brands-svg-icons": "^7.1.0",
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/react-fontawesome": "^3.1.0",
     "@microsoft/signalr": "^9.0.6",
@@ -29,8 +30,8 @@
     "react-hook-form": "^7.65.0",
     "react-router-dom": "^7.9.4",
     "react-select": "^5.10.2",
-    "recharts": "^3.3.0",
-    "sub-vn": "^0.0.2"
+    "recharts": "^3.5.1",
+    "vietnam-provinces-js": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

@@ -7,9 +7,8 @@ import "./App.css";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
-import ChangePassword from "./pages/auth/ChangePassword";
 import ForgotPassword from "./pages/auth/ForgotPassword";
-import HomeProductsBody from "./pages/homepage/HomeProductsBody";
+import HomePage from "./pages/homepage/HomePage";
 import AccessDenied from "./pages/auth/AccessDenied";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -32,7 +31,6 @@ import InventoryReport from "./pages/warehousemanager/InventoryReport";
 // Projects module
 import ProjectDetail from "./pages/ProjectManager/ProjectDetail";
 import ProjectList from "./pages/ProjectManager/ProjectList";
-import ProjectCreate from "./pages/ProjectManager/ProjectCreate";
 import ProjectEdit from "./pages/ProjectManager/ProjectEdit";
 import ProjectReport from "./pages/ProjectManager/ProjectReport.jsx";
 import ProjectOverview from "./pages/ProjectManager/ProjectOverview.jsx";
@@ -40,12 +38,13 @@ import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 // Products (staff manager)
 import ProductDetail from "./pages/products/ProductDetail";
+import ProductsPage from "./pages/products/ProductsPage";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/cart/Checkout";
 import CheckoutSuccess from "./pages/cart/CheckoutSuccess";
-import Profile from "./pages/account/Profile";
-import Addresses from "./pages/account/Addresses";
 import CustomerOrder from "./pages/account/CustomerOrder";
+import OrderDetailPage from "./pages/account/OrderDetailPage";
+import AccountPage from "./pages/account/AccountPage";
 
 //Customers
 import ManageCustomers from "./pages/staff-manager/staff-view-customers/ManageCustomers";
@@ -57,10 +56,17 @@ import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
 //Orders
 import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
 
+//admindashboard
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+//banner
+import BannerList from "./pages/admin/banner/BannerList.jsx";
+import BannerForm from "./pages/admin/banner/BannerForm.jsx";
+
 // Users
-import UserList from "./pages/users/UserList";
-import UserCreate from "./pages/users/UserCreate";
-import UserEdit from "./pages/users/UserEdit";
+import UserList from "./pages/admin/users/UserList";
+import UserCreate from "./pages/admin/users/UserCreate";
+import UserEdit from "./pages/admin/users/UserEdit";
 
 //Import Page
 import CustomerDetail from "./pages/staff-manager/staff-view-customers/CustomerDetail.jsx";
@@ -70,6 +76,8 @@ import ManagerLayout from "./layouts/ManagerLayout";
 import ProjectManagerLayout from "./layouts/ProjectManagerLayout";
 import ManagerDashboard from "./pages/manager/Dashboard";
 import ManagerProductList from "./pages/manager/products/ManagerProductList";
+import ManagerOrderListPage from "./pages/manager/orders/ManagerOrderListPage";
+import ManagerOrderDetailPage from "./pages/manager/orders/ManagerOrderDetailPage";
 
 // Manager Projects
 import ManagerProjectList from "./pages/manager/projects/ManagerProjectList";
@@ -99,14 +107,21 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public */}
-          <Route path="/" element={<HomeProductsBody />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/change-password" element={<ChangePassword />} />
+          <Route
+            path="/change-password"
+            element={<AccountPage initialTab="password" />}
+          />
           <Route path="/forbidden" element={<AccessDenied />} />
-
+          {/* Banner Management */}
+             <Route path="/admin/banner" element={<BannerList />} />
+            <Route path="/admin/banner/create" element={<BannerForm />} />
+            <Route path="/admin/banner/edit/:id" element={<BannerForm />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -137,19 +152,23 @@ export default function App() {
             <Route path="/staff/invoices" element={<ManageInvoices />} />
           </Route>
 
+          {/* Projects (ngoài khu Manager) */}
+          <Route path="/projects" element={<ProjectManagerLayout />}>\n            <Route index element={<ProjectList />} />\n            <Route path="overview" element={<ProjectOverview />} />\n            {/* create removed */}\n            <Route path=":id" element={<ProjectDetail />} />\n            <Route path=":id/edit" element={<ProjectEdit />} />\n            <Route path=":id/report" element={<ProjectReport />} />\n          </Route>
+
           {/* Projects protected group - Only project_manager */}
           <Route element={<ProtectedRoute allow={["project_manager"]} />}>
-            <Route path="/projects" element={<ProjectManagerLayout />}>
-              <Route index element={<ProjectList />} />
-              <Route path="overview" element={<ProjectOverview />} />
-              <Route path="create" element={<ProjectCreate />} />
-              <Route path=":id" element={<ProjectDetail />} />
-              <Route path=":id/edit" element={<ProjectEdit />} />
-              <Route path=":id/report" element={<ProjectReport />} />
-            </Route>
+          <Route path="/projects" element={<ProjectManagerLayout />}>
+            <Route index element={<ProjectList />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            {/* create removed for project_manager */}
+            <Route path=":id" element={<ProjectDetail />} />
+            <Route path=":id/edit" element={<ProjectEdit />} />
+            <Route path=":id/report" element={<ProjectReport />} />
           </Route>
+        </Route>
 
           {/* Products (public) */}
+          <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetail />} />
 
           {/* cart, checkout */}
@@ -158,22 +177,28 @@ export default function App() {
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
 
           {/* Account */}
-          <Route path="/account" element={<Profile />} />
-          <Route path="/account/addresses" element={<Addresses />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route
+            path="/account/addresses"
+            element={<AccountPage initialTab="addresses" />}
+          />
           <Route path="/account/orders" element={<CustomerOrder />} />
+          <Route path="/account/orders/:orderId" element={<OrderDetailPage />} />
 
-          {/* Users Management - Admin only */}
-          <Route element={<ProtectedRoute allow={["admin"]} />}>
-            <Route path="/users" element={<UserList />} />
-            <Route path="/users/create" element={<UserCreate />} />
-            <Route path="/users/:id/edit" element={<UserEdit />} />
-          </Route>
+          {/* Users Management */}
+          <Route path="/admin/users" element={<UserList />} />
+          <Route path="/admin/users/create" element={<UserCreate />} />
+          <Route path="/admin/users/:id/edit" element={<UserEdit />} />
 
           {/* Manager area protected group - Only manager */}
           <Route element={<ProtectedRoute allow={["manager"]} />}>
-            <Route path="/manager" element={<ManagerLayout />}>
+              <Route path="/manager" element={<ManagerLayout />}>
               <Route index element={<ManagerDashboard />} />
               <Route path="dashboard" element={<ManagerDashboard />} />
+
+              {/* Orders cho Manager */}
+              <Route path="orders" element={<ManagerOrderListPage />} />
+              <Route path="orders/:orderId" element={<ManagerOrderDetailPage />} />
 
               {/* Products cho Manager */}
               <Route path="products" element={<ManagerProductList />} />
@@ -212,3 +237,4 @@ export default function App() {
     </div>
   );
 }
+

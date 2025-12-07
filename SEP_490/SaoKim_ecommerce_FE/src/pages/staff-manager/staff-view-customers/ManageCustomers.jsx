@@ -110,7 +110,10 @@ export default function ManageCustomers() {
             className="d-none d-md-inline-block"
             listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
           >
-            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: "/staff/manager-dashboard" }}
+            >
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
             <Breadcrumb.Item>Khách hàng</Breadcrumb.Item>

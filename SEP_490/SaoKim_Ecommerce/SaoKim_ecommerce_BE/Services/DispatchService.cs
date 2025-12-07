@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ClosedXML.Excel;
+using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
@@ -80,21 +81,29 @@ namespace SaoKim_ecommerce_BE.Services
 
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
-
             if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
-                slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+    slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = slip.ReferenceNo.Substring("ORD-".Length);
                 if (int.TryParse(raw, out var orderId))
                 {
                     var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
-                    if (order != null &&
-                        string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                    if (order != null)
                     {
-                        order.Status = "Pending";
+
+                        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException("Đơn hàng đã bị hủy, không thể xác nhận phiếu xuất.");
+                        }
+
+                        if (string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                        {
+                            order.Status = "Pending";
+                        }
                     }
                 }
             }
+
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
@@ -114,7 +123,6 @@ namespace SaoKim_ecommerce_BE.Services
                     .ToList()
             };
         }
-
         public async Task<PagedResult<DispatchSlipListItemDto>> GetDispatchSlipsAsync(DispatchSlipListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
@@ -297,14 +305,16 @@ namespace SaoKim_ecommerce_BE.Services
                 })
                 .ToListAsync();
         }
-
         public async Task<RetailDispatch> CreateSalesDispatchAsync(RetailDispatchCreateDto dto)
         {
             if (!(dto.CustomerId is > 0))
                 throw new ArgumentException("Vui lòng điền Customer ID");
 
+            if (dto.Items == null || dto.Items.Count == 0)
+                throw new ArgumentException("Phiếu xuất bán phải có ít nhất 1 sản phẩm");
+
             var customerRoleId = await _db.Roles
-                .Where(r => EF.Functions.ILike(r.Name, "customer"))
+                .Where(r => r.Name.ToLower() == "customer")
                 .Select(r => r.RoleId)
                 .FirstOrDefaultAsync();
 
@@ -316,9 +326,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             if (customer == null)
                 throw new KeyNotFoundException($"Customer {dto.CustomerId} không tìm thấy hoặc không có khách hàng nào");
-
-            if (dto.Items == null || dto.Items.Count == 0)
-                throw new ArgumentException("Phiếu xuất bán phải có ít nhất 1 sản phẩm");
 
             var slip = new RetailDispatch
             {
@@ -382,6 +389,9 @@ namespace SaoKim_ecommerce_BE.Services
             if (!(dto.ProjectId is > 0))
                 throw new ArgumentException("ProjectID không tìm thấy");
 
+            if (dto.Items == null || dto.Items.Count == 0)
+                throw new ArgumentException("Phiếu xuất dự án phải có ít nhất 1 sản phẩm");
+
             var project = await _db.Projects
                 .FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
 
@@ -401,6 +411,37 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
 
             slip.ReferenceNo = $"DSP-PRJ-{slip.Id:D5}";
+            await _db.SaveChangesAsync();
+
+            foreach (var it in dto.Items)
+            {
+                if (!it.ProductId.HasValue || it.ProductId.Value <= 0)
+                    continue;
+
+                var product = await _db.Products
+                    .Where(p => p.ProductID == it.ProductId.Value)
+                    .Select(p => new { p.ProductID, p.ProductCode, p.ProductName })
+                    .FirstOrDefaultAsync();
+
+                if (product == null)
+                    continue;
+
+                var item = new DispatchItem
+                {
+                    DispatchId = slip.Id,
+                    ProductId = product.ProductID,
+                    ProductName = string.IsNullOrWhiteSpace(it.ProductName)
+                        ? product.ProductName
+                        : it.ProductName,
+                    Uom = string.IsNullOrWhiteSpace(it.Uom) ? "pcs" : it.Uom,
+                    Quantity = it.Quantity,
+                    UnitPrice = it.UnitPrice,
+                    Total = it.Quantity * it.UnitPrice
+                };
+
+                _db.DispatchItems.Add(item);
+            }
+
             await _db.SaveChangesAsync();
 
             return slip;
@@ -580,11 +621,11 @@ namespace SaoKim_ecommerce_BE.Services
                 throw new InvalidOperationException("Only Draft slips can be deleted");
 
             _db.DispatchItems.RemoveRange(slip.Items);
-            _db.Dispatches.Remove(slip);
+            slip.IsDeleted = true;
 
             await _db.SaveChangesAsync();
         }
-        
+
         public async Task DeleteDispatchItemAsync(int itemId)
         {
             var item = await _db.DispatchItems.FindAsync(itemId);
@@ -593,6 +634,140 @@ namespace SaoKim_ecommerce_BE.Services
 
             _db.DispatchItems.Remove(item);
             await _db.SaveChangesAsync();
+        }
+
+        public async Task<byte[]> ExportDispatchSlipsAsync(List<int> ids, bool includeItems)
+        {
+            if (ids == null || ids.Count == 0)
+                throw new ArgumentException("Không có phiếu xuất để export.");
+
+            var sales = _db.Set<RetailDispatch>()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new DispatchSlipListItemDto
+                {
+                    Id = x.Id,
+                    Type = "Sales",
+                    ReferenceNo = x.ReferenceNo,
+                    SalesOrderNo = x.ReferenceNo,
+                    RequestNo = null,
+                    CustomerName = x.CustomerName,
+                    ProjectName = null,
+                    DispatchDate = x.DispatchDate,
+                    Status = x.Status,
+                    CreatedAt = x.CreatedAt,
+                    ConfirmedAt = x.ConfirmedAt,
+                    Note = x.Note
+                });
+
+            var projects = _db.Set<ProjectDispatch>()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new DispatchSlipListItemDto
+                {
+                    Id = x.Id,
+                    Type = "Project",
+                    ReferenceNo = x.ReferenceNo,
+                    SalesOrderNo = null,
+                    RequestNo = x.ReferenceNo,
+                    CustomerName = null,
+                    ProjectName = x.ProjectName,
+                    DispatchDate = x.DispatchDate,
+                    Status = x.Status,
+                    CreatedAt = x.CreatedAt,
+                    ConfirmedAt = x.ConfirmedAt,
+                    Note = x.Note
+                });
+
+            var slips = await sales.Concat(projects)
+                .OrderBy(x => x.DispatchDate)
+                .ThenBy(x => x.Id)
+                .ToListAsync();
+
+            using var wb = new XLWorkbook();
+
+            var wsSlips = wb.Worksheets.Add("DispatchSlips");
+            int row = 1;
+
+            wsSlips.Cell(row, 1).Value = "ID";
+            wsSlips.Cell(row, 2).Value = "Mã phiếu";
+            wsSlips.Cell(row, 3).Value = "Loại";
+            wsSlips.Cell(row, 4).Value = "Đơn bán / Yêu cầu";
+            wsSlips.Cell(row, 5).Value = "Khách hàng";
+            wsSlips.Cell(row, 6).Value = "Dự án";
+            wsSlips.Cell(row, 7).Value = "Ngày xuất";
+            wsSlips.Cell(row, 8).Value = "Trạng thái";
+            wsSlips.Cell(row, 9).Value = "Ngày tạo";
+            wsSlips.Cell(row, 10).Value = "Ngày xác nhận";
+            wsSlips.Cell(row, 11).Value = "Ghi chú";
+
+            wsSlips.Range(row, 1, row, 11).Style.Font.Bold = true;
+            row++;
+
+            foreach (var s in slips)
+            {
+                wsSlips.Cell(row, 1).Value = s.Id;
+                wsSlips.Cell(row, 2).Value = s.ReferenceNo;
+                wsSlips.Cell(row, 3).Value = s.Type;
+                wsSlips.Cell(row, 4).Value = s.SalesOrderNo ?? s.RequestNo;
+                wsSlips.Cell(row, 5).Value = s.CustomerName ?? "";
+                wsSlips.Cell(row, 6).Value = s.ProjectName ?? "";
+                wsSlips.Cell(row, 7).Value = s.DispatchDate;
+                wsSlips.Cell(row, 8).Value = s.Status.ToString();
+                wsSlips.Cell(row, 9).Value = s.CreatedAt;
+                wsSlips.Cell(row, 10).Value = s.ConfirmedAt;
+                wsSlips.Cell(row, 11).Value = s.Note ?? "";
+                row++;
+            }
+
+            wsSlips.Columns().AdjustToContents();
+
+            if (includeItems)
+            {
+                var itemRows = await _db.DispatchItems
+                    .Where(i => ids.Contains(i.DispatchId))
+                    .Join(_db.Products,
+                        i => i.ProductId,
+                        p => p.ProductID,
+                        (i, p) => new
+                        {
+                            Item = i,
+                            ProductCode = p.ProductCode
+                        })
+                    .ToListAsync();
+
+                var wsItems = wb.Worksheets.Add("DispatchItems");
+                int r2 = 1;
+
+                wsItems.Cell(r2, 1).Value = "Mã phiếu xuất";
+                wsItems.Cell(r2, 2).Value = "ID sản phẩm";
+                wsItems.Cell(r2, 3).Value = "Mã sản phẩm";
+                wsItems.Cell(r2, 4).Value = "Tên sản phẩm";
+                wsItems.Cell(r2, 5).Value = "Đơn vị";
+                wsItems.Cell(r2, 6).Value = "Số lượng";
+                wsItems.Cell(r2, 7).Value = "Đơn giá";
+                wsItems.Cell(r2, 8).Value = "Thành tiền";
+
+                wsItems.Range(r2, 1, r2, 8).Style.Font.Bold = true;
+                r2++;
+
+                foreach (var x in itemRows)
+                {
+                    wsItems.Cell(r2, 1).Value = x.Item.DispatchId;
+                    wsItems.Cell(r2, 2).Value = x.Item.Id;
+                    wsItems.Cell(r2, 3).Value = x.ProductCode;
+                    wsItems.Cell(r2, 4).Value = x.Item.ProductName;
+                    wsItems.Cell(r2, 5).Value = x.Item.Uom;
+                    wsItems.Cell(r2, 6).Value = x.Item.Quantity;
+                    wsItems.Cell(r2, 7).Value = x.Item.UnitPrice;
+                    wsItems.Cell(r2, 8).Value = x.Item.Total;
+                    r2++;
+                }
+
+                wsItems.Columns().AdjustToContents();
+            }
+
+            using var stream = new MemoryStream();
+            wb.SaveAs(stream);
+            return stream.ToArray();
         }
 
     }

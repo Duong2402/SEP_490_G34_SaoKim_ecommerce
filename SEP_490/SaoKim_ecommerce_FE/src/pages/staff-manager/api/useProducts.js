@@ -1,48 +1,36 @@
 // src/pages/staff-manager/api/useProducts.js
 import { useCallback, useMemo, useState } from "react";
+import { apiFetch } from "../../../api/lib/apiClient"; 
 
 /**
  * Hook CRUD cho sản phẩm Staff
  */
 export default function useProductsApi() {
-  const apiBase = "https://localhost:7278";
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const jsonHeaders = useMemo(() => ({ "Content-Type": "application/json" }), []);
+  const request = useCallback(async (path, options = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch(path, options);
+      return res;
+    } catch (err) {
+      setError(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const request = useCallback(
-    async (path, options = {}) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const isFormData = options.body instanceof FormData;
-        const headers = isFormData ? options.headers || {} : { ...jsonHeaders, ...(options.headers || {}) };
-
-        const res = await fetch(`${apiBase}${path}`, {
-          ...options,
-          headers,
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Yêu cầu thất bại (mã ${res.status})`);
-        }
-
-        const ct = res.headers.get("content-type") || "";
-        return ct.includes("application/json") ? await res.json() : null;
-      } catch (err) {
-        setError(err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiBase, jsonHeaders]
-  );
-
-  async function fetchProducts({ q, page = 1, pageSize = 10, sortBy = "id", sortDir = "asc" } = {}) {
+  async function fetchProducts({
+    q,
+    page = 1,
+    pageSize = 10,
+    sortBy = "id",
+    sortDir = "asc",
+  } = {}) {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     params.set("page", String(page));
@@ -50,12 +38,9 @@ export default function useProductsApi() {
     params.set("sortBy", sortBy);
     params.set("sortDir", sortDir);
 
-    // list dùng proxy /api/products từ FE
-    const res = await fetch(`/api/products?${params.toString()}`);
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(text || "Không tải được danh sách sản phẩm");
-    }
+    const res = await request(`/api/products?${params.toString()}`, {
+      method: "GET",
+    });
     const data = await res.json();
 
     const payload = data?.data || data;
@@ -65,7 +50,8 @@ export default function useProductsApi() {
   const fetchProduct = useCallback(
     async (id) => {
       if (id == null) throw new Error("Thiếu mã sản phẩm");
-      return await request(`/api/Products/${id}`, { method: "GET" });
+      const res = await request(`/api/Products/${id}`, { method: "GET" });
+      return res.json(); // { product, related }
     },
     [request]
   );
@@ -97,10 +83,12 @@ export default function useProductsApi() {
         formData.append("ImageFile", payload.imageFile);
       }
 
-      const created = await request(`/api/Products`, {
+      const res = await request(`/api/Products`, {
         method: "POST",
         body: formData,
       });
+
+      const created = await res.json().catch(() => null);
 
       setProducts((prev) => [created ?? payload, ...prev]);
       return created;
@@ -138,13 +126,17 @@ export default function useProductsApi() {
         formData.append("ImageFile", payload.imageFile);
       }
 
-      const updated = await request(`/api/Products/${id}`, {
+      const res = await request(`/api/Products/${id}`, {
         method: "PUT",
         body: formData,
       });
 
+      const updated = await res.json().catch(() => null);
+
       setProducts((prev) =>
-        prev.map((p) => ((p.productID ?? p.id) === id ? { ...p, ...payload, ...(updated || {}) } : p))
+        prev.map((p) =>
+          (p.productID ?? p.id) === id ? { ...p, ...payload, ...(updated || {}) } : p
+        )
       );
       return updated;
     },
@@ -161,7 +153,6 @@ export default function useProductsApi() {
     [request]
   );
 
-  // PATCH /api/Products/{id}/status
   const updateProductStatus = useCallback(
     async (id, status) => {
       if (id == null) throw new Error("Thiếu mã sản phẩm");
@@ -169,10 +160,15 @@ export default function useProductsApi() {
 
       const body = JSON.stringify({ status });
 
-      const result = await request(`/api/Products/${id}/status`, {
+      const res = await request(`/api/Products/${id}/status`, {
         method: "PATCH",
         body,
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
+
+      const result = await res.json().catch(() => null);
 
       setProducts((prev) =>
         prev.map((p) =>
@@ -184,6 +180,14 @@ export default function useProductsApi() {
     },
     [request]
   );
+
+  const getUoms = useCallback(async () => {
+    const res = await request(`/api/warehousemanager/unit-of-measures`, {
+      method: "GET",
+    });
+    const data = await res.json().catch(() => []);
+    return data || [];
+  }, [request]);
 
   const emptyProduct = useMemo(
     () => ({
@@ -222,5 +226,6 @@ export default function useProductsApi() {
     updateProductStatus,
     setProducts,
     emptyProduct,
+    getUoms,
   };
 }

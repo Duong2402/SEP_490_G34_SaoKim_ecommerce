@@ -316,8 +316,11 @@ namespace SaoKim_ecommerce_BE.Services
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-            var from = q.DateFrom ?? DateTime.MinValue;
-            var to = q.DateTo ?? DateTime.UtcNow;
+            var fromDate = q.DateFrom?.Date;         
+            var toDate = q.DateTo?.Date;             
+
+            var from = fromDate ?? DateTime.MinValue;
+            var toExclusive = (toDate?.AddDays(1)) ?? DateTime.MaxValue;
 
             var productQuery = _db.Products.AsNoTracking();
 
@@ -426,7 +429,7 @@ namespace SaoKim_ecommerce_BE.Services
                 .ToListAsync();
 
             var inboundPeriodList = await inboundBase
-                .Where(x => x.ReceiptDate >= from && x.ReceiptDate <= to)
+                .Where(x => x.ReceiptDate >= from && x.ReceiptDate < toExclusive)
                 .GroupBy(x => x.ProductId)
                 .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
                 .ToListAsync();
@@ -455,7 +458,7 @@ namespace SaoKim_ecommerce_BE.Services
                 .ToListAsync();
 
             var outboundPeriodList = await outboundBase
-                .Where(x => x.DispatchDate >= from && x.DispatchDate <= to)
+                .Where(x => x.DispatchDate >= from && x.DispatchDate < toExclusive)
                 .GroupBy(x => x.ProductId)
                 .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
                 .ToListAsync();
@@ -475,6 +478,7 @@ namespace SaoKim_ecommerce_BE.Services
                     var outboundPeriod = outboundPeriodDict.TryGetValue(productId, out var op) ? op : 0;
 
                     var opening = inBefore - outBefore;
+
                     var closing = opening + inboundPeriod - outboundPeriod;
 
                     return new InventoryReportItemDto
@@ -482,7 +486,7 @@ namespace SaoKim_ecommerce_BE.Services
                         ProductId = x.ProductID,
                         ProductCode = x.ProductCode,
                         ProductName = x.ProductName,
-                        OnHand = x.Quantity,
+                        OnHand = x.Quantity,         
                         UomName = x.Unit,
                         MinStock = x.MinStock,
                         Status = x.Status,
@@ -503,6 +507,7 @@ namespace SaoKim_ecommerce_BE.Services
                 Items = items
             };
         }
+
         public async Task<InventoryThreshold> UpdateMinStockAsync(int productId, int minStock)
         {
             if (minStock < 0)
@@ -608,6 +613,8 @@ namespace SaoKim_ecommerce_BE.Services
                 join slip in _db.ReceivingSlips.AsNoTracking()
                     on item.ReceivingSlipId equals slip.Id
                 where item.ProductId == productId
+                      && !slip.IsDeleted
+                      && slip.Status == ReceivingSlipStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "in",
@@ -620,12 +627,13 @@ namespace SaoKim_ecommerce_BE.Services
                     Note = slip.Note,
                     SlipId = slip.Id
                 };
-
             var salesOutboundQuery =
                 from item in _db.DispatchItems.AsNoTracking()
                 join d in _db.Set<RetailDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
+                      && !d.IsDeleted
+                      && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "out",
@@ -644,6 +652,8 @@ namespace SaoKim_ecommerce_BE.Services
                 join d in _db.Set<ProjectDispatch>().AsNoTracking()
                     on item.DispatchId equals d.Id
                 where item.ProductId == productId
+                      && !d.IsDeleted
+                      && d.Status == DispatchStatus.Confirmed
                 select new ProductTraceMovementDto
                 {
                     Direction = "out",
@@ -672,5 +682,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Movements = movements
             };
         }
+
     }
 }

@@ -1,0 +1,79 @@
+.saokim-logo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.logo-image {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  border-radius: 16px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 10px;
+}
+
+.logo-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.logo-s {
+  font-size: 18px;
+}
+
+.logo-a {
+  width: 18px;
+  height: 18px;
+}
+
+.logo-okim {
+  font-size: 16px;
+}
+
+.logo-slogan {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.logo-company {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.logo-tagline {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.logo-small .logo-image {
+  max-width: 140px;
+  padding: 6px;
+}
+
+.logo-medium .logo-image {
+  max-width: 180px;
+  padding: 8px;
+}
+
+.logo-large .logo-image {
+  max-width: 240px;
+  padding: 10px;
+}
