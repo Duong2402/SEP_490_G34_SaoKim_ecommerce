@@ -191,7 +191,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             string customerSignName = string.IsNullOrWhiteSpace(inv.CustomerName)
                 ? "Khách hàng"
                 : inv.CustomerName.Trim();
-            string sellerSignName = "         Lê Duy Duy";
+            string sellerSignName = "         "; 
 
             var items = (inv.Items ?? new List<InvoiceItem>()).ToList();
             for (int i = items.Count; i < 10; i++)
