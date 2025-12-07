@@ -63,14 +63,43 @@ export default function UserForm({
     loadRoles();
   }, []);
 
-  // Set initial values
+  // Helper: resolve roleId từ initialValues + list roles
+  const resolveRoleIdFromInitial = (iv, roleList) => {
+    if (!iv) return "";
+    // ưu tiên roleId nếu backend trả về
+    let resolved = iv.roleId ?? iv.roleID ?? null;
+
+    // nếu không có roleId nhưng có tên role thì map sang
+    if (!resolved && roleList && roleList.length) {
+      const roleName =
+        iv.roleName || iv.role || iv.role_name || iv.role_name_en || null;
+
+      if (roleName) {
+        const found = roleList.find(
+          (r) =>
+            r.name === roleName ||
+            r.code === roleName ||
+            r.normalizedName === roleName
+        );
+        if (found) {
+          resolved = found.roleId ?? found.id ?? null;
+        }
+      }
+    }
+
+    return resolved ? resolved.toString() : "";
+  };
+
+  // Set initial values (phụ thuộc cả initialValues và roles)
   useEffect(() => {
     if (initialValues) {
+      const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
+
       setForm({
         name: initialValues.name || "",
         email: initialValues.email || "",
         password: "",
-        roleId: initialValues.roleId?.toString() || "",
+        roleId: resolvedRoleId,
         phoneNumber: initialValues.phoneNumber || "",
         address: initialValues.address || "",
         dob: toInputDate(initialValues.dob),
@@ -95,7 +124,7 @@ export default function UserForm({
       setForm(DEFAULT_FORM_VALUES);
       setImagePreview(null);
     }
-  }, [initialValues]);
+  }, [initialValues, roles]);
 
   // Validation
   const errors = useMemo(() => {
@@ -130,7 +159,6 @@ export default function UserForm({
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
-
     } else {
       setForm((prev) => ({ ...prev, [name]: value }));
     }
@@ -139,11 +167,13 @@ export default function UserForm({
   // Reset
   const handleReset = () => {
     if (initialValues) {
+      const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
+
       setForm({
         name: initialValues.name || "",
         email: initialValues.email || "",
         password: "",
-        roleId: initialValues.roleId?.toString() || "",
+        roleId: resolvedRoleId,
         phoneNumber: initialValues.phoneNumber || "",
         address: initialValues.address || "",
         dob: toInputDate(initialValues.dob),
@@ -200,7 +230,6 @@ export default function UserForm({
 
   return (
     <form onSubmit={handleSubmit} className="form-grid">
-
       <Field label="Name" name="name" error={errors.name} required>
         <input
           id="name"
@@ -364,7 +393,6 @@ export default function UserForm({
           {submitting ? "Saving..." : resolvedSubmitLabel}
         </button>
       </div>
-
     </form>
   );
 }

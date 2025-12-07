@@ -49,12 +49,11 @@ export default function BannerForm() {
     const payload = {
       title: form.title?.trim() || "",
       imageUrl: form.imageUrl?.trim() || "",
-      // cho phép để trống
       linkUrl: form.linkUrl?.trim() || null,
       isActive: !!form.isActive,
     };
 
-    // Validate đơn giản phía client cho chắc
+  
     if (!payload.title) {
       alert("Vui lòng nhập tiêu đề");
       return;
@@ -77,7 +76,6 @@ export default function BannerForm() {
       const res = err?.response?.data;
       let msg = "Lưu banner thất bại";
 
-      // Lấy message validation từ ASP.NET Core nếu có
       if (res?.errors) {
         const firstKey = Object.keys(res.errors)[0];
         if (firstKey && res.errors[firstKey]?.length) {
