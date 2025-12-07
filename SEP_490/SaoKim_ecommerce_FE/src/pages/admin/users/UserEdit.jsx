@@ -17,10 +17,8 @@ export default function UserEdit() {
         setLoading(true);
         setError("");
 
-        // http.js return res.data => res CHÍNH LÀ user data
         const res = await UserAPI.getById(id);
         setUser(res || null);
-
       } catch (err) {
         console.error(err);
         setError(err?.response?.data?.message || "Failed to load user");
@@ -39,7 +37,7 @@ export default function UserEdit() {
       setSaving(true);
       await UserAPI.update(id, payload);
       alert("User updated successfully");
-      navigate("/users");
+      navigate("/admin/users");
     } catch (err) {
       console.error(err);
       const errorMsg =
@@ -71,7 +69,7 @@ export default function UserEdit() {
             <div className="empty-state-subtitle">
               {error || "User not found"}
             </div>
-            <Link to="/users" className="btn btn-primary">
+            <Link to="/admin/users" className="btn btn-primary">
               Back to Users
             </Link>
           </div>
@@ -97,7 +95,7 @@ export default function UserEdit() {
             <p className="page-subtitle">Update user information</p>
           </div>
           <div className="actions">
-            <Link to="/users" className="btn btn-ghost">
+            <Link to="/admin/users" className="btn btn-ghost">
               Cancel
             </Link>
           </div>
@@ -106,6 +104,12 @@ export default function UserEdit() {
         <UserForm
           initialValues={{
             ...user,
+            roleId:
+              user.roleId ??
+              user.roleID ??
+              user.role?.roleId ??
+              user.role?.id ??
+              "",
             image: imageUrl || undefined,
           }}
           onSubmit={handleSubmit}
