@@ -21,7 +21,6 @@ const EcommerceHeader = () => {
   const [userName, setUserName] = useState(null);
   const [query, setQuery] = useState("");
 
-  // Handle scroll for shadow effect
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -30,14 +29,12 @@ const EcommerceHeader = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Sync session and cart
   const syncSession = () => {
     try {
       const token = localStorage.getItem("token");
       const name = localStorage.getItem("userName") || localStorage.getItem("userEmail");
       setUserName(token && name ? name : null);
 
-      // Update cart count from storage
       const cart = readCart();
       const count = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
       setCartCount(count);
@@ -81,7 +78,6 @@ const EcommerceHeader = () => {
       className={`ecommerce-header ${isScrolled ? "scrolled" : ""}`}
     >
       <Container>
-        {/* Brand */}
         <Navbar.Brand as={Link} to="/" className="brand-logo">
           <img
             src="/images/saokim-logo.png"
@@ -92,13 +88,11 @@ const EcommerceHeader = () => {
           <span className="brand-text ms-2">Sao Kim Lighting</span>
         </Navbar.Brand>
 
-        {/* Mobile Toggle */}
         <Navbar.Toggle aria-controls="basic-navbar-nav">
           <FontAwesomeIcon icon={faBars} />
         </Navbar.Toggle>
 
         <Navbar.Collapse id="basic-navbar-nav">
-          {/* Search Bar (Center) */}
           <div className="mx-auto my-3 my-lg-0 search-container">
             <Form onSubmit={handleSearch} className="d-flex w-100">
               <InputGroup>
@@ -116,7 +110,6 @@ const EcommerceHeader = () => {
             </Form>
           </div>
 
-          {/* Navigation & Icons (Right) */}
           <Nav className="ms-auto align-items-center gap-3">
             <Nav.Link as={Link} to="/" className="nav-item-link">
               Trang chủ
@@ -128,7 +121,6 @@ const EcommerceHeader = () => {
               Giới thiệu
             </Nav.Link>
 
-            {/* Cart */}
             <Nav.Link as={Link} to="/cart" className="icon-link position-relative">
               <FontAwesomeIcon icon={faShoppingCart} size="lg" />
               {cartCount > 0 && (
@@ -138,7 +130,6 @@ const EcommerceHeader = () => {
               )}
             </Nav.Link>
 
-            {/* User Account */}
             {userName ? (
               <Dropdown align="end">
                 <Dropdown.Toggle variant="link" className="user-dropdown-toggle p-0 border-0">

@@ -1,4 +1,3 @@
-// src/components/ProductSelector.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../api/products";
 export default function ProductSelector({ value, onSelect }) {

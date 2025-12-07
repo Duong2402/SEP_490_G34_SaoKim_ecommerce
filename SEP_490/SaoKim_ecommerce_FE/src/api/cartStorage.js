@@ -1,6 +1,4 @@
-// src/api/cartStorage.js
 
-// Xác định "chủ giỏ hàng" theo email / username, fallback guest
 export function getCartOwnerKey() {
   if (typeof window === "undefined") return "guest";
   const email = localStorage.getItem("userEmail");

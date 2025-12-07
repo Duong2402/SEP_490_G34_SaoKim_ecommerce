@@ -1,4 +1,3 @@
-// src/api/ProjectManager/project-products.js
 import http from "../http";
 
 export const ProjectProductAPI = {

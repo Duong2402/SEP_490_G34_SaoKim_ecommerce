@@ -1,3 +1,4 @@
+
 import {
   faCheck,
   faCog,
@@ -26,7 +27,7 @@ import {
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../layouts/StaffLayout";
 import AddProductForm from "./products/AddProductForm";
 import ConfirmDeleteModal from "./products/ConfirmDeleteModal";
@@ -49,12 +50,9 @@ export default function ManageProduct() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingTable, setLoadingTable] = useState(false);
 
-  // xem chi tiết
-  const [viewing, setViewing] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-
   const { fetchProducts, deleteProduct, fetchProduct } = useProductsApi();
   const debouncedSearch = useDebounce(search, 400);
+  const navigate = useNavigate();
 
   const load = async (opts) => {
     setLoadingTable(true);
@@ -130,21 +128,6 @@ export default function ManageProduct() {
     );
   };
 
-  // mở modal xem chi tiết: gọi API /api/Products/{id}
-  const handleView = async (id) => {
-    setLoadingDetail(true);
-    try {
-      const res = await fetchProduct(id); // { product, related }
-      setViewing(res?.product || null);
-    } catch (e) {
-      console.error(e);
-      setViewing(null);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
-  // mở modal sửa: ưu tiên lấy detail đầy đủ trước
   const handleStartEdit = async (row) => {
     try {
       const res = await fetchProduct(row.id);
@@ -155,7 +138,6 @@ export default function ManageProduct() {
       });
     } catch (e) {
       console.error(e);
-      // nếu lỗi thì vẫn cho sửa với data đang có
       setEditing(row);
     }
   };
@@ -357,18 +339,16 @@ export default function ManageProduct() {
                     </td>
                     <td>{renderStatus(p.status)}</td>
                     <td className="text-end">
-                      {/* nút xem chi tiết (con mắt) */}
                       <Button
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
                         title="Xem chi tiết"
-                        onClick={() => handleView(p.id)}
+                        onClick={() =>
+                          navigate(`/staff/manager-products/${p.id}`)
+                        }
                       >
-                        <FontAwesomeIcon
-                          icon={faEye}
-                          className="text-primary"
-                        />
+                        <FontAwesomeIcon icon={faEye} className="text-primary" />
                       </Button>
 
                       <Button
@@ -438,7 +418,6 @@ export default function ManageProduct() {
             </Pagination>
           </div>
 
-          {/* Modal thêm sản phẩm */}
           <Modal
             show={showCreate}
             onHide={() => setShowCreate(false)}
@@ -461,7 +440,6 @@ export default function ManageProduct() {
             </Modal.Body>
           </Modal>
 
-          {/* Modal chỉnh sửa sản phẩm */}
           <Modal
             show={!!editing}
             onHide={() => setEditing(null)}
@@ -480,7 +458,6 @@ export default function ManageProduct() {
                   initial={{
                     sku: editing.sku,
                     name: editing.name,
-                    // để ProductForm dùng categoryId, còn category (string) chỉ để hiển thị ở view
                     categoryId: editing.categoryId,
                     unit: editing.unit,
                     price: editing.price,
@@ -488,6 +465,8 @@ export default function ManageProduct() {
                     active:
                       editing.status === "Active" || editing.active === true,
                     description: editing.description,
+                    supplier: editing.supplier,
+                    note: editing.note,
                     updateAt: editing.updateAt,
                   }}
                   onCancel={() => setEditing(null)}
@@ -496,109 +475,6 @@ export default function ManageProduct() {
                     load();
                   }}
                 />
-              )}
-            </Modal.Body>
-          </Modal>
-
-          {/* Modal xem chi tiết sản phẩm */}
-          <Modal
-            show={!!viewing}
-            onHide={() => setViewing(null)}
-            centered
-            dialogClassName="staff-modal"
-          >
-            <Modal.Header closeButton>
-              <Modal.Title className="staff-modal__title">
-                Chi tiết sản phẩm
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              {loadingDetail && (
-                <div className="d-flex align-items-center gap-2">
-                  <Spinner animation="border" size="sm" />
-                  <span>Đang tải...</span>
-                </div>
-              )}
-
-              {!loadingDetail && viewing && (
-                <>
-                  {viewing.image && (
-                    <div className="text-center mb-3">
-                      <img
-                        src={viewing.image}
-                        alt={viewing.name}
-                        style={{
-                          maxWidth: "100%",
-                          maxHeight: 220,
-                          objectFit: "contain",
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <Table borderless size="sm" className="mb-0">
-                    <tbody>
-                      <tr>
-                        <th style={{ width: 130 }}>SKU</th>
-                        <td>{viewing.sku}</td>
-                      </tr>
-                      <tr>
-                        <th>Tên</th>
-                        <td>{viewing.name}</td>
-                      </tr>
-                      <tr>
-                        <th>Danh mục</th>
-                        <td>{viewing.category || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Giá</th>
-                        <td>
-                          {(viewing.price ?? 0).toLocaleString("vi-VN")} ₫
-                        </td>
-                      </tr>
-                      <tr>
-                        <th>Đơn vị</th>
-                        <td>{viewing.unit || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Số lượng</th>
-                        <td>{viewing.quantity ?? viewing.stock ?? 0}</td>
-                      </tr>
-                      <tr>
-                        <th>Trạng thái</th>
-                        <td>{renderStatus(viewing.status)}</td>
-                      </tr>
-                      <tr>
-                        <th>Mô tả</th>
-                        <td>{viewing.description || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Nhà cung cấp</th>
-                        <td>{viewing.supplier || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Ghi chú</th>
-                        <td>{viewing.note || "-"}</td>
-                      </tr>
-                      <tr>
-                        <th>Ngày tạo</th>
-                        <td>
-                          {viewing.created
-                            ? new Date(viewing.created).toLocaleString("vi-VN")
-                            : "-"}
-                        </td>
-                      </tr>
-                      <tr>
-                        <th>Cập nhật lần cuối</th>
-                        <td>
-                          {viewing.updateAt
-                            ? new Date(viewing.updateAt).toLocaleString("vi-VN")
-                            : "-"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </Table>
-                </>
               )}
             </Modal.Body>
           </Modal>

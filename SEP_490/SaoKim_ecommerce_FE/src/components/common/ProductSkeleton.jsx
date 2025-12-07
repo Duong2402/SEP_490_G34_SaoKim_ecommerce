@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, Placeholder } from "react-bootstrap";
-import "../../styles/home.css"; // Ensure we have access to luxury-card styles
+import "../../styles/home.css"; 
 
 const ProductSkeleton = () => {
   return (

@@ -13,8 +13,6 @@ if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/800x600?text=No+Image";
 
-// ====== CART HELPERS: dùng chung logic key theo email/username ======
-
 function getCartOwnerKey() {
   if (typeof window === "undefined") return "guest";
   const email = localStorage.getItem("userEmail");
@@ -81,8 +79,6 @@ function addToCartFromProduct(product, quantity = 1) {
 
   writeCart(cart);
 }
-
-// ====== FETCH / PRODUCT HELPERS ======
 
 async function fetchJson(url, opts = {}) {
   const response = await fetch(url, opts);
@@ -265,7 +261,6 @@ export default function ProductDetail() {
     };
   }, [id]);
 
-  // Load product reviews
   useEffect(() => {
     let cancelled = false;
     setReviewsLoading(true);

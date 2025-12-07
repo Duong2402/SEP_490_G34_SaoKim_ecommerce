@@ -322,9 +322,20 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var items = order.Items.ToList();
 
                 var subtotal = items.Sum(it => it.UnitPrice * it.Quantity);
+
                 var discount = 0m;
-                var tax = 0m;
-                var total = subtotal - discount + tax;
+
+                var orderTotal = order.Total;
+
+                var taxBase = subtotal - discount;
+                if (taxBase < 0) taxBase = 0;
+
+                var tax = Math.Round(taxBase * 0.10m, 0, MidpointRounding.AwayFromZero);
+
+                var shippingFee = orderTotal - (subtotal - discount + tax);
+                if (shippingFee < 0) shippingFee = 0;
+
+                var total = subtotal - discount + tax + shippingFee;
 
                 var invoice = new Invoice
                 {
@@ -340,7 +351,9 @@ namespace SaoKim_ecommerce_BE.Controllers
                     Subtotal = subtotal,
                     Discount = discount,
                     Tax = tax,
+                    ShippingFee = shippingFee,
                     Total = total,
+
                     Status = InvoiceStatus.Paid,
                     Items = items.Select(oi => new InvoiceItem
                     {
@@ -353,6 +366,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                         OrderCode = order.OrderId.ToString()
                     }).ToList()
                 };
+
 
                 _db.Set<Invoice>().Add(invoice);
             }

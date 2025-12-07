@@ -160,7 +160,6 @@ export default function OrderDetailPage() {
     variant: "secondary",
   };
 
-  // loại thanh toán
   const paymentMethodRaw = (
     payment?.method ||
     payment?.Method ||
@@ -221,7 +220,6 @@ export default function OrderDetailPage() {
     order?.OrderId ||
     orderId;
 
-  // timeline: COD có bước Paid, QR không
   const statusSteps = useMemo(
     () =>
       isCod

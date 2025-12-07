@@ -79,7 +79,6 @@ export default function ProjectForm({
       }
     }
 
-    // Validate start date >= today only for new projects (no initialValues or empty code)
     if (!initialValues && form.startDate) {
       const start = new Date(form.startDate);
       const today = new Date();

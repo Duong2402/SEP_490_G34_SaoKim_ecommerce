@@ -9,7 +9,6 @@ const DEFAULT_FORM = {
   endDate: "",
   status: "Draft",
 
-  // multimedia
   imageUrl: "",
   linkUrl: "",
   descriptionHtml: "",
@@ -204,7 +203,6 @@ export default function ManagerPromotionForm({ initialValues, submitting, onSubm
         />
       </div>
 
-      {/* Ảnh và link */}
       <div className="manager-form__field">
         <label>Hình ảnh khuyến mãi (URL)</label>
         <input
@@ -229,7 +227,6 @@ export default function ManagerPromotionForm({ initialValues, submitting, onSubm
         />
       </div>
 
-      {/* Rich-text description */}
       <div className="manager-form__field" style={{ gridColumn: "1 / -1" }}>
         <label>Nội dung chi tiết (rich-text)</label>
         <div

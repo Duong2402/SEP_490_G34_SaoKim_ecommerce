@@ -38,6 +38,7 @@ import ManageProduct from "./pages/staff-manager/StaffManager.jsx";
 
 // Products (staff manager)
 import ProductDetail from "./pages/products/ProductDetail";
+import ProductDetailPage from "./pages/staff-manager/products/ProductDetailPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import Cart from "./pages/cart/Cart";
 import Checkout from "./pages/cart/Checkout";
@@ -52,9 +53,11 @@ import StaffDashboard from "./pages/staff-manager/staff-dashboard/StaffDashboard
 
 //Invoices
 import ManageInvoices from "./pages/staff-manager/invoices/ManageInvoices";
+import InvoiceDetailStaff from "./pages/staff-manager/invoices/InvoiceDetailStaff";
 
 //Orders
 import ManageOrders from "./pages/staff-manager/orders/ManageOrders";
+import OrderDetailStaff from "./pages/staff-manager/orders/OrderDetailStaff";
 
 //admindashboard
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -146,10 +149,13 @@ export default function App() {
           <Route element={<ProtectedRoute allow={["staff"]} />}>
             <Route path="/staff/manager-dashboard" element={<StaffDashboard />} />
             <Route path="/staff/manager-products" element={<ManageProduct />} />
+            <Route path="/staff/manager-products/:id" element={<ProductDetailPage />} />
             <Route path="/staff/manager-customers" element={<ManageCustomers />} />
             <Route path="/staff-view-customers/:id" element={<CustomerDetail />} />
             <Route path="/staff/manager-orders" element={<ManageOrders />} />
+            <Route path="/staff/orders/:id" element={<OrderDetailStaff />} />
             <Route path="/staff/invoices" element={<ManageInvoices />} />
+            <Route path="/staff/manager-invoices/:id" element={<InvoiceDetailStaff />} />
           </Route>
 
           {/* Projects (ngoài khu Manager) */}

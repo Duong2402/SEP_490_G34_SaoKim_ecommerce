@@ -1,10 +1,7 @@
-// src/pages/staff-manager/api/useProducts.js
+
 import { useCallback, useMemo, useState } from "react";
 import { apiFetch } from "../../../api/lib/apiClient"; 
 
-/**
- * Hook CRUD cho sản phẩm Staff
- */
 export default function useProductsApi() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,14 +41,14 @@ export default function useProductsApi() {
     const data = await res.json();
 
     const payload = data?.data || data;
-    return payload; // { items, page, pageSize, total, totalPages }
+    return payload; 
   }
 
   const fetchProduct = useCallback(
     async (id) => {
       if (id == null) throw new Error("Thiếu mã sản phẩm");
       const res = await request(`/api/Products/${id}`, { method: "GET" });
-      return res.json(); // { product, related }
+      return res.json(); 
     },
     [request]
   );

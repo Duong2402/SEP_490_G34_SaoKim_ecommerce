@@ -119,6 +119,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 Total = inv.Total,
                 Status = inv.Status.ToString(),
                 Created = inv.CreatedAt,
+                ShippingFee = inv.ShippingFee,
                 Items = inv.Items.Select(x => new InvoiceItemDto
                 {
                     ProductName = x.ProductName,
@@ -195,7 +196,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             string customerSignName = string.IsNullOrWhiteSpace(inv.CustomerName)
                 ? "Khách hàng"
                 : inv.CustomerName.Trim();
-            string sellerSignName = "         Lê Duy Duy";
+            string sellerSignName = "         "; 
 
             var items = (inv.Items ?? new List<InvoiceItem>()).ToList();
             for (int i = items.Count; i < 10; i++)
@@ -288,6 +289,8 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                                 Line("Tạm tính:", VnMoney(inv.Subtotal));
                                 if (inv.Discount > 0) Line("Giảm giá:", "-" + VnMoney(inv.Discount));
+                                if (inv.ShippingFee > 0)
+                                    Line("Phí ship:", VnMoney(inv.ShippingFee));
                                 Line("Thuế:", VnMoney(inv.Tax));
                                 Line("Tổng cộng:", VnMoney(inv.Total), true);
                             });
@@ -335,7 +338,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             inv.Tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
 
-            inv.Total = baseAmount + inv.Tax;
+            inv.Total = baseAmount + inv.Tax + inv.ShippingFee;
         }
 
         // GET /api/invoices/{id}/pdf

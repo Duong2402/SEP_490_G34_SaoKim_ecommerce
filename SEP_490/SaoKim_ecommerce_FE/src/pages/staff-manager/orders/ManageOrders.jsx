@@ -1,4 +1,4 @@
-// src/pages/staff-manager/orders/ManageOrders.jsx
+
 import {
   faCheck,
   faCog,
@@ -22,16 +22,15 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-import { Modal } from "react-bootstrap";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useOrdersApi from "../api/useOrders";
 
 export default function ManageOrders() {
-  const { fetchOrders, fetchOrderDetail, updateOrderStatus, deleteOrder } =
-    useOrdersApi();
+  const { fetchOrders, updateOrderStatus } = useOrdersApi();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -47,14 +46,6 @@ export default function ManageOrders() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
-
-  const [showOrderItemsModal, setShowOrderItemsModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [selectedOrderItems, setSelectedOrderItems] = useState([]);
-  const [loadingOrderItems, setLoadingOrderItems] = useState(false);
-
-  const [cancellingOrderId, setCancellingOrderId] = useState(null);
-  const [deletingOrderId, setDeletingOrderId] = useState(null);
 
   const debouncedSearch = useDebounce(search, 400);
 
@@ -112,7 +103,6 @@ export default function ManageOrders() {
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
-  // dùng cả status + dispatchConfirmed để hiển thị đúng “Đang xử lý kho”
   const renderStatusForRow = (order) => {
     const v = String(order.status || "").toLowerCase();
 
@@ -136,7 +126,6 @@ export default function ManageOrders() {
     }
   };
 
-  // phân biệt đơn COD
   const isCodOrder = (order) => {
     const m = String(
       order.paymentMethod ||
@@ -146,104 +135,6 @@ export default function ManageOrders() {
         ""
     ).toLowerCase();
     return m === "cod" || m === "cash_on_delivery";
-  };
-
-  // mở modal chi tiết: lấy luôn customer + shipping + payment + items
-  const handleViewOrderDetail = async (order) => {
-    setShowOrderItemsModal(true);
-    setLoadingOrderItems(true);
-    setSelectedOrder(order);
-    setSelectedOrderItems([]);
-
-    try {
-      const detail = await fetchOrderDetail(order.id);
-      setSelectedOrder(detail);
-      const items = detail.items || detail.Items || [];
-      setSelectedOrderItems(items);
-    } catch (e) {
-      console.error(e);
-      alert("Không tải được chi tiết đơn hàng");
-    } finally {
-      setLoadingOrderItems(false);
-    }
-  };
-
-  const canCancel = (order) => {
-    if (!order) return false;
-    const s = String(order.status || "").toLowerCase();
-    return s === "pending" || s === "shipping" || s === "paid";
-  };
-
-  const handleCancelOrder = async (order) => {
-    if (!order || !canCancel(order)) return;
-
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
-
-    setCancellingOrderId(order.id);
-    try {
-      await updateOrderStatus(order.id, "Cancelled");
-      await load();
-
-      setSelectedOrder((prev) =>
-        prev && prev.id === order.id ? { ...prev, status: "Cancelled" } : prev
-      );
-    } catch (e) {
-      console.error(e);
-      alert("Không hủy được đơn hàng");
-    } finally {
-      setCancellingOrderId(null);
-    }
-  };
-
-  const handleDeleteOrder = async (order) => {
-    if (!order) return;
-
-    const status = String(order.status || "").toLowerCase();
-    if (status !== "cancelled") {
-      alert("Chỉ được xóa đơn hàng đã ở trạng thái Đã hủy");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        "Xóa vĩnh viễn đơn hàng này? Hành động không thể hoàn tác."
-      )
-    )
-      return;
-
-    setDeletingOrderId(order.id);
-    try {
-      await deleteOrder(order.id);
-      setShowOrderItemsModal(false);
-      await load();
-    } catch (e) {
-      console.error(e);
-      alert("Không xóa được đơn hàng");
-    } finally {
-      setDeletingOrderId(null);
-    }
-  };
-
-  // Nhận luôn cả order, tự lôi ra paymentMethod và fallback COD nếu trống
-  const paymentMethodLabel = (order) => {
-    const raw =
-      order?.paymentMethod ||
-      order?.PaymentMethod ||
-      order?.payment?.method ||
-      order?.Payment?.Method ||
-      "";
-
-    const v = raw.toString().toLowerCase();
-
-    if (!v || v === "cod" || v === "cash_on_delivery") {
-      return "Thanh toán khi nhận hàng (COD)";
-    }
-
-    if (v === "qr" || v === "bank_transfer_qr") {
-      return "Chuyển khoản qua QR";
-    }
-
-    return raw;
   };
 
   return (
@@ -463,7 +354,7 @@ export default function ManageOrders() {
                         size="sm"
                         variant="outline-primary"
                         className="me-2"
-                        onClick={() => handleViewOrderDetail(o)}
+                        onClick={() => navigate(`/staff/orders/${o.id}`)}
                         title="Xem chi tiết đơn hàng"
                       >
                         <FontAwesomeIcon icon={faEye} />
@@ -571,162 +462,6 @@ export default function ManageOrders() {
           </div>
         </Card.Body>
       </Card>
-
-      {/* MODAL CHI TIẾT ĐƠN */}
-      <Modal
-        show={showOrderItemsModal}
-        onHide={() => setShowOrderItemsModal(false)}
-        size="lg"
-        dialogClassName="staff-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title className="staff-modal__title">
-            Chi tiết đơn hàng #{selectedOrder?.id}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
-          {loadingOrderItems ? (
-            <div className="d-flex align-items-center gap-2 my-3">
-              <Spinner animation="border" size="sm" />
-              <span>Đang tải chi tiết đơn...</span>
-            </div>
-          ) : (
-            <>
-              {/* Thông tin khách hàng */}
-              <section className="mb-3">
-                <h5>Thông tin khách hàng</h5>
-                <div>Khách hàng: {selectedOrder?.customerName}</div>
-                <div>Email: {selectedOrder?.customerEmail}</div>
-                <div>Số điện thoại: {selectedOrder?.customerPhone}</div>
-              </section>
-
-              {/* Địa chỉ giao hàng */}
-              <section className="mb-3">
-                <h5>Địa chỉ giao hàng</h5>
-                <div>
-                  Người nhận:{" "}
-                  {selectedOrder?.shippingRecipientName ||
-                    selectedOrder?.customerName}
-                </div>
-                <div>
-                  SĐT người nhận:{" "}
-                  {selectedOrder?.shippingPhoneNumber ||
-                    selectedOrder?.customerPhone}
-                </div>
-                <div>
-                  Địa chỉ:{" "}
-                  {[
-                    selectedOrder?.shippingLine1,
-                    selectedOrder?.shippingWard,
-                    selectedOrder?.shippingDistrict,
-                    selectedOrder?.shippingProvince,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </div>
-              </section>
-
-              {/* Thanh toán */}
-              <section className="mb-3">
-                <h5>Thanh toán</h5>
-                <div>Phương thức: {paymentMethodLabel(selectedOrder)}</div>
-              </section>
-
-              <hr />
-
-              {/* Sản phẩm trong đơn */}
-              <section>
-                <h5 className="mb-3">Sản phẩm trong đơn</h5>
-                {selectedOrderItems.length === 0 ? (
-                  <div className="text-muted">Đơn hàng chưa có sản phẩm</div>
-                ) : (
-                  <Table hover responsive size="sm" className="mb-0">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Sản phẩm</th>
-                        <th>Số lượng</th>
-                        <th>Đơn giá</th>
-                        <th>Thành tiền</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedOrderItems.map((item, index) => (
-                        <tr key={item.orderItemId ?? index}>
-                          <td>{index + 1}</td>
-                          <td>{item.productName}</td>
-                          <td>{item.quantity}</td>
-                          <td>
-                            {(item.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
-                          </td>
-                          <td>
-                            {(item.lineTotal ?? 0).toLocaleString("vi-VN")} ₫
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </section>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <div className="w-100 d-flex justify-content-between align-items-center">
-            <div>
-              {selectedOrder && (
-                <>
-                  <div className="mb-1">
-                    Trạng thái hiện tại: {renderStatusForRow(selectedOrder)}
-                  </div>
-                  <div className="small text-muted">
-                    Tổng tiền:{" "}
-                    {(selectedOrder.total ?? 0).toLocaleString("vi-VN")} ₫
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="d-flex gap-2">
-              {selectedOrder && canCancel(selectedOrder) && (
-                <Button
-                  size="small"
-                  variant="outline-danger"
-                  disabled={cancellingOrderId === selectedOrder.id}
-                  onClick={() => handleCancelOrder(selectedOrder)}
-                >
-                  {cancellingOrderId === selectedOrder.id
-                    ? "Đang hủy..."
-                    : "Hủy đơn hàng"}
-                </Button>
-              )}
-
-              {selectedOrder &&
-                String(selectedOrder.status || "").toLowerCase() ===
-                  "cancelled" && (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={deletingOrderId === selectedOrder.id}
-                    onClick={() => handleDeleteOrder(selectedOrder)}
-                  >
-                    {deletingOrderId === selectedOrder.id
-                      ? "Đang xóa..."
-                      : "Xóa đơn đã hủy"}
-                  </Button>
-                )}
-
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setShowOrderItemsModal(false)}
-              >
-                Đóng
-              </Button>
-            </div>
-          </div>
-        </Modal.Footer>
-      </Modal>
     </StaffLayout>
   );
 }

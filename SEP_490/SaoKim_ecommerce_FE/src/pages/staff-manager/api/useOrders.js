@@ -1,4 +1,4 @@
-// src/pages/staff-manager/api/useOrders.js
+
 export default function useOrdersApi() {
   const base = "/api/staff/orders";
 
@@ -12,11 +12,32 @@ export default function useOrdersApi() {
     return qs ? `?${qs}` : "";
   };
 
+  const getAuthHeaders = () => {
+    const token =
+      localStorage.getItem("staffToken") || localStorage.getItem("token");
+    return token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {};
+  };
+
   async function handleJson(res, actionName) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error(`[${actionName}] lỗi`, res.status, text);
-      throw new Error(`${actionName} thất bại (mã ${res.status})`);
+
+      let message = `${actionName} thất bại (mã ${res.status})`;
+      if (text) {
+        try {
+          const data = JSON.parse(text);
+          message = data?.message || data?.error || message;
+        } catch {
+          message = text;
+        }
+      }
+
+      throw new Error(message);
     }
     return res.json();
   }
@@ -29,17 +50,35 @@ export default function useOrdersApi() {
 
     const qs = buildQuery(cleaned);
     const res = await fetch(`${base}${qs}`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeaders(),
+      },
       credentials: "include",
     });
     return handleJson(res, "Tải đơn hàng");
   };
 
-  // LẤY CHI TIẾT 1 ĐƠN (bao gồm customer, shipping, payment, items)
   const fetchOrderDetail = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeaders(),
+      },
       credentials: "include",
     });
     return handleJson(res, "Tải chi tiết đơn hàng");
+  };
+
+  const fetchOrderItems = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}/items`, {
+      method: "GET",
+      headers: {
+        ...getAuthHeaders(),
+      },
+      credentials: "include",
+    });
+    return handleJson(res, "Tải danh sách sản phẩm của đơn");
   };
 
   const updateOrderStatus = async (orderId, status) => {
@@ -47,6 +86,7 @@ export default function useOrdersApi() {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeaders(),
       },
       credentials: "include",
       body: JSON.stringify({ status }),
@@ -65,7 +105,7 @@ export default function useOrdersApi() {
           }
         }
       } catch {
-        // fall back to default message
+        // ignore
       }
 
       console.error("[Cập nhật trạng thái đơn] lỗi", res.status, message);
@@ -78,6 +118,9 @@ export default function useOrdersApi() {
   const deleteOrder = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       method: "DELETE",
+      headers: {
+        ...getAuthHeaders(),
+      },
       credentials: "include",
     });
 
@@ -93,6 +136,7 @@ export default function useOrdersApi() {
   return {
     fetchOrders,
     fetchOrderDetail,
+    fetchOrderItems,
     updateOrderStatus,
     deleteOrder,
   };

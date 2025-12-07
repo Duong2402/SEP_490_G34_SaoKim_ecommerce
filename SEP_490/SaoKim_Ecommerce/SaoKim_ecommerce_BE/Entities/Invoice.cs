@@ -56,6 +56,9 @@ namespace SaoKim_ecommerce_BE.Entities
         [Column("total")]
         public decimal Total { get; set; }
 
+        [Column("shipping_fee")]
+        public decimal ShippingFee { get; set; } = 0m;
+
         [Column("status")]
         public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
 

@@ -1,4 +1,4 @@
-// src/pages/staff-manager/products/ProductForm.jsx
+
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
