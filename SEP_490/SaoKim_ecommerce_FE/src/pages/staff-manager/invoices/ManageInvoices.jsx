@@ -27,13 +27,16 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-import Modal from "react-bootstrap/Modal";
+// Modal bỏ luôn
+// import Modal from "react-bootstrap/Modal";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useInvoicesApi from "../api/useInvoices";
 
 export default function ManageInvoices() {
+  const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -45,13 +48,12 @@ export default function ManageInvoices() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [viewing, setViewing] = useState(null);
   const [sendingId, setSendingId] = useState(null);
 
   const {
     fetchInvoices,
     deleteInvoice,
-    getInvoice,
+    // getInvoice không dùng ở list nữa, để cho detail page dùng
     getPdfBlob,
     deletePdf,
     generatePdf,
@@ -103,14 +105,9 @@ export default function ManageInvoices() {
     return <Badge bg="secondary">{s || "Không xác định"}</Badge>;
   };
 
-  const openView = async (id) => {
-    try {
-      const data = await getInvoice(id);
-      setViewing(data);
-    } catch (err) {
-      console.error(err);
-      alert("Không tải được chi tiết hóa đơn");
-    }
+  // mở trang chi tiết
+  const openView = (id) => {
+    navigate(`/staff/manager-invoices/${id}`);
   };
 
   const onDelete = async (id) => {
@@ -361,18 +358,17 @@ export default function ManageInvoices() {
                     <td>{renderStatus(i.status)}</td>
                     <td>{formatDate(i.created)}</td>
                     <td className="text-end">
-                      {/* Xem nhanh luôn hiện */}
+                      {/* sang trang chi tiết */}
                       <Button
                         variant="outline-info"
                         size="sm"
                         className="me-2"
-                        title="Xem nhanh"
+                        title="Xem chi tiết"
                         onClick={() => openView(i.id)}
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
 
-                      {/* Tạo PDF luôn hiện, nhưng chỉ enable khi Paid và chưa có PDF */}
                       <Button
                         variant="outline-primary"
                         size="sm"
@@ -387,7 +383,6 @@ export default function ManageInvoices() {
                         <FontAwesomeIcon icon={faWandMagicSparkles} />
                       </Button>
 
-                      {/* CÁC NÚT CHỈ HIỆN KHI ĐÃ CÓ PDF */}
                       {hasPdf && (
                         <>
                           <Button
@@ -437,7 +432,6 @@ export default function ManageInvoices() {
                         </>
                       )}
 
-                      {/* Xóa hóa đơn luôn hiện */}
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -486,117 +480,6 @@ export default function ManageInvoices() {
           </div>
         </Card.Body>
       </Card>
-
-      <Modal
-        show={Boolean(viewing)}
-        onHide={() => setViewing(null)}
-        size="lg"
-        centered
-        dialogClassName="staff-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title className="staff-modal__title">
-            Chi tiết hóa đơn
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {!viewing ? (
-            <div className="d-flex align-items-center gap-2">
-              <Spinner animation="border" size="sm" />
-              <span>Đang tải...</span>
-            </div>
-          ) : (
-            <>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <div className="fw-bold">Mã hóa đơn:</div>
-                  <div>{viewing.invoiceCode || viewing.code}</div>
-                </Col>
-                <Col md={6}>
-                  <div className="fw-bold">Trạng thái:</div>
-                  <div>
-                    {renderStatus(viewing.paymentStatus || viewing.status)}
-                  </div>
-                </Col>
-              </Row>
-              <Row className="mb-3">
-                <Col md={6}>
-                  <div className="fw-bold">Khách hàng:</div>
-                  <div>{viewing.customerName || viewing.customer}</div>
-                </Col>
-                <Col md={6}>
-                  <div className="fw-bold">Email / SĐT:</div>
-                  <div>
-                    {(viewing.customerEmail || viewing.email) ?? "-"} /{" "}
-                    {(viewing.customerPhone || viewing.phone) ?? "-"}
-                  </div>
-                </Col>
-              </Row>
-              <Table bordered size="sm">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Sản phẩm</th>
-                    <th className="text-end">SL</th>
-                    <th className="text-end">Đơn giá</th>
-                    <th className="text-end">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(viewing.items || []).map((it, idx) => (
-                    <tr key={idx}>
-                      <td>{idx + 1}</td>
-                      <td>{it.productName}</td>
-                      <td className="text-end">{it.qty ?? it.quantity}</td>
-                      <td className="text-end">
-                        {(it.unitPrice ?? 0).toLocaleString("vi-VN")} ₫
-                      </td>
-                      <td className="text-end">
-                        {(
-                          it.lineTotal ?? (it.qty || 0) * (it.unitPrice || 0)
-                        ).toLocaleString("vi-VN")}{" "}
-                        ₫
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <Row className="justify-content-end">
-                <Col md={6}>
-                  <Table borderless size="sm" className="mb-0">
-                    <tbody>
-                      <tr>
-                        <td className="text-muted">Tạm tính</td>
-                        <td className="text-end">
-                          {(viewing.subtotal ?? 0).toLocaleString("vi-VN")} ₫
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="text-muted">Giảm giá</td>
-                        <td className="text-end">
-                          {(viewing.discount ?? 0).toLocaleString("vi-VN")} ₫
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="text-muted">Thuế</td>
-                        <td className="text-end">
-                          {(viewing.tax ?? 0).toLocaleString("vi-VN")} ₫
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="fw-bold">Tổng cộng</td>
-                        <td className="text-end fw-bold">
-                          {(viewing.total ?? 0).toLocaleString("vi-VN")} ₫
-                        </td>
-                      </tr>
-                    </tbody>
-                  </Table>
-                </Col>
-              </Row>
-            </>
-          )}
-        </Modal.Body>
-      </Modal>
     </StaffLayout>
   );
 }

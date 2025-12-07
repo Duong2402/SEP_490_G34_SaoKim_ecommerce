@@ -456,6 +456,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("text")
                         .HasColumnName("project_name");
 
+                    b.Property<decimal>("ShippingFee")
+                        .HasColumnType("numeric")
+                        .HasColumnName("shipping_fee");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");

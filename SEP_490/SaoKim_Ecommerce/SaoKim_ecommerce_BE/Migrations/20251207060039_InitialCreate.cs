@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     /// <inheritdoc />
-    public partial class AddDB0312 : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -80,7 +80,8 @@ namespace SaoKim_ecommerce_BE.Migrations
                     Note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     status = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
-                    confirmed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    confirmed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -464,9 +465,22 @@ namespace SaoKim_ecommerce_BE.Migrations
                     order_id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     user_id = table.Column<int>(type: "integer", nullable: false),
+                    subtotal = table.Column<decimal>(type: "numeric", nullable: false),
+                    discount_amount = table.Column<decimal>(type: "numeric", nullable: false),
+                    coupon_code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     total = table.Column<decimal>(type: "numeric", nullable: false),
                     status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    paid_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    payment_method = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    payment_status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    payment_transaction_code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    shipping_recipient_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    shipping_phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    shipping_line1 = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    shipping_ward = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    shipping_district = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    shipping_province = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -609,6 +623,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                     discount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     tax = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     total = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    shipping_fee = table.Column<decimal>(type: "numeric", nullable: false),
                     status = table.Column<int>(type: "integer", nullable: false),
                     dispatch_id = table.Column<int>(type: "integer", nullable: true),
                     pdf_file_name = table.Column<string>(type: "character varying(260)", maxLength: 260, nullable: true),

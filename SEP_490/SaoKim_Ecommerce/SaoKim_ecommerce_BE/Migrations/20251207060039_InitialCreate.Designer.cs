@@ -12,8 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    [Migration("20251206032604_AddOrderCouponFields")]
-    partial class AddOrderCouponFields
+    [Migration("20251207060039_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -289,6 +289,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("dispatch_date");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -455,6 +458,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Property<string>("ProjectName")
                         .HasColumnType("text")
                         .HasColumnName("project_name");
+
+                    b.Property<decimal>("ShippingFee")
+                        .HasColumnType("numeric")
+                        .HasColumnName("shipping_fee");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer")

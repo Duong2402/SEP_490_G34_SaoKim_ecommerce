@@ -21,6 +21,7 @@ export default function useOrdersApi() {
     return res.json();
   }
 
+  // LẤY DANH SÁCH ĐƠN HÀNG
   const fetchOrders = async (params = {}) => {
     const cleaned = { ...params };
     if (cleaned.status === "all") {
@@ -34,7 +35,7 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải đơn hàng");
   };
 
-  // LẤY CHI TIẾT 1 ĐƠN (bao gồm customer, shipping, payment, items)
+  // LẤY CHI TIẾT 1 ĐƠN
   const fetchOrderDetail = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       credentials: "include",
@@ -42,6 +43,15 @@ export default function useOrdersApi() {
     return handleJson(res, "Tải chi tiết đơn hàng");
   };
 
+  // LẤY LIST ITEMS CỦA 1 ĐƠN
+  const fetchOrderItems = async (orderId) => {
+    const res = await fetch(`${base}/${orderId}/items`, {
+      credentials: "include",
+    });
+    return handleJson(res, "Tải danh sách sản phẩm của đơn");
+  };
+
+  // CẬP NHẬT TRẠNG THÁI 1 ĐƠN
   const updateOrderStatus = async (orderId, status) => {
     const res = await fetch(`${base}/${orderId}/status`, {
       method: "PATCH",
@@ -65,7 +75,7 @@ export default function useOrdersApi() {
           }
         }
       } catch {
-        // fall back to default message
+        // ignore
       }
 
       console.error("[Cập nhật trạng thái đơn] lỗi", res.status, message);
@@ -75,13 +85,14 @@ export default function useOrdersApi() {
     return true;
   };
 
+  // XÓA ĐƠN HÀNG (PHẢI Ở TRẠNG THÁI Cancelled)
   const deleteOrder = async (orderId) => {
     const res = await fetch(`${base}/${orderId}`, {
       method: "DELETE",
       credentials: "include",
     });
 
-    if (!res.ok) {
+   	if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error("[Xóa đơn hàng] lỗi", res.status, text);
       throw new Error(`Xóa đơn hàng thất bại (mã ${res.status})`);
@@ -93,6 +104,7 @@ export default function useOrdersApi() {
   return {
     fetchOrders,
     fetchOrderDetail,
+    fetchOrderItems,
     updateOrderStatus,
     deleteOrder,
   };
