@@ -2,19 +2,24 @@
 {
     public static class ShippingFeeCalculator
     {
-        public static decimal CalculateFee(double distanceKm)
+        public static decimal CalculateFee(
+            double distanceKm,
+            decimal baseFee,
+            double freeDistanceKm,
+            decimal extraFeePerKm)
         {
-            if (distanceKm <= 3)
-                return 20000m;
+            if (distanceKm <= 0)
+                return baseFee;
 
-            if (distanceKm <= 10)
-                return 25000m;
+            var d = Math.Ceiling(distanceKm);
 
-            if (distanceKm <= 30)
-                return 30000m;
+            if (d <= freeDistanceKm)
+                return baseFee;
 
-            decimal extraKm = (decimal)(distanceKm - 30);
-            return 30000m + extraKm * 500m;
+            var extraKm = d - freeDistanceKm;
+            var extra = (decimal)extraKm * extraFeePerKm;
+
+            return baseFee + extra;
         }
     }
 }

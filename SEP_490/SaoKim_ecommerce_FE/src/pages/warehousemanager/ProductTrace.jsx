@@ -411,11 +411,9 @@ export default function ProductTrace() {
                       </span>
                     </div>
                     <div className="wm-trace-detail__item">
-                      <span className="wm-trace-detail__label">
-                        Số lượng theo phiếu -
-                      </span>
+                      <span className="wm-trace-detail__label">Số lượng theo phiếu:</span>
                       <span className="wm-trace-detail__value">
-                        - {selectedMovement.quantity} {selectedMovement.uom || ""}
+                        {selectedMovement.quantity} {selectedMovement.uom || ""}
                       </span>
                     </div>
                     <div className="wm-trace-detail__item">

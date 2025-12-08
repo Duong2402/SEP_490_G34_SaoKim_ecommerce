@@ -1,9 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,6 +6,11 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models.Requests;
+using System;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -86,14 +86,26 @@ namespace SaoKim_ecommerce_BE.Controllers
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                var status = root.GetProperty("status").GetString();
+                var statusPropExists = root.TryGetProperty("status", out var statusProp);
+                var status = statusPropExists ? statusProp.GetString() : null;
                 _logger.LogInformation("GeocodeAsync: status = {status}", status);
 
                 if (!string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                {
+                    string? errorMessage = null;
+                    if (root.TryGetProperty("error_message", out var errProp))
+                    {
+                        errorMessage = errProp.GetString();
+                    }
+                    _logger.LogWarning("GeocodeAsync: non-OK status {status}, error {err}", status, errorMessage);
                     return (null, null);
+                }
 
-                var results = root.GetProperty("results");
-                if (results.GetArrayLength() == 0) return (null, null);
+                if (!root.TryGetProperty("results", out var results) || results.GetArrayLength() == 0)
+                {
+                    _logger.LogWarning("GeocodeAsync: no results for address");
+                    return (null, null);
+                }
 
                 var location = results[0]
                     .GetProperty("geometry")
@@ -168,8 +180,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                 District = req.District,
                 Province = req.Province,
                 IsDefault = req.IsDefault,
-                Latitude = req.Latitude,
-                Longitude = req.Longitude,
+                Latitude = req.Latitude,   
+                Longitude = req.Longitude, 
                 CreateAt = DateTime.UtcNow
             };
 
@@ -234,8 +246,13 @@ namespace SaoKim_ecommerce_BE.Controllers
             entity.District = req.District;
             entity.Province = req.Province;
             entity.IsDefault = req.IsDefault;
-            entity.Latitude = req.Latitude;
-            entity.Longitude = req.Longitude;
+
+            if (req.Latitude.HasValue && req.Longitude.HasValue)
+            {
+                entity.Latitude = req.Latitude;
+                entity.Longitude = req.Longitude;
+            }
+
             entity.UpdateAt = DateTime.UtcNow;
 
             if (entity.Latitude == null || entity.Longitude == null)

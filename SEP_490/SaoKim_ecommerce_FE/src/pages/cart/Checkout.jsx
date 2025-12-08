@@ -4,7 +4,7 @@ import {
   Breadcrumb,
   Button,
   Card,
- Col,
+  Col,
   Container,
   Form,
   InputGroup,
@@ -52,7 +52,7 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   const [shippingMethod, setShippingMethod] = useState("standard");
-  const [shippingFee, setShippingFee] = useState(20000);
+  const [baseShippingFee, setBaseShippingFee] = useState(0);
 
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherList] = useState([
@@ -130,10 +130,10 @@ export default function Checkout() {
           setSelectedAddressId(null);
         }
       } catch {
-        // ignore
       }
     })();
   }, [apiBase]);
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -142,19 +142,16 @@ export default function Checkout() {
 
     (async () => {
       try {
-        const res = await fetch(
-          `${apiBase}/api/shipping/fee?addressId=${selectedAddressId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const url = `${apiBase}/api/shipping/fee?addressId=${selectedAddressId}&method=standard`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (typeof data.fee === "number") {
-          setShippingFee(data.fee);
+          setBaseShippingFee(data.fee);
         }
       } catch {
-        // keep old fee on error
       }
     })();
   }, [selectedAddressId, apiBase]);
@@ -173,6 +170,17 @@ export default function Checkout() {
     [selectedItems]
   );
 
+  const standardFee = baseShippingFee;
+  const fastFee = Math.round(baseShippingFee * 1.3);
+  const expressFee = Math.round(baseShippingFee * 1.6);
+
+  const shippingFee =
+    shippingMethod === "fast"
+      ? fastFee
+      : shippingMethod === "express"
+        ? expressFee
+        : standardFee;
+
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (typeof selectedVoucher.discountAmount === "number") {
@@ -184,7 +192,12 @@ export default function Checkout() {
     return 0;
   }, [selectedVoucher, subtotal]);
 
-  const total = Math.max(subtotal + shippingFee - discount, 0);
+  const vatBase = Math.max(subtotal - discount, 0);
+
+  const vat = Math.round(vatBase * 0.1);
+
+  const total = Math.max(vatBase + vat + shippingFee, 0);
+  
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
 
@@ -281,7 +294,6 @@ export default function Checkout() {
           const errData = await res.json();
           errMsg = errData.message || errData.Message || errMsg;
         } catch {
-          // ignore
         }
         setSelectedVoucher(null);
         setVoucherStatus({
@@ -345,6 +357,7 @@ export default function Checkout() {
     try {
       const payload = {
         subtotal,
+        shippingFee,
         addressId: selectedAddressId,
         couponCode: selectedVoucher?.code || undefined,
         status: paymentMethod === "COD" ? "Pending" : "Paid",
@@ -380,8 +393,8 @@ export default function Checkout() {
       }
 
       const createdOrder = await res.json();
-      const backendTotal =
-        typeof createdOrder.total === "number" ? createdOrder.total : total;
+
+      const grandTotal = total;
 
       const fullCart = readCart();
       const remain = fullCart.filter((it) => !selectedIds.has(it.id));
@@ -394,7 +407,7 @@ export default function Checkout() {
         replace: true,
         state: {
           customer: form,
-          total: backendTotal,
+          total: grandTotal,
           paymentMethod,
           shippingMethod,
           selectedVoucher,
@@ -402,6 +415,7 @@ export default function Checkout() {
           order: createdOrder,
         },
       });
+
     } finally {
       setSubmitting(false);
     }
@@ -506,9 +520,8 @@ export default function Checkout() {
                           {addresses.map((a) => (
                             <label
                               key={a.addressId}
-                              className={`address-option ${
-                                selectedAddressId === a.addressId ? "active" : ""
-                              }`}
+                              className={`address-option ${selectedAddressId === a.addressId ? "active" : ""
+                                }`}
                             >
                               <Form.Check
                                 type="radio"
@@ -585,36 +598,41 @@ export default function Checkout() {
                       Phương thức vận chuyển
                     </Card.Title>
                     <div className="d-grid gap-3">
-                      {shippingOptions.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className={`shipping-option ${
-                            shippingMethod === opt.value ? "active" : ""
-                          }`}
-                        >
-                          <Form.Check
-                            type="radio"
-                            name="shipping"
-                            checked={shippingMethod === opt.value}
-                            onChange={() => setShippingMethod(opt.value)}
-                            className="mt-1 me-3"
-                          />
-                          <div className="w-100">
-                            <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                              <div>
-                                <div className="fw-semibold text-primary">{opt.label}</div>
-                                <div className="text-muted small">{opt.time}</div>
-                              </div>
-                              <div className="text-end">
-                                <div className="fw-semibold text-dark">
-                                  {formatCurrency(shippingFee)}
+                      {shippingOptions.map((opt) => {
+                        let optionFee = standardFee;
+                        if (opt.value === "fast") optionFee = fastFee;
+                        if (opt.value === "express") optionFee = expressFee;
+
+                        return (
+                          <label
+                            key={opt.value}
+                            className={`shipping-option ${shippingMethod === opt.value ? "active" : ""
+                              }`}
+                          >
+                            <Form.Check
+                              type="radio"
+                              name="shipping"
+                              checked={shippingMethod === opt.value}
+                              onChange={() => setShippingMethod(opt.value)}
+                              className="mt-1 me-3"
+                            />
+                            <div className="w-100">
+                              <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                  <div className="fw-semibold text-primary">{opt.label}</div>
+                                  <div className="text-muted small">{opt.time}</div>
                                 </div>
-                                <div className="text-muted small">Ước tính phí</div>
+                                <div className="text-end">
+                                  <div className="fw-semibold text-dark">
+                                    {formatCurrency(optionFee)}
+                                  </div>
+                                  <div className="text-muted small">Ước tính phí</div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </label>
-                      ))}
+                          </label>
+                        );
+                      })}
                     </div>
                   </Card.Body>
                 </Card>
@@ -626,9 +644,8 @@ export default function Checkout() {
                     </Card.Title>
                     <div className="d-grid gap-3">
                       <label
-                        className={`payment-option ${
-                          paymentMethod === "COD" ? "active" : ""
-                        }`}
+                        className={`payment-option ${paymentMethod === "COD" ? "active" : ""
+                          }`}
                       >
                         <Form.Check
                           type="radio"
@@ -652,9 +669,8 @@ export default function Checkout() {
                       </label>
 
                       <label
-                        className={`payment-option ${
-                          paymentMethod === "QR" ? "active" : ""
-                        }`}
+                        className={`payment-option ${paymentMethod === "QR" ? "active" : ""
+                          }`}
                       >
                         <Form.Check
                           type="radio"
@@ -787,6 +803,10 @@ export default function Checkout() {
                         <span className="fw-semibold">-{formatCurrency(discount)}</span>
                       </div>
                     )}
+                    <div className="summary-row">
+                      <span>VAT:</span>
+                      <span className="fw-semibold">{formatCurrency(vat)}</span>
+                    </div>
                     <div className="summary-row total-row">
                       <span>Tổng cộng:</span>
                       <span className="total-amount">{formatCurrency(total)}</span>

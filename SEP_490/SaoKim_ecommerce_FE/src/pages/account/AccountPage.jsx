@@ -11,8 +11,6 @@ import HomepageHeader from "../../components/HomepageHeader";
 import EcommerceFooter from "../../components/EcommerceFooter";
 import "../../styles/account.css";
 
-
-
 let API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
   "https://localhost:7278";
@@ -26,6 +24,42 @@ function buildImageUrl(image) {
   const relative = image.startsWith("/") ? image : `/${image}`;
   return `${API_BASE}${relative}`;
 }
+
+function stripVNPrefix(name = "") {
+  if (!name) return "";
+  let s = name.trim();
+  const prefixes = [
+    "Xã",
+    "Phường",
+    "Thị trấn",
+    "Thị xã",
+    "Quận",
+    "Huyện",
+    "Thành phố",
+    "TP.",
+    "TP",
+    "Tỉnh",
+  ];
+
+  const lower = s.toLowerCase();
+  for (const p of prefixes) {
+    const pl = p.toLowerCase();
+    if (lower.startsWith(pl + " ")) {
+      s = s.slice(p.length).trim();
+      break;
+    }
+  }
+  return s;
+}
+
+function removeVietnameseAccents(str = "") {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
 
 function ProfileTab() {
   const navigate = useNavigate();
@@ -410,30 +444,87 @@ function AddressesTab() {
       return;
     }
 
-    const fullAddress = `${form.line1}, ${form.ward}, ${form.district}, ${form.province}, Vietnam`;
+    const wardName = stripVNPrefix(form.ward);
+    const districtName = stripVNPrefix(form.district);
+    const provinceName = stripVNPrefix(form.province);
 
     let lat = null;
     let lng = null;
 
-    try {
+    const queryNominatim = async (addr) => {
+      const plain = removeVietnameseAccents(addr);
+      console.log("Đang geocode với:", plain);
+
       const url =
         "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
-        encodeURIComponent(fullAddress);
+        encodeURIComponent(plain);
 
-      const geoRes = await fetch(url, { headers: { Accept: "application/json" } });
+      try {
+        const geoRes = await fetch(url, {
+          headers: {
+            Accept: "application/json",
+          },
+        });
 
-      if (geoRes.ok) {
-        const data = await geoRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          lat = parseFloat(data[0].lat);
-          lng = parseFloat(data[0].lon);
+        if (!geoRes.ok) {
+          console.warn("Nominatim HTTP error:", geoRes.status);
+          return null;
         }
+
+        const data = await geoRes.json();
+        console.log("Nominatim response cho", plain, ":", data);
+
+        if (Array.isArray(data) && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon),
+          };
+        }
+      } catch (err) {
+        console.error("Lỗi gọi Nominatim với", plain, err);
+      }
+
+      return null;
+    };
+
+    try {
+      // Lần 1: line1 + ward + district + province
+      let addr1 = `${form.line1}, ${wardName}, ${districtName}, ${provinceName}, Vietnam`;
+      let result = await queryNominatim(addr1);
+
+      // Lần 2: ward + district + province
+      if (!result) {
+        let addr2 = `${wardName}, ${districtName}, ${provinceName}, Vietnam`;
+        result = await queryNominatim(addr2);
+      }
+
+      // Lần 3: district + province
+      if (!result) {
+        let addr3 = `${districtName}, ${provinceName}, Vietnam`;
+        result = await queryNominatim(addr3);
+      }
+
+      // Lần 4: province
+      if (!result) {
+        let addr4 = `${provinceName}, Vietnam`;
+        result = await queryNominatim(addr4);
+      }
+
+      if (result) {
+        lat = result.lat;
+        lng = result.lon;
       }
     } catch (err) {
       console.error("Lỗi lấy tọa độ từ Nominatim:", err);
     }
 
-    const payload = { ...form, latitude: lat, longitude: lng };
+    const payload = {
+      ...form,
+      latitude: lat,
+      longitude: lng,
+    };
+
+    console.log("Payload gửi lên /api/addresses:", payload);
 
     try {
       const method = editing ? "PUT" : "POST";
@@ -460,10 +551,11 @@ function AddressesTab() {
 
       await fetchAll();
       resetForm();
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
+    } catch (e2) {
+      setError(e2.message || "Đã xảy ra lỗi");
     }
   };
+
 
   const setDefault = async (id) => {
     try {

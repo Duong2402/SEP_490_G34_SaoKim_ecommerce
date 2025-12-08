@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+﻿using DocumentFormat.OpenXml.VariantTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +7,7 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models.Requests;
 using SaoKim_ecommerce_BE.Services;
+using System.Security.Claims;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -19,17 +20,19 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly ILogger<OrdersController> _logger;
         private readonly IDispatchService _dispatchService;
         private readonly ICouponService _couponService;
-
+        private readonly decimal VatPercent;
         public OrdersController(
             SaoKimDBContext context,
             ILogger<OrdersController> logger,
             IDispatchService dispatchService,
-            ICouponService couponService)
+            ICouponService couponService,
+            IConfiguration config)
         {
             _context = context;
             _logger = logger;
             _dispatchService = dispatchService;
             _couponService = couponService;
+            VatPercent = config.GetValue<decimal>("VAT:Value") / 100;
         }
 
         private async Task<User?> GetCurrentUserAsync()
@@ -171,11 +174,12 @@ namespace SaoKim_ecommerce_BE.Controllers
                     });
                 }
 
-
                 decimal discountAmount = 0m;
-                decimal finalTotal = subtotal;
                 string? appliedCouponCode = null;
                 CouponApplyResultDto? couponResult = null;
+
+                var shippingFee = request.ShippingFee;
+                if (shippingFee < 0) shippingFee = 0;
 
                 if (!string.IsNullOrWhiteSpace(request.CouponCode))
                 {
@@ -190,10 +194,14 @@ namespace SaoKim_ecommerce_BE.Controllers
                     }
 
                     discountAmount = couponResult.DiscountAmount;
-                    finalTotal = couponResult.FinalTotal;
                     appliedCouponCode = couponResult.Code;
                 }
 
+                var vatBase = Math.Max(subtotal - discountAmount, 0);
+
+                var vatAmount = Math.Round(vatBase * VatPercent, 0, MidpointRounding.AwayFromZero);
+
+                var finalTotal = vatBase + vatAmount + shippingFee;
 
                 var rawPaymentMethod = (request.PaymentMethod ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(rawPaymentMethod))
@@ -230,7 +238,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                         break;
                 }
 
-
                 var order = new Order
                 {
                     UserId = user.UserID,
@@ -238,6 +245,10 @@ namespace SaoKim_ecommerce_BE.Controllers
                     Subtotal = subtotal,
                     DiscountAmount = discountAmount,
                     CouponCode = appliedCouponCode,
+
+                    ShippingFee = shippingFee,
+                    ShippingMethod = request.ShippingMethod,
+                    VatAmount = vatAmount,
                     Total = finalTotal,
 
                     Status = "Pending",
@@ -256,6 +267,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     ShippingDistrict = shippingDistrict,
                     ShippingProvince = shippingProvince
                 };
+
 
                 await using var tx = await _context.Database.BeginTransactionAsync();
 
@@ -302,10 +314,15 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return Ok(new
                 {
                     order.OrderId,
+                    order.Subtotal,
+                    order.ShippingFee,
+                    order.DiscountAmount,
+                    order.VatAmount,
                     order.Total,
                     order.Status,
                     order.CreatedAt
                 });
+
             }
             catch (Exception ex)
             {
@@ -341,6 +358,8 @@ namespace SaoKim_ecommerce_BE.Controllers
                         o.OrderId,
                         o.Subtotal,
                         o.DiscountAmount,
+                        o.ShippingFee,
+                        o.VatAmount,
                         o.Total,
                         o.CouponCode,
                         o.Status,

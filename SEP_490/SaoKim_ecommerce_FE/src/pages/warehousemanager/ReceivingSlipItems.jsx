@@ -45,6 +45,13 @@ const toStatusCode = (v) => {
   return 0;
 };
 
+const truncateText = (text, maxLength = 60) => {
+  if (!text) return "";
+  const s = String(text);
+  if (s.length <= maxLength) return s;
+  return s.slice(0, maxLength) + "...";
+};
+
 const ReceivingSlipItems = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,7 +76,7 @@ const ReceivingSlipItems = () => {
   const [uoms, setUoms] = useState([]);
 
   const [page, setPage] = useState(1);
-  const [notify, setNotify] = useState(null); 
+  const [notify, setNotify] = useState(null);
 
   const totals = useMemo(() => {
     const totalQty = items.reduce(
@@ -514,7 +521,11 @@ const ReceivingSlipItems = () => {
                       {item.productCode || "Chưa có mã"}
                     </span>
                   </td>
-                  <td>{item.productName}</td>
+                  <td>
+                    <span title={item.productName || ""}>
+                      {truncateText(item.productName || "", 60) || "-"}
+                    </span>
+                  </td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
                   <td>

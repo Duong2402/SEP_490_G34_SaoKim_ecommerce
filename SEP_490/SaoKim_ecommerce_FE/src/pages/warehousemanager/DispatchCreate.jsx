@@ -22,6 +22,11 @@ import { apiFetch } from "../../api/lib/apiClient";
 import Select from "react-select";
 
 export const API_BASE = "https://localhost:7278";
+
+const MAX_QTY = 100_000_000; 
+const MAX_UNIT_PRICE = 1_000_000_000; 
+const MAX_LINE_TOTAL = 100_000_000_000; 
+
 const emptyItem = () => ({
   productId: "",
   uom: "",
@@ -53,6 +58,20 @@ export default function DispatchCreate() {
   const [products, setProducts] = useState([]);
 
   const [toast, setToast] = useState(null);
+
+  const formatMoney = (value) => {
+    if (value === null || value === undefined || value === "") return "";
+    const num = Number(value);
+    if (Number.isNaN(num)) return "";
+    return num.toLocaleString("vi-VN");
+  };
+
+  const parseMoneyInput = (str) => {
+    if (!str) return 0;
+    const cleaned = str.replace(/\./g, "").replace(/,/g, ".");
+    const num = Number(cleaned);
+    return Number.isNaN(num) ? 0 : num;
+  };
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -172,9 +191,27 @@ export default function DispatchCreate() {
     const iErrs = {};
     items.forEach((it, idx) => {
       const e = {};
+      const qty = Number(it.quantity);
+      const price = Number(it.unitPrice);
+      const lineTotal = qty * price;
+
       if (!it.productId) e.productId = "Chọn sản phẩm.";
-      if (!(Number(it.quantity) > 0)) e.quantity = "Số lượng phải > 0.";
-      if (Number(it.unitPrice) < 0) e.unitPrice = "Đơn giá phải ≥ 0.";
+      if (!(qty > 0)) e.quantity = "Số lượng phải > 0.";
+      else if (qty > MAX_QTY)
+        e.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
+
+      if (price < 0) e.unitPrice = "Đơn giá phải ≥ 0.";
+      else if (price > MAX_UNIT_PRICE)
+        e.unitPrice = `Đơn giá tối đa ${formatMoney(
+          MAX_UNIT_PRICE
+        )} đ.`;
+
+      if (!e.unitPrice && lineTotal > MAX_LINE_TOTAL) {
+        e.unitPrice = `Thành tiền tối đa ${formatMoney(
+          MAX_LINE_TOTAL
+        )} đ.`;
+      }
+
       if (Object.keys(e).length) iErrs[idx] = e;
     });
     setItemErrs(iErrs);
@@ -238,7 +275,6 @@ export default function DispatchCreate() {
       },
     };
   };
-
 
   const handleSave = async () => {
     const ok = validate();
@@ -334,14 +370,12 @@ export default function DispatchCreate() {
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng số lượng</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
-          <span className="wm-subtle-text">
-            Không theo đơn vị cụ thể
-          </span>
+          <span className="wm-subtle-text">Không theo đơn vị cụ thể</span>
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng giá trị</span>
           <span className="wm-summary__value">
-            {totals.totalValue.toLocaleString("vi-VN")} đ
+            {formatMoney(totals.totalValue)} đ
           </span>
           <span className="wm-subtle-text">Chưa gồm thuế</span>
         </div>
@@ -482,8 +516,9 @@ export default function DispatchCreate() {
             ) : (
               items.map((it, idx) => {
                 const errs = itemErrs[idx] || {};
-                const lineTotal =
-                  Number(it.quantity || 0) * Number(it.unitPrice || 0);
+                const qty = Number(it.quantity || 0);
+                const unitPrice = Number(it.unitPrice || 0);
+                const lineTotal = qty * unitPrice;
 
                 return (
                   <tr key={idx}>
@@ -497,20 +532,24 @@ export default function DispatchCreate() {
                         value={
                           products.find((p) => p.id === it.productId)
                             ? {
-                              value: it.productId,
-                              label: `${it.productId} - ${findProductById(it.productId)?.name
+                                value: it.productId,
+                                label: `${it.productId} - ${
+                                  findProductById(it.productId)?.name
                                 }`,
-                            }
+                              }
                             : null
                         }
-                        onChange={(option) =>
+                        onChange={(option) => {
+                          const prod = findProductById(option?.value);
                           patchItem(idx, {
                             productId: option?.value || "",
-                            uom: findProductById(option?.value)?.unit || "",
+                            uom: prod?.unit || "",
                             unitPrice:
-                              findProductById(option?.value)?.price || 0,
-                          })
-                        }
+                              prod && prod.price > MAX_UNIT_PRICE
+                                ? MAX_UNIT_PRICE
+                                : prod?.price || 0,
+                          });
+                        }}
                         maxMenuHeight={200}
                         styles={{
                           control: (base) => ({
@@ -551,10 +590,20 @@ export default function DispatchCreate() {
                         <Form.Control
                           type="number"
                           min={1}
+                          max={MAX_QTY}
                           value={it.quantity}
-                          onChange={(e) =>
-                            patchItem(idx, { quantity: e.target.value })
-                          }
+                          onChange={(e) => {
+                            const raw = Number(e.target.value);
+                            if (Number.isNaN(raw)) {
+                              patchItem(idx, { quantity: "" });
+                              return;
+                            }
+                            const clamped = Math.min(
+                              Math.max(raw, 1),
+                              MAX_QTY
+                            );
+                            patchItem(idx, { quantity: clamped });
+                          }}
                           isInvalid={!!errs.quantity}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -565,12 +614,16 @@ export default function DispatchCreate() {
 
                     <td>
                       <Form.Control
-                        type="number"
-                        min={0}
-                        value={it.unitPrice}
-                        onChange={(e) =>
-                          patchItem(idx, { unitPrice: e.target.value })
-                        }
+                        type="text"
+                        value={formatMoney(it.unitPrice)}
+                        onChange={(e) => {
+                          const parsed = parseMoneyInput(e.target.value);
+                          const clamped = Math.min(
+                            Math.max(parsed, 0),
+                            MAX_UNIT_PRICE
+                          );
+                          patchItem(idx, { unitPrice: clamped });
+                        }}
                         isInvalid={!!errs.unitPrice}
                       />
                       <Form.Control.Feedback type="invalid">
@@ -579,7 +632,7 @@ export default function DispatchCreate() {
                     </td>
 
                     <td className="fw-semibold">
-                      {lineTotal.toLocaleString("vi-VN")} đ
+                      {formatMoney(lineTotal)} đ
                     </td>
 
                     <td className="text-end">
@@ -621,10 +674,10 @@ export default function DispatchCreate() {
               toast.type === "danger"
                 ? "danger"
                 : toast.type === "warning"
-                  ? "warning"
-                  : toast.type === "success"
-                    ? "success"
-                    : "light"
+                ? "warning"
+                : toast.type === "success"
+                ? "success"
+                : "light"
             }
             onClose={() => setToast(null)}
             show={!!toast}

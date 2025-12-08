@@ -54,10 +54,8 @@ const SUMMARY = [
 
 const WarehouseDashboard = () => {
   const [stats, setStats] = useState({
-    totalInbound: 0,
-    totalOutbound: 95,
-    totalStock: 540,
-    lowStockItems: 12,
+    totalStock: 0,
+    lowStockItems: 0,
   });
 
   const [weeklyInbound, setWeeklyInbound] = useState({
@@ -70,11 +68,12 @@ const WarehouseDashboard = () => {
   });
 
   const [chartData, setChartData] = useState([]);
-  const [notify, setNotify] = useState(null); 
+  const [notify, setNotify] = useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Data demo cho chart
     const data = [
       { name: "Th 2", inbound: 30, outbound: 20 },
       { name: "Th 3", inbound: 42, outbound: 24 },
@@ -98,10 +97,6 @@ const WarehouseDashboard = () => {
         }
         const data = await res.json();
         setWeeklyInbound(data);
-        setStats((prev) => ({
-          ...prev,
-          totalInbound: data.thisWeek,
-        }));
       } catch (err) {
         console.error("Không thể tải thống kê phiếu nhập trong tuần:", err);
         setNotify(
@@ -123,10 +118,6 @@ const WarehouseDashboard = () => {
         }
         const data = await res.json();
         setWeeklyOutbound(data);
-        setStats((prev) => ({
-          ...prev,
-          totalOutbound: data.thisWeek,
-        }));
       } catch (err) {
         console.error("Không thể tải thống kê phiếu xuất trong tuần:", err);
         setNotify(
@@ -135,7 +126,7 @@ const WarehouseDashboard = () => {
       }
     };
 
-    const fetchStats = async () => {
+    const fetchTotalStock = async () => {
       try {
         const resStock = await apiFetch(
           "/api/warehousemanager/total-stock"
@@ -150,7 +141,7 @@ const WarehouseDashboard = () => {
 
         setStats((prev) => ({
           ...prev,
-          totalStock: dataStock.totalStock,
+          totalStock: dataStock.totalStock ?? 0,
         }));
       } catch (err) {
         console.error("Không thể tải tổng tồn kho:", err);
@@ -158,9 +149,50 @@ const WarehouseDashboard = () => {
       }
     };
 
+    // Lấy tổng số SKU dưới định mức (alert + critical) từ inventory-report
+    const fetchLowStockItems = async () => {
+      try {
+        const makeCall = async (status) => {
+          const params = new URLSearchParams({
+            page: "1",
+            pageSize: "1",
+            status,
+          });
+          const res = await apiFetch(
+            `/api/warehousemanager/inventory-report?${params.toString()}`
+          );
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(
+              `Không tải được thống kê tồn kho (${status}) (HTTP ${res.status}) ${text}`
+            );
+          }
+          const data = await res.json();
+          // API inventory-report: { items, total }
+          return data.total ?? (data.items ? data.items.length : 0);
+        };
+
+        const [alertCount, criticalCount] = await Promise.all([
+          makeCall("alert"),
+          makeCall("critical"),
+        ]);
+
+        setStats((prev) => ({
+          ...prev,
+          lowStockItems: alertCount + criticalCount,
+        }));
+      } catch (err) {
+        console.error("Không thể tải thống kê SKU dưới định mức:", err);
+        setNotify(
+          err.message || "Không thể tải thống kê SKU dưới định mức."
+        );
+      }
+    };
+
     fetchWeeklyInbound();
     fetchWeeklyOutbound();
-    fetchStats();
+    fetchTotalStock();
+    fetchLowStockItems();
   }, []);
 
   useEffect(() => {
@@ -177,7 +209,7 @@ const WarehouseDashboard = () => {
       value: weeklyInbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyInbound;
-        if (lastWeek === 0) return "Chưa có dữ liệu so sánh";
+        if (!lastWeek) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -192,7 +224,7 @@ const WarehouseDashboard = () => {
       value: weeklyOutbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyOutbound;
-        if (lastWeek === 0) return "Chưa có dữ liệu so sánh";
+        if (!lastWeek) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -265,13 +297,13 @@ const WarehouseDashboard = () => {
 
       <div className="wm-grid-two">
         <section className="wm-surface">
-            <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-              <div>
-                <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
-                <p className="wm-subtle-text mb-0">
-                  So sánh lượng nhập và xuất trong 6 ngày gần nhất.
-                </p>
-              </div>
+          <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+            <div>
+              <h2 className="wm-section-title mb-1">Biểu đồ luân chuyển</h2>
+              <p className="wm-subtle-text mb-0">
+                So sánh lượng nhập và xuất trong 6 ngày gần nhất.
+              </p>
+            </div>
             <span className="wm-tag">
               <FontAwesomeIcon icon={faArrowTrendUp} />
               Dữ liệu thời gian thực

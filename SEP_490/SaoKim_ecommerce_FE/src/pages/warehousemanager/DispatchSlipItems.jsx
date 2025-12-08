@@ -24,6 +24,10 @@ import { apiFetch } from "../../api/lib/apiClient";
 import { getDispatchHubConnection } from "../../signalr/dispatchHub";
 import * as signalR from "@microsoft/signalr";
 
+const MAX_QTY = 100_000_000; 
+const MAX_UNIT_PRICE = 1_000_000_000; 
+const MAX_LINE_TOTAL = 100_000_000_000; 
+
 const initialForm = {
   productId: "",
   productName: "",
@@ -249,6 +253,10 @@ const DispatchSlipItems = () => {
 
   const validate = () => {
     const errs = {};
+    const qty = Number(form.quantity);
+    const price = Number(form.unitPrice);
+    const lineTotal = qty * price;
+
     if (!form.productId && !form.productName) {
       errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
     }
@@ -258,12 +266,24 @@ const DispatchSlipItems = () => {
     if (!form.uom) {
       errs.uom = "Đơn vị tính không được để trống.";
     }
-    if (!form.quantity || Number(form.quantity) <= 0) {
+    if (!qty || qty <= 0) {
       errs.quantity = "Số lượng phải lớn hơn 0.";
+    } else if (qty > MAX_QTY) {
+      errs.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
     }
-    if (form.unitPrice == null || Number(form.unitPrice) < 0) {
+    if (price == null || price < 0) {
       errs.unitPrice = "Đơn giá không được âm.";
+    } else if (price > MAX_UNIT_PRICE) {
+      errs.unitPrice = `Đơn giá tối đa ${MAX_UNIT_PRICE.toLocaleString(
+        "vi-VN"
+      )}.`;
     }
+    if (!errs.unitPrice && lineTotal > MAX_LINE_TOTAL) {
+      errs.unitPrice = `Thành tiền tối đa ${MAX_LINE_TOTAL.toLocaleString(
+        "vi-VN"
+      )}.`;
+    }
+
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
   };
@@ -381,7 +401,8 @@ const DispatchSlipItems = () => {
           <button
             type="button"
             className="wm-btn wm-btn--outline"
-            onClick={handleExportPdf} disabled={exporting}
+            onClick={handleExportPdf}
+            disabled={exporting}
           >
             <FontAwesomeIcon icon={faPrint} />
             {exporting ? "Đang xuất PDF..." : "Xuất phiếu PDF"}
@@ -528,8 +549,9 @@ const DispatchSlipItems = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
+                  className={`btn ${
+                    p === page ? "btn-primary" : "btn-outline-secondary"
+                  }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -571,9 +593,9 @@ const DispatchSlipItems = () => {
                 value={
                   form.productId
                     ? {
-                      value: form.productId,
-                      label: `${form.productId} - ${form.productName}`,
-                    }
+                        value: form.productId,
+                        label: `${form.productId} - ${form.productName}`,
+                      }
                     : null
                 }
                 onChange={(option) => {
@@ -588,7 +610,9 @@ const DispatchSlipItems = () => {
                     productName: p.name,
                     uom: p.uom,
                     productCode: p.productCode,
-                    unitPrice: Number(p.price || 0),
+                    unitPrice: Number(
+                      p.price > MAX_UNIT_PRICE ? MAX_UNIT_PRICE : p.price || 0
+                    ),
                   });
                 }}
                 placeholder="Chọn sản phẩm"
@@ -636,10 +660,20 @@ const DispatchSlipItems = () => {
                   <Form.Control
                     type="number"
                     min={1}
+                    max={MAX_QTY}
                     value={form.quantity}
-                    onChange={(e) =>
-                      setForm({ ...form, quantity: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const raw = Number(e.target.value);
+                      if (Number.isNaN(raw)) {
+                        setForm({ ...form, quantity: "" });
+                        return;
+                      }
+                      const clamped = Math.min(
+                        Math.max(raw, 1),
+                        MAX_QTY
+                      );
+                      setForm({ ...form, quantity: clamped });
+                    }}
                     isInvalid={!!formErrs.quantity}
                   />
                   <InputGroup.Text>{form.uom || "đơn vị"}</InputGroup.Text>
@@ -655,10 +689,20 @@ const DispatchSlipItems = () => {
                 <Form.Control
                   type="number"
                   min={0}
+                  max={MAX_UNIT_PRICE}
                   value={form.unitPrice}
-                  onChange={(e) =>
-                    setForm({ ...form, unitPrice: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const raw = Number(e.target.value);
+                    if (Number.isNaN(raw)) {
+                      setForm({ ...form, unitPrice: "" });
+                      return;
+                    }
+                    const clamped = Math.min(
+                      Math.max(raw, 0),
+                      MAX_UNIT_PRICE
+                    );
+                    setForm({ ...form, unitPrice: clamped });
+                  }}
                   isInvalid={!!formErrs.unitPrice}
                 />
                 <InputGroup.Text>VNĐ</InputGroup.Text>
@@ -712,10 +756,10 @@ const DispatchSlipItems = () => {
               notification.type === "danger"
                 ? "danger"
                 : notification.type === "warning"
-                  ? "warning"
-                  : notification.type === "success"
-                    ? "success"
-                    : "light"
+                ? "warning"
+                : notification.type === "success"
+                ? "success"
+                : "light"
             }
             onClose={() => setNotification(null)}
             show={!!notification}
@@ -728,7 +772,7 @@ const DispatchSlipItems = () => {
             <Toast.Body
               className={
                 notification.type === "danger" ||
-                  notification.type === "warning"
+                notification.type === "warning"
                   ? "text-white"
                   : "text-dark"
               }
