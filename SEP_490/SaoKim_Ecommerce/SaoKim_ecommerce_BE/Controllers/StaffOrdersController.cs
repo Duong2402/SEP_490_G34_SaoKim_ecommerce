@@ -174,6 +174,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 status = order.Status,
                 createdAt = order.CreatedAt,
 
+                subtotal = order.Subtotal,
+                discountAmount = order.DiscountAmount,
+                shippingFee = order.ShippingFee,
+                vatAmount = order.VatAmount,
+
                 customerId = order.UserId,
                 customerName = order.Customer?.Name,
                 customerEmail = order.Customer?.Email,

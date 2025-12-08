@@ -158,31 +158,39 @@ export default function OrderDetailStaff() {
     return sum + Number(line || 0);
   }, 0);
 
-  const invoiceSubtotal = Number(invoice?.subtotal ?? invoice?.Subtotal ?? NaN);
-  const subtotal = Number.isFinite(invoiceSubtotal)
-    ? invoiceSubtotal
+  const orderSubtotal = Number(order?.subtotal ?? order?.Subtotal ?? NaN);
+  const subtotal = Number.isFinite(orderSubtotal)
+    ? orderSubtotal
     : subtotalFromItems;
 
-  const discount = Number(invoice?.discount ?? invoice?.Discount ?? 0);
-  const tax = Number(invoice?.tax ?? invoice?.Tax ?? 0);
+  const orderDiscount = Number(
+    order?.discountAmount ?? order?.DiscountAmount ?? 0
+  );
+  const discount = orderDiscount;
 
-  const totalFromInvoice = Number(invoice?.total ?? invoice?.Total ?? NaN);
-  const totalFromOrder = Number(order?.total ?? order?.Total ?? NaN);
+  const orderVat = Number(order?.vatAmount ?? order?.VatAmount ?? 0);
+  const tax = orderVat;
 
-  const rawTotal = Number.isFinite(totalFromInvoice)
-    ? totalFromInvoice
-    : Number.isFinite(totalFromOrder)
-    ? totalFromOrder
-    : NaN;
+  const orderShippingFee = Number(
+    order?.shippingFee ?? order?.ShippingFee ?? NaN
+  );
 
-  let shippingFee = 0;
-  if (Number.isFinite(rawTotal)) {
-    shippingFee = rawTotal - (subtotal - discount + tax);
+  const orderTotal = Number(order?.total ?? order?.Total ?? NaN);
+
+  const baseTotal = Number.isFinite(orderTotal)
+    ? orderTotal
+    : subtotal - discount + tax + (Number.isFinite(orderShippingFee) ? orderShippingFee : 0);
+
+  let shippingFee;
+  if (Number.isFinite(orderShippingFee)) {
+    shippingFee = orderShippingFee;
+  } else {
+    shippingFee = baseTotal - (subtotal - discount + tax);
+    if (shippingFee < 0) shippingFee = 0;
   }
-  if (shippingFee < 0) shippingFee = 0;
 
-  const fallbackTotal = subtotal - discount + tax + shippingFee;
-  const displayTotal = Number.isFinite(rawTotal) ? rawTotal : fallbackTotal;
+  const displayTotal = baseTotal;
+
 
   return (
     <StaffLayout>
@@ -341,7 +349,7 @@ export default function OrderDetailStaff() {
               <Row className="mt-4 align-items-center">
                 <Col md={6}>
                   <strong>
-                    Tổng tiền: {formatCurrency(order.total ?? 0)}
+                    Tổng tiền: {formatCurrency(order.total ?? order.Total ?? 0)}
                   </strong>
                 </Col>
                 <Col
@@ -361,15 +369,15 @@ export default function OrderDetailStaff() {
 
                   {String(order.status || "").toLowerCase() ===
                     "cancelled" && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={deleting}
-                      onClick={handleDeleteOrder}
-                    >
-                      {deleting ? "Đang xóa..." : "Xóa đơn đã hủy"}
-                    </Button>
-                  )}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={deleting}
+                        onClick={handleDeleteOrder}
+                      >
+                        {deleting ? "Đang xóa..." : "Xóa đơn đã hủy"}
+                      </Button>
+                    )}
                 </Col>
               </Row>
             </>
