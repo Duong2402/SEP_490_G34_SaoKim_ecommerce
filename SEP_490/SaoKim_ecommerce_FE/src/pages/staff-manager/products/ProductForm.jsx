@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
 import { Button, Form } from "@themesberg/react-bootstrap";
 import useCategoriesApi from "../api/useCategories";
-import useProductsApi from "../api/useProducts"; 
+import useProductsApi from "../api/useProducts";
 
 const normalizeDefaults = (d = {}) => ({
   sku: d.sku ?? d.productCode ?? "",
@@ -44,12 +44,14 @@ export default function ProductForm({
   const disabled = loading || isSubmitting;
 
   const { getCategories, createCategory } = useCategoriesApi();
-  const { getUoms } = useProductsApi();          
+  const { getUoms } = useProductsApi();
 
   const [categories, setCategories] = useState([]);
-  const [uoms, setUoms] = useState([]);         
+  const [uoms, setUoms] = useState([]);
   const [addingNew, setAddingNew] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+
+  const isEdit = !!defaultValues?.id;
 
   const categoryId = watch("categoryId");
   const updateAt = defaults.updateAt;
@@ -105,25 +107,19 @@ export default function ProductForm({
   return (
     <Form onSubmit={handleSubmit(submitWrapped)} noValidate>
       <div className="staff-form-grid">
-        {/* SKU */}
-        <Form.Group>
-          <Form.Label>Mã SKU</Form.Label>
-          <Form.Control
-            type="text"
-            placeholder="Ví dụ: LED10W-WH"
-            {...register("sku", {
-              required: "SKU là bắt buộc",
-              minLength: { value: 3, message: "Tối thiểu 3 ký tự" },
-            })}
-            isInvalid={!!errors.sku}
-            disabled={disabled}
-          />
-          <Form.Control.Feedback type="invalid">
-            {errors.sku?.message}
-          </Form.Control.Feedback>
-        </Form.Group>
+        {isEdit && (
+          <Form.Group>
+            <Form.Label>Mã SKU</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="SKU tự sinh"
+              {...register("sku")}
+              disabled={true}
+              readOnly
+            />
+          </Form.Group>
+        )}
 
-        {/* Tên sản phẩm */}
         <Form.Group>
           <Form.Label>Tên sản phẩm</Form.Label>
           <Form.Control

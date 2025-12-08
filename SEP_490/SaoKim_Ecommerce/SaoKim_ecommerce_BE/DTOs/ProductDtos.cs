@@ -38,7 +38,6 @@ namespace SaoKim_ecommerce_BE.DTOs
 
     public class CreateProductDto
     {
-        public string Sku { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int? CategoryId { get; set; }
 

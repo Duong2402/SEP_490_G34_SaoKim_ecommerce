@@ -5,6 +5,7 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -286,17 +287,17 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var exists = await _db.Products.AnyAsync(p => p.ProductCode == model.Sku);
-            if (exists)
-                return Conflict(new { message = "Product code already exists" });
-
             var product = new Product
             {
-                ProductCode = model.Sku,
-                ProductName = model.Name
+                ProductName = model.Name,
+                ProductCode = "" 
             };
 
             _db.Products.Add(product);
+            await _db.SaveChangesAsync();
+
+            product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
+            _db.Products.Update(product);
             await _db.SaveChangesAsync();
 
             string? imageFileName = null;
@@ -346,6 +347,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             });
         }
 
+
         // PUT: /api/products/{id}
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin")]
@@ -358,17 +360,9 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (product == null)
                 return NotFound(new { message = "Product not found" });
 
-            if (!string.IsNullOrWhiteSpace(model.Sku))
-            {
-                var skuExists = await _db.Products
-                    .AnyAsync(p => p.ProductCode == model.Sku && p.ProductID != id);
-
-                if (skuExists)
-                    return Conflict(new { message = "Product code already exists" });
-            }
-
-            product.ProductCode = model.Sku;
             product.ProductName = model.Name;
+
+            product.ProductCode = ProductCodeGenerator.Generate(product.ProductName, product.ProductID);
 
             if (string.IsNullOrWhiteSpace(model.Unit))
                 return BadRequest(new { message = "Đơn vị tính là bắt buộc" });
@@ -435,6 +429,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(new { message = "Product updated successfully" });
         }
+
 
 
         // DELETE: /api/products/{id}
