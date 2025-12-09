@@ -38,28 +38,7 @@ namespace SaoKim_ecommerce_BE.Data
             }
             await db.SaveChangesAsync();
 
-            if (!await db.Set<Invoice>().AnyAsync())
-            {
-                var inv = new Invoice
-                {
-                    Code = $"INV-{DateTime.UtcNow:yyyyMMdd}-001",
-                    CustomerName = "Tập đoàn FPT",
-                    Email = "contact@fpt.com",
-                    Phone = "024 7300 5588",
-                    Subtotal = 1_000_000,
-                    Discount = 0,
-                    Tax = 100_000,
-                    Total = 1_100_000,
-                    Status = InvoiceStatus.Paid,
-                    Items = new List<InvoiceItem>
-        {
-            new InvoiceItem { ProductName = "Đèn LED 10W", Quantity = 10, UnitPrice = 50_000, LineTotal = 500_000, Uom = "cái" },
-            new InvoiceItem { ProductName = "Đèn rọi 7W", Quantity =  5, UnitPrice =100_000, LineTotal = 500_000, Uom = "cái" }
-        }
-                };
-                db.Add(inv);
-                await db.SaveChangesAsync();
-            }
+            
 
 
             var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();

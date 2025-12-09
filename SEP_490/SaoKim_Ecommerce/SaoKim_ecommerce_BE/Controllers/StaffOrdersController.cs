@@ -113,7 +113,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     o.Total,
                     o.Status,
                     o.CreatedAt,
-                    o.PaymentMethod,              
+                    o.PaymentMethod,
                     HasInvoice = o.Invoice != null,
                     InvoiceId = o.Invoice != null ? (int?)o.Invoice.Id : null
                 })
@@ -138,7 +138,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 total = o.Total,
                 status = o.Status,
                 createdAt = o.CreatedAt,
-                paymentMethod = o.PaymentMethod,   
+                paymentMethod = o.PaymentMethod,
                 hasInvoice = o.HasInvoice,
                 invoiceId = o.InvoiceId,
                 dispatchConfirmed = confirmedRefs.Contains(o.ReferenceNo)
@@ -326,21 +326,33 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var items = order.Items.ToList();
 
-                var subtotal = items.Sum(it => it.UnitPrice * it.Quantity);
+                var subtotal = order.Subtotal;
+                if (subtotal <= 0)
+                    subtotal = items.Sum(it => it.UnitPrice * it.Quantity);
 
-                var discount = 0m;
+                var discount = order.DiscountAmount;
+                if (discount < 0) discount = 0;
 
-                var orderTotal = order.Total;
-
-                var taxBase = subtotal - discount;
-                if (taxBase < 0) taxBase = 0;
-
-                var tax = Math.Round(taxBase * 0.10m, 0, MidpointRounding.AwayFromZero);
-
-                var shippingFee = orderTotal - (subtotal - discount + tax);
+                var shippingFee = order.ShippingFee;
                 if (shippingFee < 0) shippingFee = 0;
 
-                var total = subtotal - discount + tax + shippingFee;
+                var tax = order.VatAmount;
+                if (tax < 0) tax = 0;
+
+                var total = order.Total;
+
+                if (total <= 0)
+                {
+                    var baseAmount = subtotal - discount;
+                    if (baseAmount < 0) baseAmount = 0;
+
+                    if (tax <= 0)
+                    {
+                        tax = Math.Round(baseAmount * 0.10m, 0, MidpointRounding.AwayFromZero);
+                    }
+
+                    total = baseAmount + tax + shippingFee;
+                }
 
                 var invoice = new Invoice
                 {
@@ -372,9 +384,9 @@ namespace SaoKim_ecommerce_BE.Controllers
                     }).ToList()
                 };
 
-
                 _db.Set<Invoice>().Add(invoice);
             }
+
 
             await _db.SaveChangesAsync();
             return NoContent();

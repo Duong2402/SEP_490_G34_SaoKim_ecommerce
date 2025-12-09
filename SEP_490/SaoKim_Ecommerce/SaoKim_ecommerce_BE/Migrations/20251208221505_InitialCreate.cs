@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     /// <inheritdoc />
-    public partial class DatabaseUpdate3 : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -467,7 +467,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                     user_id = table.Column<int>(type: "integer", nullable: false),
                     subtotal = table.Column<decimal>(type: "numeric", nullable: false),
                     discount_amount = table.Column<decimal>(type: "numeric", nullable: false),
+                    vat_amount = table.Column<decimal>(type: "numeric", nullable: false),
                     coupon_code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
+                    shipping_fee = table.Column<decimal>(type: "numeric", nullable: false),
+                    shipping_method = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     total = table.Column<decimal>(type: "numeric", nullable: false),
                     status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
