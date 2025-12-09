@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text;
 
-namespace SaoKim_ecommerce_BE.Services
+namespace SaoKim_ecommerce_BE.Helpers
 {
     public static class ProductCodeGenerator
     {

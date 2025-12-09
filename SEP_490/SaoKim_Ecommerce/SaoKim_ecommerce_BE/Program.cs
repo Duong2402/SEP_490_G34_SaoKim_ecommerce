@@ -88,6 +88,7 @@ builder.Services.AddScoped<IReceivingService, ReceivingService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
 builder.Services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+builder.Services.AddScoped<IAddressesService, AddressesService>();
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
