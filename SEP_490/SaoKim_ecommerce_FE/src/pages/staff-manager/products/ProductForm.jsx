@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
@@ -20,6 +19,16 @@ const normalizeDefaults = (d = {}) => ({
   imageFile: null,
   updateAt: d.updateAt ?? d.update_at ?? d.UpdateAt ?? null,
 });
+
+const formatPrice = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(/[^\d]/g, ""));
+  if (Number.isNaN(num)) return "";
+  return num.toLocaleString("vi-VN");
+};
 
 export default function ProductForm({
   defaultValues,
@@ -54,6 +63,7 @@ export default function ProductForm({
   const isEdit = !!defaultValues?.id;
 
   const categoryId = watch("categoryId");
+  const price = watch("price");
   const updateAt = defaults.updateAt;
 
   useEffect(() => {
@@ -101,7 +111,27 @@ export default function ProductForm({
     return onSubmit({
       ...values,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
+      price:
+        typeof values.price === "number"
+          ? values.price
+          : Number(String(values.price).replace(/[^\d]/g, "")) || 0,
     });
+  };
+
+  const priceField = register("price", {
+    required: "Giá bán là bắt buộc",
+  });
+
+  const handlePriceChange = (e) => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    if (raw === "") {
+      setValue("price", "", { shouldValidate: true });
+      return;
+    }
+    const num = parseInt(raw, 10);
+    if (!Number.isNaN(num)) {
+      setValue("price", num, { shouldValidate: true });
+    }
   };
 
   return (
@@ -134,7 +164,6 @@ export default function ProductForm({
           </Form.Control.Feedback>
         </Form.Group>
 
-        {/* Danh mục */}
         <Form.Group>
           <Form.Label>Danh mục</Form.Label>
 
@@ -154,7 +183,7 @@ export default function ProductForm({
                   {c.name}
                 </option>
               ))}
-              <option value="__NEW__">+ Thêm danh mục mới</option>
+              <option value="__NEW__">Thêm danh mục mới</option>
             </Form.Select>
           )}
 
@@ -193,16 +222,14 @@ export default function ProductForm({
           </Form.Control.Feedback>
         </Form.Group>
 
-        {/* Giá bán */}
         <Form.Group>
           <Form.Label>Giá bán</Form.Label>
           <Form.Control
-            type="number"
-            min={0}
-            {...register("price", {
-              required: "Giá bán là bắt buộc",
-              valueAsNumber: true,
-            })}
+            type="text"
+            inputMode="numeric"
+            {...priceField}
+            value={formatPrice(price)}
+            onChange={handlePriceChange}
             isInvalid={!!errors.price}
             disabled={disabled}
           />
@@ -211,7 +238,6 @@ export default function ProductForm({
           </Form.Control.Feedback>
         </Form.Group>
 
-        {/* Số lượng / quantity */}
         <Form.Group>
           <Form.Label>Số lượng</Form.Label>
           <Form.Control
@@ -229,7 +255,6 @@ export default function ProductForm({
           </Form.Control.Feedback>
         </Form.Group>
 
-        {/* Đơn vị tính */}
         <Form.Group>
           <Form.Label>Đơn vị tính</Form.Label>
           <Form.Select
@@ -251,7 +276,6 @@ export default function ProductForm({
           </Form.Control.Feedback>
         </Form.Group>
 
-        {/* Ảnh */}
         <Form.Group>
           <Form.Label>Ảnh sản phẩm</Form.Label>
           <Form.Control
@@ -265,7 +289,6 @@ export default function ProductForm({
           />
         </Form.Group>
 
-        {/* Mô tả */}
         <Form.Group>
           <Form.Label>Mô tả</Form.Label>
           <Form.Control
@@ -277,7 +300,6 @@ export default function ProductForm({
           />
         </Form.Group>
 
-        {/* Nhà cung cấp */}
         <Form.Group>
           <Form.Label>Nhà cung cấp</Form.Label>
           <Form.Control
@@ -288,7 +310,6 @@ export default function ProductForm({
           />
         </Form.Group>
 
-        {/* Ghi chú */}
         <Form.Group>
           <Form.Label>Ghi chú</Form.Label>
           <Form.Control
@@ -300,7 +321,6 @@ export default function ProductForm({
           />
         </Form.Group>
 
-        {/* Active */}
         <Form.Check
           type="switch"
           id="active-switch"
@@ -310,17 +330,19 @@ export default function ProductForm({
         />
       </div>
 
-      {/* Hiển thị update_at (nếu có) */}
       {updateAt && (
         <div className="mt-2 text-muted small">
-          Cập nhật lần cuối:{" "}
-          {new Date(updateAt).toLocaleString("vi-VN")}
+          Cập nhật lần cuối: {new Date(updateAt).toLocaleString("vi-VN")}
         </div>
       )}
 
       <div className="d-flex gap-2 justify-content-end mt-3">
         {onCancel && (
-          <Button variant="outline-secondary" onClick={onCancel} disabled={disabled}>
+          <Button
+            variant="outline-secondary"
+            onClick={onCancel}
+            disabled={disabled}
+          >
             Hủy
           </Button>
         )}
