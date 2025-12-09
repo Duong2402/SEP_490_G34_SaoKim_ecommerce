@@ -139,9 +139,9 @@ export default function ProjectOverview() {
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">Giá trị dự án kế hoạch</div>
+            <div className="metric-label">Giá trị các dự án </div>
             <div className="metric-value">{formatBudget(metrics.budget)}</div>
-            <div className="metric-trend">Tổng ngân sách theo kế hoạch</div>
+            <div className="metric-trend">Tổng giá trị các dự án theo kế hoạch</div>
           </article>
 
           <article className="metric-card">
