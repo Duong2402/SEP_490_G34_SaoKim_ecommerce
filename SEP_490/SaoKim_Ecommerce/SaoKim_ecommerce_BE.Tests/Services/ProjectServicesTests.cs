@@ -1019,7 +1019,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var result = await controller.GetReportJson(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDto>>(ok.Value);
+            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
             Assert.True(res.Success);
             Assert.Equal(1, res.Data.ProjectId);
         }
@@ -1068,7 +1068,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var result = await controller.GetReportJson(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDto>>(ok.Value);
+            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
             Assert.Equal(2, res.Data.TaskCount);
             Assert.Equal(1, res.Data.TaskCompleted);
             Assert.Equal(1, res.Data.TaskDelayed);
@@ -1105,7 +1105,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var result = await controller.GetReportJson(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDto>>(ok.Value);
+            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
             Assert.Equal(800m, res.Data.TotalProductAmount);
             Assert.Equal(100m, res.Data.TotalOtherExpenses);
             Assert.Equal(900m, res.Data.ActualAllIn);

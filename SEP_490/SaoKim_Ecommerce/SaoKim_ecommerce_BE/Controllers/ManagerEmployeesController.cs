@@ -1,16 +1,7 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
-using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -19,141 +10,12 @@ namespace SaoKim_ecommerce_BE.Controllers
     [Authorize(Roles = "manager")]
     public class ManagerEmployeesController : ControllerBase
     {
-        private readonly SaoKimDBContext _db;
-        private readonly IWebHostEnvironment _env;
+        private readonly IManagerEmployeesService _svc;
 
-        public ManagerEmployeesController(SaoKimDBContext db, IWebHostEnvironment env)
+        public ManagerEmployeesController(IManagerEmployeesService svc)
         {
-            _db = db;
-            _env = env;
+            _svc = svc;
         }
-
-        #region Helpers
-
-        private string GetUploadsRoot()
-        {
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRoot))
-            {
-                webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            }
-
-            var uploads = Path.Combine(webRoot, "uploads");
-            Directory.CreateDirectory(uploads);
-            return uploads;
-        }
-
-        private async Task<string?> SaveUserImageAsync(IFormFile? file)
-        {
-            if (file == null || file.Length == 0)
-                return null;
-
-            var uploadsRoot = GetUploadsRoot();
-            var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
-            var filePath = Path.Combine(uploadsRoot, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            return $"/uploads/{fileName}";
-        }
-
-        private IQueryable<User> EmployeesBaseQuery()
-        {
-            var query = _db.Users
-                .Include(u => u.Role)
-                .Where(u => u.DeletedAt == null);
-
-            return query;
-        }
-
-        private bool IsProtectedUser(User user)
-        {
-            if (user.Role?.Name == "Admin")
-                return true;
-            return false;
-        }
-
-        private static DateTime? ToUtc(DateTime? value)
-        {
-            if (!value.HasValue) return null;
-
-            var dt = value.Value;
-            if (dt.Kind == DateTimeKind.Unspecified)
-            {
-                return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-            }
-
-            if (dt.Kind == DateTimeKind.Local)
-            {
-                return dt.ToUniversalTime();
-            }
-
-            return dt; 
-        }
-
-        #endregion
-
-        #region DTOs
-
-        public class EmployeeCreateDto
-        {
-            [Required, MaxLength(200)]
-            public string Name { get; set; } = string.Empty;
-
-            [Required, EmailAddress, MaxLength(200)]
-            public string Email { get; set; } = string.Empty;
-
-            [Required, MinLength(8)]
-            public string Password { get; set; } = string.Empty;
-
-            [Required]
-            public int RoleId { get; set; }
-
-            [MaxLength(20)]
-            public string? PhoneNumber { get; set; }
-
-            [MaxLength(300)]
-            public string? Address { get; set; }
-
-            public DateTime? Dob { get; set; }
-
-            [MaxLength(50)]
-            public string? Status { get; set; }
-
-            public IFormFile? Image { get; set; }
-        }
-
-        public class EmployeeUpdateDto
-        {
-            [MaxLength(200)]
-            public string? Name { get; set; }
-
-            [EmailAddress, MaxLength(200)]
-            public string? Email { get; set; }
-
-            [MinLength(8)]
-            public string? Password { get; set; }
-
-            public int? RoleId { get; set; }
-
-            [MaxLength(20)]
-            public string? PhoneNumber { get; set; }
-
-            [MaxLength(300)]
-            public string? Address { get; set; }
-
-            public DateTime? Dob { get; set; }
-
-            [MaxLength(50)]
-            public string? Status { get; set; }
-
-            public IFormFile? Image { get; set; }
-        }
-
-        #endregion
 
         // GET /api/manager/employees
         [HttpGet]
@@ -167,40 +29,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             page = Math.Max(1, page);
             pageSize = Math.Max(1, pageSize);
 
-            var query = EmployeesBaseQuery();
-
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = $"%{q.Trim()}%";
-                query = query.Where(u =>
-                    EF.Functions.ILike(u.Name ?? string.Empty, term) ||
-                    EF.Functions.ILike(u.Email ?? string.Empty, term) ||
-                    EF.Functions.ILike(u.PhoneNumber ?? string.Empty, term));
-            }
-
-            if (!string.IsNullOrWhiteSpace(role))
-                query = query.Where(u => u.Role != null && u.Role.Name == role);
-
-            if (!string.IsNullOrWhiteSpace(status))
-                query = query.Where(u => u.Status == status);
-
-            var total = await query.CountAsync();
-
-            var items = await query
-                .OrderByDescending(u => u.CreateAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(u => new
-                {
-                    id = u.UserID,
-                    name = u.Name,
-                    email = u.Email,
-                    phone = u.PhoneNumber,
-                    role = u.Role != null ? u.Role.Name : null,
-                    status = u.Status,
-                    createdAt = u.CreateAt
-                })
-                .ToListAsync();
+            var (items, total) = await _svc.GetAllAsync(q, role, status, page, pageSize);
 
             return Ok(new
             {
@@ -216,25 +45,11 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var u = await EmployeesBaseQuery()
-                .FirstOrDefaultAsync(x => x.UserID == id);
+            var dto = await _svc.GetByIdAsync(id);
+            if (dto == null)
+                return NotFound(new { message = "Không tìm thấy nhân viên" });
 
-            if (u == null) return NotFound(new { message = "Không tìm thấy nhân viên" });
-
-            return Ok(new
-            {
-                id = u.UserID,
-                name = u.Name,
-                email = u.Email,
-                phone = u.PhoneNumber,
-                role = u.Role != null ? u.Role.Name : null,
-                roleId = u.RoleId,
-                status = u.Status,
-                address = u.Address,
-                dob = u.DOB,
-                image = u.Image,
-                createdAt = u.CreateAt
-            });
+            return Ok(dto);
         }
 
         // POST /api/manager/employees
@@ -245,38 +60,19 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var exists = await _db.Users.AnyAsync(u => u.Email == dto.Email && u.DeletedAt == null);
-            if (exists)
-                return Conflict(new { message = "Email đã tồn tại" });
-
-            var user = new User
+            try
             {
-                Name = dto.Name.Trim(),
-                Email = dto.Email.Trim(),
-                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim()),
-                RoleId = dto.RoleId,
-                PhoneNumber = dto.PhoneNumber?.Trim(),
-                Address = dto.Address?.Trim(),
-                DOB = ToUtc(dto.Dob),
-                Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
-                CreateAt = DateTime.UtcNow,
-            };
-
-            if (dto.Image != null)
-            {
-                var imagePath = await SaveUserImageAsync(dto.Image);
-                if (!string.IsNullOrWhiteSpace(imagePath))
-                    user.Image = imagePath;
+                var id = await _svc.CreateEmployeeAsync(dto);
+                return Ok(new
+                {
+                    message = "Nhân viên tạo thành công",
+                    id
+                });
             }
-
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-
-            return Ok(new
+            catch (InvalidOperationException ex)
             {
-                message = "Nhân viên tạo thành công",
-                id = user.UserID
-            });
+                return Conflict(new { message = ex.Message });
+            }
         }
 
         // PUT /api/manager/employees/{id}
@@ -284,105 +80,48 @@ namespace SaoKim_ecommerce_BE.Controllers
         [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> UpdateEmployee(int id, [FromForm] EmployeeUpdateDto dto)
         {
-            var user = await _db.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserID == id && u.DeletedAt == null);
-
-            if (user == null)
-                return NotFound(new { message = "Không tìm thấy nhân viên" });
-
-            if (IsProtectedUser(user))
-                return BadRequest(new { message = "Bạn không được phép chỉnh sửa thông tin tài khoản này" });
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (!string.IsNullOrWhiteSpace(dto.Email) &&
-                !string.Equals(dto.Email.Trim(), user.Email, StringComparison.OrdinalIgnoreCase))
+            try
             {
-                var emailExists = await _db.Users.AnyAsync(
-                    u => u.Email == dto.Email && u.UserID != id && u.DeletedAt == null);
-
-                if (emailExists)
-                    return Conflict(new { message = "Email đã tồn tại" });
-
-                user.Email = dto.Email.Trim();
+                await _svc.UpdateEmployeeAsync(id, dto);
+                return Ok(new { message = "Nhân viên đã được cập nhật" });
             }
-
-            if (!string.IsNullOrWhiteSpace(dto.Name))
-                user.Name = dto.Name.Trim();
-
-            if (!string.IsNullOrWhiteSpace(dto.Address))
-                user.Address = dto.Address.Trim();
-
-            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
-                user.PhoneNumber = dto.PhoneNumber.Trim();
-
-            if (dto.Dob.HasValue)
+            catch (KeyNotFoundException ex)
             {
-                var dobUtc = ToUtc(dto.Dob);
-                if (dobUtc.HasValue)
-                    user.DOB = dobUtc.Value;
+                return NotFound(new { message = ex.Message });
             }
-
-            if (!string.IsNullOrWhiteSpace(dto.Status))
-                user.Status = dto.Status.Trim();
-
-            if (dto.RoleId.HasValue)
-                user.RoleId = dto.RoleId.Value;
-
-            if (!string.IsNullOrWhiteSpace(dto.Password))
+            catch (InvalidOperationException ex)
             {
-                user.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
+                return BadRequest(new { message = ex.Message });
             }
-
-            if (dto.Image != null)
-            {
-                var imagePath = await SaveUserImageAsync(dto.Image);
-                if (!string.IsNullOrWhiteSpace(imagePath))
-                    user.Image = imagePath;
-            }
-
-            user.UpdateAt = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync();
-            return Ok(new { message = "Nhân viên đã được cập nhật "});
         }
 
         // DELETE /api/manager/employees/{id}
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteEmployee(int id)
         {
-            var user = await _db.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserID == id);
-
-            if (user == null)
-                return NotFound(new { message = "Không tìm thấy nhân viên" });
-
-            if (IsProtectedUser(user))
-                return BadRequest(new { message = "Bạn không được phép xóa tài khoản này" });
-
-            if (user.DeletedAt != null)
-                return BadRequest(new { message = "Nhân viên đã bị xóa" });
-
-            user.DeletedAt = DateTime.UtcNow;
-            user.Status = "Inactive";
-
-            await _db.SaveChangesAsync();
-            return Ok(new { message = "Nhân viên đã bị xóa" });
+            try
+            {
+                await _svc.DeleteEmployeeAsync(id);
+                return Ok(new { message = "Nhân viên đã bị xóa" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // GET /api/manager/employees/roles
         [HttpGet("roles")]
         public async Task<IActionResult> GetRolesForEmployees()
         {
-            var roles = await _db.Roles
-                .AsNoTracking()
-                .OrderBy(r => r.Name)
-                .Select(r => new { id = r.RoleId, name = r.Name })
-                .ToListAsync();
-
+            var roles = await _svc.GetRolesAsync();
             return Ok(roles);
         }
     }

@@ -2,7 +2,7 @@
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
-    public class CouponApplyResultDto
+    public class CouponApplyResultDTOs
     {
         public bool IsValid { get; set; }
 

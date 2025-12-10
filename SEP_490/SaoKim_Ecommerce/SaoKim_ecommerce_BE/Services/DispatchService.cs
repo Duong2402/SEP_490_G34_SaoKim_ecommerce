@@ -618,10 +618,10 @@ namespace SaoKim_ecommerce_BE.Services
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (slip == null)
-                throw new KeyNotFoundException("Dispatch slip not found");
+                throw new KeyNotFoundException("Phiếu xuất không tìm thấy");
 
             if (slip.Status != DispatchStatus.Draft)
-                throw new InvalidOperationException("Only Draft slips can be deleted");
+                throw new InvalidOperationException("Chỉ bản nháp mới được xóa");
 
             _db.DispatchItems.RemoveRange(slip.Items);
             slip.IsDeleted = true;

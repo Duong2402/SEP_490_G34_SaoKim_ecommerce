@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
-    public class ProjectReportDto
+    public class ProjectReportDTOs
     {
         public int ProjectId { get; set; }
         public string Code { get; set; }
