@@ -41,7 +41,7 @@ export default function ManagerEmployeeList() {
         return !["customer", "admin", "manager"].includes(r);
       });
       setEmployees(filteredItems);
-      setTotalItems(data?.total ?? 0);
+      setTotalItems(data?.total?? 0);
       setTotalPages(data?.totalPages ?? 0);
     } catch (err) {
       console.error("Failed to load employees:", err);

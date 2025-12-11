@@ -35,7 +35,7 @@ export default function ManagerCouponList() {
       const res = await CouponsAPI.list(params);
       const payload = res?.data?.data ?? res?.data ?? {};
       setRows(payload.items ?? []);
-      setTotal(payload.total ?? 0);
+      setTotal(payload.totalItems || payload.total || 0);
     } catch (error) {
       console.error(error);
       setRows([]);

@@ -77,7 +77,7 @@ export default function ReceivingList() {
         const data = await res.json();
 
         setRows(data.items || []);
-        setTotal(data.total || 0);
+        setTotal(data.totalItems || data.total || 0);
       } catch (error) {
         console.error("Lỗi khi tải danh sách phiếu nhập:", error);
         setNotify("Lỗi khi tải danh sách phiếu nhập.");

@@ -152,7 +152,7 @@ export default function WarehouseInventory() {
         note: x.note ?? x.Note ?? "",
       }));
       setRows(items);
-      setTotal(data.total ?? items.length);
+      setTotal(data.totalItems || data.total || 0);
     } catch (e) {
       console.error("Lỗi khi tải dữ liệu tồn kho:", e);
     } finally {

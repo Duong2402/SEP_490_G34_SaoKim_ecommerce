@@ -120,7 +120,7 @@ const DispatchList = () => {
       const data = await res.json();
 
       setRows(data.items || []);
-      setTotal(data.total || 0);
+      setTotal(data.totalItems || data.total || 0);
 
       setSelectedIds((prev) => {
         const next = new Set();
@@ -686,9 +686,8 @@ const DispatchList = () => {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -722,10 +721,10 @@ const DispatchList = () => {
               notification.type === "danger"
                 ? "danger"
                 : notification.type === "warning"
-                ? "warning"
-                : notification.type === "success"
-                ? "success"
-                : "light"
+                  ? "warning"
+                  : notification.type === "success"
+                    ? "success"
+                    : "light"
             }
             onClose={() => setNotification(null)}
             show={!!notification}
@@ -738,7 +737,7 @@ const DispatchList = () => {
             <Toast.Body
               className={
                 notification.type === "danger" ||
-                notification.type === "warning"
+                  notification.type === "warning"
                   ? "text-white"
                   : "text-dark"
               }

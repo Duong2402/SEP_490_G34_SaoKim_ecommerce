@@ -129,7 +129,8 @@ export default function InventoryReport() {
         });
 
         setRows(items);
-        setTotal(data.total ?? items.length);
+        setTotal(data.totalItems ?? data.total ?? items.length);
+
       } catch (err) {
         console.error("Lỗi tải báo cáo tồn kho:", err);
       } finally {
