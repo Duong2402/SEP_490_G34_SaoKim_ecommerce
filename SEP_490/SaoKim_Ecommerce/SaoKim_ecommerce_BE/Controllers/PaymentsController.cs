@@ -1,5 +1,6 @@
-﻿using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -7,54 +8,38 @@ namespace SaoKim_ecommerce_BE.Controllers
     [Route("api/[controller]")]
     public class PaymentsController : ControllerBase
     {
-        private readonly HttpClient _httpClient;
+        private readonly IPaymentService _paymentService;
+        private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(IHttpClientFactory httpClientFactory)
+        public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
         {
-            _httpClient = httpClientFactory.CreateClient();
+            _paymentService = paymentService;
+            _logger = logger;
         }
 
         [HttpGet("check-vietqr")]
-        public async Task<IActionResult> CheckVietQr([FromQuery] int amount)
+        [ProducesResponseType(typeof(VietQrCheckResultDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckVietQr([FromQuery] int amount, CancellationToken cancellationToken)
         {
-            var scriptUrl = "https://script.google.com/macros/s/AKfycbwKiGzxdPq4n_Xl-PvAokMhpDdmTrty8DUlEf63Vw_kr3UJY6rE2NfqwyabS5uhdU4LNw/exec";
+            if (amount <= 0)
+                return BadRequest(new { message = "Số tiền phải lớn hơn 0" });
 
-            var response = await _httpClient.GetAsync(scriptUrl);
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                return StatusCode((int)response.StatusCode,
-                    "Không gọi được Apps Script");
+                var result = await _paymentService.CheckVietQrAsync(amount, cancellationToken);
+                return Ok(result);
             }
-
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-
-            if (!doc.RootElement.TryGetProperty("data", out var dataElem) ||
-                dataElem.ValueKind != JsonValueKind.Array)
+            catch (InvalidOperationException ex)
             {
-                return Ok(new { matched = false });
+                // lỗi do cấu hình hoặc gọi script thất bại
+                _logger.LogError(ex, "Lỗi khi kiểm tra VietQR");
+                return StatusCode(502, new { message = ex.Message });
             }
-
-            const string targetAccount = "0000126082016";
-            var targetAmount = amount;
-
-            bool matched = false;
-            foreach (var row in dataElem.EnumerateArray())
+            catch (Exception ex)
             {
-                var account = row.GetProperty("Số tài khoản").GetString();
-                var value = row.GetProperty("Giá trị").GetInt32();
-                var desc = row.GetProperty("Mô tả").GetString()?.ToUpperInvariant() ?? "";
-
-                if (account == targetAccount &&
-                    (value == targetAmount) &&
-                    (desc.Contains("THANH TOAN") || desc.Contains("CHUYEN TIEN")))
-                {
-                    matched = true;
-                    break;
-                }
+                _logger.LogError(ex, "Lỗi không xác định khi kiểm tra VietQR");
+                return StatusCode(500, new { message = "Lỗi server khi kiểm tra VietQR", detail = ex.Message });
             }
-
-            return Ok(new { matched });
         }
     }
 }

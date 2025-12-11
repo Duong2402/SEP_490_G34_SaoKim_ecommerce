@@ -38,9 +38,6 @@ namespace SaoKim_ecommerce_BE.Data
             }
             await db.SaveChangesAsync();
 
-            
-
-
             var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();
 
 

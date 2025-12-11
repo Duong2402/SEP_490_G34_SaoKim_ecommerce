@@ -88,6 +88,24 @@ builder.Services.AddScoped<IReceivingService, ReceivingService>();
 builder.Services.AddScoped<IDispatchService, DispatchService>();
 builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
 builder.Services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+builder.Services.AddScoped<IAddressesService, AddressesService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBannerService, BannerService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IManagerEmployeesService, ManagerEmployeesService>();
+builder.Services.AddScoped<IOrdersService, OrdersService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IProductReviewService, ProductReviewService>();
+builder.Services.AddScoped<IProjectReportsService, ProjectReportsService>();
+builder.Services.AddScoped<IProjectTasksService, ProjectTasksService>();
+builder.Services.AddScoped<IShippingService, ShippingService>();
+builder.Services.AddScoped<IStaffOrdersService, StaffOrdersService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
+
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>

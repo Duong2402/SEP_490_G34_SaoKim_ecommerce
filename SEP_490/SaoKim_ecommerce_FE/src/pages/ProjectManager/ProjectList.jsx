@@ -120,7 +120,7 @@ export default function ProjectList() {
             <div className="metric-value">{metrics.completed}</div>
           </article>
           <article className="metric-card">
-            <div className="metric-label">Tổng ngân sách</div>
+            <div className="metric-label">Tổng giá trị dự án</div>
             <div className="metric-value">{formatBudget(metrics.budget)}</div>
           </article>
         </section>
@@ -140,7 +140,7 @@ export default function ProjectList() {
                   <th className="table-nowrap">Ngày bắt đầu</th>
                   <th className="table-nowrap">Ngày kết thúc</th>
                   <th>Trạng thái</th>
-                  <th>Ngân sách</th>
+                  <th>Giá trị dự án</th>
                   <th></th>
                 </tr>
               </thead>

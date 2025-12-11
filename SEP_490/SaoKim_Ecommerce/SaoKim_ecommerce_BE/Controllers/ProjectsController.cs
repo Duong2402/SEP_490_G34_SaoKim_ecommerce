@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Models;
 using SaoKim_ecommerce_BE.Services;
@@ -8,6 +9,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProjectsController : ControllerBase
     {
         private readonly IProjectService _service;
@@ -28,6 +30,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "manager,admin")]
         public async Task<IActionResult> Create([FromBody] CreateProjectDTO dto)
         {
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
@@ -35,7 +38,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var createdBy = User?.Identity?.Name;
                 var res = await _service.CreateAsync(dto, createdBy);
-                return CreatedAtAction(nameof(GetById), new { id = res.Id }, ApiResponse<ProjectResponseDTO>.Ok(res));
+                return CreatedAtAction(
+                    nameof(GetById),
+                    new { id = res.Id },
+                    ApiResponse<ProjectResponseDTO>.Ok(res, "Tạo dự án thành công"));
             }
             catch (ArgumentException ex)
             {
@@ -51,7 +57,8 @@ namespace SaoKim_ecommerce_BE.Controllers
         public async Task<IActionResult> GetById(int id)
         {
             var project = await _service.GetByIdAsync(id);
-            if (project == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
+            if (project == null)
+                return NotFound(ApiResponse<string>.Fail("Không tìm thấy dự án"));
 
             var role = User?.FindFirstValue(ClaimTypes.Role);
             var userIdStr = User?.FindFirstValue("UserId");
@@ -60,6 +67,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 if (!int.TryParse(userIdStr, out var userId))
                     return Forbid();
+
                 if (!project.ProjectManagerId.HasValue || project.ProjectManagerId.Value != userId)
                     return Forbid();
             }
@@ -91,7 +99,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             var userIdStr = User?.FindFirstValue("UserId");
 
             var existing = await _service.GetByIdAsync(id);
-            if (existing == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
+            if (existing == null)
+                return NotFound(ApiResponse<string>.Fail("Không tìm thấy dự án"));
 
             if (IsPm(role))
             {
@@ -107,8 +116,10 @@ namespace SaoKim_ecommerce_BE.Controllers
             try
             {
                 var res = await _service.UpdateAsync(id, dto, User?.Identity?.Name);
-                if (res == null) return NotFound(ApiResponse<string>.Fail("Project not found"));
-                return Ok(ApiResponse<ProjectResponseDTO>.Ok(res, "Updated"));
+                if (res == null)
+                    return NotFound(ApiResponse<string>.Fail("Không tìm thấy dự án"));
+
+                return Ok(ApiResponse<ProjectResponseDTO>.Ok(res, "Cập nhật dự án thành công"));
             }
             catch (ArgumentException ex)
             {
@@ -117,6 +128,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
             var role = User?.FindFirstValue(ClaimTypes.Role);
@@ -125,8 +137,11 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return Forbid();
 
             var ok = await _service.DeleteAsync(id);
-            if (!ok) return NotFound(ApiResponse<string>.Fail("Project not found"));
-            return Ok(ApiResponse<string>.Ok("Deleted"));
+            if (!ok)
+                return NotFound(ApiResponse<string>.Fail("Không tìm thấy dự án"));
+
+            return Ok(ApiResponse<string>.Ok("Xóa dự án thành công"));
         }
+
     }
 }

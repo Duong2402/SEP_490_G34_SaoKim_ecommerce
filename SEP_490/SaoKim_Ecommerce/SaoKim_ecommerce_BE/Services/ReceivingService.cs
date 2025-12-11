@@ -297,7 +297,7 @@ namespace SaoKim_ecommerce_BE.Services
                 throw new KeyNotFoundException("Phiếu nhập không tìm thấy");
 
             if (slip.Status != ReceivingSlipStatus.Draft)
-                throw new InvalidOperationException("Only Draft slips can be deleted");
+                throw new InvalidOperationException("Chỉ bản nháp mới được xóa");
 
             slip.IsDeleted = true;
 

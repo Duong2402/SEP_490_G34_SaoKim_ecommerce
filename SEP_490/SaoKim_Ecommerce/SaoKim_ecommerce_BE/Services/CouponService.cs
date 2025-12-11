@@ -225,12 +225,12 @@ namespace SaoKim_ecommerce_BE.Services
             return true;
         }
 
-        public async Task<CouponApplyResultDto> ValidateForOrderAsync(
+        public async Task<CouponApplyResultDTOs> ValidateForOrderAsync(
             string code,
             decimal orderSubtotal,
             int userId)
         {
-            var result = new CouponApplyResultDto
+            var result = new CouponApplyResultDTOs
             {
                 IsValid = false,
                 Message = "Mã giảm giá không hợp lệ"

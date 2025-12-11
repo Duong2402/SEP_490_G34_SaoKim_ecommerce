@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using SaoKim_ecommerce_BE.Services;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -46,7 +45,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var dto = await _svc.GetAsync(id);
             if (dto == null)
-                return NotFound(ApiResponse<object>.Fail("Not found"));
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy khuyến mãi"));
 
             return Ok(ApiResponse<PromotionDetailDto>.Ok(dto));
         }
@@ -55,20 +54,30 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] PromotionCreateDto dto)
         {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             var id = await _svc.CreateAsync(dto);
             var payload = new { id };
-            return CreatedAtAction(nameof(Detail), new { id }, ApiResponse<object>.Ok(payload));
+
+            return CreatedAtAction(
+                nameof(Detail),
+                new { id },
+                ApiResponse<object>.Ok(payload, "Tạo khuyến mãi thành công"));
         }
 
         // PUT /api/promotions/{id}
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] PromotionUpdateDto dto)
         {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             var ok = await _svc.UpdateAsync(id, dto);
             if (!ok)
-                return NotFound(ApiResponse<object>.Fail("Not found"));
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy khuyến mãi"));
 
-            return Ok(ApiResponse<object>.Ok(new { }));
+            return Ok(ApiResponse<object>.Ok(new { }, "Cập nhật khuyến mãi thành công"));
         }
 
         // DELETE /api/promotions/{id}
@@ -77,9 +86,9 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var ok = await _svc.DeleteAsync(id);
             if (!ok)
-                return NotFound(ApiResponse<object>.Fail("Not found"));
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy khuyến mãi"));
 
-            return Ok(ApiResponse<object>.Ok(new { }));
+            return Ok(ApiResponse<object>.Ok(new { }, "Xóa khuyến mãi thành công"));
         }
 
         public class PromotionProductLinkReq
@@ -94,9 +103,9 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var ok = await _svc.AddProductAsync(id, req.ProductId, req.Note);
             if (!ok)
-                return BadRequest(ApiResponse<object>.Fail("Invalid product or promotion"));
+                return BadRequest(ApiResponse<object>.Fail("Sản phẩm hoặc khuyến mãi không hợp lệ"));
 
-            return Ok(ApiResponse<object>.Ok(new { }));
+            return Ok(ApiResponse<object>.Ok(new { }, "Thêm sản phẩm vào khuyến mãi thành công"));
         }
 
         // DELETE /api/promotions/products/{promotionProductId}
@@ -105,9 +114,9 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var ok = await _svc.RemoveProductAsync(promotionProductId);
             if (!ok)
-                return NotFound(ApiResponse<object>.Fail("Not found"));
+                return NotFound(ApiResponse<object>.Fail("Không tìm thấy bản ghi khuyến mãi sản phẩm"));
 
-            return Ok(ApiResponse<object>.Ok(new { }));
+            return Ok(ApiResponse<object>.Ok(new { }, "Xóa sản phẩm khỏi khuyến mãi thành công"));
         }
     }
 }
