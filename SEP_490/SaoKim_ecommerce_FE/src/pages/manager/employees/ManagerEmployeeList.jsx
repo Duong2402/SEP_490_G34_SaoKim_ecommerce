@@ -1,4 +1,4 @@
-// src/pages/manager/employees/ManagerEmployeeList.jsx
+
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ManagerEmployeeAPI } from "../../../api/manager-employees";
@@ -35,7 +35,7 @@ export default function ManagerEmployeeList() {
       };
       const data = await ManagerEmployeeAPI.getAll(params);
       const allItems = data?.items ?? [];
-      // Filter out Customer, Admin, Manager
+  
       const filteredItems = allItems.filter((emp) => {
         const r = (emp.role || "").toLowerCase();
         return !["customer", "admin", "manager"].includes(r);

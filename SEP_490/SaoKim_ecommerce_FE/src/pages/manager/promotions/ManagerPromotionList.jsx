@@ -1,4 +1,4 @@
-// src/pages/manager/promotions/ManagerPromotionList.jsx
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PromotionsAPI } from "../../../api/promotions";

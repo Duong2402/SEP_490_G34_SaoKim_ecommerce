@@ -114,7 +114,6 @@ const ProductsPage = () => {
   const filteredProducts = useMemo(() => {
     let list = [...products];
 
-    // If backend doesn't filter, keep client-side safeguards
     if (searchTerm.trim()) {
       const keyword = searchTerm.toLowerCase();
       list = list.filter((p) => p.name.toLowerCase().includes(keyword));

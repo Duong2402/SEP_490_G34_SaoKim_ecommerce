@@ -15,7 +15,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
   const [all, setAll] = useState([]);
   const [q, setQ] = useState("");
 
-  const [sel, setSel] = useState({}); // { [id]: { quantity, unitPrice } }
+  const [sel, setSel] = useState({}); 
   const [saving, setSaving] = useState(false);
 
   const existingSet = useMemo(

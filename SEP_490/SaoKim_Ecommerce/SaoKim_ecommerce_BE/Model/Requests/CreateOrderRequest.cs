@@ -27,6 +27,8 @@ namespace SaoKim_ecommerce_BE.Models.Requests
 
         [StringLength(500)]
         public string? Note { get; set; }
+        public decimal ShippingFee { get; set; }
+        public string? ShippingMethod { get; set; }
 
         [Required]
         [MinLength(1)]

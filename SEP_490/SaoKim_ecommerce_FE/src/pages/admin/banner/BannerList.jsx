@@ -17,7 +17,7 @@ export default function BannerList() {
   const fetchBanners = async () => {
     try {
       setLoading(true);
-      const data = await BannerAPI.getAll(); // http.js đã trả về res.data
+      const data = await BannerAPI.getAll(); 
       setBanners(data || []);
     } catch (err) {
       console.error(err);

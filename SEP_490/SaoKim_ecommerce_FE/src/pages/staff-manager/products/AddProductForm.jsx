@@ -1,4 +1,4 @@
-// src/pages/staff-manager/products/AddProductForm.jsx
+
 import useProductsApi from "../api/useProducts";
 import ProductForm from "./ProductForm";
 
@@ -7,7 +7,6 @@ function AddProductForm({ onCancel, onSuccess }) {
 
   const handleCreate = async (values) => {
     const payload = {
-      sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
       unit: values.unit,

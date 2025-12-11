@@ -95,6 +95,115 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("user_addresses", (string)null);
                 });
 
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderId"));
+
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("coupon_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("discount_amount");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_status");
+
+                    b.Property<string>("PaymentTransactionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("payment_transaction_code");
+
+                    b.Property<string>("ShippingDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipping_district");
+
+                    b.Property<decimal>("ShippingFee")
+                        .HasColumnType("numeric")
+                        .HasColumnName("shipping_fee");
+
+                    b.Property<string>("ShippingLine1")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipping_line1");
+
+                    b.Property<string>("ShippingMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("shipping_method");
+
+                    b.Property<string>("ShippingPhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("shipping_phone_number");
+
+                    b.Property<string>("ShippingProvince")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipping_province");
+
+                    b.Property<string>("ShippingRecipientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shipping_recipient_name");
+
+                    b.Property<string>("ShippingWard")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("shipping_ward");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("numeric")
+                        .HasColumnName("subtotal");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("vat_amount");
+
+                    b.HasKey("OrderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("orders");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Banner", b =>
                 {
                     b.Property<int>("Id")
@@ -462,6 +571,10 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("text")
                         .HasColumnName("project_name");
 
+                    b.Property<decimal>("ShippingFee")
+                        .HasColumnType("numeric")
+                        .HasColumnName("shipping_fee");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer")
                         .HasColumnName("status");
@@ -542,102 +655,6 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.HasIndex("InvoiceId");
 
                     b.ToTable("invoice_items", (string)null);
-                });
-
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
-                {
-                    b.Property<int>("OrderId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("order_id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("OrderId"));
-
-                    b.Property<string>("CouponCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("coupon_code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("discount_amount");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("paid_at");
-
-                    b.Property<string>("PaymentMethod")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("payment_method");
-
-                    b.Property<string>("PaymentStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("payment_status");
-
-                    b.Property<string>("PaymentTransactionCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("payment_transaction_code");
-
-                    b.Property<string>("ShippingDistrict")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("shipping_district");
-
-                    b.Property<string>("ShippingLine1")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("shipping_line1");
-
-                    b.Property<string>("ShippingPhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("shipping_phone_number");
-
-                    b.Property<string>("ShippingProvince")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("shipping_province");
-
-                    b.Property<string>("ShippingRecipientName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("shipping_recipient_name");
-
-                    b.Property<string>("ShippingWard")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("shipping_ward");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("status");
-
-                    b.Property<decimal>("Subtotal")
-                        .HasColumnType("numeric")
-                        .HasColumnName("subtotal");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("numeric")
-                        .HasColumnName("total");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("OrderId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("orders");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.OrderItem", b =>
@@ -1515,6 +1532,17 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
+                        .WithMany("Orders")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.CustomerNote", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
@@ -1552,7 +1580,7 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("SaoKim_ecommerce_BE.Entities.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithOne("Invoice")
                         .HasForeignKey("SaoKim_ecommerce_BE.Entities.Invoice", "OrderId")
                         .OnDelete(DeleteBehavior.Cascade);
@@ -1573,20 +1601,9 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Invoice");
                 });
 
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
-                {
-                    b.HasOne("SaoKim_ecommerce_BE.Entities.User", "Customer")
-                        .WithMany("Orders")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Customer");
-                });
-
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.OrderItem", b =>
                 {
-                    b.HasOne("SaoKim_ecommerce_BE.Entities.Order", "Order")
+                    b.HasOne("Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1808,6 +1825,13 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Order", b =>
+                {
+                    b.Navigation("Invoice");
+
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Category", b =>
                 {
                     b.Navigation("ProductDetails");
@@ -1820,13 +1844,6 @@ namespace SaoKim_ecommerce_BE.Migrations
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
                 {
-                    b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Order", b =>
-                {
-                    b.Navigation("Invoice");
-
                     b.Navigation("Items");
                 });
 

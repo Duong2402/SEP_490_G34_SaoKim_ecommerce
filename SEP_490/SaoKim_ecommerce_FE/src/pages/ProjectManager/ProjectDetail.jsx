@@ -1,4 +1,4 @@
-﻿﻿// src/pages/ProjectManager/ProjectDetail.jsx
+﻿
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -185,14 +185,12 @@ function ProjectDetail() {
   const [rangeEnd, setRangeEnd] = useState(dayjs().add(6, "day").format("YYYY-MM-DD"));
   const [dayPickerTask, setDayPickerTask] = useState(null);
 
-  // --- ProjectProducts state ---
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
 
-  // --- Expenses state ---
   const [expenses, setExpenses] = useState([]);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -470,7 +468,6 @@ function ProjectDetail() {
     }
   };
 
-  // --- Product guards ---
   const openAddProduct = () => {
     if (isProjectDone) {
       alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa sản phẩm.");
@@ -512,7 +509,6 @@ function ProjectDetail() {
     setShowMultiAddModal(true);
   };
 
-  // --- Expense guards ---
   const openAddExpense = () => {
     if (isProjectDone) {
       alert("Dự án đã hoàn thành, không thể thêm/chỉnh sửa chi phí.");
@@ -1124,7 +1120,7 @@ function ProjectDetail() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
                     {(() => {
                       const startMonth = month.startOf("month");
-                      const leading = (startMonth.day() + 6) % 7; // Monday-first offset
+                      const leading = (startMonth.day() + 6) % 7; 
                       const blanks = Array.from({ length: leading }, (_, i) => (
                         <div key={`blank-${i}`} />
                       ));

@@ -1,59 +1,46 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.Helpers;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [AllowAnonymous]
     public class ShippingController : ControllerBase
     {
-        private readonly SaoKimDBContext _db;
-        private readonly double _storeLat;
-        private readonly double _storeLng;
+        private readonly IShippingService _shippingService;
 
-        public ShippingController(SaoKimDBContext db, IConfiguration config)
+        public ShippingController(IShippingService shippingService)
         {
-            _db = db;
-            _storeLat = config.GetValue<double>("Shipping:StoreLat");
-            _storeLng = config.GetValue<double>("Shipping:StoreLng");
+            _shippingService = shippingService;
         }
 
+        // GET /api/shipping/fee?addressId=1&method=standard
         [HttpGet("fee")]
-        public async Task<IActionResult> GetFee([FromQuery] int addressId)
+        public async Task<IActionResult> GetFee(
+            [FromQuery] int addressId,
+            [FromQuery] string method = "standard")
         {
-            var address = await _db.Addresses
-                .FirstOrDefaultAsync(a => a.AddressId == addressId);
+            if (addressId <= 0)
+                return BadRequest(new { message = "addressId không hợp lệ." });
 
-            if (address == null)
+            var result = await _shippingService.GetFeeAsync(addressId, method);
+            if (result == null)
                 return NotFound(new { message = "Không tìm thấy địa chỉ." });
 
-            double distanceKm;
-            decimal fee;
+            return Ok(result);
+        }
 
-            if (address.Latitude == null || address.Longitude == null)
-            {
-                distanceKm = 0;
-                fee = ShippingFeeCalculator.CalculateFee(distanceKm);
-            }
-            else
-            {
-                distanceKm = GeoHelper.DistanceInKm(
-                    _storeLat, _storeLng,
-                    address.Latitude.Value, address.Longitude.Value
-                );
+        // GET /api/shipping/debug/1
+        [HttpGet("debug/{addressId:int}")]
+        public async Task<IActionResult> DebugAddress(int addressId)
+        {
+            var result = await _shippingService.DebugAddressAsync(addressId);
+            if (result == null)
+                return NotFound(new { message = "Không tìm thấy địa chỉ." });
 
-                fee = ShippingFeeCalculator.CalculateFee(distanceKm);
-            }
-
-            return Ok(new
-            {
-                distanceKm = Math.Round(distanceKm, 2),
-                fee
-            });
+            return Ok(result);
         }
     }
 }

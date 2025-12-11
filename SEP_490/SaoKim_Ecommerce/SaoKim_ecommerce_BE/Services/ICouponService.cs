@@ -20,6 +20,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         Task DeactivateAsync(int id);
 
-        Task<CouponApplyResultDto> ValidateForOrderAsync(string code, decimal orderSubtotal, int userId);
+        Task<CouponApplyResultDTOs> ValidateForOrderAsync(string code, decimal orderSubtotal, int userId);
     }
 }

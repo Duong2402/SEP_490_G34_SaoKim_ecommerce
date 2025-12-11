@@ -21,6 +21,9 @@ import Select from "react-select";
 import { Toast, ToastContainer } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
 
+const MAX_QTY = 100_000_000; 
+const MAX_UNIT_PRICE = 1_000_000_000; 
+const MAX_LINE_TOTAL = 100_000_000_000; 
 
 const emptyItem = () => ({
   productId: "",
@@ -64,9 +67,7 @@ export default function ReceivingCreate() {
 
         const json = await res.json();
         const payload = json.data ?? json;
-        const raw = Array.isArray(payload)
-          ? payload
-          : payload.items || [];
+        const raw = Array.isArray(payload) ? payload : payload.items || [];
 
         console.log("Products raw:", raw);
 
@@ -75,9 +76,15 @@ export default function ReceivingCreate() {
             id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
             name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
             uom:
-              p.uom ?? p.Uom ?? p.unit ?? p.Unit ??
-              p.unitOfMeasure ?? p.UnitOfMeasure ??
-              p.unitOfMeasureName ?? p.UnitOfMeasureName ?? "",
+              p.uom ??
+              p.Uom ??
+              p.unit ??
+              p.Unit ??
+              p.unitOfMeasure ??
+              p.UnitOfMeasure ??
+              p.unitOfMeasureName ??
+              p.UnitOfMeasureName ??
+              "",
           }))
           .filter((p) => p.id != null && p.name);
 
@@ -134,7 +141,9 @@ export default function ReceivingCreate() {
     );
 
   const patchItem = (idx, patch) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    );
 
   const findProductById = (val) => {
     const n = Number(val);
@@ -151,11 +160,26 @@ export default function ReceivingCreate() {
     const iErrs = {};
     items.forEach((it, idx) => {
       const e = {};
+      const qty = Number(it.quantity || 0);
+      const price = Number(it.unitPrice || 0);
+      const lineTotal = qty * price;
+
       if (!it.productName?.trim() && !it.productId)
         e.productName = "Tên sản phẩm hoặc Mã sản phẩm bắt buộc.";
       if (!it.uom?.trim()) e.uom = "Đơn vị tính bắt buộc.";
-      if (!(Number(it.quantity) > 0)) e.quantity = "Số lượng > 0.";
-      if (Number(it.unitPrice) < 0) e.unitPrice = "Đơn giá >= 0.";
+      if (!(qty > 0)) e.quantity = "Số lượng > 0.";
+      else if (qty > MAX_QTY)
+        e.quantity = "Số lượng tối đa cho 1 dòng là 100.000.000.";
+
+      if (price < 0) e.unitPrice = "Đơn giá >= 0.";
+      else if (price > MAX_UNIT_PRICE)
+        e.unitPrice = "Đơn giá tối đa cho 1 dòng là 1.000.000.000.";
+
+      if (!e.unitPrice && lineTotal > MAX_LINE_TOTAL) {
+        e.unitPrice =
+          "Thành tiền mỗi dòng không được vượt quá 100.000.000.000.";
+      }
+
       if (Object.keys(e).length) iErrs[idx] = e;
     });
     setItemErrs(iErrs);
@@ -212,10 +236,7 @@ export default function ReceivingCreate() {
 
       const ok = await res.json();
       const newId =
-        ok?.id ??
-        ok?.slip?.id ??
-        ok?.Slip?.Id ??
-        ok?.slip?.Id;
+        ok?.id ?? ok?.slip?.id ?? ok?.Slip?.Id ?? ok?.slip?.Id;
 
       if (newId) {
         navigate(`/warehouse-dashboard/receiving-slips/${newId}/items`);
@@ -375,8 +396,9 @@ export default function ReceivingCreate() {
               </tr>
             ) : (
               items.map((it, idx) => {
-                const lineTotal =
-                  Number(it.quantity || 0) * Number(it.unitPrice || 0);
+                const qtyNum = Number(it.quantity || 0);
+                const priceNum = Number(it.unitPrice || 0);
+                const lineTotal = qtyNum * priceNum;
                 const errs = itemErrs[idx] || {};
                 return (
                   <tr key={idx}>
@@ -476,9 +498,12 @@ export default function ReceivingCreate() {
                           type="number"
                           min={1}
                           value={it.quantity}
-                          onChange={(e) =>
-                            patchItem(idx, { quantity: e.target.value })
-                          }
+                          onChange={(e) => {
+                            let v = Number(e.target.value || 0);
+                            if (v < 0) v = 0;
+                            if (v > MAX_QTY) v = MAX_QTY;
+                            patchItem(idx, { quantity: v });
+                          }}
                           isInvalid={!!errs.quantity}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -491,9 +516,12 @@ export default function ReceivingCreate() {
                         type="number"
                         min={0}
                         value={it.unitPrice}
-                        onChange={(e) =>
-                          patchItem(idx, { unitPrice: e.target.value })
-                        }
+                        onChange={(e) => {
+                          let v = Number(e.target.value || 0);
+                          if (v < 0) v = 0;
+                          if (v > MAX_UNIT_PRICE) v = MAX_UNIT_PRICE;
+                          patchItem(idx, { unitPrice: v });
+                        }}
                         isInvalid={!!errs.unitPrice}
                       />
                       <Form.Control.Feedback type="invalid">

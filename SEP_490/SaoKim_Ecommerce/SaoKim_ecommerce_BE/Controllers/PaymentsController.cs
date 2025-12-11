@@ -1,5 +1,6 @@
-﻿using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -7,11 +8,13 @@ namespace SaoKim_ecommerce_BE.Controllers
     [Route("api/[controller]")]
     public class PaymentsController : ControllerBase
     {
-        private readonly HttpClient _httpClient;
+        private readonly IPaymentService _paymentService;
+        private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(IHttpClientFactory httpClientFactory)
+        public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
         {
-            _httpClient = httpClientFactory.CreateClient();
+            _paymentService = paymentService;
+            _logger = logger;
         }
 
         [HttpGet("check-vietqr")]
@@ -21,17 +24,14 @@ namespace SaoKim_ecommerce_BE.Controllers
             var response = await _httpClient.GetAsync(scriptUrl);
             if (!response.IsSuccessStatusCode)
             {
-                return StatusCode((int)response.StatusCode,
-                    "Không gọi được Apps Script");
+                var result = await _paymentService.CheckVietQrAsync(amount, cancellationToken);
+                return Ok(result);
             }
-
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-
-            if (!doc.RootElement.TryGetProperty("data", out var dataElem) ||
-                dataElem.ValueKind != JsonValueKind.Array)
+            catch (InvalidOperationException ex)
             {
-                return Ok(new { matched = false });
+                // lỗi do cấu hình hoặc gọi script thất bại
+                _logger.LogError(ex, "Lỗi khi kiểm tra VietQR");
+                return StatusCode(502, new { message = ex.Message });
             }
 
             const string targetAccount = "0000126082016";
@@ -62,8 +62,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     break;
                 }
             }
-
-            return Ok(new { matched });
         }
     }
 }

@@ -125,34 +125,53 @@ export default function OrderDetailPage() {
     [items]
   );
 
+  const orderSubtotal = Number(order?.subtotal ?? order?.Subtotal ?? NaN);
   const invoiceSubtotal = Number(invoice?.subtotal ?? invoice?.Subtotal ?? NaN);
-  const subtotal = Number.isFinite(invoiceSubtotal)
-    ? invoiceSubtotal
-    : subtotalFromItems;
+  const subtotal = Number.isFinite(orderSubtotal)
+    ? orderSubtotal
+    : Number.isFinite(invoiceSubtotal)
+      ? invoiceSubtotal
+      : subtotalFromItems;
 
-  const discount = Number(invoice?.discount ?? invoice?.Discount ?? 0);
-  const tax = Number(invoice?.tax ?? invoice?.Tax ?? 0);
+  const orderDiscount = Number(
+    order?.discountAmount ?? order?.DiscountAmount ?? NaN
+  );
+  const invoiceDiscount = Number(invoice?.discount ?? invoice?.Discount ?? 0);
+  const discount = Number.isFinite(orderDiscount)
+    ? orderDiscount
+    : invoiceDiscount;
 
-  const totalFromInvoice = Number(invoice?.total ?? invoice?.Total ?? NaN);
+  const orderVat = Number(order?.vatAmount ?? order?.VatAmount ?? NaN);
+  const invoiceTax = Number(invoice?.tax ?? invoice?.Tax ?? 0);
+  const tax = Number.isFinite(orderVat) ? orderVat : invoiceTax;
+
+  const orderShippingFee = Number(
+    order?.shippingFee ?? order?.ShippingFee ?? NaN
+  );
+
   const totalFromOrder = Number(order?.total ?? order?.Total ?? NaN);
+  const totalFromInvoice = Number(invoice?.total ?? invoice?.Total ?? NaN);
 
-  const rawTotal = Number.isFinite(totalFromInvoice)
-    ? totalFromInvoice
-    : Number.isFinite(totalFromOrder)
-    ? totalFromOrder
-    : NaN;
+  const baseTotal =
+    Number.isFinite(totalFromOrder) && totalFromOrder > 0
+      ? totalFromOrder
+      : Number.isFinite(totalFromInvoice)
+        ? totalFromInvoice
+        : NaN;
 
-  let shippingFee = 0;
-  if (Number.isFinite(rawTotal)) {
-    shippingFee = rawTotal - (subtotal - discount + tax);
+  let shippingFee;
+  if (Number.isFinite(orderShippingFee)) {
+    shippingFee = orderShippingFee;
+  } else if (Number.isFinite(baseTotal)) {
+    shippingFee = baseTotal - (subtotal - discount + tax);
+    if (shippingFee < 0) shippingFee = 0;
+  } else {
+    shippingFee = 0;
   }
-  if (shippingFee < 0) shippingFee = 0;
 
-  const fallbackTotal = subtotal - discount + tax + shippingFee;
-  let displayTotal = Number.isFinite(rawTotal) ? rawTotal : fallbackTotal;
-  if (tax > 0 && displayTotal < fallbackTotal) {
-    displayTotal = fallbackTotal;
-  }
+  const displayTotal = Number.isFinite(baseTotal)
+    ? baseTotal
+    : subtotal - discount + tax + shippingFee;
 
   const statusKey = (order?.status || order?.Status || "").toLowerCase();
   const statusMeta = STATUS_LABELS[statusKey] || {
@@ -160,7 +179,6 @@ export default function OrderDetailPage() {
     variant: "secondary",
   };
 
-  // loại thanh toán
   const paymentMethodRaw = (
     payment?.method ||
     payment?.Method ||
@@ -221,7 +239,6 @@ export default function OrderDetailPage() {
     order?.OrderId ||
     orderId;
 
-  // timeline: COD có bước Paid, QR không
   const statusSteps = useMemo(
     () =>
       isCod
@@ -320,8 +337,8 @@ export default function OrderDetailPage() {
       const pdfUrl = `${apiBase}/api/invoices/${invoiceId}/pdf`;
       const headers = token
         ? {
-            Authorization: `Bearer ${token}`,
-          }
+          Authorization: `Bearer ${token}`,
+        }
         : undefined;
 
       const downloadPdf = () =>

@@ -142,7 +142,6 @@ export default function UserForm({
     return issues;
   }, [form, isEdit]);
 
-  // Handle input
   const handleChange = (event) => {
     const { name, value, files } = event.target;
 
@@ -158,7 +157,6 @@ export default function UserForm({
     }
   };
 
-  // Reset
   const handleReset = () => {
     if (initialValues) {
       const resolvedRoleId = resolveRoleIdFromInitial(initialValues, roles);
@@ -186,7 +184,6 @@ export default function UserForm({
     }
   };
 
-  // Submit
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -279,8 +276,7 @@ export default function UserForm({
       </Field>
 
       <div className="form-grid double">
-        {/* ROLE */}
-        <Field label="Vai trò" name="roleId" error={errors.roleId} required>
+        <Field label="Role" name="roleId" error={errors.roleId} required>
           <select
             id="roleId"
             name="roleId"

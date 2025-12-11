@@ -40,6 +40,13 @@ export default function InboundReport() {
 
   const [notify, setNotify] = useState(null);
 
+  const truncate = (value, maxLength = 40, fallback = "-") => {
+    if (value === null || value === undefined || value === "") return fallback;
+    const str = String(value);
+    if (str.length <= maxLength) return str;
+    return str.slice(0, maxLength) + "...";
+  };
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -316,7 +323,9 @@ export default function InboundReport() {
                 className="d-flex justify-content-between align-items-center mb-2"
               >
                 <div>
-                  <div className="fw-semibold">{s.supplier}</div>
+                  <div className="fw-semibold" title={s.supplier}>
+                    {truncate(s.supplier, 30, "Khác")}
+                  </div>
                   <small className="text-muted">
                     {s.slipsCount} phiếu •{" "}
                     {formatNumber(s.totalQuantity)} đơn vị
@@ -449,8 +458,8 @@ export default function InboundReport() {
                     className={heavy ? "table-warning" : ""}
                   >
                     <td>{(page - 1) * pageSize + index + 1}</td>
-                    <td className="fw-semibold">
-                      {item.supplier}
+                    <td className="fw-semibold" title={item.supplier}>
+                      {truncate(item.supplier, 40, "Không rõ")}
                       {heavy && (
                         <Badge bg="danger" className="ms-2">
                           Lô lớn
@@ -465,8 +474,8 @@ export default function InboundReport() {
                     </td>
                     <td>{formatNumber(item.totalQuantity)}</td>
                     <td>{formatNumber(item.totalValue)}</td>
-                    <td className="text-muted">
-                      {item.note || "Không có ghi chú"}
+                    <td className="text-muted" title={item.note || ""}>
+                      {truncate(item.note, 60, "Không có ghi chú")}
                     </td>
                   </tr>
                 );
@@ -478,7 +487,9 @@ export default function InboundReport() {
                   className={isHeavyRecord(item) ? "table-warning" : ""}
                 >
                   <td>{(page - 1) * pageSize + index + 1}</td>
-                  <td className="fw-semibold">{item.supplier}</td>
+                  <td className="fw-semibold" title={item.supplier}>
+                    {truncate(item.supplier, 40, "Khác")}
+                  </td>
                   <td>{item.slipsCount}</td>
                   <td>{item.totalItems}</td>
                   <td>{formatNumber(item.totalQuantity)}</td>

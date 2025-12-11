@@ -4,7 +4,7 @@ export default function useCategoriesApi() {
   const getCategories = async () => {
     const res = await fetch(base);
     if (!res.ok) throw new Error("Không tải được danh mục");
-    return await res.json(); // [{ id, name, slug }]
+    return await res.json(); 
   };
 
   const getCategory = async (id) => {

@@ -1,18 +1,19 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Breadcrumb } from "@themesberg/react-bootstrap";
+import { Breadcrumb, Badge } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
   faChartColumn,
   faArrowDown,
   faArrowUp,
-  faBoxesStacked
+  faBoxesStacked,
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 
 const REPORT_CARDS = [
   {
+    key: "inbound",
     title: "Báo cáo nhập kho",
     description:
       "Theo dõi chi tiết hàng nhập theo nhà cung cấp, dự án và nguồn hàng.",
@@ -21,13 +22,16 @@ const REPORT_CARDS = [
     icon: faArrowDown,
   },
   {
+    key: "outbound",
     title: "Báo cáo xuất kho",
-    description: "Theo dõi chi tiết hàng xuất theo nhà cung cấp, dự án và nguồn hàng.",
+    description:
+      "Theo dõi chi tiết hàng xuất theo khách hàng, dự án và điểm giao nhận.",
     link: "/warehouse-dashboard/warehouse-report/outbound-report",
     status: "ready",
     icon: faArrowUp,
   },
   {
+    key: "inventory",
     title: "Báo cáo tồn kho",
     description: "Tổng hợp tồn kho theo sản phẩm và trạng thái cảnh báo.",
     link: "/warehouse-dashboard/warehouse-report/inventory-report",
@@ -35,6 +39,24 @@ const REPORT_CARDS = [
     icon: faBoxesStacked,
   },
 ];
+
+const statusLabel = (status) => {
+  if (status === "ready") {
+    return (
+      <Badge bg="success" pill>
+        Đã triển khai
+      </Badge>
+    );
+  }
+  if (status === "coming-soon") {
+    return (
+      <Badge bg="secondary" pill>
+        Đang phát triển
+      </Badge>
+    );
+  }
+  return null;
+};
 
 const WarehouseReport = () => {
   const availableReports = REPORT_CARDS.filter((c) => c.status === "ready");
@@ -71,35 +93,50 @@ const WarehouseReport = () => {
         </div>
       </div>
 
-      <div
-        className="d-grid gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}
-      >
-        {availableReports.map((card) => (
-          <div
-            key={card.title}
-            className="wm-surface d-flex flex-column gap-3 h-100"
-          >
-            <div className="d-flex align-items-center gap-3">
-              <span className="wm-alert-item__badge" style={{ minWidth: 44 }}>
-                <FontAwesomeIcon icon={card.icon} />
-              </span>
-              <div>
-                <h2 className="wm-section-title mb-1">{card.title}</h2>
-                <p className="wm-subtle-text mb-0">{card.description}</p>
-              </div>
-            </div>
-
-            <Link
-              to={card.link}
-              className="wm-btn wm-btn--primary text-center mt-auto"
+      {availableReports.length === 0 ? (
+        <div className="wm-surface wm-empty">
+          Hiện chưa có báo cáo nào được kích hoạt. Liên hệ quản trị để cấu hình.
+        </div>
+      ) : (
+        <div
+          className="d-grid gap-3"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          }}
+        >
+          {availableReports.map((card) => (
+            <div
+              key={card.key}
+              className="wm-surface d-flex flex-column gap-3 h-100"
             >
-              <FontAwesomeIcon icon={faChartColumn} />{" "}
-              Xem báo cáo
-            </Link>
-          </div>
-        ))}
-      </div>
+              <div className="d-flex align-items-start justify-content-between gap-3">
+                <div className="d-flex align-items-center gap-3">
+                  <span
+                    className="wm-alert-item__badge"
+                    style={{ minWidth: 44 }}
+                  >
+                    <FontAwesomeIcon icon={card.icon} />
+                  </span>
+                  <div>
+                    <h2 className="wm-section-title mb-1">{card.title}</h2>
+                    <p className="wm-subtle-text mb-0">
+                      {card.description}
+                    </p>
+                  </div>
+                </div>
+                {statusLabel(card.status)}
+              </div>
+
+              <Link
+                to={card.link}
+                className="wm-btn wm-btn--primary text-center mt-auto"
+              >
+                <FontAwesomeIcon icon={faChartColumn} /> Xem báo cáo
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
     </WarehouseLayout>
   );
 };

@@ -162,11 +162,10 @@ function HeroBlock() {
   );
 }
 
-/* BANNER + HERO: hero là slide 0, các banner là slide 1..n */
 function HomeBanner() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [index, setIndex] = useState(0); // 0 = hero, 1..n = banner
+  const [index, setIndex] = useState(0); 
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +210,7 @@ function HomeBanner() {
   const totalSlides = 1 + (banners?.length || 0);
 
   useEffect(() => {
-    if (totalSlides <= 1) return; // chỉ hero thì không cần auto slide
+    if (totalSlides <= 1) return; 
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % totalSlides);
     }, 5000);
@@ -231,7 +230,7 @@ function HomeBanner() {
             className="home-banner__media"
             style={{
               width: "100%",
-              height: "420px",       // THÊM DÒNG NÀY
+              height: "420px",       
               overflow: "hidden",
               position: "relative",
               marginBottom: "24px",
@@ -301,7 +300,6 @@ function HomeBanner() {
   );
 }
 
-/* SẢN PHẨM */
 
 function ProductCard({ product }) {
   const [imageError, setImageError] = useState(false);

@@ -1,4 +1,4 @@
-// src/pages/staff-manager/products/EditProductForm.jsx
+
 import React from "react";
 import ProductForm from "./ProductForm";
 import useProductsApi from "../api/useProducts";
@@ -8,7 +8,6 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
 
   const handleSubmit = async (values) => {
     const payload = {
-      sku: values.sku,
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
       unit: values.unit || initial?.unit,

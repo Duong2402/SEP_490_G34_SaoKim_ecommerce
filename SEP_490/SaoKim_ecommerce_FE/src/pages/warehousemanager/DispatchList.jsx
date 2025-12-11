@@ -52,6 +52,13 @@ const getSlipId = (row) =>
   row?.slipId ??
   row?.slipID;
 
+const truncate = (value, maxLength = 30, fallback = "-") => {
+  if (value === null || value === undefined || value === "") return fallback;
+  const str = String(value);
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + "...";
+};
+
 const DispatchList = () => {
   const navigate = useNavigate();
 
@@ -228,12 +235,11 @@ const DispatchList = () => {
     }
   }
 
-  // Export tất cả phiếu theo bộ lọc hiện tại (không phụ thuộc page hiện tại)
   async function exportAllByFilter(includeItems = true) {
     try {
       const body = {
         page: 1,
-        pageSize: 1000000, // server sẽ override, nhưng gửi cho đủ
+        pageSize: 1000000,
         type: typeFilter !== "All" ? typeFilter : null,
         search,
         sortBy,
@@ -354,14 +360,13 @@ const DispatchList = () => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
 
     try {
-      const res = await apiFetch(
+      await apiFetch(
         `/api/warehousemanager/dispatch-slips/${targetId}`,
         {
           method: "DELETE",
         }
       );
 
-      // apiFetch sẽ ném lỗi nếu !ok, nên nếu tới đây là ok
       setRows((prev) =>
         prev.filter((r) => String(getSlipId(r)) !== String(targetId))
       );
@@ -556,6 +561,14 @@ const DispatchList = () => {
                 const slipId = getSlipId(r);
                 const checked = selectedIds.has(r.id);
 
+                const codeValue = isSales
+                  ? r.salesOrderNo || r.referenceNo
+                  : r.requestNo || r.referenceNo;
+
+                const nameValue = isSales
+                  ? r.customerName || "-"
+                  : r.projectName || "-";
+
                 return (
                   <tr key={r.id}>
                     <td>
@@ -571,13 +584,11 @@ const DispatchList = () => {
                         {typeLabel}
                       </Badge>
                     </td>
-                    <td>
-                      {isSales
-                        ? r.salesOrderNo || r.referenceNo
-                        : r.requestNo || r.referenceNo}
+                    <td title={codeValue || ""}>
+                      {truncate(codeValue, 25, "-")}
                     </td>
-                    <td>
-                      {isSales ? r.customerName || "-" : r.projectName || "-"}
+                    <td title={nameValue || ""}>
+                      {truncate(nameValue, 35, "-")}
                     </td>
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
                     <td>{formatDate(r.createdAt)}</td>
@@ -591,7 +602,9 @@ const DispatchList = () => {
                         </Badge>
                       )}
                     </td>
-                    <td>{r.note || "-"}</td>
+                    <td title={r.note || ""}>
+                      {truncate(r.note, 40, "-")}
+                    </td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"

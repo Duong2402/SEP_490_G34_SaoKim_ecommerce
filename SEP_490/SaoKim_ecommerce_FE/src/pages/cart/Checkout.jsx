@@ -4,7 +4,7 @@ import {
   Breadcrumb,
   Button,
   Card,
- Col,
+  Col,
   Container,
   Form,
   InputGroup,
@@ -15,7 +15,6 @@ import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
 import "../../styles/checkout.css";
 
-// Helpers per user session
 function readCheckoutItemsForOwner() {
   try {
     const { checkoutKey } = getCartKeys();
@@ -55,7 +54,7 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   const [shippingMethod, setShippingMethod] = useState("standard");
-  const [shippingFee, setShippingFee] = useState(20000);
+  const [baseShippingFee, setBaseShippingFee] = useState(0);
 
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherList] = useState([
@@ -65,7 +64,6 @@ export default function Checkout() {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [voucherStatus, setVoucherStatus] = useState(null);
 
-  // VietQR state
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [autoCheck, setAutoCheck] = useState(false);
 
@@ -87,7 +85,6 @@ export default function Checkout() {
       currency: "VND",
     }).format(Number(value) || 0);
 
-  // Sync storage
   useEffect(() => {
     const onStorage = () => {
       setCartItems(readCart());
@@ -113,7 +110,6 @@ export default function Checkout() {
     setSelectedIds(new Set(base.map((x) => x.id)));
   }, [checkoutItems, cartItems]);
 
-  // Load saved addresses
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -143,12 +139,11 @@ export default function Checkout() {
           setSelectedAddressId(null);
         }
       } catch {
-        // ignore
       }
     })();
   }, [apiBase]);
 
-  // Shipping fee for selected address
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -156,24 +151,20 @@ export default function Checkout() {
 
     (async () => {
       try {
-        const res = await fetch(
-          `${apiBase}/api/shipping/fee?addressId=${selectedAddressId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const url = `${apiBase}/api/shipping/fee?addressId=${selectedAddressId}&method=standard`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (typeof data.fee === "number") {
-          setShippingFee(data.fee);
+          setBaseShippingFee(data.fee);
         }
       } catch {
-        // keep old fee on error
       }
     })();
   }, [selectedAddressId, apiBase]);
 
-  // Selected items / subtotal
   const selectedItems = useMemo(
     () => itemsForCheckout.filter((it) => selectedIds.has(it.id)),
     [itemsForCheckout, selectedIds]
@@ -188,24 +179,37 @@ export default function Checkout() {
     [selectedItems]
   );
 
-  // ĐÃ ĐỔI: dùng discountAmount từ BE nếu có
+  const standardFee = baseShippingFee;
+  const fastFee = Math.round(baseShippingFee * 1.3);
+  const expressFee = Math.round(baseShippingFee * 1.6);
+
+  const shippingFee =
+    shippingMethod === "fast"
+      ? fastFee
+      : shippingMethod === "express"
+        ? expressFee
+        : standardFee;
+
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (typeof selectedVoucher.discountAmount === "number") {
       return selectedVoucher.discountAmount;
     }
-    // fallback: logic cũ nếu dùng voucherList mock
     if (selectedVoucher.type === "percent")
       return Math.min((subtotal * selectedVoucher.value) / 100, 100000);
     if (selectedVoucher.type === "amount") return selectedVoucher.value;
     return 0;
   }, [selectedVoucher, subtotal]);
 
-  const total = Math.max(subtotal + shippingFee - discount, 0);
+  const vatBase = Math.max(subtotal - discount, 0);
+
+  const vat = Math.round(vatBase * 0.1);
+
+  const total = Math.max(vatBase + vat + shippingFee, 0);
+  
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
 
-  // checkPaid: call backend to verify VietQR (kèm paymentToken)
   const checkPaid = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -235,7 +239,6 @@ export default function Checkout() {
     }
   };
 
-  // Polling auto-check when QR selected
   useEffect(() => {
     let interval;
 
@@ -253,7 +256,6 @@ export default function Checkout() {
     };
   }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount, paymentToken]);
 
-  // ÁP DỤNG MÃ GIẢM GIÁ: GỌI BE /api/coupons/validate
   const handleApplyVoucher = async () => {
     const code = (voucherCode || "").trim();
 
@@ -303,7 +305,6 @@ export default function Checkout() {
           const errData = await res.json();
           errMsg = errData.message || errData.Message || errMsg;
         } catch {
-          // ignore
         }
         setSelectedVoucher(null);
         setVoucherStatus({
@@ -315,12 +316,10 @@ export default function Checkout() {
 
       const data = await res.json();
 
-      // map từ DTO BE sang state FE
       setSelectedVoucher({
         code: data.code,
         label: data.name || data.code,
         discountAmount: data.discountAmount,
-        // giữ thêm mấy field cũ nếu cần
         type: data.discountType,
         value: data.discountValue,
       });
@@ -339,7 +338,6 @@ export default function Checkout() {
     }
   };
 
-  // PAY
   const handlePay = async () => {
     if (!selectedItems.length) {
       alert("Không có sản phẩm nào để thanh toán");
@@ -370,8 +368,8 @@ export default function Checkout() {
     try {
       const payload = {
         subtotal,
+        shippingFee,
         addressId: selectedAddressId,
-        // ĐÃ THÊM: gửi couponCode lên BE
         couponCode: selectedVoucher?.code || undefined,
         status: paymentMethod === "COD" ? "Pending" : "Paid",
         paymentMethod,
@@ -406,8 +404,8 @@ export default function Checkout() {
       }
 
       const createdOrder = await res.json();
-      const backendTotal =
-        typeof createdOrder.total === "number" ? createdOrder.total : total;
+
+      const grandTotal = total;
 
       const fullCart = readCart();
       const remain = fullCart.filter((it) => !selectedIds.has(it.id));
@@ -420,7 +418,7 @@ export default function Checkout() {
         replace: true,
         state: {
           customer: form,
-          total: backendTotal,
+          total: grandTotal,
           paymentMethod,
           shippingMethod,
           selectedVoucher,
@@ -428,6 +426,7 @@ export default function Checkout() {
           order: createdOrder,
         },
       });
+
     } finally {
       setSubmitting(false);
     }
@@ -546,11 +545,8 @@ export default function Checkout() {
                           {addresses.map((a) => (
                             <label
                               key={a.addressId}
-                              className={`address-option ${
-                                selectedAddressId === a.addressId
-                                  ? "active"
-                                  : ""
-                              }`}
+                              className={`address-option ${selectedAddressId === a.addressId ? "active" : ""
+                                }`}
                             >
                               <Form.Check
                                 type="radio"
@@ -633,42 +629,41 @@ export default function Checkout() {
                       Phương thức vận chuyển
                     </Card.Title>
                     <div className="d-grid gap-3">
-                      {shippingOptions.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className={`shipping-option ${
-                            shippingMethod === opt.value ? "active" : ""
-                          }`}
-                        >
-                          <Form.Check
-                            type="radio"
-                            name="shipping"
-                            checked={shippingMethod === opt.value}
-                            onChange={() => setShippingMethod(opt.value)}
-                            className="mt-1 me-3"
-                          />
-                          <div className="w-100">
-                            <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                              <div>
-                                <div className="fw-semibold text-primary">
-                                  {opt.label}
+                      {shippingOptions.map((opt) => {
+                        let optionFee = standardFee;
+                        if (opt.value === "fast") optionFee = fastFee;
+                        if (opt.value === "express") optionFee = expressFee;
+
+                        return (
+                          <label
+                            key={opt.value}
+                            className={`shipping-option ${shippingMethod === opt.value ? "active" : ""
+                              }`}
+                          >
+                            <Form.Check
+                              type="radio"
+                              name="shipping"
+                              checked={shippingMethod === opt.value}
+                              onChange={() => setShippingMethod(opt.value)}
+                              className="mt-1 me-3"
+                            />
+                            <div className="w-100">
+                              <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                  <div className="fw-semibold text-primary">{opt.label}</div>
+                                  <div className="text-muted small">{opt.time}</div>
                                 </div>
-                                <div className="text-muted small">
-                                  {opt.time}
-                                </div>
-                              </div>
-                              <div className="text-end">
-                                <div className="fw-semibold text-dark">
-                                  {formatCurrency(shippingFee)}
-                                </div>
-                                <div className="text-muted small">
-                                  Ước tính phí
+                                <div className="text-end">
+                                  <div className="fw-semibold text-dark">
+                                    {formatCurrency(optionFee)}
+                                  </div>
+                                  <div className="text-muted small">Ước tính phí</div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        </label>
-                      ))}
+                          </label>
+                        );
+                      })}
                     </div>
                   </Card.Body>
                 </Card>
@@ -677,6 +672,95 @@ export default function Checkout() {
                     <Card.Title className="checkout-card-title mb-3">
                       Mã giảm giá
                     </Card.Title>
+                    <div className="d-grid gap-3">
+                      <label
+                        className={`payment-option ${paymentMethod === "COD" ? "active" : ""
+                          }`}
+                      >
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "COD"}
+                          onChange={() => {
+                            setPaymentMethod("COD");
+                            setPaymentVerified(false);
+                            setAutoCheck(false);
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">
+                            Thanh toán khi nhận hàng (COD)
+                          </div>
+                          <div className="text-muted small">
+                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao hàng.
+                          </div>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`payment-option ${paymentMethod === "QR" ? "active" : ""
+                          }`}
+                      >
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "QR"}
+                          onChange={() => {
+                            setPaymentMethod("QR");
+                            setPaymentVerified(false);
+                            setAutoCheck(true);
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">Chuyển khoản qua QR</div>
+                          <div className="text-muted small">
+                            Quét mã QR để thanh toán chuyển khoản.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+
+                    {paymentMethod === "QR" && (
+                      <div className="qr-box mt-3">
+                        <div className="d-flex flex-wrap gap-3 align-items-start">
+                          <img
+                            alt="QR thanh toán"
+                            width={180}
+                            className="qr-image rounded-3"
+                            src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}&addInfo=${encodeURIComponent(
+                              " thanh toan don hang"
+                            )}`}
+                          />
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              <span className="badge-soft-primary">Tài khoản MB Bank</span>
+                              <span className="text-muted small">
+                                Số tiền: {formatCurrency(qrAmount)}
+                              </span>
+                            </div>
+                            {!paymentVerified && (
+                              <p className="text-muted small mb-2">
+                                Đang chờ thanh toán qua QR. Hệ thống sẽ tự động ghi nhận khi tiền về
+                                tài khoản.
+                              </p>
+                            )}
+                            {paymentVerified && (
+                              <p className="text-success fw-semibold mb-0">
+                                Thanh toán thành công!
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+
+                <Card className="checkout-card mb-4">
+                  <Card.Body>
+                    <Card.Title className="checkout-card-title mb-3">Mã giảm giá</Card.Title>
                     <InputGroup className="discount-group">
                       <Form.Control
                         value={voucherCode}
@@ -834,6 +918,10 @@ export default function Checkout() {
                         </span>
                       </div>
                     )}
+                    <div className="summary-row">
+                      <span>VAT:</span>
+                      <span className="fw-semibold">{formatCurrency(vat)}</span>
+                    </div>
                     <div className="summary-row total-row">
                       <span>Tổng cộng:</span>
                       <span className="total-amount">

@@ -1,4 +1,4 @@
-// src/pages/manager/products/ManagerProductList.jsx
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../../../api/products";
 

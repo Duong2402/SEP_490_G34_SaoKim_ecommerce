@@ -58,11 +58,15 @@ namespace SaoKim_ecommerce_BE.Services
         public async Task<ProjectResponseDTO> CreateAsync(CreateProjectDTO dto, string? createdBy)
         {
             if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate < dto.StartDate)
-                throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
+                throw new ArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
 
-            var code = string.IsNullOrWhiteSpace(dto.Code) ? await GenerateCodeAsync() : dto.Code!.Trim();
+            var code = string.IsNullOrWhiteSpace(dto.Code)
+                ? await GenerateCodeAsync()
+                : dto.Code!.Trim();
+
             var exists = await _db.Projects.AsNoTracking().AnyAsync(x => x.Code == code);
-            if (exists) throw new InvalidOperationException("Project code already exists.");
+            if (exists)
+                throw new InvalidOperationException("Mã dự án đã tồn tại.");
 
             var entity = new Project
             {
@@ -75,6 +79,7 @@ namespace SaoKim_ecommerce_BE.Services
                 EndDate = dto.EndDate,
                 Budget = dto.Budget,
                 Description = dto.Description,
+                CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy,
                 ProjectManagerId = dto.ProjectManagerId
             };
@@ -115,19 +120,16 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             if (!string.IsNullOrWhiteSpace(q.Status))
-            {
                 query = query.Where(x => x.Status == q.Status);
-            }
 
             if (q.ProjectManagerId.HasValue)
-            {
                 query = query.Where(x => x.ProjectManagerId == q.ProjectManagerId.Value);
-            }
 
             if (!string.IsNullOrWhiteSpace(q.Sort))
             {
                 var desc = q.Sort.StartsWith("-");
                 var field = desc ? q.Sort[1..] : q.Sort;
+
                 query = field switch
                 {
                     "Name" => desc ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
@@ -164,10 +166,11 @@ namespace SaoKim_ecommerce_BE.Services
             var p = await _db.Projects
                 .FirstOrDefaultAsync(x => x.Id == id);
 
-            if (p == null) return null;
+            if (p == null)
+                return null;
 
             if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.EndDate < dto.StartDate)
-                throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
+                throw new ArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
 
             p.Name = dto.Name.Trim();
             p.CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? null : dto.CustomerName!.Trim();

@@ -33,6 +33,7 @@ namespace SaoKim_ecommerce_BE.DTOs
 
         public string Status { get; set; } = "Pending";
         public DateTime Created { get; set; }
+        public decimal ShippingFee { get; set; }
         public IEnumerable<InvoiceItemDto> Items { get; set; } = new List<InvoiceItemDto>();
     }
 

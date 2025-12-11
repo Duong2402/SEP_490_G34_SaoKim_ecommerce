@@ -1,8 +1,6 @@
-// src/api/ProjectManager/project-expenses.js
 import http from "../http";
 
 export const ProjectExpenseAPI = {
-  // params: { from, to, category, vendor, keyword, page, pageSize, sort }
   list: (projectId, params) =>
     http.get(`/projects/${projectId}/expenses`, { params }),
 

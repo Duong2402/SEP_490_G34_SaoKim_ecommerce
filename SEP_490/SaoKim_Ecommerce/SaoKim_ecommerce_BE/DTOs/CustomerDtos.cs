@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace SaoKim_ecommerce_BE.Dtos.Customers
+namespace SaoKim_ecommerce_BE.DTOs
 {
     public record CustomerListItemDto(
         int Id,

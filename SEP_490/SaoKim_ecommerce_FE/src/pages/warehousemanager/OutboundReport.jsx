@@ -36,9 +36,16 @@ export default function OutboundReport() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
 
-  const [viewMode, setViewMode] = useState("slips"); 
+  const [viewMode, setViewMode] = useState("slips");
 
   const [notify, setNotify] = useState(null);
+
+  const truncate = (value, maxLength = 40, fallback = "-") => {
+    if (value === null || value === undefined || value === "") return fallback;
+    const str = String(value);
+    if (str.length <= maxLength) return str;
+    return str.slice(0, maxLength) + "...";
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -322,15 +329,21 @@ export default function OutboundReport() {
                 className="d-flex justify-content-between align-items-center mb-2"
               >
                 <div>
-                  <div className="fw-semibold">{c.customer}</div>
+                  <div
+                    className="fw-semibold"
+                    title={c.customer}
+                  >
+                    {truncate(c.customer, 40, "")}
+                  </div>
                   <small className="text-muted">
                     {c.slipsCount} phiếu • {formatNumber(c.totalQuantity)} đơn vị
                   </small>
                 </div>
                 <Badge bg={idx === 0 ? "success" : "info"}>
-                  {((c.totalQuantity /
-                    (summary.totalQty || 1)) *
-                    100).toFixed(1)}
+                  {(
+                    (c.totalQuantity / (summary.totalQty || 1)) *
+                    100
+                  ).toFixed(1)}
                   %
                 </Badge>
               </li>
@@ -454,7 +467,9 @@ export default function OutboundReport() {
                   >
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td className="fw-semibold">
-                      {item.customer}
+                      <span title={item.customer}>
+                        {truncate(item.customer, 40, "")}
+                      </span>
                       {heavy && (
                         <Badge bg="danger" className="ms-2">
                           Lô lớn
@@ -482,7 +497,11 @@ export default function OutboundReport() {
                   className={isHeavyRecord(item) ? "table-warning" : ""}
                 >
                   <td>{(page - 1) * pageSize + index + 1}</td>
-                  <td className="fw-semibold">{item.customer}</td>
+                  <td className="fw-semibold">
+                    <span title={item.customer}>
+                      {truncate(item.customer, 40, "")}
+                    </span>
+                  </td>
                   <td>{item.slipsCount}</td>
                   <td>{item.totalItems}</td>
                   <td>{formatNumber(item.totalQuantity)}</td>

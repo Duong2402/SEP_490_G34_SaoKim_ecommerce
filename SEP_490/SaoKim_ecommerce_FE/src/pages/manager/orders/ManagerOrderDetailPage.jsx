@@ -23,7 +23,6 @@ export default function ManagerOrderDetailPage() {
 
   const [order, setOrder] = useState(initialOrder);
   const [items, setItems] = useState([]);
-  // Luôn tải lại chi tiết để chắc chắn có đủ thông tin (địa chỉ giao hàng, invoice...)
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
@@ -40,7 +39,6 @@ export default function ManagerOrderDetailPage() {
         const payload = res?.data ?? res;
         if (!cancelled) {
           setOrder(payload);
-          // Nếu API detail trả kèm items thì tận dụng luôn
           if (Array.isArray(payload?.items)) {
             setItems(payload.items);
             setLoadingItems(false);
@@ -77,7 +75,6 @@ export default function ManagerOrderDetailPage() {
       }
     };
 
-    // Nếu đã có items từ API detail thì không cần gọi lại
     if (items.length === 0) {
       loadItems();
     } else {
@@ -105,7 +102,7 @@ export default function ManagerOrderDetailPage() {
             q: orderKey,
             orderCode: orderCode || undefined,
             orderId: order?.orderId || order?.id || orderId || undefined,
-            pageSize: 200, // lấy rộng hơn để lọc phía FE
+            pageSize: 200, 
           },
         });
         const payload = res?.data ?? res;
@@ -206,7 +203,6 @@ export default function ManagerOrderDetailPage() {
       return `${recipientPart}${partsFromLines}${phonePart}`;
     }
     if (!shippingAddress) return "-";
-    // Try object with named fields
     if (typeof shippingAddress === "object") {
       const parts = [
         shippingAddress.recipientName,
@@ -220,7 +216,6 @@ export default function ManagerOrderDetailPage() {
         .join(", ");
       if (parts) return parts;
     }
-    // Fallback string
     return String(shippingAddress);
   };
 

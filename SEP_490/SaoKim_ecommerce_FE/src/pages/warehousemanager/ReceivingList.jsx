@@ -36,6 +36,13 @@ const toStatusCode = (v) => {
   return 0;
 };
 
+const truncateText = (text, maxLength = 40) => {
+  if (!text) return "";
+  const str = String(text);
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + "...";
+};
+
 export default function ReceivingList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -51,32 +58,35 @@ export default function ReceivingList() {
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [notify, setNotify] = useState(null); 
+  const [notify, setNotify] = useState(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("pageSize", pageSize);
-      if (search) params.append("search", search);
-      if (sortBy) params.append("sortBy", sortBy);
-      if (sortOrder) params.append("sortOrder", sortOrder);
+  const loadData = useCallback(
+    async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.append("page", page);
+        params.append("pageSize", pageSize);
+        if (search) params.append("search", search);
+        if (sortBy) params.append("sortBy", sortBy);
+        if (sortOrder) params.append("sortOrder", sortOrder);
 
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips?${params.toString()}`
-      );
-      const data = await res.json();
+        const res = await apiFetch(
+          `/api/warehousemanager/receiving-slips?${params.toString()}`
+        );
+        const data = await res.json();
 
-      setRows(data.items || []);
-      setTotal(data.total || 0);
-    } catch (error) {
-      console.error("Lỗi khi tải danh sách phiếu nhập:", error);
-      setNotify("Lỗi khi tải danh sách phiếu nhập.");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search, sortBy, sortOrder]);
+        setRows(data.items || []);
+        setTotal(data.total || 0);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách phiếu nhập:", error);
+        setNotify("Lỗi khi tải danh sách phiếu nhập.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, pageSize, search, sortBy, sortOrder]
+  );
 
   useEffect(() => {
     loadData();
@@ -519,6 +529,9 @@ export default function ReceivingList() {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
                 const checked = selectedIds.has(r.id);
+                const supplierText = r.supplier || "";
+                const noteText = r.note || "Không có ghi chú";
+
                 return (
                   <tr key={r.id}>
                     <td>
@@ -530,7 +543,11 @@ export default function ReceivingList() {
                     </td>
                     <td>{(page - 1) * pageSize + idx + 1}</td>
                     <td>{r.referenceNo}</td>
-                    <td>{r.supplier}</td>
+                    <td>
+                      <span title={supplierText}>
+                        {truncateText(supplierText, 40) || "-"}
+                      </span>
+                    </td>
                     <td>{formatDate(r.receiptDate)}</td>
                     <td>
                       {isConfirmed ? (
@@ -547,7 +564,11 @@ export default function ReceivingList() {
                         ? formatDate(r.confirmedAt)
                         : "Chưa xác nhận"}
                     </td>
-                    <td>{r.note || "Không có ghi chú"}</td>
+                    <td>
+                      <span title={noteText}>
+                        {truncateText(noteText, 60)}
+                      </span>
+                    </td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"

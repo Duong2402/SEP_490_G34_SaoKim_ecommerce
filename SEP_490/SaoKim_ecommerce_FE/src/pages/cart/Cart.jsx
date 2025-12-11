@@ -112,7 +112,6 @@ export default function Cart() {
   const formatCurrency = (value) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(value) || 0);
 
-  // Chỉ lưu selectedItems rồi sang trang checkout
   const proceedCheckout = () => {
     const selectedItems = items.filter((it) => selectedIds.has(it.id));
     if (selectedItems.length === 0) {
@@ -123,7 +122,7 @@ export default function Cart() {
     const { checkoutKey } = getCartKeys();
     localStorage.setItem(checkoutKey, JSON.stringify(selectedItems));
 
-    navigate("/checkout");   // ← chính là điều hướng sang Checkout
+    navigate("/checkout");   
   };
 
   return (

@@ -55,6 +55,13 @@ const getStatus = (item) => {
   return "stock";
 };
 
+const truncate = (value, maxLength = 40, fallback = "-") => {
+  if (value === null || value === undefined || value === "") return fallback;
+  const str = String(value);
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength) + "...";
+};
+
 export default function InventoryReport() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -74,61 +81,63 @@ export default function InventoryReport() {
     { value: "critical", label: "Thiếu hàng" },
   ];
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: "1",
-        pageSize: String(MAX_PAGE_SIZE),
-        ...(search ? { search } : {}),
-        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
-        ...(fromDate ? { fromDate } : {}),
-        ...(toDate ? { toDate } : {}),
-      });
+  const loadData = useCallback(
+    async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          pageSize: String(MAX_PAGE_SIZE),
+          ...(search ? { search } : {}),
+          ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+          ...(fromDate ? { fromDate } : {}),
+          ...(toDate ? { toDate } : {}),
+        });
 
-      const res = await apiFetch(
-        `/api/warehousemanager/inventory-report?${params.toString()}`
-      );
-      if (!res.ok) {
-        throw new Error(`Lỗi HTTP ${res.status}`);
+        const res = await apiFetch(
+          `/api/warehousemanager/inventory-report?${params.toString()}`
+        );
+        if (!res.ok) {
+          throw new Error(`Lỗi HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        const items = (data.items || []).map((x) => {
+          const item = {
+            productId: x.productId ?? x.id ?? x.ProductId ?? x.ProductID,
+            productCode: x.productCode ?? x.ProductCode ?? "-",
+            productName: x.productName ?? x.ProductName ?? "",
+            categoryName: x.categoryName ?? x.CategoryName ?? "",
+            onHand: x.onHand ?? x.quantity ?? x.QtyOnHand ?? x.Quantity ?? 0,
+            uomName: x.uomName ?? x.Uom ?? x.Unit ?? "",
+            minStock: x.minStock ?? x.MinStock ?? 0,
+            status: x.status ?? x.Status ?? null,
+            note: x.note ?? x.Note ?? "",
+            openingQty: x.openingQty ?? 0,
+            inboundQty: x.inboundQty ?? 0,
+            outboundQty: x.outboundQty ?? 0,
+            closingQty: x.closingQty ?? x.onHand ?? 0,
+          };
+
+          item.gap =
+            Number(item.closingQty ?? item.onHand ?? 0) -
+            Number(item.openingQty || 0);
+
+          item.effectiveStatus = item.status ?? getStatus(item);
+          return item;
+        });
+
+        setRows(items);
+        setTotal(data.total ?? items.length);
+      } catch (err) {
+        console.error("Lỗi tải báo cáo tồn kho:", err);
+      } finally {
+        setLoading(false);
       }
-
-      const data = await res.json();
-
-      const items = (data.items || []).map((x) => {
-        const item = {
-          productId: x.productId ?? x.id ?? x.ProductId ?? x.ProductID,
-          productCode: x.productCode ?? x.ProductCode ?? "-",
-          productName: x.productName ?? x.ProductName ?? "",
-          categoryName: x.categoryName ?? x.CategoryName ?? "",
-          onHand: x.onHand ?? x.quantity ?? x.QtyOnHand ?? x.Quantity ?? 0,
-          uomName: x.uomName ?? x.Uom ?? x.Unit ?? "",
-          minStock: x.minStock ?? x.MinStock ?? 0,
-          status: x.status ?? x.Status ?? null,
-          note: x.note ?? x.Note ?? "",
-          openingQty: x.openingQty ?? 0,
-          inboundQty: x.inboundQty ?? 0,
-          outboundQty: x.outboundQty ?? 0,
-          closingQty: x.closingQty ?? x.onHand ?? 0,
-        };
-
-        item.gap =
-          Number(item.closingQty ?? item.onHand ?? 0) -
-          Number(item.openingQty || 0);
-
-        item.effectiveStatus = item.status ?? getStatus(item);
-        return item;
-      });
-
-      setRows(items);
-      setTotal(data.total ?? items.length);
-    } catch (err) {
-      console.error("Lỗi tải báo cáo tồn kho:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, fromDate, toDate]);
-
+    },
+    [search, statusFilter, fromDate, toDate]
+  );
 
   useEffect(() => {
     loadData();
@@ -160,71 +169,81 @@ export default function InventoryReport() {
     };
   }, [loadData]);
 
-  const summary = useMemo(() => {
-    const totalSku = total;
-    let safe = 0;
-    let alert = 0;
-    let critical = 0;
+  const summary = useMemo(
+    () => {
+      const totalSku = total;
+      let safe = 0;
+      let alert = 0;
+      let critical = 0;
 
-    rows.forEach((r) => {
-      const st = r.effectiveStatus ?? getStatus(r);
-      if (st === "stock") safe++;
-      else if (st === "alert") alert++;
-      else if (st === "critical") critical++;
-    });
+      rows.forEach((r) => {
+        const st = r.effectiveStatus ?? getStatus(r);
+        if (st === "stock") safe++;
+        else if (st === "alert") alert++;
+        else if (st === "critical") critical++;
+      });
 
-    const totalWithStatus = safe + alert + critical || 1;
-    const safePercent = (safe / totalWithStatus) * 100;
-    const alertPercent = (alert / totalWithStatus) * 100;
-    const criticalPercent = (critical / totalWithStatus) * 100;
+      const totalWithStatus = safe + alert + critical || 1;
+      const safePercent = (safe / totalWithStatus) * 100;
+      const alertPercent = (alert / totalWithStatus) * 100;
+      const criticalPercent = (critical / totalWithStatus) * 100;
 
-    const totalStock = rows.reduce(
-      (acc, x) => acc + Number(x.closingQty ?? x.onHand ?? 0),
-      0
-    );
+      const totalStock = rows.reduce(
+        (acc, x) => acc + Number(x.closingQty ?? x.onHand ?? 0),
+        0
+      );
 
-    return {
-      totalSku,
-      safe,
-      alert,
-      critical,
-      safePercent,
-      alertPercent,
-      criticalPercent,
-      totalStock,
-    };
-  }, [rows, total]);
+      return {
+        totalSku,
+        safe,
+        alert,
+        critical,
+        safePercent,
+        alertPercent,
+        criticalPercent,
+        totalStock,
+      };
+    },
+    [rows, total]
+  );
 
-  const groupedByStatus = useMemo(() => {
-    const groups = {
-      stock: { status: "stock", skuCount: 0, totalStock: 0 },
-      alert: { status: "alert", skuCount: 0, totalStock: 0 },
-      critical: { status: "critical", skuCount: 0, totalStock: 0 },
-    };
+  const groupedByStatus = useMemo(
+    () => {
+      const groups = {
+        stock: { status: "stock", skuCount: 0, totalStock: 0 },
+        alert: { status: "alert", skuCount: 0, totalStock: 0 },
+        critical: { status: "critical", skuCount: 0, totalStock: 0 },
+      };
 
-    rows.forEach((r) => {
-      const st = r.effectiveStatus ?? getStatus(r);
-      if (!groups[st]) return;
-      groups[st].skuCount += 1;
-      groups[st].totalStock += Number(r.closingQty ?? r.onHand ?? 0);
-    });
+      rows.forEach((r) => {
+        const st = r.effectiveStatus ?? getStatus(r);
+        if (!groups[st]) return;
+        groups[st].skuCount += 1;
+        groups[st].totalStock += Number(r.closingQty ?? r.onHand ?? 0);
+      });
 
-    return Object.values(groups);
-  }, [rows]);
+      return Object.values(groups);
+    },
+    [rows]
+  );
 
-  const topOverstock = useMemo(() => {
-    return [...rows]
-      .filter((r) => r.gap > 0)
-      .sort((a, b) => b.gap - a.gap)
-      .slice(0, 5);
-  }, [rows]);
+  const topOverstock = useMemo(
+    () =>
+      [...rows]
+        .filter((r) => r.gap > 0)
+        .sort((a, b) => b.gap - a.gap)
+        .slice(0, 5),
+    [rows]
+  );
 
-  const topCritical = useMemo(() => {
-    return [...rows]
-      .filter((r) => (r.effectiveStatus ?? getStatus(r)) === "critical")
-      .sort((a, b) => a.gap - b.gap)
-      .slice(0, 5);
-  }, [rows]);
+  const topCritical = useMemo(
+    () =>
+      [...rows]
+        .filter((r) => (r.effectiveStatus ?? getStatus(r)) === "critical")
+        .sort((a, b) => a.gap - b.gap)
+        .slice(0, 5),
+    [rows]
+  );
 
   const statusFilterLabel =
     {
@@ -260,16 +279,18 @@ export default function InventoryReport() {
           <div className="d-flex gap-2">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "detail" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "detail" ? "active" : ""
+              }`}
               onClick={() => setViewMode("detail")}
             >
               Chi tiết theo sản phẩm
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${viewMode === "overview" ? "active" : ""
-                }`}
+              className={`wm-btn wm-btn--light ${
+                viewMode === "overview" ? "active" : ""
+              }`}
               onClick={() => setViewMode("overview")}
             >
               Tổng quan & top sản phẩm
@@ -479,11 +500,17 @@ export default function InventoryReport() {
                       <tr key={r.productId}>
                         <td>{idx + 1}</td>
                         <td>
-                          <div className="fw-semibold">
-                            {r.productCode || "-"}
+                          <div
+                            className="fw-semibold"
+                            title={r.productCode || "-"}
+                          >
+                            {truncate(r.productCode || "-", 20, "-")}
                           </div>
-                          <div className="text-muted small">
-                            {r.productName}
+                          <div
+                            className="text-muted small"
+                            title={r.productName}
+                          >
+                            {truncate(r.productName, 40, "")}
                           </div>
                         </td>
                         <td>
@@ -518,11 +545,17 @@ export default function InventoryReport() {
                       <tr key={r.productId} className="table-warning">
                         <td>{idx + 1}</td>
                         <td>
-                          <div className="fw-semibold">
-                            {r.productCode || "-"}
+                          <div
+                            className="fw-semibold"
+                            title={r.productCode || "-"}
+                          >
+                            {truncate(r.productCode || "-", 20, "-")}
                           </div>
-                          <div className="text-muted small">
-                            {r.productName}
+                          <div
+                            className="text-muted small"
+                            title={r.productName}
+                          >
+                            {truncate(r.productName, 40, "")}
                           </div>
                         </td>
                         <td>
@@ -577,10 +610,12 @@ export default function InventoryReport() {
                       className={isCritical ? "table-warning" : ""}
                     >
                       <td>{idx + 1}</td>
-                      <td className="fw-semibold">
-                        {r.productCode || "-"}
+                      <td className="fw-semibold" title={r.productCode || "-"}>
+                        {truncate(r.productCode || "-", 20, "-")}
                       </td>
-                      <td>{r.productName}</td>
+                      <td title={r.productName}>
+                        {truncate(r.productName, 50, "")}
+                      </td>
 
                       <td>{r.openingQty}</td>
 
