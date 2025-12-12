@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserAPI } from "../../../api/users";
+import "../../../styles/admin-users.css";
 
 export default function UserList() {
   const [users, setUsers] = useState([]);
@@ -44,7 +45,7 @@ export default function UserList() {
       try {
         const data = await UserAPI.getRoles();
         setRoles(Array.isArray(data) ? data : []);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -182,8 +183,7 @@ export default function UserList() {
                         <td>{u.id}</td>
 
                         <td>
-                          {/** FIX: đúng path /admin/users/:id */}
-                          <Link className="link" to={`/admin/users/${u.id}`}>
+                          <Link className="link" to={`/admin/users/${u.id}/edit`}>
                             {u.name}
                           </Link>
                         </td>

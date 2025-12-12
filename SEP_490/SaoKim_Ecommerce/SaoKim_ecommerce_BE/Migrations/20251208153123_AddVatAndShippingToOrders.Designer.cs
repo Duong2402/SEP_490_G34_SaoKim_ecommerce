@@ -12,8 +12,8 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    [Migration("20251208221505_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251208153123_AddVatAndShippingToOrders")]
+    partial class AddVatAndShippingToOrders
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

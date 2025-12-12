@@ -145,7 +145,7 @@ const DispatchSlipItems = () => {
       const data = await res.json();
 
       setItems(data.items || []);
-      setTotal(data.total || 0);
+      setTotal(data.totalItems || data.total || 0);
       setTotalQty(data.totalQty || 0);
       setTotalAmount(data.totalAmount || 0);
     } catch (e) {
