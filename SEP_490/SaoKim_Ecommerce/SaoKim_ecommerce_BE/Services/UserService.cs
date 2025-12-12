@@ -202,7 +202,17 @@ namespace SaoKim_ecommerce_BE.Services
                 user.PhoneNumber = dto.PhoneNumber.Trim();
 
             if (dto.Dob.HasValue)
-                user.DOB = dto.Dob.Value;
+            {
+                var dob = dto.Dob.Value;
+
+                if (dob.Kind == DateTimeKind.Unspecified)
+                    dob = DateTime.SpecifyKind(dob, DateTimeKind.Utc);
+                else
+                    dob = dob.ToUniversalTime();
+
+                user.DOB = dob;
+            }
+
 
             if (dto.Image != null && dto.Image.Length > 0)
             {
