@@ -9,7 +9,7 @@ import {
   faBarcode,
   faChartColumn,
 } from "@fortawesome/free-solid-svg-icons";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import SaoKimLogo from "./SaoKimLogo";
 
 const menuItems = [
@@ -23,11 +23,20 @@ const menuItems = [
 
 const WarehouseSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const goHome = () => navigate("/");
 
   return (
     <aside className="warehouse-sidebar" aria-label="Điều hướng quản lý kho">
       <div className="warehouse-sidebar__inner">
-        <div className="warehouse-sidebar__brand">
+        <div
+          className="warehouse-sidebar__brand"
+          role="button"
+          tabIndex={0}
+          onClick={goHome}
+          onKeyDown={(e) => e.key === "Enter" && goHome()}
+        >
           <SaoKimLogo size="large" showText title="Sao Kim Warehouse" tagline="Quản lý kho vận" />
         </div>
 
@@ -52,7 +61,7 @@ const WarehouseSidebar = () => {
         </Nav>
 
         <div className="warehouse-sidebar__footer">
-          Cần hỗ trợ? {" "}
+          Cần hỗ trợ?{" "}
           <a href="mailto:support@saokim.vn" rel="noreferrer">
             support@saokim.vn
           </a>

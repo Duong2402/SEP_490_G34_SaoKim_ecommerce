@@ -1,59 +1,57 @@
-﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faKey, faRightFromBracket, faUserPen } from "@fortawesome/free-solid-svg-icons";
-import ProjectManagerSidebar from "../pages/ProjectManager/components/ProjectManagerSidebar";
 import SaoKimLogo from "../components/SaoKimLogo";
-import "../styles/project-manager.css";
+import AdminSidebar from "../components/AdminSidebar";
+import "../styles/admin.css";
 
 const PAGE_TITLES = [
-  { match: /^\/projects\/?$/, label: "Danh sách dự án" },
-  { match: /^\/projects\/overview/, label: "Tổng quan dự án" },
-  { match: /^\/projects\/create/, label: "Tạo dự án" },
-  { match: /^\/projects\/\d+$/, label: "Chi tiết dự án" },
-  { match: /^\/projects\/.+\/edit/, label: "Chỉnh sửa dự án" },
-  { match: /^\/projects\/.+\/report/, label: "Báo cáo dự án" },
+  { match: /^\/admin(\/dashboard)?$/, label: "Tổng quan hệ thống" },
+  { match: /^\/admin\/banner/, label: "Quản lý Banner" },
+  { match: /^\/admin\/users/, label: "Quản lý người dùng" },
+  { match: /^\/admin\/roles/, label: "Quản lý vai trò" },
 ];
 
 const getIdentity = () => {
-  if (typeof window === "undefined") {
-    return { name: "", email: "pm@saokim.vn" };
-  }
+  if (typeof window === "undefined") return { name: "", email: "admin@saokim.vn" };
   const name = window.localStorage.getItem("userName") || "";
-  const email = window.localStorage.getItem("userEmail") || "pm@saokim.vn";
-  return { name, email };
+  const email = window.localStorage.getItem("userEmail") || "";
+  return { name, email: email || "admin@saokim.vn" };
 };
 
 const getInitials = (value) => {
-  if (!value) return "PM";
+  if (!value) return "AD";
   const parts = value.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-export default function ProjectManagerLayout() {
+export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const userWrapperRef = useRef(null);
+
   const [identity, setIdentity] = useState(() => getIdentity());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
+
+  const pageTitle = useMemo(() => {
+    const current = PAGE_TITLES.find((item) => item.match.test(location.pathname));
+    return current?.label || "Quản trị hệ thống";
+  }, [location.pathname]);
 
   useEffect(() => {
     const sync = () => setIdentity(getIdentity());
     window.addEventListener("storage", sync);
     window.addEventListener("localStorageChange", sync);
-    window.addEventListener("auth:changed", sync);
     return () => {
       window.removeEventListener("storage", sync);
       window.removeEventListener("localStorageChange", sync);
-      window.removeEventListener("auth:changed", sync);
     };
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!userMenuOpen) return;
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+      if (userWrapperRef.current && !userWrapperRef.current.contains(event.target)) {
         setUserMenuOpen(false);
       }
     };
@@ -61,15 +59,9 @@ export default function ProjectManagerLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
-  const pageTitle = useMemo(() => {
-    const current = PAGE_TITLES.find((item) => item.match.test(location.pathname));
-    return current?.label || "Quản lý dự án";
-  }, [location.pathname]);
-
   const handleLogout = () => {
     if (!window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
     ["token", "role", "userEmail", "userName"].forEach((key) => localStorage.removeItem(key));
-    window.dispatchEvent(new Event("auth:changed"));
     navigate("/login", { replace: true });
   };
 
@@ -84,63 +76,66 @@ export default function ProjectManagerLayout() {
   };
 
   return (
-    <div className="pm-shell">
-      <aside className="pm-sidebar" aria-label="Khu vực Project Manager">
+    <div className="admin-shell">
+      <aside className="admin-sidebar" aria-label="Điều hướng admin">
         <div
-          className="pm-sidebar__brand"
+          className="admin-sidebar__brand"
           role="button"
           tabIndex={0}
           onClick={() => navigate("/")}
           onKeyDown={(e) => e.key === "Enter" && navigate("/")}
         >
-          <SaoKimLogo size="large" showText title="Sao Kim Projects" tagline="Khu vực Quản lý dự án" />
+          <SaoKimLogo size="large" showText />
         </div>
 
-        <ProjectManagerSidebar />
 
-        <div className="pm-sidebar__footer">
-          Phiên làm việc an toàn
+        <AdminSidebar />
+
+        <div className="admin-sidebar__footer">
+          Quản trị hệ thống
           <br />
           Hỗ trợ: 0963 811 369
         </div>
       </aside>
 
-      <div className="pm-main">
-        <header className="pm-topbar">
-          <div className="pm-topbar__titles">
-            <span className="pm-topbar__eyebrow">Quản lý dự án</span>
-            <h1 className="pm-topbar__title">{pageTitle}</h1>
+      <div className="admin-main">
+        <header className="admin-topbar">
+          <div className="admin-topbar__titles">
+            <span className="admin-topbar__eyebrow">Khu vực quản trị</span>
+            <h1 className="admin-topbar__title">{pageTitle}</h1>
           </div>
 
-          <div className="pm-topbar__actions">
-            <div className="pm-user" ref={userMenuRef}>
+          <div className="admin-topbar__actions">
+            <button type="button" className="admin-logout" onClick={handleLogout}>
+              Đăng xuất
+            </button>
+
+            <div className="admin-user" ref={userWrapperRef}>
               <button
                 type="button"
-                className="pm-user__button"
+                className="admin-user__button"
                 onClick={() => setUserMenuOpen((open) => !open)}
                 aria-haspopup="true"
                 aria-expanded={userMenuOpen}
               >
-                <span className="pm-user__avatar">{getInitials(identity.name || identity.email)}</span>
-                <span className="pm-user__meta">
-                  {identity.name || "Project Manager"}
+                <span className="admin-user__avatar">
+                  {getInitials(identity.name || identity.email)}
+                </span>
+                <span className="admin-user__meta">
+                  {identity.name || "Admin Sao Kim"}
                   <span>{identity.email}</span>
                 </span>
-                <FontAwesomeIcon icon={faChevronDown} />
               </button>
 
               {userMenuOpen && (
-                <div className="pm-user__dropdown" role="menu">
+                <div className="admin-user__dropdown" role="menu">
                   <button type="button" onClick={goToProfile}>
-                    <FontAwesomeIcon icon={faUserPen} className="me-2" />
                     Hồ sơ cá nhân
                   </button>
                   <button type="button" onClick={goToChangePassword}>
-                    <FontAwesomeIcon icon={faKey} className="me-2" />
                     Đổi mật khẩu
                   </button>
                   <button type="button" onClick={handleLogout}>
-                    <FontAwesomeIcon icon={faRightFromBracket} className="me-2" />
                     Đăng xuất
                   </button>
                 </div>
@@ -149,7 +144,7 @@ export default function ProjectManagerLayout() {
           </div>
         </header>
 
-        <div className="pm-content">
+        <div className="admin-content">
           <Outlet />
         </div>
       </div>

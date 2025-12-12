@@ -86,7 +86,7 @@ export default function Login() {
       if (roleNorm === "warehouse_manager") {
         to = "/warehouse-dashboard";
       } else if (roleNorm === "admin" || roleNorm === "administrator") {
-        to = "/admin-dashboard";
+        to = "/admin";
       } else if (roleNorm === "customer") {
         to = "/";
       } else if (roleNorm === "manager") {

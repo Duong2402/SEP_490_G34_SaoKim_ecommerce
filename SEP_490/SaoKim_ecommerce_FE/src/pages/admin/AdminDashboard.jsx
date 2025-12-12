@@ -2,51 +2,67 @@ import { Link } from "react-router-dom";
 
 export default function AdminDashboard() {
   return (
-    <div style={{
-      width: "100%",
-      minHeight: "100vh",
-      display: "flex",
-      background: "#f7f9fc"
-    }}>
-      
-      {/* Menu bên trái */}
-      <aside style={{
-        width: "250px",
-        background: "#ffffff",
-        borderRight: "1px solid #e4e4e4",
-        padding: "20px"
-      }}>
-        <h3 style={{ marginBottom: "20px" }}>Admin Menu</h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--wm-border)",
+          borderRadius: 16,
+          padding: 18,
+          boxShadow: "var(--wm-shadow)",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Dashboard</h2>
+        <p style={{ margin: "8px 0 0", color: "var(--wm-muted)" }}>
+          Chọn chức năng từ menu bên trái.
+        </p>
+      </div>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <Link to="/admin/banner" style={linkStyle}>
-            Quản lý Banner
-          </Link>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 16,
+        }}
+      >
+        <Link
+          to="/admin/banner"
+          style={{
+            textDecoration: "none",
+            background: "#fff",
+            border: "1px solid var(--wm-border)",
+            borderRadius: 16,
+            padding: 16,
+            boxShadow: "var(--wm-shadow)",
+            color: "var(--wm-text)",
+            fontWeight: 700,
+          }}
+        >
+          Quản lý Banner
+          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
+            Tạo, sửa, ẩn/hiện banner
+          </div>
+        </Link>
 
-          <Link to="/admin/users" style={linkStyle}>
-            Quản lý Users
-          </Link>
-        </nav>
-      </aside>
-
-      {/* Nội dung bên phải */}
-      <main style={{
-        flex: 1,
-        padding: "40px"
-      }}>
-        <h1>Dashboard</h1>
-        <p>Chọn chức năng từ menu bên trái.</p>
-      </main>
-
+        <Link
+          to="/admin/users"
+          style={{
+            textDecoration: "none",
+            background: "#fff",
+            border: "1px solid var(--wm-border)",
+            borderRadius: 16,
+            padding: 16,
+            boxShadow: "var(--wm-shadow)",
+            color: "var(--wm-text)",
+            fontWeight: 700,
+          }}
+        >
+          Quản lý Users
+          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
+            Quản lý tài khoản và phân quyền
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }
-
-const linkStyle = {
-  padding: "10px 14px",
-  background: "#f0f2f5",
-  borderRadius: "6px",
-  textDecoration: "none",
-  color: "#333",
-  fontSize: "15px",
-};

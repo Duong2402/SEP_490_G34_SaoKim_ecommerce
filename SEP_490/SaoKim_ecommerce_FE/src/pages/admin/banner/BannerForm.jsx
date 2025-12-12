@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
+import "../../../styles/admin-banner-form.css";
 
 export default function BannerForm() {
   const { id } = useParams();
@@ -53,7 +54,7 @@ export default function BannerForm() {
       isActive: !!form.isActive,
     };
 
-  
+
     if (!payload.title) {
       alert("Vui lòng nhập tiêu đề");
       return;
@@ -88,70 +89,101 @@ export default function BannerForm() {
       alert(msg);
     }
   };
-
-  if (loading) return <div>Đang tải...</div>;
+  if (loading) return <div className="admin-banner-form__loading">Đang tải...</div>;
 
   return (
-    <div className="container">
-      <h2>{id ? "Sửa banner" : "Thêm banner"}</h2>
-
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Tiêu đề</label>
-          <input
-            value={form.title}
-            onChange={handleChange("title")}
-            placeholder="Nhập tiêu đề banner"
-          />
+    <div className="admin-banner-form">
+      <div className="admin-banner-form__panel">
+        <div className="admin-banner-form__header">
+          <div>
+            <h2 className="admin-banner-form__title">
+              {id ? "Sửa banner" : "Thêm banner"}
+            </h2>
+            <p className="admin-banner-form__subtitle">
+              Cập nhật thông tin banner hiển thị trên trang chủ
+            </p>
+          </div>
         </div>
 
-        <div>
-          <label>Ảnh (URL)</label>
-          <input
-            value={form.imageUrl}
-            onChange={handleChange("imageUrl")}
-            placeholder="https://..."
-          />
-          {form.imageUrl && (
-            <div style={{ marginTop: 8 }}>
-              <img
-                src={form.imageUrl}
-                alt="Preview"
-                style={{ width: 300, height: 150, objectFit: "cover" }}
-              />
+        <form onSubmit={handleSubmit}>
+          <div className="admin-banner-form__grid">
+            <div className="admin-banner-form__card">
+              <div className="admin-banner-form__field">
+                <label className="admin-banner-form__label">Tiêu đề</label>
+                <input
+                  className="admin-banner-form__input"
+                  value={form.title}
+                  onChange={handleChange("title")}
+                  placeholder="Nhập tiêu đề banner"
+                />
+              </div>
+
+              <div className="admin-banner-form__field">
+                <label className="admin-banner-form__label">Ảnh (URL)</label>
+                <input
+                  className="admin-banner-form__input"
+                  value={form.imageUrl}
+                  onChange={handleChange("imageUrl")}
+                  placeholder="https://..."
+                />
+                <div className="admin-banner-form__hint">
+                  Dán link ảnh hợp lệ để xem preview
+                </div>
+              </div>
+
+              <div className="admin-banner-form__field">
+                <label className="admin-banner-form__label">Link khi click</label>
+                <input
+                  className="admin-banner-form__input"
+                  value={form.linkUrl}
+                  onChange={handleChange("linkUrl")}
+                  placeholder="Có thể để trống"
+                />
+              </div>
+
+              <label className="admin-banner-form__switch">
+                <input
+                  className="admin-banner-form__checkbox"
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={handleChange("isActive")}
+                />
+                Kích hoạt
+              </label>
+
+              <div className="admin-banner-form__actions">
+                <button type="submit" className="btn btn-primary">
+                  Lưu
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => navigate("/admin/banner")}
+                >
+                  Quay lại
+                </button>
+              </div>
             </div>
-          )}
-        </div>
 
-        <div>
-          <label>Link khi click</label>
-          <input
-            value={form.linkUrl}
-            onChange={handleChange("linkUrl")}
-            placeholder="Có thể để trống"
-          />
-        </div>
+            <div className="admin-banner-form__card">
+              <div className="admin-banner-form__field">
+                <label className="admin-banner-form__label">Preview</label>
 
-        <div>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={handleChange("isActive")}
-            />
-            Kích hoạt
-          </label>
-        </div>
-
-        <button type="submit">Lưu</button>
-        <button
-          type="button"
-          onClick={() => navigate("/admin/banner")}
-          style={{ marginLeft: 8 }}
-        >
-          Quay lại
-        </button>
-      </form>
+                <div className="admin-banner-form__preview">
+                  {form.imageUrl ? (
+                    <img src={form.imageUrl} alt="Preview" />
+                  ) : (
+                    <div className="admin-banner-form__preview-empty">
+                      Chưa có ảnh để xem trước
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
+
 }

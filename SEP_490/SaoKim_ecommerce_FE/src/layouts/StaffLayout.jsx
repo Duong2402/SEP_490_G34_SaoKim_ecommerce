@@ -88,7 +88,13 @@ const StaffLayout = ({ children }) => {
   return (
     <div className="staff-shell">
       <aside className="staff-sidebar" aria-label="Khu vực Nhân viên">
-        <div className="staff-sidebar__brand">
+        <div
+          className="staff-sidebar__brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate("/")}
+          onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+        >
           <SaoKimLogo size="large" showText title="Sao Kim Staff" tagline="Vận hành bán hàng" />
         </div>
 

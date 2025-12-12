@@ -87,9 +87,16 @@ export default function ManagerLayout() {
   return (
     <div className="manager-shell">
       <aside className="manager-sidebar" aria-label="Điều hướng quản lý">
-        <div className="manager-sidebar__brand">
+        <div
+          className="manager-sidebar__brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate("/")}
+          onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+        >
           <SaoKimLogo size="large" showText />
         </div>
+
 
         <ManagerSidebar />
 
