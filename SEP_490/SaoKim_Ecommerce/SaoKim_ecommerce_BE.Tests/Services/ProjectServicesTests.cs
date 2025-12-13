@@ -1,17 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using SaoKim_ecommerce_BE.Controllers;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models;
 using SaoKim_ecommerce_BE.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 using TaskStatusEnum = SaoKim_ecommerce_BE.Entities.TaskStatus;
 
@@ -986,293 +988,354 @@ namespace SaoKim_ecommerce_BE.Tests.Services
 
     public class ProjectReportsControllerTests
     {
-        private SaoKimDBContext CreateDbContext()
-        {
-            var options = new DbContextOptionsBuilder<SaoKimDBContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            return new SaoKimDBContext(options);
-        }
-
         [Fact]
-        public async Task GetReportJson_ReturnsNotFound_WhenProjectMissing()
+        public async Task GetReportJson_ReturnsNotFound_WhenServiceReturnsNull()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectReportsController(db);
+            var svc = new Mock<IProjectReportsService>(MockBehavior.Strict);
+            svc.Setup(s => s.GetProjectReportAsync(1))
+               .ReturnsAsync((ProjectReportDTOs?)null);
+
+            var controller = new ProjectReportsController(svc.Object);
 
             var result = await controller.GetReportJson(1);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
-            Assert.Equal("Project not found", res.Message);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Không tìm thấy dự án", body.Message);
+
+            svc.Verify(s => s.GetProjectReportAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetReportJson_ReturnsOk_WhenProjectExists()
+        public async Task GetReportJson_ReturnsOk_WhenServiceReturnsDto()
         {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "PRJ-001", Name = "Test", Budget = 1000m });
-            await db.SaveChangesAsync();
-            var controller = new ProjectReportsController(db);
+            var svc = new Mock<IProjectReportsService>(MockBehavior.Strict);
+
+            var dto = new ProjectReportDTOs
+            {
+                ProjectId = 1,
+                Code = "PRJ-001"
+            };
+
+            svc.Setup(s => s.GetProjectReportAsync(1))
+               .ReturnsAsync(dto);
+
+            var controller = new ProjectReportsController(svc.Object);
 
             var result = await controller.GetReportJson(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
-            Assert.True(res.Success);
-            Assert.Equal(1, res.Data.ProjectId);
+            var body = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
+            Assert.True(body.Success);
+            Assert.NotNull(body.Data);
+            Assert.Equal(1, body.Data.ProjectId);
+            Assert.Equal("PRJ-001", body.Data.Code);
+
+            svc.Verify(s => s.GetProjectReportAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetReportPdf_ReturnsNotFound_WhenProjectMissing()
+        public async Task GetReportPdf_ReturnsNotFound_WhenPdfBytesNull()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectReportsController(db);
+            var svc = new Mock<IProjectReportsService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetProjectReportPdfAsync(1))
+               .ReturnsAsync((byte[]?)null);
+
+            var controller = new ProjectReportsController(svc.Object);
 
             var result = await controller.GetReportPdf(1);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Không tìm thấy dự án", body.Message);
+
+            svc.Verify(s => s.GetProjectReportPdfAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetReportPdf_ReturnsFile_WhenProjectExists()
+        public async Task GetReportPdf_ReturnsFile_WithCorrectContentType_AndFileNameUsesCode()
         {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "PRJ-001", Name = "Test", Budget = 1000m });
-            await db.SaveChangesAsync();
-            var controller = new ProjectReportsController(db);
+            var svc = new Mock<IProjectReportsService>(MockBehavior.Strict);
+
+            var pdf = Encoding.UTF8.GetBytes("fake-pdf");
+            var dto = new ProjectReportDTOs { ProjectId = 1, Code = "PRJ-001" };
+
+            svc.Setup(s => s.GetProjectReportPdfAsync(1))
+               .ReturnsAsync(pdf);
+
+            // controller gọi GetProjectReportAsync lần nữa để lấy Code đặt tên file
+            svc.Setup(s => s.GetProjectReportAsync(1))
+               .ReturnsAsync(dto);
+
+            var controller = new ProjectReportsController(svc.Object);
 
             var result = await controller.GetReportPdf(1);
 
             var file = Assert.IsType<FileContentResult>(result);
             Assert.Equal("application/pdf", file.ContentType);
-            Assert.NotEmpty(file.FileContents);
+            Assert.Equal(pdf, file.FileContents);
+            Assert.Equal("ProjectReport_PRJ-001.pdf", file.FileDownloadName);
+
+            svc.Verify(s => s.GetProjectReportPdfAsync(1), Times.Once);
+            svc.Verify(s => s.GetProjectReportAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Report_ComputesTaskProgress()
+        public async Task GetReportPdf_ReturnsFile_AndFileNameFallsBackToId_WhenCodeMissing()
         {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "PRJ-001", Name = "Test" });
-            var t1 = new TaskItem { Id = 1, ProjectId = 1, Name = "T1" };
-            t1.Days.Add(new TaskDay { Date = DateTime.UtcNow, Status = TaskStatusEnum.Done });
-            var t2 = new TaskItem { Id = 2, ProjectId = 1, Name = "T2" };
-            t2.Days.Add(new TaskDay { Date = DateTime.UtcNow, Status = TaskStatusEnum.Delayed });
-            db.TaskItems.AddRange(t1, t2);
-            await db.SaveChangesAsync();
-            var controller = new ProjectReportsController(db);
+            var svc = new Mock<IProjectReportsService>(MockBehavior.Strict);
 
-            var result = await controller.GetReportJson(1);
+            var pdf = Encoding.UTF8.GetBytes("fake-pdf");
+            var dto = new ProjectReportDTOs { ProjectId = 1, Code = null };
 
-            var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
-            Assert.Equal(2, res.Data.TaskCount);
-            Assert.Equal(1, res.Data.TaskCompleted);
-            Assert.Equal(1, res.Data.TaskDelayed);
+            svc.Setup(s => s.GetProjectReportPdfAsync(7))
+               .ReturnsAsync(pdf);
+
+            svc.Setup(s => s.GetProjectReportAsync(7))
+               .ReturnsAsync(dto);
+
+            var controller = new ProjectReportsController(svc.Object);
+
+            var result = await controller.GetReportPdf(7);
+
+            var file = Assert.IsType<FileContentResult>(result);
+            Assert.Equal("ProjectReport_7.pdf", file.FileDownloadName);
+
+            svc.Verify(s => s.GetProjectReportPdfAsync(7), Times.Once);
+            svc.Verify(s => s.GetProjectReportAsync(7), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
-
-        [Fact]
-        public async Task Report_ComputesFinancials()
-        {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "PRJ-001", Name = "Test", Budget = 1000m });
-
-            db.ProjectProducts.Add(new ProjectProduct
-            {
-                ProjectId = 1,
-                ProductId = 1,
-                ProductName = "Any",
-                Uom = "pcs",
-                Quantity = 1,
-                UnitPrice = 800m,
-                Total = 800m
-            });
-
-            db.ProjectExpenses.Add(new ProjectExpense
-            {
-                ProjectId = 1,
-                Amount = 100m,
-                Date = DateTime.UtcNow,      
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await db.SaveChangesAsync();
-            var controller = new ProjectReportsController(db);
-
-            var result = await controller.GetReportJson(1);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<ProjectReportDTOs>>(ok.Value);
-            Assert.Equal(800m, res.Data.TotalProductAmount);
-            Assert.Equal(100m, res.Data.TotalOtherExpenses);
-            Assert.Equal(900m, res.Data.ActualAllIn);
-            Assert.Equal(100m, res.Data.Variance);
-        }
-
     }
 
     public class ProjectTasksControllerTests
     {
-        private SaoKimDBContext CreateDbContext()
-        {
-            var options = new DbContextOptionsBuilder<SaoKimDBContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            return new SaoKimDBContext(options);
-        }
-
         [Fact]
-        public async Task GetTasks_ReturnsNotFound_WhenProjectMissing()
+        public async Task GetTasks_ReturnsOk_WhenServiceSuccess()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectTasksController(db);
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.GetTasks(1);
+            var items = new List<TaskDTO> { new TaskDTO { Id = 1, Name = "T1" } };
 
-            var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
-            Assert.Equal("Project not found", res.Message);
-        }
+            svc.Setup(s => s.GetTasksAsync(1))
+               .ReturnsAsync(items);
 
-        [Fact]
-        public async Task GetTasks_ReturnsOk_WhenProjectExists()
-        {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "P1", Name = "Test" });
-            db.TaskItems.Add(new TaskItem { Id = 1, ProjectId = 1, Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 });
-            await db.SaveChangesAsync();
-            var controller = new ProjectTasksController(db);
+            var controller = new ProjectTasksController(svc.Object);
 
             var result = await controller.GetTasks(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<IEnumerable<TaskDTO>>>(ok.Value);
-            Assert.True(res.Success);
-            Assert.Single(res.Data);
+            var body = Assert.IsType<ApiResponse<IEnumerable<TaskDTO>>>(ok.Value);
+            Assert.True(body.Success);
+            Assert.NotNull(body.Data);
+
+            svc.Verify(s => s.GetTasksAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetTaskById_ReturnsNotFound_WhenMissing()
+        public async Task GetTasks_ReturnsNotFound_WhenServiceThrowsKeyNotFound()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectTasksController(db);
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.GetTaskById(1, 1);
+            svc.Setup(s => s.GetTasksAsync(1))
+               .ThrowsAsync(new KeyNotFoundException("Project not found"));
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.GetTasks(1);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Project not found", body.Message);
+
+            svc.Verify(s => s.GetTasksAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task GetTaskById_ReturnsNotFound_WhenNull()
+        {
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetTaskByIdAsync(1, 10))
+               .ReturnsAsync((TaskDTO?)null);
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.GetTaskById(1, 10);
+
+            var nf = Assert.IsType<NotFoundObjectResult>(result);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Không tìm thấy công việc", body.Message);
+
+            svc.Verify(s => s.GetTaskByIdAsync(1, 10), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
         public async Task GetTaskById_ReturnsOk_WhenFound()
         {
-            using var db = CreateDbContext();
-            db.TaskItems.Add(new TaskItem { Id = 1, ProjectId = 1, Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 });
-            await db.SaveChangesAsync();
-            var controller = new ProjectTasksController(db);
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.GetTaskById(1, 1);
+            svc.Setup(s => s.GetTaskByIdAsync(1, 10))
+               .ReturnsAsync(new TaskDTO { Id = 10, Name = "T10" });
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.GetTaskById(1, 10);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<TaskDTO>>(ok.Value);
-            Assert.True(res.Success);
-            Assert.Equal(1, res.Data.Id);
+            var body = Assert.IsType<ApiResponse<TaskDTO>>(ok.Value);
+            Assert.True(body.Success);
+            Assert.Equal(10, body.Data.Id);
+
+            svc.Verify(s => s.GetTaskByIdAsync(1, 10), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Create_ReturnsNotFound_WhenProjectMissing()
+        public async Task Create_ReturnsCreatedAtAction_WhenSuccess()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectTasksController(db);
-            var dto = new TaskCreateUpdateDTO { Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 };
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
+
+            var dto = new TaskCreateUpdateDTO { Name = "T1", DurationDays = 1 };
+            var created = new TaskDTO { Id = 99, Name = "T1" };
+
+            svc.Setup(s => s.CreateTaskAsync(1, It.IsAny<TaskCreateUpdateDTO>()))
+               .ReturnsAsync(created);
+
+            var controller = new ProjectTasksController(svc.Object);
 
             var result = await controller.Create(1, dto);
 
-            var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
+            var createdAt = Assert.IsType<CreatedAtActionResult>(result);
+            Assert.Equal(nameof(ProjectTasksController.GetTaskById), createdAt.ActionName);
+
+            var body = Assert.IsType<ApiResponse<TaskDTO>>(createdAt.Value);
+            Assert.True(body.Success);
+            Assert.Equal(99, body.Data.Id);
+
+            // route values
+            Assert.NotNull(createdAt.RouteValues);
+            Assert.Equal(1, createdAt.RouteValues["projectId"]);
+            Assert.Equal(99, createdAt.RouteValues["taskId"]);
+
+            svc.Verify(s => s.CreateTaskAsync(1, It.IsAny<TaskCreateUpdateDTO>()), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Create_CreatesTask_WhenProjectExists()
+        public async Task Create_ReturnsNotFound_WhenServiceThrowsKeyNotFound()
         {
-            using var db = CreateDbContext();
-            db.Projects.Add(new Project { Id = 1, Code = "P1", Name = "Test" });
-            await db.SaveChangesAsync();
-            var controller = new ProjectTasksController(db);
-            var dto = new TaskCreateUpdateDTO { Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 };
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.Create(1, dto);
+            svc.Setup(s => s.CreateTaskAsync(1, It.IsAny<TaskCreateUpdateDTO>()))
+               .ThrowsAsync(new KeyNotFoundException("Project not found"));
 
-            var created = Assert.IsType<CreatedAtActionResult>(result);
-            var res = Assert.IsType<ApiResponse<TaskDTO>>(created.Value);
-            Assert.True(res.Success);
-            Assert.Equal("T1", res.Data.Name);
-        }
+            var controller = new ProjectTasksController(svc.Object);
 
-        [Fact]
-        public async Task Update_ReturnsNotFound_WhenTaskMissing()
-        {
-            using var db = CreateDbContext();
-            var controller = new ProjectTasksController(db);
-            var dto = new TaskCreateUpdateDTO { Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 };
-
-            var result = await controller.Update(1, 1, dto);
+            var result = await controller.Create(1, new TaskCreateUpdateDTO { Name = "T1" });
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Project not found", body.Message);
+
+            svc.Verify(s => s.CreateTaskAsync(1, It.IsAny<TaskCreateUpdateDTO>()), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Update_UpdatesTask_WhenFound()
+        public async Task Update_ReturnsNotFound_WhenServiceReturnsFalse()
         {
-            using var db = CreateDbContext();
-            db.TaskItems.Add(new TaskItem { Id = 1, ProjectId = 1, Name = "Old", StartDate = DateTime.UtcNow, DurationDays = 1 });
-            await db.SaveChangesAsync();
-            var controller = new ProjectTasksController(db);
-            var dto = new TaskCreateUpdateDTO { Name = "New", StartDate = DateTime.UtcNow, DurationDays = 3 };
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.Update(1, 1, dto);
+            svc.Setup(s => s.UpdateTaskAsync(1, 10, It.IsAny<TaskCreateUpdateDTO>()))
+               .ReturnsAsync(false);
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.Update(1, 10, new TaskCreateUpdateDTO());
+
+            var nf = Assert.IsType<NotFoundObjectResult>(result);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Không tìm thấy công việc", body.Message);
+
+            svc.Verify(s => s.UpdateTaskAsync(1, 10, It.IsAny<TaskCreateUpdateDTO>()), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task Update_ReturnsOk_WhenServiceReturnsTrue()
+        {
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.UpdateTaskAsync(1, 10, It.IsAny<TaskCreateUpdateDTO>()))
+               .ReturnsAsync(true);
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.Update(1, 10, new TaskCreateUpdateDTO());
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(ok.Value);
-            Assert.True(res.Success);
-            Assert.Equal("Updated", res.Data);
+            var body = Assert.IsType<ApiResponse<string>>(ok.Value);
+            Assert.True(body.Success);
+            Assert.Equal("Cập nhật thành công", body.Data);
+
+            svc.Verify(s => s.UpdateTaskAsync(1, 10, It.IsAny<TaskCreateUpdateDTO>()), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Delete_ReturnsNotFound_WhenMissing()
+        public async Task Delete_ReturnsNotFound_WhenServiceReturnsFalse()
         {
-            using var db = CreateDbContext();
-            var controller = new ProjectTasksController(db);
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.Delete(1, 1);
+            svc.Setup(s => s.DeleteTaskAsync(1, 10))
+               .ReturnsAsync(false);
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.Delete(1, 10);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(nf.Value);
-            Assert.False(res.Success);
+            var body = Assert.IsType<ApiResponse<string>>(nf.Value);
+            Assert.False(body.Success);
+            Assert.Equal("Không tìm thấy công việc", body.Message);
+
+            svc.Verify(s => s.DeleteTaskAsync(1, 10), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Delete_RemovesTask_WhenFound()
+        public async Task Delete_ReturnsOk_WhenServiceReturnsTrue()
         {
-            using var db = CreateDbContext();
-            db.TaskItems.Add(new TaskItem { Id = 1, ProjectId = 1, Name = "T1", StartDate = DateTime.UtcNow, DurationDays = 1 });
-            await db.SaveChangesAsync();
-            var controller = new ProjectTasksController(db);
+            var svc = new Mock<IProjectTasksService>(MockBehavior.Strict);
 
-            var result = await controller.Delete(1, 1);
+            svc.Setup(s => s.DeleteTaskAsync(1, 10))
+               .ReturnsAsync(true);
+
+            var controller = new ProjectTasksController(svc.Object);
+
+            var result = await controller.Delete(1, 10);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var res = Assert.IsType<ApiResponse<string>>(ok.Value);
-            Assert.True(res.Success);
-            Assert.Equal("Deleted", res.Data);
+            var body = Assert.IsType<ApiResponse<string>>(ok.Value);
+            Assert.True(body.Success);
+            Assert.Equal("Xóa thành công", body.Data);
+
+            svc.Verify(s => s.DeleteTaskAsync(1, 10), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
     }
 
@@ -1481,7 +1544,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var nf = Assert.IsType<NotFoundObjectResult>(result);
             var res = Assert.IsType<ApiResponse<string>>(nf.Value);
             Assert.False(res.Success);
-            Assert.Equal("Project not found", res.Message);
+            Assert.Equal("Không tìm thấy dự án", res.Message);
         }
 
         [Fact]
@@ -1563,7 +1626,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var nf = Assert.IsType<NotFoundObjectResult>(result);
             var res = Assert.IsType<ApiResponse<string>>(nf.Value);
             Assert.False(res.Success);
-            Assert.Equal("Project not found", res.Message);
+            Assert.Equal("Không tìm thấy dự án", res.Message);
         }
 
         [Fact]
@@ -1580,7 +1643,7 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             var ok = Assert.IsType<OkObjectResult>(result);
             var res = Assert.IsType<ApiResponse<string>>(ok.Value);
             Assert.True(res.Success);
-            Assert.Equal("Deleted", res.Data);
+            Assert.Equal("Xóa dự án thành công", res.Data);
         }
     }
 }

@@ -1,69 +1,43 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using SaoKim_ecommerce_BE.Controllers;
+using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Services;
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
-using SaoKim_ecommerce_BE.Controllers;
-using SaoKim_ecommerce_BE.Data;
-using SaoKim_ecommerce_BE.Entities;
 using Xunit;
 
 namespace SaoKim_ecommerce_BE.Tests.Controllers
 {
     public class ManagerEmployeesControllerTests
     {
-        private SaoKimDBContext CreateDbContext()
+        private static ManagerEmployeesController CreateController(Mock<IManagerEmployeesService> svcMock)
         {
-            var options = new DbContextOptionsBuilder<SaoKimDBContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            return new SaoKimDBContext(options);
-        }
-
-        private class FakeEnv : IWebHostEnvironment
-        {
-            public string ApplicationName { get; set; } = "Tests";
-            public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
-            public string WebRootPath { get; set; } = Path.Combine(Path.GetTempPath(), "manager-employees-wwwroot");
-            public string EnvironmentName { get; set; } = "Development";
-            public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();
-            public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-        }
-
-        private ManagerEmployeesController CreateController(SaoKimDBContext db)
-        {
-            var env = new FakeEnv();
-            var controller = new ManagerEmployeesController(db, env);
+            var controller = new ManagerEmployeesController(svcMock.Object);
+            controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            };
             return controller;
         }
 
-        private User CreateUser(int id, string email = "u@example.com", string roleName = "staff")
-        {
-            var role = new Role { RoleId = id + 100, Name = roleName };
-            return new User
-            {
-                UserID = id,
-                Name = "User " + id,
-                Email = email,
-                Password = "hash",
-                RoleId = role.RoleId,
-                Role = role,
-                Status = "Active",
-                CreateAt = DateTime.UtcNow
-            };
-        }
+        #region GetAll
 
         [Fact]
         public async Task GetAll_ReturnsEmpty_WhenNoEmployees()
         {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetAllAsync(null, null, null, 1, 20))
+       .Returns(Task.FromResult((
+           items: new List<EmployeeListItemDto>(),
+           total: 0
+       )));
+
+            var controller = CreateController(svc);
 
             var result = await controller.GetAll(null, null, null);
 
@@ -71,443 +45,356 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
             var anon = ok.Value!;
 
             var totalProp = anon.GetType().GetProperty("total");
-            Assert.NotNull(totalProp);
-
-            var totalObj = totalProp!.GetValue(anon);
-            var total = Assert.IsType<int>(totalObj);
-
+            var total = (int)totalProp!.GetValue(anon)!;
             Assert.Equal(0, total);
+
+            var totalPagesProp = anon.GetType().GetProperty("totalPages");
+            var totalPages = (int)totalPagesProp!.GetValue(anon)!;
+            Assert.Equal(0, totalPages);
+
+            svc.Verify(s => s.GetAllAsync(null, null, null, 1, 20), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
+        [Fact]
+        public async Task GetAll_ClampsPageAndPageSize_ToAtLeast1()
+        {
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetAllAsync(null, null, null, 1, 1))
+               .Returns(Task.FromResult((
+                   items: new List<EmployeeListItemDto>(),
+                   total: 0
+               )));
+
+            var controller = CreateController(svc);
+
+            var result = await controller.GetAll(null, null, null, page: -5, pageSize: 0);
+
+            Assert.IsType<OkObjectResult>(result);
+
+            svc.Verify(s => s.GetAllAsync(null, null, null, 1, 1), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
 
         [Fact]
-        public async Task GetAll_ReturnsPagedEmployees()
+        public async Task GetAll_ReturnsPagedMeta()
         {
-            using var db = CreateDbContext();
-            db.Users.Add(CreateUser(1));
-            db.Users.Add(CreateUser(2));
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            var items = new object[] { new { id = 1 }, new { id = 2 } };
+            svc.Setup(s => s.GetAllAsync(null, null, null, 1, 1))
+       .Returns(Task.FromResult((
+           items: new List<EmployeeListItemDto>(),
+           total: 2
+       )));
+
+            var controller = CreateController(svc);
 
             var result = await controller.GetAll(null, null, null, page: 1, pageSize: 1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var anon = ok.Value!; 
+            var anon = ok.Value!;
 
-            // total
-            var totalProp = anon.GetType().GetProperty("total");
-            Assert.NotNull(totalProp);
-            var totalObj = totalProp!.GetValue(anon);
-            var total = Assert.IsType<int>(totalObj);
+            var total = (int)anon.GetType().GetProperty("total")!.GetValue(anon)!;
+            var pageSizeVal = (int)anon.GetType().GetProperty("pageSize")!.GetValue(anon)!;
+            var totalPages = (int)anon.GetType().GetProperty("totalPages")!.GetValue(anon)!;
+
             Assert.Equal(2, total);
+            Assert.Equal(1, pageSizeVal);
+            Assert.Equal(2, totalPages);
 
-            var pageSizeProp = anon.GetType().GetProperty("pageSize");
-            Assert.NotNull(pageSizeProp);
-            var pageSizeObj = pageSizeProp!.GetValue(anon);
-            var pageSize = Assert.IsType<int>(pageSizeObj);
-            Assert.Equal(1, pageSize);
+            svc.Verify(s => s.GetAllAsync(null, null, null, 1, 1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
+        #endregion
 
-        [Fact]
-        public async Task GetAll_ExcludesDeletedEmployees()
-        {
-            using var db = CreateDbContext();
-            var u1 = CreateUser(1);
-            var u2 = CreateUser(2);
-            u2.DeletedAt = DateTime.UtcNow;
-            db.Users.AddRange(u1, u2);
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
-
-            var result = await controller.GetAll(null, null, null);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-            var anon = ok.Value!;
-
-            var totalProp = anon.GetType().GetProperty("total");
-            var totalObj = totalProp!.GetValue(anon);
-            var total = Assert.IsType<int>(totalObj);
-            Assert.Equal(1, total);
-
-            var itemsProp = anon.GetType().GetProperty("items");
-            var itemsObj = itemsProp!.GetValue(anon) as System.Collections.IEnumerable;
-            Assert.NotNull(itemsObj);
-
-            var count = 0;
-            foreach (var _ in itemsObj!)
-                count++;
-
-            Assert.Equal(1, count);
-        }
-
-
-        [Fact]
-        public async Task GetAll_FiltersByRole()
-        {
-            using var db = CreateDbContext();
-            db.Roles.Add(new Role { RoleId = 1, Name = "staff" });
-            db.Roles.Add(new Role { RoleId = 2, Name = "other" });
-            db.Users.Add(new User { UserID = 1, Name = "A", Email = "a@x.com", Password = "p", RoleId = 1, Status = "Active", CreateAt = DateTime.UtcNow });
-            db.Users.Add(new User { UserID = 2, Name = "B", Email = "b@x.com", Password = "p", RoleId = 2, Status = "Active", CreateAt = DateTime.UtcNow });
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
-
-            var result = await controller.GetAll(null, "staff", null);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-            var anon = ok.Value!;
-
-            var totalProp = anon.GetType().GetProperty("total");
-            var totalObj = totalProp!.GetValue(anon);
-            var total = Assert.IsType<int>(totalObj);
-            Assert.Equal(1, total);
-
-            var itemsProp = anon.GetType().GetProperty("items");
-            var itemsObj = itemsProp!.GetValue(anon) as System.Collections.IEnumerable;
-            Assert.NotNull(itemsObj);
-
-            var count = 0;
-            foreach (var _ in itemsObj!)
-                count++;
-
-            Assert.Equal(1, count);
-        }
-
-        [Fact]
-        public async Task GetAll_FiltersByStatus()
-        {
-            using var db = CreateDbContext();
-
-            var role = new Role { RoleId = 1, Name = "staff" };
-            db.Roles.Add(role);
-
-            db.Users.Add(new User
-            {
-                UserID = 1,
-                Name = "A",
-                Email = "a@x.com",
-                Password = "p",
-                Status = "Active",
-                RoleId = role.RoleId,
-                CreateAt = DateTime.UtcNow
-            });
-
-            db.Users.Add(new User
-            {
-                UserID = 2,
-                Name = "B",
-                Email = "b@x.com",
-                Password = "p",
-                Status = "Inactive",
-                RoleId = role.RoleId,
-                CreateAt = DateTime.UtcNow
-            });
-
-            await db.SaveChangesAsync();
-
-            var controller = CreateController(db);
-
-            var result = await controller.GetAll(null, null, "Active");
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-            var anon = ok.Value!;
-
-            var totalProp = anon.GetType().GetProperty("total");
-            var totalObj = totalProp!.GetValue(anon);
-            var total = Assert.IsType<int>(totalObj);
-            Assert.Equal(1, total);
-
-            var itemsProp = anon.GetType().GetProperty("items");
-            var itemsObj = itemsProp!.GetValue(anon) as System.Collections.IEnumerable;
-            Assert.NotNull(itemsObj);
-
-            var count = 0;
-            foreach (var _ in itemsObj!)
-                count++;
-
-            Assert.Equal(1, count);
-        }
-
+        #region GetById
 
         [Fact]
         public async Task GetById_ReturnsNotFound_WhenMissing()
         {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetByIdAsync(1))
+               .Returns(Task.FromResult<EmployeeDetailDto?>(null));
+
+            var controller = CreateController(svc);
 
             var result = await controller.GetById(1);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var anon = nf.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
+            var msg = nf.Value?.GetType().GetProperty("message")?.GetValue(nf.Value)?.ToString();
             Assert.Equal("Không tìm thấy nhân viên", msg);
+
+            svc.Verify(s => s.GetByIdAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetById_ReturnsEmployee_WhenExists()
+        public async Task GetById_ReturnsOk_WhenExists()
         {
-            using var db = CreateDbContext();
-            var u = CreateUser(1, "a@x.com", "staff");
-            db.Users.Add(u);
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            // Nếu project bạn không có EmployeeDetailDto thì đổi sang đúng DTO mà service trả về
+            var dto = new EmployeeDetailDto();
+
+            svc.Setup(s => s.GetByIdAsync(1))
+               .Returns(Task.FromResult<EmployeeDetailDto?>(dto));
+
+            var controller = CreateController(svc);
 
             var result = await controller.GetById(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var non = ok.Value;
-            var prop = non.GetType().GetProperty("email");
-            var email = prop?.GetValue(non)?.ToString();
-            Assert.Equal("a@x.com", email);
+            Assert.Same(dto, ok.Value);
+
+            svc.Verify(s => s.GetByIdAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
+
+        #endregion
+
+        #region CreateEmployee
 
         [Fact]
         public async Task CreateEmployee_ReturnsBadRequest_WhenModelInvalid()
         {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+            var controller = CreateController(svc);
+
             controller.ModelState.AddModelError("Name", "Required");
-            var dto = new ManagerEmployeesController.EmployeeCreateDto
-            {
-                Email = "a@x.com",
-                Password = "Password1",
-                RoleId = 1
-            };
+
+            var dto = new EmployeeCreateDto();
 
             var result = await controller.CreateEmployee(dto);
 
             Assert.IsType<BadRequestObjectResult>(result);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task CreateEmployee_ReturnsConflict_WhenEmailExists()
+        public async Task CreateEmployee_ReturnsOk_WithId_WhenSuccess()
         {
-            using var db = CreateDbContext();
-            db.Users.Add(new User
-            {
-                UserID = 1,
-                Name = "Old",
-                Email = "dup@x.com",
-                Password = "p",
-                Status = "Active",
-                CreateAt = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync();
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
 
-            var controller = CreateController(db);
-            var dto = new ManagerEmployeesController.EmployeeCreateDto
-            {
-                Name = "New",
-                Email = "dup@x.com",
-                Password = "Password1",
-                RoleId = 1
-            };
+            svc.Setup(s => s.CreateEmployeeAsync(It.IsAny<EmployeeCreateDto>()))
+               .Returns(Task.FromResult(123));
+
+            var controller = CreateController(svc);
+
+            var dto = new EmployeeCreateDto();
 
             var result = await controller.CreateEmployee(dto);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var anon = ok.Value!;
+
+            var msg = anon.GetType().GetProperty("message")?.GetValue(anon)?.ToString();
+            var id = (int)anon.GetType().GetProperty("id")!.GetValue(anon)!;
+
+            Assert.Equal("Nhân viên tạo thành công", msg);
+            Assert.Equal(123, id);
+
+            svc.Verify(s => s.CreateEmployeeAsync(It.IsAny<EmployeeCreateDto>()), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task CreateEmployee_ReturnsConflict_WhenServiceThrowsInvalidOperation()
+        {
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.CreateEmployeeAsync(It.IsAny<EmployeeCreateDto>()))
+               .ThrowsAsync(new InvalidOperationException("Email đã tồn tại"));
+
+            var controller = CreateController(svc);
+
+            var result = await controller.CreateEmployee(new EmployeeCreateDto());
 
             var cf = Assert.IsType<ConflictObjectResult>(result);
-
-            var anon = cf.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
-
+            var msg = cf.Value?.GetType().GetProperty("message")?.GetValue(cf.Value)?.ToString();
             Assert.Equal("Email đã tồn tại", msg);
+
+            svc.Verify(s => s.CreateEmployeeAsync(It.IsAny<EmployeeCreateDto>()), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
+        #endregion
 
-        [Fact]
-        public async Task CreateEmployee_SetsDefaultsAndHashesPassword()
-        {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
-            var dto = new ManagerEmployeesController.EmployeeCreateDto
-            {
-                Name = " New Name ",
-                Email = " user@x.com ",
-                Password = "Password1",
-                RoleId = 1,
-                Status = null
-            };
-
-            var result = await controller.CreateEmployee(dto);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-
-            var anon = ok.Value;
-            var prop = anon.GetType().GetProperty("id");
-            Assert.NotNull(prop);
-            var idObj = prop.GetValue(anon);
-            var id = Assert.IsType<int>(idObj);
-
-            var user = await db.Users.FirstAsync(u => u.UserID == id);
-            Assert.Equal("New Name", user.Name);
-            Assert.Equal("user@x.com", user.Email);
-            Assert.Equal("Active", user.Status);
-            Assert.NotEqual("Password1", user.Password);
-        }
-
-
-        [Fact]
-        public async Task CreateEmployee_SavesImage_WhenProvided()
-        {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
-
-            var stream = new MemoryStream(new byte[] { 1, 2, 3 });
-            var file = new FormFile(stream, 0, stream.Length, "Image", "avatar.png");
-
-            var dto = new ManagerEmployeesController.EmployeeCreateDto
-            {
-                Name = "User",
-                Email = "img@x.com",
-                Password = "Password1",
-                RoleId = 1,
-                Image = file
-            };
-
-            var result = await controller.CreateEmployee(dto);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-
-            var anon = ok.Value;
-            var prop = anon.GetType().GetProperty("id");
-            var idObj = prop?.GetValue(anon);
-            var id = Assert.IsType<int>(idObj);
-
-            var user = await db.Users.FirstAsync(u => u.UserID == id);
-            Assert.False(string.IsNullOrWhiteSpace(user.Image));
-        }
-
-        [Fact]
-        public async Task UpdateEmployee_ReturnsNotFound_WhenMissing()
-        {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
-            var dto = new ManagerEmployeesController.EmployeeUpdateDto { Name = "New" };
-
-            var result = await controller.UpdateEmployee(1, dto);
-
-            var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var anon = nf.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
-            Assert.Equal("Không tìm thấy nhân viên", msg);
-        }
-
-        [Fact]
-        public async Task UpdateEmployee_ReturnsBadRequest_WhenProtectedUser()
-        {
-            using var db = CreateDbContext();
-            var adminRole = new Role { RoleId = 1, Name = "Admin" };
-            db.Roles.Add(adminRole);
-            db.Users.Add(new User { UserID = 1, Name = "Admin", Email = "a@x.com", Password = "p", RoleId = 1, Role = adminRole, Status = "Active", CreateAt = DateTime.UtcNow });
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
-            var dto = new ManagerEmployeesController.EmployeeUpdateDto { Name = "New" };
-
-            var result = await controller.UpdateEmployee(1, dto);
-
-            var br = Assert.IsType<BadRequestObjectResult>(result);
-            var anon = br.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
-            Assert.Equal("Bạn không được phép chỉnh sửa thông tin tài khoản này", msg);
-        }
+        #region UpdateEmployee
 
         [Fact]
         public async Task UpdateEmployee_ReturnsBadRequest_WhenModelInvalid()
         {
-            using var db = CreateDbContext();
-            db.Users.Add(CreateUser(1));
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
-            controller.ModelState.AddModelError("Email", "Invalid");
-            var dto = new ManagerEmployeesController.EmployeeUpdateDto { Email = "bad" };
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+            var controller = CreateController(svc);
 
-            var result = await controller.UpdateEmployee(1, dto);
+            controller.ModelState.AddModelError("Email", "Invalid");
+
+            var result = await controller.UpdateEmployee(1, new EmployeeUpdateDto());
 
             Assert.IsType<BadRequestObjectResult>(result);
+            svc.VerifyNoOtherCalls();
         }
 
+        [Fact]
+        public async Task UpdateEmployee_ReturnsOk_WhenSuccess()
+        {
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()))
+               .Returns(Task.CompletedTask);
+
+            var controller = CreateController(svc);
+
+            var result = await controller.UpdateEmployee(1, new EmployeeUpdateDto());
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Nhân viên đã được cập nhật", msg);
+
+            svc.Verify(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
 
         [Fact]
-        public async Task DeleteEmployee_ReturnsNotFound_WhenMissing()
+        public async Task UpdateEmployee_ReturnsNotFound_WhenServiceThrowsKeyNotFound()
         {
-            using var db = CreateDbContext();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
 
-            var result = await controller.DeleteEmployee(1);
+            svc.Setup(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()))
+               .ThrowsAsync(new KeyNotFoundException("Không tìm thấy nhân viên"));
+
+            var controller = CreateController(svc);
+
+            var result = await controller.UpdateEmployee(1, new EmployeeUpdateDto());
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var anon = nf.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
+            var msg = nf.Value?.GetType().GetProperty("message")?.GetValue(nf.Value)?.ToString();
             Assert.Equal("Không tìm thấy nhân viên", msg);
+
+            svc.Verify(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task DeleteEmployee_ReturnsBadRequest_WhenProtectedUser()
+        public async Task UpdateEmployee_ReturnsBadRequest_WhenServiceThrowsInvalidOperation()
         {
-            using var db = CreateDbContext();
-            var role = new Role { RoleId = 1, Name = "Admin" };
-            db.Roles.Add(role);
-            db.Users.Add(new User { UserID = 1, Name = "Admin", Email = "a@x.com", Password = "p", RoleId = 1, Role = role, Status = "Active", CreateAt = DateTime.UtcNow });
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
 
-            var result = await controller.DeleteEmployee(1);
+            svc.Setup(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()))
+               .ThrowsAsync(new InvalidOperationException("Bạn không được phép chỉnh sửa thông tin tài khoản này"));
+
+            var controller = CreateController(svc);
+
+            var result = await controller.UpdateEmployee(1, new EmployeeUpdateDto());
+
             var br = Assert.IsType<BadRequestObjectResult>(result);
-            var anon = br.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+            Assert.Equal("Bạn không được phép chỉnh sửa thông tin tài khoản này", msg);
 
-            Assert.Equal("Bạn không được phép xóa tài khoản này", msg);
+            svc.Verify(s => s.UpdateEmployeeAsync(1, It.IsAny<EmployeeUpdateDto>()), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region DeleteEmployee
+
+        [Fact]
+        public async Task DeleteEmployee_ReturnsOk_WhenSuccess()
+        {
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.DeleteEmployeeAsync(1))
+               .Returns(Task.CompletedTask);
+
+            var controller = CreateController(svc);
+
+            var result = await controller.DeleteEmployee(1);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Nhân viên đã bị xóa", msg);
+
+            svc.Verify(s => s.DeleteEmployeeAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task DeleteEmployee_ReturnsNotFound_WhenAlreadyDeleted()
+        public async Task DeleteEmployee_ReturnsNotFound_WhenServiceThrowsKeyNotFound()
         {
-            using var db = CreateDbContext();
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
 
-            var user = new User
-            {
-                Name = "A",
-                Email = "a@x.com",
-                Password = "p",
-                Status = "Inactive",
-                DeletedAt = DateTime.UtcNow,
-                CreateAt = DateTime.UtcNow
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync();
+            svc.Setup(s => s.DeleteEmployeeAsync(1))
+               .ThrowsAsync(new KeyNotFoundException("Không tìm thấy nhân viên"));
 
-            var controller = CreateController(db);
+            var controller = CreateController(svc);
 
-            var result = await controller.DeleteEmployee(user.UserID);
+            var result = await controller.DeleteEmployee(1);
 
             var nf = Assert.IsType<NotFoundObjectResult>(result);
-            var anon = nf.Value;
-            var prop = anon.GetType().GetProperty("message");
-            var msg = prop?.GetValue(anon)?.ToString();
+            var msg = nf.Value?.GetType().GetProperty("message")?.GetValue(nf.Value)?.ToString();
             Assert.Equal("Không tìm thấy nhân viên", msg);
+
+            svc.Verify(s => s.DeleteEmployeeAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetRolesForEmployees_ReturnsAllRoles()
+        public async Task DeleteEmployee_ReturnsBadRequest_WhenServiceThrowsInvalidOperation()
         {
-            using var db = CreateDbContext();
-            db.Roles.Add(new Role { RoleId = 1, Name = "staff" });
-            db.Roles.Add(new Role { RoleId = 2, Name = "manager" });
-            await db.SaveChangesAsync();
-            var controller = CreateController(db);
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.DeleteEmployeeAsync(1))
+               .ThrowsAsync(new InvalidOperationException("Bạn không được phép xóa tài khoản này"));
+
+            var controller = CreateController(svc);
+
+            var result = await controller.DeleteEmployee(1);
+
+            var br = Assert.IsType<BadRequestObjectResult>(result);
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+            Assert.Equal("Bạn không được phép xóa tài khoản này", msg);
+
+            svc.Verify(s => s.DeleteEmployeeAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region GetRoles
+
+        [Fact]
+        public async Task GetRolesForEmployees_ReturnsOk_WithRoles()
+        {
+            var svc = new Mock<IManagerEmployeesService>(MockBehavior.Strict);
+
+            var roles = new List<RoleItemDto>
+    {
+        new RoleItemDto { Id = 1, Name = "staff" },
+        new RoleItemDto { Id = 2, Name = "manager" }
+    };
+
+            svc.Setup(s => s.GetRolesAsync())
+               .Returns(Task.FromResult(roles));
+
+            var controller = CreateController(svc);
 
             var result = await controller.GetRolesForEmployees();
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            var roles = Assert.IsAssignableFrom<IEnumerable<object>>(ok.Value);
-            Assert.Equal(2, roles.Count());
+            var value = Assert.IsType<List<RoleItemDto>>(ok.Value);
+
+            Assert.Equal(2, value.Count);
+
+            svc.Verify(s => s.GetRolesAsync(), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
+
+
+        #endregion
     }
 }

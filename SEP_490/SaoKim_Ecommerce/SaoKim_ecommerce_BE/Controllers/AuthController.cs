@@ -39,7 +39,6 @@ public class AuthController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            // Lỗi validate (email tồn tại, role không có, mật khẩu yếu, ...)
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
