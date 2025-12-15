@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using QuestPDF.Drawing.Exceptions;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -153,7 +154,10 @@ namespace SaoKim_ecommerce_BE.Services
 
             var fileName = $"Invoice_{inv.Code}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
 
-            var bytes = BuildPdf(inv);
+            var webRoot = Directory.GetParent(folderPath)?.FullName ?? "wwwroot";
+            var logoPath = Path.Combine(webRoot, "images", "saokim-logo.jpg");
+
+            var bytes = BuildPdf(inv, logoPath);
 
             await File.WriteAllBytesAsync(Path.Combine(folderPath, fileName), bytes);
 
@@ -167,72 +171,184 @@ namespace SaoKim_ecommerce_BE.Services
             return bytes;
         }
 
-        private byte[] BuildPdf(Invoice inv)
+        private byte[] BuildPdf(Invoice inv, string logoPath)
         {
-            string Money(decimal v) =>
+            static string Money(decimal v) =>
                 string.Format(new CultureInfo("vi-VN"), "{0:#,0} đ", v);
 
-            var items = inv.Items.ToList();
-            while (items.Count < 10)
-                items.Add(new InvoiceItem { ProductName = "" });
+            string storeName = "SAO KIM LIGHTNING";
+            string storeAddr = "Email: saokim@gmail.com";
+            string storePhone = "ĐT: 0133 878 120";
+            string invoiceTitle = "HÓA ĐƠN BÁN HÀNG";
+            string sellLine = "Mặt hàng bán: Sao Kim Lightning";
 
-            return Document.Create(container =>
+            string customerSignName = string.IsNullOrWhiteSpace(inv.CustomerName)
+                ? "Khách hàng"
+                : inv.CustomerName.Trim();
+            string sellerSignName = "         ";
+
+            var items = (inv.Items ?? new List<InvoiceItem>()).ToList();
+            for (int i = items.Count; i < 10; i++)
             {
-                container.Page(page =>
+                items.Add(new InvoiceItem
                 {
-                    page.Size(PageSizes.A4);
-                    page.Margin(25);
-                    page.DefaultTextStyle(TextStyle.Default.FontSize(11));
+                    ProductName = "",
+                    Quantity = 0,
+                    UnitPrice = 0,
+                    LineTotal = 0
+                });
+            }
 
-                    page.Content().Column(col =>
+            try
+            {
+                return Document.Create(container =>
+                {
+                    container.Page(page =>
                     {
-                        col.Item().Text($"HÓA ĐƠN BÁN HÀNG ({inv.Code})")
-                           .SemiBold().FontSize(16);
+                        page.Size(PageSizes.A4);
+                        page.Margin(25);
+                        page.DefaultTextStyle(TextStyle.Default.FontSize(11));
 
-                        col.Item().Text($"Khách hàng: {inv.CustomerName}");
-                        col.Item().Text($"Điện thoại: {inv.Phone}");
-                        col.Item().Text($"Email: {inv.Email}");
-
-                        col.Item().PaddingTop(10);
-
-                        col.Item().Table(t =>
+                        page.Content().Column(col =>
                         {
-                            t.ColumnsDefinition(c =>
+                            col.Item().Row(row =>
                             {
-                                c.ConstantColumn(35);
-                                c.RelativeColumn(3);
-                                c.RelativeColumn(1);
-                                c.RelativeColumn(1);
-                                c.RelativeColumn(1);
+                                row.ConstantItem(160).AlignMiddle().Column(c =>
+                                {
+                                    if (File.Exists(logoPath))
+                                    {
+                                        c.Item()
+                                         .Height(30)
+                                         .Image(logoPath)
+                                         .FitHeight();
+                                    }
+
+                                    c.Item().PaddingTop(6);
+                                    c.Item().Text(storeName).SemiBold().FontSize(12);
+                                    c.Item().Text(storeAddr).FontSize(10);
+                                    c.Item().Text(storePhone).FontSize(10);
+                                });
+
+                                row.RelativeItem().AlignMiddle().Column(c =>
+                                {
+                                    c.Item().AlignCenter()
+                                           .Text(invoiceTitle)
+                                           .SemiBold()
+                                           .FontSize(18);
+
+                                    c.Item().AlignCenter()
+                                           .Text(sellLine)
+                                           .FontSize(11);
+                                });
+
+                                row.RelativeItem().AlignMiddle().AlignRight().Column(c =>
+                                {
+                                    c.Item().Text($"Tên khách hàng: {inv.CustomerName ?? ""}");
+                                    c.Item().Text($"Điện thoại: {inv.Phone ?? ""}");
+                                    c.Item().Text($"Email: {inv.Email ?? ""}");
+                                });
                             });
 
-                            void H(string txt) => t.Cell().Border(1).Padding(5).AlignCenter().Text(txt).SemiBold();
-                            H("STT"); H("Tên hàng"); H("SL"); H("Đơn giá"); H("Thành tiền");
+                            col.Item().PaddingTop(10);
 
-                            int idx = 1;
-                            foreach (var it in items)
+                            col.Item().Table(t =>
                             {
-                                t.Cell().Border(0.5f).Padding(5).Text(string.IsNullOrEmpty(it.ProductName) ? "" : (idx++).ToString());
-                                t.Cell().Border(0.5f).Padding(5).Text(it.ProductName);
-                                t.Cell().Border(0.5f).Padding(5).AlignCenter().Text(it.Quantity == 0 ? "" : it.Quantity.ToString());
-                                t.Cell().Border(0.5f).Padding(5).AlignRight().Text(it.UnitPrice > 0 ? Money(it.UnitPrice) : "");
-                                t.Cell().Border(0.5f).Padding(5).AlignRight().Text(it.LineTotal > 0 ? Money(it.LineTotal) : "");
-                            }
+                                t.ColumnsDefinition(c =>
+                                {
+                                    c.ConstantColumn(35);
+                                    c.RelativeColumn(3);
+                                    c.RelativeColumn(1);
+                                    c.RelativeColumn(1);
+                                    c.RelativeColumn(1);
+                                });
+
+                                void TH(string txt) =>
+                                    t.Cell().Border(0.8f).Padding(6).AlignCenter().Text(txt).SemiBold();
+
+                                TH("STT");
+                                TH("TÊN HÀNG");
+                                TH("SỐ LƯỢNG");
+                                TH("ĐƠN GIÁ");
+                                TH("THÀNH TIỀN");
+
+                                int idx = 1;
+                                foreach (var it in items)
+                                {
+                                    t.Cell().Border(0.5f).Padding(6).AlignCenter()
+                                        .Text((it.ProductName?.Length > 0) ? (idx++).ToString() : "");
+                                    t.Cell().Border(0.5f).Padding(6).Text(it.ProductName ?? "");
+                                    t.Cell().Border(0.5f).Padding(6).AlignCenter()
+                                        .Text(it.Quantity == 0 ? "" : $"{it.Quantity:0.##}");
+                                    t.Cell().Border(0.5f).Padding(6).AlignRight()
+                                        .Text(it.UnitPrice == 0 ? "" : Money(it.UnitPrice));
+                                    t.Cell().Border(0.5f).Padding(6).AlignRight()
+                                        .Text(it.LineTotal == 0 ? "" : Money(it.LineTotal));
+                                }
+
+                                t.Cell().Border(0.8f).Padding(6).Text("CỘNG").SemiBold().AlignCenter();
+                                t.Cell().Border(0.8f).Padding(6).Text("");
+                                t.Cell().Border(0.8f).Padding(6).Text("");
+                                t.Cell().Border(0.8f).Padding(6).Text("");
+                                t.Cell().Border(0.8f).Padding(6).AlignRight()
+                                  .Text(Money(inv.Subtotal)).SemiBold();
+                            });
+
+                            col.Item().PaddingTop(8);
+
+                            col.Item().Row(r =>
+                            {
+                                r.RelativeItem();
+                                r.ConstantItem(260).Column(s =>
+                                {
+                                    void Line(string label, string value, bool bold = false)
+                                    {
+                                        s.Item().Row(x =>
+                                        {
+                                            x.RelativeItem().Text(label);
+                                            var t = x.RelativeItem().AlignRight().Text(value);
+                                            if (bold) t.SemiBold();
+                                        });
+                                    }
+
+                                    Line("Tạm tính:", Money(inv.Subtotal));
+                                    if (inv.Discount > 0)
+                                        Line("Giảm giá:", "-" + Money(inv.Discount));
+                                    if (inv.ShippingFee > 0)
+                                        Line("Phí ship:", Money(inv.ShippingFee));
+                                    Line("Thuế:", Money(inv.Tax));
+                                    Line("Tổng cộng:", Money(inv.Total), true);
+                                });
+                            });
+
+                            col.Item().PaddingTop(16);
+                            col.Item().AlignRight()
+                                .Text($"Ngày {inv.CreatedAt:dd} tháng {inv.CreatedAt:MM} năm {inv.CreatedAt:yyyy}");
+
+                            col.Item().PaddingTop(30);
+                            col.Item().Row(r =>
+                            {
+                                r.RelativeItem().AlignCenter().Column(c =>
+                                {
+                                    c.Item().Text("KHÁCH HÀNG").SemiBold();
+                                    c.Item().Height(60);
+                                    c.Item().Text(customerSignName).Italic();
+                                });
+
+                                r.RelativeItem().AlignCenter().Column(c =>
+                                {
+                                    c.Item().Text("NGƯỜI BÁN HÀNG").SemiBold();
+                                    c.Item().Height(60);
+                                    c.Item().Text(sellerSignName).Italic();
+                                });
+                            });
                         });
-
-                        col.Item().PaddingTop(15);
-
-                        col.Item().Text($"Tạm tính: {Money(inv.Subtotal)}");
-                        if (inv.Discount > 0)
-                            col.Item().Text($"Giảm giá: -{Money(inv.Discount)}");
-                        if (inv.ShippingFee > 0)
-                            col.Item().Text($"Phí ship: {Money(inv.ShippingFee)}");
-
-                        col.Item().Text($"Thuế: {Money(inv.Tax)}").SemiBold();
-                        col.Item().Text($"Tổng cộng: {Money(inv.Total)}").SemiBold();
                     });
-                });
-            }).GeneratePdf();
+                }).GeneratePdf();
+            }
+            catch (DocumentLayoutException ex)
+            {
+                throw new InvalidOperationException("Lỗi layout khi tạo PDF: " + ex.Message, ex);
+            }
         }
 
         public async Task<string?> GetPdfPathAsync(int id, string folder)

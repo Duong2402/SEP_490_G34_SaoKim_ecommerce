@@ -210,7 +210,7 @@ export default function CustomerDetail() {
                     <strong>SĐT: </strong> {customer.phoneNumber ?? "-"}
                   </p>
                   <p className="mb-1">
-                    <strong>Địa chỉ: </strong> {customer.address ?? "-"}
+                    <strong>Địa chỉ: </strong> {customer.address?.trim() ? customer.address : "-"}
                   </p>
                   <p className="mb-1">
                     <strong>Ngày tạo: </strong> {formatDate(customer.createAt)}

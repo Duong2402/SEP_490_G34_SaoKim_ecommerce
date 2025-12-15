@@ -50,29 +50,41 @@ export default function ManageOrders() {
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const res = await fetchOrders({
-        q: debouncedSearch,
-        status,
-        createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
-        createdTo: createdTo ? createdTo.toISOString() : undefined,
-        sortBy,
-        sortDir,
-        page,
-        pageSize,
-      });
+  setLoading(true);
+  try {
+    const res = await fetchOrders({
+      q: debouncedSearch,
+      status: status === "all" ? undefined : status, 
+      createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
+      createdTo: createdTo ? createdTo.toISOString() : undefined,
+      sortBy,
+      sortDir,
+      page,
+      pageSize,
+    });
 
-      setRows(res.items ?? []);
-      setTotal(res.total ?? 0);
-      setTotalPages(Math.max(1, Math.ceil(res.total / res.pageSize)));
-    } catch (e) {
-      console.error(e);
-      alert("Không tải được danh sách đơn hàng");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = res?.data ?? res;
+
+    const items = data?.Items ?? data?.items ?? [];
+    const totalItems =
+      Number(data?.TotalItems ?? data?.totalItems ?? data?.total ?? data?.Total ?? 0) || 0;
+
+    const ps = Number(data?.PageSize ?? data?.pageSize ?? pageSize) || pageSize;
+    const tp = Math.max(1, Math.ceil(totalItems / ps));
+
+    setRows(items);
+    setTotal(totalItems);
+    setTotalPages(tp);
+
+    if (page > tp) setPage(tp);
+  } catch (e) {
+    console.error(e);
+    alert("Không tải được danh sách đơn hàng");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     load();
