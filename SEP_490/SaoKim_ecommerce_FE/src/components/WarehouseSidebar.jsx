@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Nav } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -21,7 +21,7 @@ const menuItems = [
   { title: "Thống kê báo cáo", icon: faChartColumn, link: "/warehouse-dashboard/warehouse-report" },
 ];
 
-const WarehouseSidebar = () => {
+const WarehouseSidebar = ({ onNavigate }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -52,6 +52,7 @@ const WarehouseSidebar = () => {
                 as={Link}
                 to={item.link}
                 className={`warehouse-sidebar__link${isActive ? " active" : ""}`}
+                onClick={onNavigate}
               >
                 <FontAwesomeIcon icon={item.icon} />
                 <span>{item.title}</span>
@@ -61,7 +62,7 @@ const WarehouseSidebar = () => {
         </Nav>
 
         <div className="warehouse-sidebar__footer">
-          Cần hỗ trợ?{" "}
+          Cần hỗ trợ{" "}
           <a href="mailto:support@saokim.vn" rel="noreferrer">
             support@saokim.vn
           </a>

@@ -180,22 +180,22 @@ export default function InvoiceDetailStaff() {
 
       <Card className="p-3">
         <Row className="mb-3">
-          <Col md={6}>
+          <Col xs={12} md={6}>
             <div className="fw-bold">Mã hóa đơn:</div>
             <div>{invoice.code}</div>
           </Col>
-          <Col md={6}>
+          <Col xs={12} md={6}>
             <div className="fw-bold">Trạng thái:</div>
             <div>{renderStatus(invoice.status)}</div>
           </Col>
         </Row>
 
         <Row className="mb-3">
-          <Col md={6}>
+          <Col xs={12} md={6}>
             <div className="fw-bold">Khách hàng:</div>
             <div>{invoice.customer}</div>
           </Col>
-          <Col md={6}>
+          <Col xs={12} md={6}>
             <div className="fw-bold">Email / SĐT:</div>
             <div>
               {invoice.email || "-"} / {invoice.phone || "-"}
@@ -205,28 +205,30 @@ export default function InvoiceDetailStaff() {
 
         <h5 className="mt-4 mb-3">Sản phẩm trong hóa đơn</h5>
 
-        <Table bordered hover size="sm">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Sản phẩm</th>
-              <th className="text-end">SL</th>
-              <th className="text-end">Đơn giá</th>
-              <th className="text-end">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(invoice.items || []).map((it, idx) => (
-              <tr key={idx}>
-                <td>{idx + 1}</td>
-                <td>{it.productName}</td>
-                <td className="text-end">{it.qty ?? it.quantity}</td>
-                <td className="text-end">{formatMoney(it.unitPrice)}</td>
-                <td className="text-end">{formatMoney(it.lineTotal)}</td>
+        <div className="table-responsive">
+          <Table bordered hover size="sm" className="mb-0">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sản phẩm</th>
+                <th className="text-end">SL</th>
+                <th className="text-end">Đơn giá</th>
+                <th className="text-end">Thành tiền</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {(invoice.items || []).map((it, idx) => (
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td>{it.productName}</td>
+                  <td className="text-end">{it.qty ?? it.quantity}</td>
+                  <td className="text-end">{formatMoney(it.unitPrice)}</td>
+                  <td className="text-end">{formatMoney(it.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
 
         <div className="d-flex justify-content-end mt-4">
           <div

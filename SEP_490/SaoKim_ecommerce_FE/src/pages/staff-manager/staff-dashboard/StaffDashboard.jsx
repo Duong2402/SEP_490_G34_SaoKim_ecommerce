@@ -197,7 +197,7 @@ export default function StaffDashboard() {
       {!loading && stats && (
         <>
           <Row className="mb-4 g-3">
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu tích lũy</div>
@@ -208,7 +208,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu 7 ngày</div>
@@ -219,7 +219,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Doanh thu hôm nay</div>
@@ -230,7 +230,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Đơn hàng hôm nay</div>
@@ -241,7 +241,7 @@ export default function StaffDashboard() {
           </Row>
 
           <Row className="mb-4 g-3">
-            <Col md={4}>
+            <Col xs={12} sm={6} md={4}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Đơn đang chờ</div>
@@ -250,7 +250,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={4}>
+            <Col xs={12} sm={6} md={4}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Sản phẩm đang bán</div>
@@ -259,7 +259,7 @@ export default function StaffDashboard() {
               </Card>
             </Col>
 
-            <Col md={4}>
+            <Col xs={12} sm={6} md={4}>
               <Card className="staff-panel">
                 <Card.Body>
                   <div className="text-muted small">Khách hàng</div>

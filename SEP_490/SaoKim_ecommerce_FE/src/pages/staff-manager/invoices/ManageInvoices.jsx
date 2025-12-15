@@ -153,7 +153,7 @@ export default function ManageInvoices() {
       await load();
     } catch (err) {
       console.error(err);
-      alert("Generate PDF thất bại (hóa đơn phải ở trạng thái Đã thanh toán)");
+      alert("Tạo PDF thất bại (hóa đơn phải ở trạng thái Đã thanh toán)");
     }
   };
 
@@ -216,7 +216,7 @@ export default function ManageInvoices() {
       </div>
 
       <div className="staff-panel">
-        <Row className="justify-content-between align-items-center">
+        <Row className="justify-content-between align-items-center g-3">
           <Col xs={12} md={6} lg={5} xl={4}>
             <InputGroup>
               <InputGroup.Text>

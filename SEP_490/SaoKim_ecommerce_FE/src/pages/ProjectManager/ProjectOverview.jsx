@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import { ProjectAPI, TaskAPI } from "../../api/ProjectManager/projects";
@@ -139,7 +139,7 @@ export default function ProjectOverview() {
           </article>
 
           <article className="metric-card">
-            <div className="metric-label">Giá trị các dự án </div>
+            <div className="metric-label">Giá trị các dự án</div>
             <div className="metric-value">{formatBudget(metrics.budget)}</div>
             <div className="metric-trend">Tổng giá trị các dự án theo kế hoạch</div>
           </article>
@@ -162,7 +162,7 @@ export default function ProjectOverview() {
             {loading || loadingRisk ? (
               <div className="loading-state">Đang tải...</div>
             ) : topRisks.length ? (
-              <div className="manager-table__wrapper">
+              <div className="manager-table__wrapper table-responsive">
                 <table className="manager-table">
                   <thead>
                     <tr>
@@ -239,28 +239,28 @@ export default function ProjectOverview() {
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6,
-                            minWidth: 120,
-                            textAlign: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
                           }}
                         >
                           <span className="badge-dot" />
                           {getStatusLabel(p.status)}
                         </span>
-                        <Link className="btn btn-outline btn-sm" to={`/projects/${p.id}`}>
-                          Xem
-                        </Link>
+                        <span style={{ fontSize: 13, color: "var(--pm-muted)" }}>
+                          Hết hạn: {formatDate(p.endDate)}
+                        </span>
                       </div>
-                      <div style={{ color: "var(--pm-muted)", fontSize: 13 }}>Hạn: {formatDate(p.endDate)}</div>
+                      <Link className="btn btn-outline btn-sm" to={`/projects/${p.id}`}>
+                        Chi tiết
+                      </Link>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="empty-state">
-                <div className="empty-state-title">Chưa có dữ liệu</div>
-                <div className="empty-state-subtitle">Hiện chưa có dự án nào được cập nhật gần đây.</div>
+                <div className="empty-state-title">Chưa có dự án nào</div>
+                <div className="empty-state-subtitle">Chưa có hoạt động gần đây.</div>
               </div>
             )}
           </section>

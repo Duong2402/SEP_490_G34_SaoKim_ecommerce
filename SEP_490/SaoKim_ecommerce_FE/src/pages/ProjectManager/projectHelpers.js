@@ -1,4 +1,4 @@
-const PROJECT_STATUSES = [
+﻿const PROJECT_STATUSES = [
   { value: "Draft", label: "Bản nháp", tone: "neutral" },
   { value: "Active", label: "Đang triển khai", tone: "warning" },
   { value: "InProgress", label: "Đang thực hiện", tone: "warning" },

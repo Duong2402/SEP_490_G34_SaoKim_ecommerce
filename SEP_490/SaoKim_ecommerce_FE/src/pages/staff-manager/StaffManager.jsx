@@ -385,7 +385,7 @@ export default function ManageProduct() {
 
               {!loadingTable && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     Chưa có dữ liệu
                   </td>
                 </tr>

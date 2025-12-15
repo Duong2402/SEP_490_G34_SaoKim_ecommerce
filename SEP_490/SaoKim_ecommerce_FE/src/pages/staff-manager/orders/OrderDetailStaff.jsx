@@ -246,7 +246,7 @@ export default function OrderDetailStaff() {
           ) : (
             <>
               <Row className="mb-4">
-                <Col md={6}>
+                <Col xs={12} md={6}>
                   <h5>Thông tin khách hàng</h5>
                   <div>Khách hàng: {order.customerName}</div>
                   <div>Email: {order.customerEmail}</div>
@@ -256,7 +256,7 @@ export default function OrderDetailStaff() {
                     Trạng thái: {renderStatus(order.status)}
                   </div>
                 </Col>
-                <Col md={6}>
+                <Col xs={12} md={6}>
                   <h5>Địa chỉ giao hàng</h5>
                   <div>
                     Người nhận:{" "}
@@ -346,13 +346,14 @@ export default function OrderDetailStaff() {
                 </>
               )}
 
-              <Row className="mt-4 align-items-center">
-                <Col md={6}>
+              <Row className="mt-4 align-items-center g-2">
+                <Col xs={12} md={6}>
                   <strong>
                     Tổng tiền: {formatCurrency(order.total ?? order.Total ?? 0)}
                   </strong>
                 </Col>
                 <Col
+                  xs={12}
                   md={6}
                   className="d-flex justify-content-end gap-2 mt-2 mt-md-0"
                 >
