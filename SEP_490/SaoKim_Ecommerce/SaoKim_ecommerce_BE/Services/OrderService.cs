@@ -208,7 +208,10 @@ namespace SaoKim_ecommerce_BE.Services
                     ShippingLine1 = shippingLine1,
                     ShippingWard = shippingWard,
                     ShippingDistrict = shippingDistrict,
-                    ShippingProvince = shippingProvince
+                    ShippingProvince = shippingProvince,
+
+                    CustomerMessage = request.Note,
+
                 };
 
                 _db.Orders.Add(order);

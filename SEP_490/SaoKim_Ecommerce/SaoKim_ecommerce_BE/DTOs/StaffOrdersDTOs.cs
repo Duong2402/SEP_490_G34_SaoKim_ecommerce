@@ -73,6 +73,8 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? ShippingWard { get; set; }
         public string? ShippingDistrict { get; set; }
         public string? ShippingProvince { get; set; }
+        public string? CustomerMessage { get; set; }
+
 
         public List<StaffOrderItemDto> Items { get; set; } = new();
     }

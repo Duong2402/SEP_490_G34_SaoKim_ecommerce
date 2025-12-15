@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
@@ -191,6 +190,10 @@ export default function OrderDetailStaff() {
 
   const displayTotal = baseTotal;
 
+  const customerMessage =
+    order?.customerMessage ??
+    order?.CustomerMessage ??
+    ""; 
 
   return (
     <StaffLayout>
@@ -278,6 +281,15 @@ export default function OrderDetailStaff() {
                       .join(", ")}
                   </div>
 
+                  <div className="mt-3">
+                    <h6 className="mb-1">Ghi chú của khách</h6>
+                    {customerMessage ? (
+                      <div className="text-muted">{customerMessage}</div>
+                    ) : (
+                      <div className="text-muted">Không có ghi chú</div>
+                    )}
+                  </div>
+
                   <h5 className="mt-4">Thanh toán</h5>
                   <div>Phương thức: {paymentMethodLabel(order)}</div>
                 </Col>
@@ -306,12 +318,8 @@ export default function OrderDetailStaff() {
                           <td>{index + 1}</td>
                           <td>{item.productName}</td>
                           <td>{item.quantity}</td>
-                          <td>
-                            {formatCurrency(item.unitPrice ?? 0)}
-                          </td>
-                          <td>
-                            {formatCurrency(item.lineTotal ?? 0)}
-                          </td>
+                          <td>{formatCurrency(item.unitPrice ?? 0)}</td>
+                          <td>{formatCurrency(item.lineTotal ?? 0)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -368,17 +376,16 @@ export default function OrderDetailStaff() {
                     </Button>
                   )}
 
-                  {String(order.status || "").toLowerCase() ===
-                    "cancelled" && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={deleting}
-                        onClick={handleDeleteOrder}
-                      >
-                        {deleting ? "Đang xóa..." : "Xóa đơn đã hủy"}
-                      </Button>
-                    )}
+                  {String(order.status || "").toLowerCase() === "cancelled" && (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={deleting}
+                      onClick={handleDeleteOrder}
+                    >
+                      {deleting ? "Đang xóa..." : "Xóa đơn đã hủy"}
+                    </Button>
+                  )}
                 </Col>
               </Row>
             </>

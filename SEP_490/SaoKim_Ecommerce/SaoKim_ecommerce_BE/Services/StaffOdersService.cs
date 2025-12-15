@@ -180,6 +180,8 @@ namespace SaoKim_ecommerce_BE.Services
                 CustomerEmail = order.Customer?.Email,
                 CustomerPhone = order.Customer?.PhoneNumber,
 
+                CustomerMessage = order.CustomerMessage,
+
                 Payment = new StaffOrderPaymentDto
                 {
                     Method = order.PaymentMethod,
