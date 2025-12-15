@@ -76,5 +76,6 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [InverseProperty(nameof(Project.ProjectManager))]
         public ICollection<Project> ManagedProjects { get; set; } = new List<Project>();
+
     }
 }
