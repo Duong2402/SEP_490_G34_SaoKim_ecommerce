@@ -22,6 +22,7 @@ import { Modal, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
@@ -85,6 +86,10 @@ export default function ReceivingList() {
     },
     [page, pageSize, search, sortBy, sortOrder]
   );
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     const conn = getRealtimeConnection();
