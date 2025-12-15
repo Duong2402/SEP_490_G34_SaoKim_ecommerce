@@ -5,18 +5,21 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
     public class DispatchService : IDispatchService
     {
         private readonly SaoKimDBContext _db;
+        private readonly IRealtimePublisher _rt;
 
-        public DispatchService(SaoKimDBContext db)
+        public DispatchService(SaoKimDBContext db, IRealtimePublisher rt)
         {
             _db = db;
+            _rt = rt;
         }
+
 
         public async Task<DispatchSlipConfirmResultDto> ConfirmDispatchSlipAsync(int id)
         {
@@ -111,20 +114,30 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
 
-            return new DispatchSlipConfirmResultDto
+            var result = new DispatchSlipConfirmResultDto
             {
                 Id = slip.Id,
                 ReferenceNo = slip.ReferenceNo,
                 Status = slip.Status,
                 ConfirmedAt = slip.ConfirmedAt,
-                AffectedProducts = qtyByProduct
-                    .Select(kv => new DispatchSlipConfirmProductDto
-                    {
-                        ProductId = kv.Key,
-                        DeductedQty = kv.Value
-                    })
-                    .ToList()
+                AffectedProducts = qtyByProduct.Select(kv => new DispatchSlipConfirmProductDto
+                {
+                    ProductId = kv.Key,
+                    DeductedQty = kv.Value
+                }).ToList()
             };
+
+            await _rt.PublishToWarehouseAsync("dispatch.confirmed", new
+            {
+                result.Id,
+                result.ReferenceNo,
+                result.Status,
+                result.ConfirmedAt,
+                affectedProducts = result.AffectedProducts
+            });
+
+            return result;
+
         }
         public async Task<PagedResult<DispatchSlipListItemDto>> GetDispatchSlipsAsync(DispatchSlipListQuery q)
         {
@@ -383,6 +396,18 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+            await _rt.PublishToWarehouseAsync("dispatch.created", new
+            {
+                id = slip.Id,
+                referenceNo = slip.ReferenceNo,
+                slip.Type,
+                slip.Status,
+                slip.CustomerName,
+                slip.DispatchDate,
+                slip.CreatedAt,
+                slip.ConfirmedAt,
+                slip.Note
+            });
 
             return slip;
         }
@@ -446,6 +471,18 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+            await _rt.PublishToWarehouseAsync("dispatch.created", new
+            {
+                id = slip.Id,
+                referenceNo = slip.ReferenceNo,
+                slip.Type,
+                slip.Status,
+                slip.ProjectName,
+                slip.DispatchDate,
+                slip.CreatedAt,
+                slip.ConfirmedAt,
+                slip.Note
+            });
 
             return slip;
         }
@@ -541,8 +578,8 @@ namespace SaoKim_ecommerce_BE.Services
             {
                 DispatchId = dispatchId,
                 ProductId = dto.ProductId.Value,
-                ProductName = dto.ProductName,
-                Uom = dto.Uom ?? "pcs",
+                ProductName = dto.ProductName.Trim(),
+                Uom = string.IsNullOrWhiteSpace(dto.Uom) ? "pcs" : dto.Uom.Trim(),
                 Quantity = dto.Quantity,
                 UnitPrice = dto.UnitPrice,
                 Total = dto.Quantity * dto.UnitPrice
@@ -551,7 +588,7 @@ namespace SaoKim_ecommerce_BE.Services
             _db.DispatchItems.Add(item);
             await _db.SaveChangesAsync();
 
-            return new DispatchItemResultDto
+            var resultDto = new DispatchItemResultDto
             {
                 Id = item.Id,
                 DispatchId = item.DispatchId,
@@ -563,7 +600,16 @@ namespace SaoKim_ecommerce_BE.Services
                 UnitPrice = item.UnitPrice,
                 Total = item.Total
             };
+
+            await _rt.PublishToWarehouseAsync("dispatch.item.created", new
+            {
+                dispatchId,
+                item = resultDto
+            });
+
+            return resultDto;
         }
+
 
         public async Task<(DispatchItem item, string productCode)> UpdateDispatchItemAsync(int itemId, DispatchItemDto dto)
         {
@@ -608,6 +654,23 @@ namespace SaoKim_ecommerce_BE.Services
 
             var productCode = product.ProductCode ?? string.Empty;
 
+            await _rt.PublishToWarehouseAsync("dispatch.item.updated", new
+            {
+                dispatchId = item.DispatchId,
+                item = new
+                {
+                    item.Id,
+                    item.DispatchId,
+                    item.ProductId,
+                    item.ProductName,
+                    ProductCode = productCode,
+                    item.Uom,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.Total
+                }
+            });
+
             return (item, productCode);
         }
 
@@ -627,16 +690,25 @@ namespace SaoKim_ecommerce_BE.Services
             slip.IsDeleted = true;
 
             await _db.SaveChangesAsync();
-        }
+            await _rt.PublishToWarehouseAsync("dispatch.deleted", new { id });
 
+        }
         public async Task DeleteDispatchItemAsync(int itemId)
         {
             var item = await _db.DispatchItems.FindAsync(itemId);
             if (item == null)
                 throw new KeyNotFoundException($"Item {itemId} không tồn tại");
 
+            var dispatchId = item.DispatchId;
+
             _db.DispatchItems.Remove(item);
             await _db.SaveChangesAsync();
+
+            await _rt.PublishToWarehouseAsync("dispatch.item.deleted", new
+            {
+                dispatchId,
+                itemId
+            });
         }
 
         public async Task<byte[]> ExportDispatchSlipsAsync(List<int> ids, bool includeItems)

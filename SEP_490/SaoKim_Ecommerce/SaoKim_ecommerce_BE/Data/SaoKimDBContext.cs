@@ -39,8 +39,8 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
         public DbSet<Entities.Coupon> Coupons { get; set; } = default!;
         public DbSet<Banner> Banners { get; set; }
-
-
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<UserNotification> UserNotifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { to: "/manager/employees", label: "Nhân sự" },
 ];
 
-export default function ManagerSidebar() {
+export default function ManagerSidebar({ onNavigate }) {
   return (
     <nav className="manager-sidebar__nav" aria-label="Điều hướng quản lý">
       {NAV_ITEMS.map((item) => (
@@ -20,6 +20,7 @@ export default function ManagerSidebar() {
           className={({ isActive }) =>
             `manager-nav-link${isActive ? " manager-nav-link--active" : ""}`
           }
+          onClick={onNavigate}
         >
           {item.label}
         </NavLink>

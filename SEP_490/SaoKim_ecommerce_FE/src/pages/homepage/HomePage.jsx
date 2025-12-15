@@ -17,6 +17,7 @@ import { ProductsAPI } from "../../api/products";
 import { readCart, writeCart } from "../../api/cartStorage";
 import ProductSkeleton from "../../components/common/ProductSkeleton";
 import ProductCard from "../../components/products/ProductCard";
+import ChatWidget from "../../components/chat/ChatWidget";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -361,9 +362,10 @@ const HomePage = () => {
           </Container>
         </Container>
       </section>
-
       <EcommerceFooter />
+      <ChatWidget />
     </div>
+
   );
 };
 

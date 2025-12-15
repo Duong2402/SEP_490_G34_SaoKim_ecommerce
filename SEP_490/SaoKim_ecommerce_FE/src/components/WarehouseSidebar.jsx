@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Nav } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -9,7 +9,7 @@ import {
   faBarcode,
   faChartColumn,
 } from "@fortawesome/free-solid-svg-icons";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import SaoKimLogo from "./SaoKimLogo";
 
 const menuItems = [
@@ -21,13 +21,22 @@ const menuItems = [
   { title: "Thống kê báo cáo", icon: faChartColumn, link: "/warehouse-dashboard/warehouse-report" },
 ];
 
-const WarehouseSidebar = () => {
+const WarehouseSidebar = ({ onNavigate }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const goHome = () => navigate("/");
 
   return (
     <aside className="warehouse-sidebar" aria-label="Điều hướng quản lý kho">
       <div className="warehouse-sidebar__inner">
-        <div className="warehouse-sidebar__brand">
+        <div
+          className="warehouse-sidebar__brand"
+          role="button"
+          tabIndex={0}
+          onClick={goHome}
+          onKeyDown={(e) => e.key === "Enter" && goHome()}
+        >
           <SaoKimLogo size="large" showText title="Sao Kim Warehouse" tagline="Quản lý kho vận" />
         </div>
 
@@ -43,6 +52,7 @@ const WarehouseSidebar = () => {
                 as={Link}
                 to={item.link}
                 className={`warehouse-sidebar__link${isActive ? " active" : ""}`}
+                onClick={onNavigate}
               >
                 <FontAwesomeIcon icon={item.icon} />
                 <span>{item.title}</span>
@@ -52,7 +62,7 @@ const WarehouseSidebar = () => {
         </Nav>
 
         <div className="warehouse-sidebar__footer">
-          Cần hỗ trợ? {" "}
+          Cần hỗ trợ{" "}
           <a href="mailto:support@saokim.vn" rel="noreferrer">
             support@saokim.vn
           </a>

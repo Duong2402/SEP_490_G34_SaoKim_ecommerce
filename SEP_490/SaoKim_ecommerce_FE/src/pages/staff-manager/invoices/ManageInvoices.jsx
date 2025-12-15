@@ -1,4 +1,3 @@
-
 import {
   faCheck,
   faCog,
@@ -70,12 +69,15 @@ export default function ManageInvoices() {
         sortDir: opts.sortDir ?? sortDir,
       });
 
-      setRows(res?.items ?? []);
-      setTotal(res?.total ?? 0);
-      setTotalPages(res?.totalPages ?? 1);
+      const items = res?.items ?? [];
+      const total = res?.total ?? 0;
+      const ps = res?.pageSize ?? pageSize;
+      const tp = Math.max(1, Math.ceil(total / ps));
 
-      if (res?.page && res.page !== page) setPage(res.page);
-      if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
+      setRows(items);
+      setTotal(total);
+      setTotalPages(tp);
+      if (page > tp) setPage(tp);
     } catch (e) {
       console.error(e);
       alert("Không tải được danh sách hóa đơn");
@@ -153,7 +155,7 @@ export default function ManageInvoices() {
       await load();
     } catch (err) {
       console.error(err);
-      alert("Generate PDF thất bại (hóa đơn phải ở trạng thái Đã thanh toán)");
+      alert("Tạo PDF thất bại (hóa đơn phải ở trạng thái Đã thanh toán)");
     }
   };
 
@@ -216,7 +218,7 @@ export default function ManageInvoices() {
       </div>
 
       <div className="staff-panel">
-        <Row className="justify-content-between align-items-center">
+        <Row className="justify-content-between align-items-center g-3">
           <Col xs={12} md={6} lg={5} xl={4}>
             <InputGroup>
               <InputGroup.Text>

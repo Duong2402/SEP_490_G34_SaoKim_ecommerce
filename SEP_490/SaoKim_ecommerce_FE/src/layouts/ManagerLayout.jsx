@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Offcanvas } from "react-bootstrap";
 import ManagerSidebar from "../pages/manager/components/ManagerSidebar";
 import SaoKimLogo from "../components/SaoKimLogo";
 import "../styles/manager.css";
@@ -40,6 +41,7 @@ export default function ManagerLayout() {
   const navigate = useNavigate();
   const userWrapperRef = useRef(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [identity, setIdentity] = useState(() => getIdentity());
 
   const pageTitle = useMemo(() => {
@@ -68,6 +70,14 @@ export default function ManagerLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+    setUserMenuOpen(false);
+  }, [location.pathname]);
+
+  const openSidebar = () => setSidebarOpen(true);
+  const closeSidebar = () => setSidebarOpen(false);
+
   const handleLogout = () => {
     if (!window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) return;
     ["token", "role", "userEmail", "userName"].forEach((key) => localStorage.removeItem(key));
@@ -86,8 +96,14 @@ export default function ManagerLayout() {
 
   return (
     <div className="manager-shell">
-      <aside className="manager-sidebar" aria-label="Điều hướng quản lý">
-        <div className="manager-sidebar__brand">
+      <aside className="manager-sidebar d-none d-lg-flex" aria-label="Điều hướng quản lý">
+        <div
+          className="manager-sidebar__brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate("/")}
+          onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+        >
           <SaoKimLogo size="large" showText />
         </div>
 
@@ -100,11 +116,55 @@ export default function ManagerLayout() {
         </div>
       </aside>
 
+      <Offcanvas
+        show={sidebarOpen}
+        onHide={closeSidebar}
+        placement="start"
+        className="manager-offcanvas"
+        restoreFocus={false}
+      >
+        <Offcanvas.Header
+          closeButton
+          closeVariant="white"
+          className="manager-offcanvas__header"
+        >
+          <div
+            className="manager-sidebar__brand"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/")}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+          >
+            <SaoKimLogo size="large" showText />
+          </div>
+        </Offcanvas.Header>
+        <Offcanvas.Body className="manager-offcanvas__body">
+          <ManagerSidebar onNavigate={closeSidebar} />
+          <div className="manager-sidebar__footer">
+            Phiên làm việc an toàn
+            <br />
+            Hỗ trợ: 0963 811 369
+          </div>
+        </Offcanvas.Body>
+      </Offcanvas>
+
       <div className="manager-main">
         <header className="manager-topbar">
-          <div className="manager-topbar__titles">
-            <span className="manager-topbar__eyebrow">Khu vực quản lý</span>
-            <h1 className="manager-topbar__title">{pageTitle}</h1>
+          <div className="manager-topbar__left">
+            <button
+              type="button"
+              className="manager-topbar__toggle d-lg-none"
+              onClick={openSidebar}
+              aria-label="Mở menu quản lý"
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            <div className="manager-topbar__titles">
+              <span className="manager-topbar__eyebrow">Khu vực quản lý</span>
+              <h1 className="manager-topbar__title">{pageTitle}</h1>
+            </div>
           </div>
           <div className="manager-topbar__actions">
             <button type="button" className="manager-logout" onClick={handleLogout}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
+import "../../../styles/admin-banner.css";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -17,7 +18,7 @@ export default function BannerList() {
   const fetchBanners = async () => {
     try {
       setLoading(true);
-      const data = await BannerAPI.getAll(); 
+      const data = await BannerAPI.getAll();
       setBanners(data || []);
     } catch (err) {
       console.error(err);
@@ -46,11 +47,23 @@ export default function BannerList() {
 
   return (
     <div>
-      <h2>Quản lý Banner</h2>
+      <div className="admin-banner__header">
+        <div>
+          <h2 className="admin-banner__title">Quản lý Banner</h2>
+          <p className="admin-banner__subtitle">
+            Quản lý banner hiển thị trên trang chủ
+          </p>
+        </div>
 
-      <button onClick={() => navigate("/admin/banner/create")}>
-        Thêm banner
-      </button>
+        <div className="admin-banner__actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate("/admin/banner/create")}
+          >
+            Thêm banner
+          </button>
+        </div>
+      </div>
 
       <table
         style={{ marginTop: "20px", width: "100%", borderCollapse: "collapse" }}

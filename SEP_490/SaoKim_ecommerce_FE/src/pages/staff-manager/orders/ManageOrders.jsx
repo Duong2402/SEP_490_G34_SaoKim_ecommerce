@@ -50,29 +50,41 @@ export default function ManageOrders() {
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const res = await fetchOrders({
-        q: debouncedSearch,
-        status,
-        createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
-        createdTo: createdTo ? createdTo.toISOString() : undefined,
-        sortBy,
-        sortDir,
-        page,
-        pageSize,
-      });
+  setLoading(true);
+  try {
+    const res = await fetchOrders({
+      q: debouncedSearch,
+      status: status === "all" ? undefined : status, 
+      createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
+      createdTo: createdTo ? createdTo.toISOString() : undefined,
+      sortBy,
+      sortDir,
+      page,
+      pageSize,
+    });
 
-      setRows(res.items ?? []);
-      setTotal(res.total ?? 0);
-      setTotalPages(Math.max(1, Math.ceil(res.total / res.pageSize)));
-    } catch (e) {
-      console.error(e);
-      alert("Không tải được danh sách đơn hàng");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = res?.data ?? res;
+
+    const items = data?.Items ?? data?.items ?? [];
+    const totalItems =
+      Number(data?.TotalItems ?? data?.totalItems ?? data?.total ?? data?.Total ?? 0) || 0;
+
+    const ps = Number(data?.PageSize ?? data?.pageSize ?? pageSize) || pageSize;
+    const tp = Math.max(1, Math.ceil(totalItems / ps));
+
+    setRows(items);
+    setTotal(totalItems);
+    setTotalPages(tp);
+
+    if (page > tp) setPage(tp);
+  } catch (e) {
+    console.error(e);
+    alert("Không tải được danh sách đơn hàng");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     load();
@@ -164,7 +176,7 @@ export default function ManageOrders() {
 
       <div className="staff-panel">
         <Row className="g-3 align-items-end">
-          <Col md={4}>
+          <Col xs={12} md={4}>
             <Form.Label>Tìm kiếm</Form.Label>
             <InputGroup>
               <InputGroup.Text>
@@ -182,7 +194,7 @@ export default function ManageOrders() {
             </InputGroup>
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Trạng thái</Form.Label>
             <Form.Select
               value={status}
@@ -200,7 +212,7 @@ export default function ManageOrders() {
             </Form.Select>
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Từ ngày</Form.Label>
             <DatePicker
               selected={createdFrom}
@@ -215,7 +227,7 @@ export default function ManageOrders() {
             />
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Đến ngày</Form.Label>
             <DatePicker
               selected={createdTo}
@@ -230,7 +242,7 @@ export default function ManageOrders() {
             />
           </Col>
 
-          <Col md="auto" className="ms-auto">
+          <Col xs={12} md="auto" className="ms-md-auto">
             <Dropdown as={ButtonGroup}>
               <Dropdown.Toggle
                 split

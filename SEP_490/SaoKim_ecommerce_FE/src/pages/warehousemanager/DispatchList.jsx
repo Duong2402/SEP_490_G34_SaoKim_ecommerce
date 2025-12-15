@@ -21,8 +21,7 @@ import Dropdown from "react-bootstrap/Dropdown";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
-import { getDispatchHubConnection } from "../../signalr/dispatchHub";
-import * as signalR from "@microsoft/signalr";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const TYPE_FILTERS = ["All", "Sales", "Project"];
 
@@ -120,7 +119,7 @@ const DispatchList = () => {
       const data = await res.json();
 
       setRows(data.items || []);
-      setTotal(data.total || 0);
+      setTotal(data.totalItems || data.total || 0);
 
       setSelectedIds((prev) => {
         const next = new Set();
@@ -146,42 +145,43 @@ const DispatchList = () => {
   }, [loadData]);
 
   useEffect(() => {
-    const connection = getDispatchHubConnection();
+  let disposed = false;
 
-    connection.off("DispatchSlipsUpdated");
+  const getAccessToken = async () => localStorage.getItem("token") || "";
 
-    connection.on("DispatchSlipsUpdated", (payload) => {
-      console.log("Sự kiện DispatchSlipsUpdated:", payload);
+  ensureRealtimeStarted(getAccessToken)
+    .then(() => {
+      if (disposed) return;
 
-      const { action } = payload || {};
-      if (!action) return;
+      const conn = getRealtimeConnection(getAccessToken);
 
-      switch (action) {
-        case "created":
-        case "deleted":
-        case "confirmed":
-        case "updated":
-        case "imported":
+      conn.off("evt");
+
+      conn.on("evt", (payload) => {
+        const type = payload?.type;
+        if (!type) return;
+
+        if (
+          type === "dispatch.created" ||
+          type === "dispatch.updated" ||
+          type === "dispatch.deleted" ||
+          type === "dispatch.confirmed" ||
+          type === "dispatch.imported"
+        ) {
           loadData();
-          break;
-        default:
-          break;
-      }
+        }
+      });
+    })
+    .catch((err) => {
+      console.error("Lỗi kết nối realtime (DispatchList):", err);
     });
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => console.log("Đã kết nối SignalR cho DispatchList"))
-        .catch((err) =>
-          console.error("Lỗi kết nối SignalR cho DispatchList:", err)
-        );
-    }
-
-    return () => {
-      connection.off("DispatchSlipsUpdated");
-    };
-  }, [loadData]);
+  return () => {
+    disposed = true;
+    const conn = getRealtimeConnection(getAccessToken);
+    conn.off("evt");
+  };
+}, [loadData]);
 
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
@@ -324,13 +324,10 @@ const DispatchList = () => {
     if (!window.confirm("Xác nhận phiếu xuất kho này?")) return;
 
     try {
-      await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${targetId}/confirm`,
-        {
-          method: "POST",
-          body: JSON.stringify({}),
-        }
-      );
+      await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
 
       await loadData();
 
@@ -360,12 +357,9 @@ const DispatchList = () => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
 
     try {
-      await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${targetId}`,
-        {
-          method: "DELETE",
-        }
-      );
+      await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}`, {
+        method: "DELETE",
+      });
 
       setRows((prev) =>
         prev.filter((r) => String(getSlipId(r)) !== String(targetId))
@@ -436,9 +430,7 @@ const DispatchList = () => {
           <button
             type="button"
             className="wm-btn wm-btn--primary"
-            onClick={() =>
-              navigate("/warehouse-dashboard/dispatch-slips/create")
-            }
+            onClick={() => navigate("/warehouse-dashboard/dispatch-slips/create")}
           >
             <FontAwesomeIcon icon={faPlus} /> Tạo phiếu xuất kho
           </button>
@@ -493,15 +485,10 @@ const DispatchList = () => {
               <th>
                 <Form.Check
                   type="checkbox"
-                  checked={
-                    rows.length > 0 &&
-                    rows.every((r) => selectedIds.has(r.id))
-                  }
+                  checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
                   onChange={() => {
                     const pageIds = rows.map((r) => r.id);
-                    const allSelected = pageIds.every((id) =>
-                      selectedIds.has(id)
-                    );
+                    const allSelected = pageIds.every((id) => selectedIds.has(id));
                     setSelectedIds((prev) => {
                       const next = new Set(prev);
                       if (allSelected) {
@@ -565,9 +552,7 @@ const DispatchList = () => {
                   ? r.salesOrderNo || r.referenceNo
                   : r.requestNo || r.referenceNo;
 
-                const nameValue = isSales
-                  ? r.customerName || "-"
-                  : r.projectName || "-";
+                const nameValue = isSales ? r.customerName || "-" : r.projectName || "-";
 
                 return (
                   <tr key={r.id}>
@@ -580,16 +565,10 @@ const DispatchList = () => {
                     </td>
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
-                      <Badge bg={isSales ? "info" : "secondary"}>
-                        {typeLabel}
-                      </Badge>
+                      <Badge bg={isSales ? "info" : "secondary"}>{typeLabel}</Badge>
                     </td>
-                    <td title={codeValue || ""}>
-                      {truncate(codeValue, 25, "-")}
-                    </td>
-                    <td title={nameValue || ""}>
-                      {truncate(nameValue, 35, "-")}
-                    </td>
+                    <td title={codeValue || ""}>{truncate(codeValue, 25, "-")}</td>
+                    <td title={nameValue || ""}>{truncate(nameValue, 35, "-")}</td>
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
@@ -602,18 +581,14 @@ const DispatchList = () => {
                         </Badge>
                       )}
                     </td>
-                    <td title={r.note || ""}>
-                      {truncate(r.note, 40, "-")}
-                    </td>
+                    <td title={r.note || ""}>{truncate(r.note, 40, "-")}</td>
                     <td className="text-end">
                       <Button
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
                         onClick={() =>
-                          navigate(
-                            `/warehouse-dashboard/dispatch-slips/${slipId}/items`
-                          )
+                          navigate(`/warehouse-dashboard/dispatch-slips/${slipId}/items`)
                         }
                         disabled={!slipId}
                       >
@@ -665,10 +640,7 @@ const DispatchList = () => {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(
-              (p) =>
-                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-            )
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -676,19 +648,13 @@ const DispatchList = () => {
             }, [])
             .map((p, i) =>
               p === "..." ? (
-                <button
-                  key={`gap-${i}`}
-                  className="btn btn-outline-light"
-                  disabled
-                >
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
                   ...
                 </button>
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -737,8 +703,7 @@ const DispatchList = () => {
             </Toast.Header>
             <Toast.Body
               className={
-                notification.type === "danger" ||
-                notification.type === "warning"
+                notification.type === "danger" || notification.type === "warning"
                   ? "text-white"
                   : "text-dark"
               }

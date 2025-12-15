@@ -195,7 +195,7 @@ export default function CustomerDetail() {
       {!loadingCustomer && customer && (
         <>
           <Row className="mb-4 g-3">
-            <Col md={4}>
+            <Col xs={12} md={4}>
               <Card className="staff-panel">
                 <Card.Body>
                   <h5 className="mb-3">Thông tin</h5>
@@ -210,7 +210,7 @@ export default function CustomerDetail() {
                     <strong>SĐT: </strong> {customer.phoneNumber ?? "-"}
                   </p>
                   <p className="mb-1">
-                    <strong>Địa chỉ: </strong> {customer.address ?? "-"}
+                    <strong>Địa chỉ: </strong> {customer.address?.trim() ? customer.address : "-"}
                   </p>
                   <p className="mb-1">
                     <strong>Ngày tạo: </strong> {formatDate(customer.createAt)}
@@ -219,20 +219,20 @@ export default function CustomerDetail() {
               </Card>
             </Col>
 
-            <Col md={8}>
+            <Col xs={12} md={8}>
               <Card className="staff-panel mb-4">
                 <Card.Body>
                   <h5 className="mb-3">Chỉ số</h5>
-                  <Row>
-                    <Col md={4}>
+                  <Row className="g-3">
+                    <Col xs={12} md={4}>
                       <div className="small text-muted">Tổng đơn</div>
                       <div className="fs-4">{customer.ordersCount}</div>
                     </Col>
-                    <Col md={4}>
+                    <Col xs={12} md={4}>
                       <div className="small text-muted">Tổng chi tiêu</div>
                       <div className="fs-4">{customer.totalSpend.toLocaleString("vi-VN")} ₫</div>
                     </Col>
-                    <Col md={4}>
+                    <Col xs={12} md={4}>
                       <div className="small text-muted">Đơn gần nhất</div>
                       <div className="fs-6">
                         {customer.lastOrderAt ? formatDate(customer.lastOrderAt) : "-"}
@@ -323,7 +323,7 @@ export default function CustomerDetail() {
 
                   <Form onSubmit={handleAddNote} className="mb-3">
                     <Row className="g-2">
-                      <Col md={10}>
+                      <Col xs={12} md={10}>
                         <Form.Control
                           as="textarea"
                           rows={2}
@@ -332,7 +332,7 @@ export default function CustomerDetail() {
                           placeholder="Chỉ nhân viên mới thấy ghi chú này"
                         />
                       </Col>
-                      <Col md={2}>
+                      <Col xs={12} md={2}>
                         <Button type="submit" className="w-100" disabled={addingNote || !noteContent.trim()}>
                           {addingNote ? "Đang lưu..." : "Thêm ghi chú"}
                         </Button>

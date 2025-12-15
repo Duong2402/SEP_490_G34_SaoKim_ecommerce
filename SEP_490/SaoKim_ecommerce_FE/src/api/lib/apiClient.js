@@ -1,4 +1,4 @@
-const API_BASE = "https://localhost:7278";
+export const API_BASE = "https://localhost:7278";
 
 const TOKEN_KEY = "token";
 

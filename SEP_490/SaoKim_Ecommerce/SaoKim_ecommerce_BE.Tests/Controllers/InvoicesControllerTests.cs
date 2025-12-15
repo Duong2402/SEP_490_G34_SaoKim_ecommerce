@@ -1,67 +1,41 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using QuestPDF.Infrastructure;
-using SaoKim_ecommerce_BE.Controllers;
-using SaoKim_ecommerce_BE.Data;
+using Moq;
 using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Services;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace SaoKim_ecommerce_BE.Tests.Controllers
 {
-    public class FakeEmailService : IEmailService
-    {
-        public string LastTo { get; private set; }
-        public string LastSubject { get; private set; }
-        public string LastBody { get; private set; }
-
-        public Task SendAsync(string to, string subject, string body)
-        {
-            LastTo = to;
-            LastSubject = subject;
-            LastBody = body;
-            return Task.CompletedTask;
-        }
-    }
-
     public class FakeWebHostEnvironment : IWebHostEnvironment
     {
-        public string ApplicationName { get; set; }
-        public IFileProvider ContentRootFileProvider { get; set; }
-        public string ContentRootPath { get; set; }
-        public string EnvironmentName { get; set; }
-        public IFileProvider WebRootFileProvider { get; set; }
-        public string WebRootPath { get; set; }
+        public string ApplicationName { get; set; } = "TestApp";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();
+        public string EnvironmentName { get; set; } = "Development";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = Path.Combine(Path.GetTempPath(), "InvoicesTests_" + Guid.NewGuid());
     }
 
     public class InvoicesControllerTests
     {
-        static InvoicesControllerTests()
+        private static FakeWebHostEnvironment CreateEnvWithTempRoot()
         {
-            QuestPDF.Settings.License = LicenseType.Community;
+            var env = new FakeWebHostEnvironment();
+            Directory.CreateDirectory(env.WebRootPath);
+            return env;
         }
 
-        private SaoKimDBContext CreateDbContext()
+        private static InvoicesController CreateController(
+            Mock<IInvoiceService> svcMock,
+            IWebHostEnvironment env)
         {
-            var options = new DbContextOptionsBuilder<SaoKimDBContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-
-            return new SaoKimDBContext(options);
-        }
-
-        private InvoicesController CreateController(SaoKimDBContext db, IEmailService emailService)
-        {
-            var controller = new InvoicesController(db, emailService);
+            var controller = new InvoicesController(svcMock.Object, env);
             controller.ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
@@ -69,321 +43,234 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
             return controller;
         }
 
-        private FakeWebHostEnvironment CreateEnvWithTempRoot()
+        [Fact]
+        public async Task Get_ReturnsNotFound_WhenMissing()
         {
-            var root = Path.Combine(Path.GetTempPath(), "InvoicesTests_" + Guid.NewGuid());
-            Directory.CreateDirectory(root);
-            return new FakeWebHostEnvironment
-            {
-                WebRootPath = root
-            };
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.GetByIdAsync(999))
+               .Returns(Task.FromResult<InvoiceDetailDto?>(null));
+
+            var controller = CreateController(svc, env);
+
+            var result = await controller.Get(999);
+
+            var nf = Assert.IsType<NotFoundObjectResult>(result);
+            var msg = nf.Value?.GetType().GetProperty("message")?.GetValue(nf.Value)?.ToString();
+            Assert.Equal("Không tìm thấy hóa đơn", msg);
+
+            svc.Verify(s => s.GetByIdAsync(999), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task GetById_ReturnsNotFound_WhenMissing()
+        public async Task Get_ReturnsOk_WhenFound()
         {
-            using var db = CreateDbContext();
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
 
-            var result = await controller.GetById(999);
+            var dto = new InvoiceDetailDto();
+            svc.Setup(s => s.GetByIdAsync(1))
+               .Returns(Task.FromResult<InvoiceDetailDto?>(dto));
 
-            Assert.IsType<NotFoundResult>(result);
-        }
+            var controller = CreateController(svc, env);
 
-        [Fact]
-        public async Task UpdateStatus_UpdatesInvoiceStatus_WhenValid()
-        {
-            using var db = CreateDbContext();
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Pending,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
-
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
-            var body = new UpdateInvoiceStatusDto { Status = "Paid" };
-
-            var result = await controller.UpdateStatus(inv.Id, body);
+            var result = await controller.Get(1);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Updated", ok.Value.GetType().GetProperty("message")?.GetValue(ok.Value));
-            var updated = await db.Invoices.FirstAsync(x => x.Id == inv.Id);
-            Assert.Equal(InvoiceStatus.Paid, updated.Status);
+            Assert.Same(dto, ok.Value);
+
+            svc.Verify(s => s.GetByIdAsync(1), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task UpdateStatus_ReturnsBadRequest_WhenInvalidStatus()
+        public async Task UpdateStatus_CallsService_AndReturnsOk()
         {
-            using var db = CreateDbContext();
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Pending,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
-
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
-            var body = new UpdateInvoiceStatusDto { Status = "Xxx" };
-
-            var result = await controller.UpdateStatus(inv.Id, body);
-
-            var bad = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Invalid status", bad.Value.GetType().GetProperty("message")?.GetValue(bad.Value));
-        }
-
-        [Fact]
-        public async Task UpdateStatus_ReturnsNotFound_WhenMissing()
-        {
-            using var db = CreateDbContext();
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
-            var body = new UpdateInvoiceStatusDto { Status = "Paid" };
-
-            var result = await controller.UpdateStatus(999, body);
-
-            Assert.IsType<NotFoundResult>(result);
-        }
-
-        [Fact]
-        public async Task Delete_RemovesInvoiceAndPdfFile()
-        {
-            using var db = CreateDbContext();
             var env = CreateEnvWithTempRoot();
-            var fileName = "test.pdf";
-            var folder = Path.Combine(env.WebRootPath, "invoices");
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.UpdateStatusAsync(1, "Paid"))
+               .Returns(Task.CompletedTask);
+
+            var controller = CreateController(svc, env);
+
+            var result = await controller.UpdateStatus(1, new UpdateInvoiceStatusDto { Status = "Paid" });
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Cập nhật trạng thái hóa đơn thành công", msg);
+
+            svc.Verify(s => s.UpdateStatusAsync(1, "Paid"), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task Delete_CallsService_AndReturnsOk()
+        {
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            svc.Setup(s => s.DeleteAsync(10))
+               .Returns(Task.CompletedTask);
+
+            var controller = CreateController(svc, env);
+
+            var result = await controller.Delete(10);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Xóa hóa đơn thành công", msg);
+
+            svc.Verify(s => s.DeleteAsync(10), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task GeneratePdf_PassesCorrectFolder_AndReturnsOk()
+        {
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            var expectedFolder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
+
+            svc.Setup(s => s.GeneratePdfAsync(5, expectedFolder))
+   .Returns(Task.FromResult(Array.Empty<byte>()));
+
+            var controller = CreateController(svc, env);
+
+            var result = await controller.GeneratePdf(5);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Tạo PDF thành công", msg);
+
+            svc.Verify(s => s.GeneratePdfAsync(5, expectedFolder), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task DownloadPdf_ReturnsNotFound_WhenServiceReturnsNullPath()
+        {
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
+
+            svc.Setup(s => s.GetPdfPathAsync(7, folder))
+               .Returns(Task.FromResult<string?>(null));
+
+            var controller = CreateController(svc, env);
+
+            var result = await controller.DownloadPdf(7, inline: false);
+
+            var nf = Assert.IsType<NotFoundObjectResult>(result);
+            var msg = nf.Value?.GetType().GetProperty("message")?.GetValue(nf.Value)?.ToString();
+            Assert.Equal("Không tìm thấy PDF", msg);
+
+            svc.Verify(s => s.GetPdfPathAsync(7, folder), Times.Once);
+            svc.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task DownloadPdf_ReturnsPhysicalFile_AsAttachment_WhenInlineFalse()
+        {
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
+
+            var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, fileName);
+
+            var path = Path.Combine(folder, "inv1.pdf");
             await File.WriteAllTextAsync(path, "dummy");
 
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Paid,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow,
-                PdfFileName = fileName
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
+            svc.Setup(s => s.GetPdfPathAsync(1, folder))
+               .Returns(Task.FromResult<string?>(path));
 
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            var controller = CreateController(svc, env);
 
-            var result = await controller.Delete(inv.Id, env);
+            var result = await controller.DownloadPdf(1, inline: false);
 
-            var ok = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Deleted", ok.Value.GetType().GetProperty("message")?.GetValue(ok.Value));
-            Assert.False(await db.Invoices.AnyAsync(x => x.Id == inv.Id));
-            Assert.False(File.Exists(path));
+            var file = Assert.IsType<PhysicalFileResult>(result);
+            Assert.Equal("application/pdf", file.ContentType);
+            Assert.Equal("inv1.pdf", file.FileDownloadName);
+
+            svc.Verify(s => s.GetPdfPathAsync(1, folder), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task Delete_ReturnsNotFound_WhenMissing()
+        public async Task DownloadPdf_ReturnsPhysicalFile_Inline_WhenInlineTrue()
         {
-            using var db = CreateDbContext();
             var env = CreateEnvWithTempRoot();
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
 
-            var result = await controller.Delete(999, env);
-
-            Assert.IsType<NotFoundResult>(result);
-        }
-
-        [Fact]
-        public async Task GeneratePdf_ReturnsBadRequest_WhenNotPaid()
-        {
-            using var db = CreateDbContext();
-            var env = CreateEnvWithTempRoot();
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Pending,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow,
-                Items = new List<InvoiceItem>()
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
-
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
-
-            var result = await controller.GeneratePdf(inv.Id, env);
-
-            var bad = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Invoice must be Paid before generating PDF.", bad.Value.GetType().GetProperty("message")?.GetValue(bad.Value));
-        }
-
-        [Fact]
-        public async Task GeneratePdf_CreatesPdfAndUpdatesFields_WhenPaid()
-        {
-            using var db = CreateDbContext();
-            var env = CreateEnvWithTempRoot();
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Paid,
-                Subtotal = 100,
-                Discount = 0,
-                Tax = 0,
-                Total = 100,
-                CreatedAt = DateTime.UtcNow,
-                CustomerName = "Alice",
-                Phone = "123",
-                Email = "a@example.com",
-                Items = new List<InvoiceItem>
-                {
-                    new InvoiceItem
-                    {
-                        ProductName = "Prod1",
-                        Quantity = 2,
-                        UnitPrice = 50,
-                        LineTotal = 100,
-                        Uom = "pcs"
-                    }
-                }
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
-
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
-
-            var result = await controller.GeneratePdf(inv.Id, env);
-
-            var ok = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("PDF generated successfully.", ok.Value.GetType().GetProperty("message")?.GetValue(ok.Value));
-
-            var updated = await db.Invoices.FirstAsync(x => x.Id == inv.Id);
-            Assert.False(string.IsNullOrEmpty(updated.PdfFileName));
-            var path = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices", updated.PdfFileName);
-            Assert.True(File.Exists(path));
-            Assert.True(updated.PdfSize.HasValue);
-            Assert.True(updated.PdfUploadedAt.HasValue);
-        }
-
-        [Fact]
-        public async Task DownloadPdf_ReturnsPhysicalFile_Attachment()
-        {
-            using var db = CreateDbContext();
-            var env = CreateEnvWithTempRoot();
-            var fileName = "inv1.pdf";
-            var folder = Path.Combine(env.WebRootPath, "invoices");
+            var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, fileName);
+
+            var path = Path.Combine(folder, "inv2.pdf");
             await File.WriteAllTextAsync(path, "dummy");
 
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Paid,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow,
-                PdfFileName = fileName,
-                PdfOriginalName = "origin.pdf"
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
+            svc.Setup(s => s.GetPdfPathAsync(2, folder))
+               .Returns(Task.FromResult<string?>(path));
 
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            var controller = CreateController(svc, env);
 
-            var result = await controller.DownloadPdf(inv.Id, env, inline: false);
+            var result = await controller.DownloadPdf(2, inline: true);
 
-            var fileResult = Assert.IsType<PhysicalFileResult>(result);
-            Assert.Equal("application/pdf", fileResult.ContentType);
-            Assert.Equal("origin.pdf", fileResult.FileDownloadName);
+            var file = Assert.IsType<PhysicalFileResult>(result);
+            Assert.Equal("application/pdf", file.ContentType);
+            Assert.True(string.IsNullOrEmpty(file.FileDownloadName)); // inline không set tên tải về
+
+            svc.Verify(s => s.GetPdfPathAsync(2, folder), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task DeletePdf_ClearsPdfInfoAndDeletesFile()
+        public async Task DeletePdf_CallsService_WithCorrectFolder_AndReturnsOk()
         {
-            using var db = CreateDbContext();
             var env = CreateEnvWithTempRoot();
-            var fileName = "inv1.pdf";
-            var folder = Path.Combine(env.WebRootPath, "invoices");
-            Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, fileName);
-            await File.WriteAllTextAsync(path, "dummy");
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
 
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Paid,
-                Total = 100,
-                Subtotal = 100,
-                CreatedAt = DateTime.UtcNow,
-                PdfFileName = fileName,
-                PdfOriginalName = "origin.pdf",
-                PdfSize = 10,
-                PdfUploadedAt = DateTime.UtcNow
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
+            var folder = Path.Combine(env.WebRootPath ?? "wwwroot", "invoices");
 
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            svc.Setup(s => s.DeletePdfAsync(3, folder))
+               .Returns(Task.CompletedTask);
 
-            var result = await controller.DeletePdf(inv.Id, env);
+            var controller = CreateController(svc, env);
+
+            var result = await controller.DeletePdf(3);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Deleted", ok.Value.GetType().GetProperty("message")?.GetValue(ok.Value));
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Đã xóa PDF", msg);
 
-            var updated = await db.Invoices.FirstAsync(x => x.Id == inv.Id);
-            Assert.Null(updated.PdfFileName);
-            Assert.Null(updated.PdfOriginalName);
-            Assert.Null(updated.PdfSize);
-            Assert.Null(updated.PdfUploadedAt);
-            Assert.False(File.Exists(path));
+            svc.Verify(s => s.DeletePdfAsync(3, folder), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
 
         [Fact]
-        public async Task SendInvoiceEmail_SendsEmail_WhenValid()
+        public async Task SendEmail_BuildsPdfUrl_AndCallsService()
         {
-            using var db = CreateDbContext();
-            var inv = new Invoice
-            {
-                Code = "INV001",
-                Status = InvoiceStatus.Paid,
-                Total = 150,
-                Subtotal = 150,
-                CreatedAt = new DateTime(2025, 1, 1, 10, 0, 0, DateTimeKind.Utc),
-                CustomerName = "Alice",
-                Email = "alice@example.com",
-                PdfFileName = "inv1.pdf"
-            };
-            db.Invoices.Add(inv);
-            await db.SaveChangesAsync();
+            var env = CreateEnvWithTempRoot();
+            var svc = new Mock<IInvoiceService>(MockBehavior.Strict);
 
-            var email = new FakeEmailService();
-            var controller = CreateController(db, email);
+            svc.Setup(s => s.SendInvoiceEmailAsync(9, "https://testhost/api/invoices/9/pdf"))
+               .Returns(Task.CompletedTask);
+
+            var controller = CreateController(svc, env);
             controller.ControllerContext.HttpContext.Request.Scheme = "https";
             controller.ControllerContext.HttpContext.Request.Host = new HostString("testhost");
 
-            var result = await controller.SendInvoiceEmail(inv.Id);
+            var result = await controller.SendEmail(9);
 
             var ok = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal("Invoice email sent", ok.Value.GetType().GetProperty("message")?.GetValue(ok.Value));
-            Assert.Equal("alice@example.com", email.LastTo);
-            Assert.Contains("INV001", email.LastSubject);
-            Assert.Contains("150", email.LastBody.Replace(".", "").Replace(",", ""));
-            Assert.Contains("/api/invoices/" + inv.Id + "/pdf", email.LastBody);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+            Assert.Equal("Đã gửi email hóa đơn", msg);
+
+            svc.Verify(s => s.SendInvoiceEmailAsync(9, "https://testhost/api/invoices/9/pdf"), Times.Once);
+            svc.VerifyNoOtherCalls();
         }
     }
 }

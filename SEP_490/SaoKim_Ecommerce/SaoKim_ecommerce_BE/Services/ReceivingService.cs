@@ -6,19 +6,20 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Hubs;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
     public class ReceivingService : IReceivingService
     {
         private readonly SaoKimDBContext _db;
-        private readonly IHubContext<ReceivingHub> _receivingHub;
+        private readonly IRealtimePublisher _rt;
 
         public ReceivingService(SaoKimDBContext db,
-            IHubContext<ReceivingHub> receivingHub)
+            IRealtimePublisher rt)
         {
             _db = db;
-            _receivingHub = receivingHub;
+            _rt = rt;
         }
 
         private async Task<Product> EnsureProductAndDetailAsync(
@@ -274,9 +275,8 @@ namespace SaoKim_ecommerce_BE.Services
             slip.ReferenceNo = $"RCV-{slip.Id:D3}";
             await _db.SaveChangesAsync();
 
-            await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
+            await _rt.PublishToWarehouseAsync("receiving.created", new
             {
-                action = "created",
                 slip.Id,
                 slip.ReferenceNo,
                 slip.Supplier,
@@ -290,18 +290,15 @@ namespace SaoKim_ecommerce_BE.Services
         }
         public async Task DeleteReceivingSlipAsync(int id)
         {
-            var slip = await _db.ReceivingSlips
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (slip == null)
-                throw new KeyNotFoundException("Phiếu nhập không tìm thấy");
-
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == id);
+            if (slip == null) throw new KeyNotFoundException("Phiếu nhập không tìm thấy");
             if (slip.Status != ReceivingSlipStatus.Draft)
                 throw new InvalidOperationException("Chỉ bản nháp mới được xóa");
 
             slip.IsDeleted = true;
-
             await _db.SaveChangesAsync();
+
+            await _rt.PublishToWarehouseAsync("receiving.deleted", new { id });
         }
 
         public async Task<ReceivingSlipItem> UpdateReceivingSlipItemAsync(int itemId, ReceivingSlipItemDto dto)
@@ -341,9 +338,8 @@ namespace SaoKim_ecommerce_BE.Services
 
             await _db.SaveChangesAsync();
 
-            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            await _rt.PublishToWarehouseAsync("receiving.item.updated", new
             {
-                action = "updated",
                 slipId = item.ReceivingSlipId,
                 item = new
                 {
@@ -363,12 +359,8 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<ReceivingSlipItem> CreateReceivingSlipItemAsync(int slipId, ReceivingSlipItemDto dto)
         {
-            var slip = await _db.ReceivingSlips
-                .FirstOrDefaultAsync(x => x.Id == slipId);
-
-            if (slip is null)
-                throw new KeyNotFoundException("Phiếu xuất không tồn tại");
-
+            var slip = await _db.ReceivingSlips.FirstOrDefaultAsync(x => x.Id == slipId);
+            if (slip is null) throw new KeyNotFoundException("Phiếu xuất không tồn tại");
             if (slip.Status != ReceivingSlipStatus.Draft)
                 throw new InvalidOperationException("Chỉ có trạng thái đơn chưa xác nhận là được chỉnh sửa");
 
@@ -381,9 +373,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             var uom = await _db.UnitOfMeasures
                 .FirstOrDefaultAsync(u => u.Name == dto.Uom && u.Status == "Active");
-
-            if (uom == null)
-                throw new ArgumentException("Đơn vị tính không tồn tại");
+            if (uom == null) throw new ArgumentException("Đơn vị tính không tồn tại");
 
             var product = await EnsureProductAndDetailAsync(dto, uom.Name, "warehouse-manager");
 
@@ -401,11 +391,9 @@ namespace SaoKim_ecommerce_BE.Services
 
             _db.ReceivingSlipItems.Add(newItem);
             await _db.SaveChangesAsync();
-
-            await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
+            await _rt.PublishToWarehouseAsync("receiving.item.created", new
             {
-                action = "created",
-                slipId = slipId,
+                slipId,
                 item = new
                 {
                     newItem.Id,
@@ -442,6 +430,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             return (slipId, deletedItemId);
         }
+
         public async Task<int> ImportReceivingSlipsAsync(Stream excelStream, string actor = "warehouse-manager")
         {
             if (excelStream == null || excelStream.Length == 0)
@@ -512,8 +501,9 @@ namespace SaoKim_ecommerce_BE.Services
                 _db.ReceivingSlips.Update(slip);
                 await _db.SaveChangesAsync();
             }
-
+            await _rt.PublishToWarehouseAsync("receiving.imported", new { count = grouped.Count });
             return grouped.Count;
+
         }
 
         public async Task<ReceivingSlipConfirmResultDto> ConfirmReceivingSlipAsync(int id)
@@ -589,6 +579,17 @@ namespace SaoKim_ecommerce_BE.Services
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+            await _rt.PublishToWarehouseAsync("receiving.confirmed", new
+            {
+                slip.Id,
+                slip.ReferenceNo,
+                slip.Supplier,
+                slip.ReceiptDate,
+                slip.Status,
+                slip.CreatedAt,
+                slip.ConfirmedAt,
+                affectedProducts = qtyByProduct.Select(kv => new { productId = kv.Key, addedQty = kv.Value }).ToList()
+            });
 
             return new ReceivingSlipConfirmResultDto
             {
@@ -611,91 +612,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         }
 
-        public async Task<DispatchSlipConfirmResultDto> ConfirmDispatchSlipAsync(int id)
-        {
-            await using var tx = await _db.Database.BeginTransactionAsync();
-
-            var slip = await _db.Dispatches
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (slip == null)
-                throw new KeyNotFoundException("Phiếu xuất không tồn tại");
-
-            if (slip.Status != DispatchStatus.Draft)
-                throw new InvalidOperationException("Chỉ bản nháp mới được xác thực");
-
-            if (slip.Items == null || slip.Items.Count == 0)
-                throw new InvalidOperationException("Phiếu xuất không có sản phẩm để xác nhận");
-
-            if (slip.Items.Any(i => i.ProductId == null))
-                throw new InvalidOperationException("Tất cả sản phẩm phải có productID");
-
-            var qtyByProduct = slip.Items
-                .GroupBy(i => i.ProductId!.Value)
-                .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
-
-            var productIds = qtyByProduct.Keys.ToList();
-
-            var products = await _db.Products
-                .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID);
-
-            var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
-            if (missing.Count > 0)
-                throw new InvalidOperationException("Một vài ID sản phẩm không tìm thấy");
-
-            var details = await _db.ProductDetails
-                .Where(d => productIds.Contains(d.ProductID))
-                .ToDictionaryAsync(d => d.ProductID);
-
-            var insufficient = qtyByProduct
-                .Where(kv =>
-                {
-                    var productId = kv.Key;
-                    var required = kv.Value;
-                    return !details.TryGetValue(productId, out var detail) || detail.Quantity < required;
-                })
-                .ToList();
-
-            if (insufficient.Count > 0)
-                throw new InvalidOperationException("Không đủ hàng cho một số sản phẩm");
-
-            var now = DateTime.UtcNow;
-
-            foreach (var kv in qtyByProduct)
-            {
-                var productId = kv.Key;
-                var deductedQty = kv.Value;
-
-                var detail = details[productId];
-
-                detail.Quantity -= deductedQty;
-                detail.UpdateAt = now;
-                detail.UpdateBy = "warehouse-manager";
-            }
-
-            slip.Status = DispatchStatus.Confirmed;
-            slip.ConfirmedAt = now;
-
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            return new DispatchSlipConfirmResultDto
-            {
-                Id = slip.Id,
-                ReferenceNo = slip.ReferenceNo,
-                Status = slip.Status,
-                ConfirmedAt = slip.ConfirmedAt,
-                AffectedProducts = qtyByProduct
-                    .Select(kv => new DispatchSlipConfirmProductDto
-                    {
-                        ProductId = kv.Key,
-                        DeductedQty = kv.Value
-                    })
-                    .ToList()
-            };
-        }
         public async Task<ReceivingSlip> UpdateSupplierAsync(int id, SupplierUpdateDto dto)
         {
             if (dto == null)
@@ -713,6 +629,16 @@ namespace SaoKim_ecommerce_BE.Services
 
             slip.Supplier = dto.Supplier.Trim();
             await _db.SaveChangesAsync();
+            await _rt.PublishToWarehouseAsync("receiving.updated", new
+            {
+                slip.Id,
+                slip.ReferenceNo,
+                slip.Supplier,
+                slip.ReceiptDate,
+                slip.Status,
+                slip.CreatedAt,
+                slip.ConfirmedAt
+            });
 
             return slip;
         }

@@ -4,6 +4,7 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
@@ -12,16 +13,20 @@ namespace SaoKim_ecommerce_BE.Services
         private readonly SaoKimDBContext _db;
         private readonly ILogger<StaffOrdersService> _logger;
         private readonly IDispatchService _dispatchService;
+        private readonly IRealtimePublisher _rt;
 
         public StaffOrdersService(
             SaoKimDBContext db,
             ILogger<StaffOrdersService> logger,
-            IDispatchService dispatchService)
+            IDispatchService dispatchService,
+            IRealtimePublisher rt)
         {
             _db = db;
             _logger = logger;
             _dispatchService = dispatchService;
+            _rt = rt;
         }
+
 
         public async Task<PagedResult<StaffOrderListItemDto>> GetListAsync(
             string? q,
@@ -361,6 +366,41 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+            await _rt.PublishAsync("order.status.updated", new
+            {
+                orderId = order.OrderId,
+                code = $"ORD-{order.OrderId}",
+                status = order.Status,
+                paymentStatus = order.PaymentStatus,
+                updatedAtUtc = DateTime.UtcNow
+            });
+
+            await _rt.PublishToRoleAsync("staff", "order.status.updated", new
+            {
+                orderId = order.OrderId,
+                code = $"ORD-{order.OrderId}",
+                status = order.Status,
+                total = order.Total,
+                createdAt = order.CreatedAt
+            });
+
+            await _rt.PublishToRoleAsync("admin", "order.status.updated", new
+            {
+                orderId = order.OrderId,
+                code = $"ORD-{order.OrderId}",
+                status = order.Status,
+                total = order.Total,
+                createdAt = order.CreatedAt
+            });
+
+            await _rt.PublishToUserAsync(order.UserId, "order.status.updated", new
+            {
+                orderId = order.OrderId,
+                code = $"ORD-{order.OrderId}",
+                status = order.Status,
+                updatedAtUtc = DateTime.UtcNow
+            });
+
         }
 
         public async Task<List<StaffOrderItemDto>> GetItemsAsync(int orderId)
@@ -429,6 +469,19 @@ namespace SaoKim_ecommerce_BE.Services
             _db.Orders.Remove(order);
 
             await _db.SaveChangesAsync();
+            await _rt.PublishToRoleAsync("staff", "order.deleted", new
+            {
+                orderId = id,
+                code = $"ORD-{id}",
+                deletedAtUtc = DateTime.UtcNow
+            });
+
+            await _rt.PublishToRoleAsync("admin", "order.deleted", new
+            {
+                orderId = id,
+                code = $"ORD-{id}",
+                deletedAtUtc = DateTime.UtcNow
+            });
         }
     }
 }

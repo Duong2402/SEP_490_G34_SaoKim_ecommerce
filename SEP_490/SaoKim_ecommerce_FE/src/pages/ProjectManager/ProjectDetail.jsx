@@ -1364,7 +1364,7 @@ function ProjectDetail() {
           {loadingExpenses ? (
             <div className="loading-state">Đang tải danh sách chi phí...</div>
           ) : expenses.length ? (
-            <div style={{ overflowX: "auto" }}>
+            <div className="table-responsive">
               <table className="table">
                 <thead>
                   <tr>

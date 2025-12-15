@@ -13,19 +13,21 @@ namespace SaoKim_ecommerce_BE.Services
         private readonly IDispatchService _dispatchService;
         private readonly ICouponService _couponService;
         private readonly decimal _vatPercent;
-
+        private readonly INotificationService _notificationService;
         public OrdersService(
             SaoKimDBContext db,
             ILogger<OrdersService> logger,
             IDispatchService dispatchService,
             ICouponService couponService,
-            IConfiguration config)
+            IConfiguration config,
+            INotificationService notificationService)
         {
             _db = db;
             _logger = logger;
             _dispatchService = dispatchService;
             _couponService = couponService;
             _vatPercent = config.GetValue<decimal>("VAT:Value") / 100;
+            _notificationService = notificationService;
         }
 
         public async Task<OrderCreateResultDto> CreateOrderAsync(CreateOrderRequest request, User user)
@@ -92,6 +94,7 @@ namespace SaoKim_ecommerce_BE.Services
             var products = await _db.Products
                 .Where(p => productIds.Contains(p.ProductID))
                 .ToListAsync();
+
             var productDict = products.ToDictionary(p => p.ProductID, p => p.ProductName);
 
             decimal subtotal = 0m;
@@ -211,7 +214,6 @@ namespace SaoKim_ecommerce_BE.Services
                 _db.Orders.Add(order);
                 await _db.SaveChangesAsync();
 
-
                 if (couponResult != null && couponResult.IsValid)
                 {
                     var couponEntity = await _db.Coupons
@@ -224,13 +226,14 @@ namespace SaoKim_ecommerce_BE.Services
                     }
                 }
 
+                var salesOrderNo = $"ORD-{order.OrderId}";
 
                 var dispatchDto = new RetailDispatchCreateDto
                 {
                     CustomerId = user.UserID,
                     CustomerName = shippingRecipientName,
                     DispatchDate = DateTime.UtcNow,
-                    SalesOrderNo = $"ORD-{order.OrderId}",
+                    SalesOrderNo = salesOrderNo,
                     Note = request.Note,
                     Items = order.Items.Select(oi => new DispatchItemDto
                     {
@@ -248,7 +251,18 @@ namespace SaoKim_ecommerce_BE.Services
 
                 await _dispatchService.CreateSalesDispatchAsync(dispatchDto);
 
+                var dispatchSlipId = await _db.Dispatches
+                    .Where(d => d.ReferenceNo == salesOrderNo)
+                    .OrderByDescending(d => d.Id)
+                    .Select(d => d.Id)
+                    .FirstOrDefaultAsync();
+
                 await tx.CommitAsync();
+
+                if (dispatchSlipId > 0)
+                {
+                    await _notificationService.CreateNewOrderNotificationToWarehouseAsync(order.OrderId, dispatchSlipId);
+                }
 
                 return new OrderCreateResultDto
                 {
@@ -266,7 +280,7 @@ namespace SaoKim_ecommerce_BE.Services
             {
                 await tx.RollbackAsync();
                 _logger.LogError(ex, "Lỗi tạo đơn hàng trong OrdersService");
-                throw; 
+                throw;
             }
         }
 

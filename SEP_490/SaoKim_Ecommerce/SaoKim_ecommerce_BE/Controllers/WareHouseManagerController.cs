@@ -15,24 +15,19 @@ namespace SaoKim_ecommerce_BE.Controllers
     public class WarehouseManagerController : ControllerBase
     {
         private readonly SaoKimDBContext _db;
-        private readonly IHubContext<ReceivingHub> _receivingHub;
-        private readonly IHubContext<DispatchHub> _dispatchHub;
-        private readonly IHubContext<InventoryHub> _inventoryHub;
+        private readonly IHubContext<RealtimeHub> _hub;
         private readonly IReceivingService _receivingService;
         private readonly IDispatchService _dispatchService;
         private readonly IWarehouseReportService _warehouseReportService;
 
 
-        public WarehouseManagerController(SaoKimDBContext db, IHubContext<ReceivingHub> receivingHub,
-            IHubContext<DispatchHub> dispatchHub, IHubContext<InventoryHub> inventoryHub,
+        public WarehouseManagerController(SaoKimDBContext db, IHubContext<RealtimeHub> hub,
             IReceivingService receivingService,
             IDispatchService dispatchService,
             IWarehouseReportService warehouseReportService)
         {
             _db = db;
-            _receivingHub = receivingHub;
-            _dispatchHub = dispatchHub;
-            _inventoryHub = inventoryHub;
+            _hub = hub;
             _receivingService = receivingService;
             _dispatchService = dispatchService;
             _warehouseReportService = warehouseReportService;
@@ -104,12 +99,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 await _receivingService.DeleteReceivingSlipAsync(id);
 
-                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-                {
-                    action = "deleted",
-                    id
-                });
-
                 return Ok(new { message = "Phiếu đã được đưa vào thùng rác." });
             }
             catch (KeyNotFoundException)
@@ -123,9 +112,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         }
 
         [HttpPut("receiving-items/{itemId:int}")]
-        public async Task<IActionResult> UpdateReceivingSlipItem(
-    [FromRoute] int itemId,
-    [FromBody] ReceivingSlipItemDto dto)
+        public async Task<IActionResult> UpdateReceivingSlipItem([FromRoute] int itemId, [FromBody] ReceivingSlipItemDto dto)
         {
             try
             {
@@ -157,11 +144,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-
         [HttpPost("receiving-slips/{id:int}/items")]
-        public async Task<IActionResult> CreateReceivingSlipItem(
-    [FromRoute] int id,
-    [FromBody] ReceivingSlipItemDto dto)
+        public async Task<IActionResult> CreateReceivingSlipItem([FromRoute] int id, [FromBody] ReceivingSlipItemDto dto)
         {
             try
             {
@@ -200,13 +184,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var result = await _receivingService.DeleteReceivingSlipItemAsync(itemId);
 
-                await _receivingHub.Clients.All.SendAsync("ReceivingItemsUpdated", new
-                {
-                    action = "deleted",
-                    slipId = result.SlipId,
-                    itemId = result.ItemId
-                });
-
                 return NoContent();
             }
             catch (KeyNotFoundException ex)
@@ -217,7 +194,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 return Conflict(new { message = ex.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new { message = "Lỗi hệ thống khi xóa dòng sản phẩm." });
             }
@@ -236,19 +213,13 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 var count = await _receivingService.ImportReceivingSlipsAsync(stream, "warehouse-manager");
 
-                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-                {
-                    action = "imported",
-                    count
-                });
-
                 return Ok(new { message = $"Đã nhập {count} phiếu thành công!" });
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new { message = "Có lỗi xảy ra khi import phiếu nhập kho." });
             }
@@ -261,20 +232,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var result = await _receivingService.ConfirmReceivingSlipAsync(id);
 
-                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-                {
-                    action = "confirmed",
-                    result.Id,
-                    result.ReferenceNo,
-                    result.Supplier,
-                    result.ReceiptDate,
-                    result.Status,
-                    result.CreatedAt,
-                    result.ConfirmedAt
-                });
-
                 return Ok(result);
-
             }
             catch (KeyNotFoundException)
             {
@@ -294,21 +252,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-
         [HttpPost("dispatch-slips/{id:int}/confirm")]
         public async Task<IActionResult> ConfirmDispatchSlip([FromRoute] int id)
         {
             try
             {
                 var result = await _dispatchService.ConfirmDispatchSlipAsync(id);
-
-                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
-                {
-                    action = "confirmed",
-                    result.Id,
-                    result.Status,
-                    result.ConfirmedAt
-                });
 
                 return Ok(result);
             }
@@ -325,6 +274,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
 
         [HttpGet("inbound-report")]
         public async Task<IActionResult> GetInboundReport([FromQuery] InboundReportQuery q)
@@ -378,18 +328,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             try
             {
                 var slip = await _receivingService.UpdateSupplierAsync(id, dto);
-
-                await _receivingHub.Clients.All.SendAsync("ReceivingSlipsUpdated", new
-                {
-                    action = "updated",
-                    slip.Id,
-                    slip.ReferenceNo,
-                    slip.Supplier,
-                    slip.ReceiptDate,
-                    slip.Status,
-                    slip.CreatedAt,
-                    slip.ConfirmedAt
-                });
 
                 return Ok(new { slip.Id, slip.Supplier });
             }
@@ -468,20 +406,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var slip = await _dispatchService.CreateSalesDispatchAsync(dto);
 
-                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
-                {
-                    action = "created",
-                    id = slip.Id,
-                    referenceNo = slip.ReferenceNo,
-                    type = slip.Type,
-                    status = slip.Status,
-                    customerName = slip.CustomerName,
-                    dispatchDate = slip.DispatchDate,
-                    createdAt = slip.CreatedAt,
-                    confirmedAt = slip.ConfirmedAt,
-                    note = slip.Note
-                });
-
                 return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
                 {
                     slip.Id,
@@ -508,20 +432,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             {
                 var slip = await _dispatchService.CreateProjectDispatchAsync(dto);
 
-                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
-                {
-                    action = "created",
-                    id = slip.Id,
-                    referenceNo = slip.ReferenceNo,
-                    type = slip.Type,
-                    status = slip.Status,
-                    projectName = slip.ProjectName,
-                    dispatchDate = slip.DispatchDate,
-                    createdAt = slip.CreatedAt,
-                    confirmedAt = slip.ConfirmedAt,
-                    note = slip.Note
-                });
-
                 return CreatedAtAction(nameof(GetById), new { id = slip.Id }, new
                 {
                     slip.Id,
@@ -540,6 +450,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                 return NotFound(new { message = ex.Message });
             }
         }
+
 
         [HttpGet("dispatch-slips/{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
@@ -564,10 +475,10 @@ namespace SaoKim_ecommerce_BE.Controllers
 
                 return Ok(new
                 {
-                    total = result.TotalItems,       
+                    total = result.TotalItems,
                     page = result.Page,
                     pageSize = result.PageSize,
-                    items = result.Items,            
+                    items = result.Items,
                     totalQty = totalQty,
                     totalAmount = totalAmount
                 });
@@ -578,20 +489,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             }
         }
 
-
         [HttpPost("dispatch-slips/{id:int}/items")]
         public async Task<IActionResult> CreateDispatchItem(int id, [FromBody] DispatchItemDto dto)
         {
             try
             {
                 var result = await _dispatchService.CreateDispatchItemAsync(id, dto);
-
-                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
-                {
-                    action = "created",
-                    dispatchId = id,
-                    item = result
-                });
 
                 return Ok(result);
             }
@@ -625,13 +528,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                     item.Total
                 };
 
-                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
-                {
-                    action = "updated",
-                    dispatchId = item.DispatchId,
-                    item = response
-                });
-
                 return Ok(response);
             }
             catch (KeyNotFoundException ex)
@@ -654,12 +550,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             try
             {
                 await _dispatchService.DeleteDispatchSlipAsync(id);
-
-                await _dispatchHub.Clients.All.SendAsync("DispatchSlipsUpdated", new
-                {
-                    action = "deleted",
-                    id
-                });
 
                 return NoContent();
             }
@@ -685,13 +575,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 var dispatchId = item.DispatchId;
 
                 await _dispatchService.DeleteDispatchItemAsync(itemId);
-
-                await _dispatchHub.Clients.All.SendAsync("DispatchItemsUpdated", new
-                {
-                    action = "deleted",
-                    dispatchId,
-                    itemId
-                });
 
                 return NoContent();
             }
@@ -726,13 +609,6 @@ namespace SaoKim_ecommerce_BE.Controllers
             try
             {
                 var threshold = await _warehouseReportService.UpdateMinStockAsync(productId, dto.MinStock);
-
-                await _inventoryHub.Clients.All.SendAsync("InventoryUpdated", new
-                {
-                    productId,
-                    minStock = threshold.MinStock
-                });
-
                 return Ok(new { productId, minStock = threshold.MinStock });
             }
             catch (ArgumentException ex)

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import {
@@ -20,12 +20,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { apiFetch } from "../../api/lib/apiClient";
 import Select from "react-select";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
-export const API_BASE = "https://localhost:7278";
 
-const MAX_QTY = 100_000_000; 
-const MAX_UNIT_PRICE = 1_000_000_000; 
-const MAX_LINE_TOTAL = 100_000_000_000; 
+const MAX_QTY = 100_000_000;
+const MAX_UNIT_PRICE = 1_000_000_000;
+const MAX_LINE_TOTAL = 100_000_000_000;
 
 const emptyItem = () => ({
   productId: "",
@@ -36,6 +36,7 @@ const emptyItem = () => ({
 
 export default function DispatchCreate() {
   const navigate = useNavigate();
+  const realtimeRef = useRef(null);
 
   const [type, setType] = useState("Sales");
   const [dispatchDate, setDispatchDate] = useState(() => {
@@ -72,6 +73,50 @@ export default function DispatchCreate() {
     const num = Number(cleaned);
     return Number.isNaN(num) ? 0 : num;
   };
+
+  useEffect(() => {
+  let disposed = false;
+
+  const getAccessToken = async () => localStorage.getItem("token") || "";
+
+  ensureRealtimeStarted(getAccessToken)
+    .then(() => {
+      if (disposed) return;
+
+      const conn = getRealtimeConnection(getAccessToken);
+      realtimeRef.current = conn;
+
+      conn.off("evt");
+
+      conn.on("evt", (payload) => {
+        if (!payload?.type) return;
+
+        switch (payload.type) {
+          case "dispatch.created":
+            setToast({ type: "success", message: "Có phiếu xuất kho mới được tạo" });
+            break;
+          case "dispatch.item.created":
+            setToast({ type: "success", message: "Có dòng hàng mới được thêm vào phiếu xuất" });
+            break;
+          case "dispatch.deleted":
+            setToast({ type: "warning", message: "Một phiếu xuất đã bị xóa" });
+            break;
+          default:
+            break;
+        }
+      });
+    })
+    .catch((err) => {
+      console.error("SignalR connection error:", err);
+    });
+
+  return () => {
+    disposed = true;
+    const conn = realtimeRef.current;
+    if (conn) conn.off("evt");
+  };
+}, []);
+
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -532,11 +577,10 @@ export default function DispatchCreate() {
                         value={
                           products.find((p) => p.id === it.productId)
                             ? {
-                                value: it.productId,
-                                label: `${it.productId} - ${
-                                  findProductById(it.productId)?.name
+                              value: it.productId,
+                              label: `${it.productId} - ${findProductById(it.productId)?.name
                                 }`,
-                              }
+                            }
                             : null
                         }
                         onChange={(option) => {
@@ -674,10 +718,10 @@ export default function DispatchCreate() {
               toast.type === "danger"
                 ? "danger"
                 : toast.type === "warning"
-                ? "warning"
-                : toast.type === "success"
-                ? "success"
-                : "light"
+                  ? "warning"
+                  : toast.type === "success"
+                    ? "success"
+                    : "light"
             }
             onClose={() => setToast(null)}
             show={!!toast}

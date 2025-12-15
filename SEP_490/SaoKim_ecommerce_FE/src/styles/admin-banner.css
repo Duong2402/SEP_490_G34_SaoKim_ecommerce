@@ -1,0 +1,123 @@
+.admin-banner {
+  width: 100%;
+}
+
+.admin-banner__panel {
+  background: #ffffff;
+  border: 1px solid var(--wm-border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: var(--wm-shadow);
+}
+
+.admin-banner__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-banner__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--wm-text);
+}
+
+.admin-banner__subtitle {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: var(--wm-muted);
+}
+
+.admin-banner__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-banner__table-wrap {
+  overflow-x: auto;
+}
+
+.admin-banner__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-banner__table thead th {
+  background: var(--wm-primary-soft);
+  color: var(--wm-primary-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--wm-border);
+}
+
+.admin-banner__table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid var(--wm-border);
+  font-size: 0.9rem;
+  color: var(--wm-text);
+  vertical-align: middle;
+}
+
+.admin-banner__table tbody tr:hover {
+  background: #f9fbff;
+}
+
+.admin-banner__image {
+  width: 140px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--wm-border);
+  background: #f8fafc;
+}
+
+.admin-banner__status {
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.admin-banner__status--active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+
+.admin-banner__status--inactive {
+  background: rgba(239, 68, 68, 0.15);
+  color: #991b1b;
+}
+
+.admin-banner__row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-banner__loading,
+.admin-banner__empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--wm-muted);
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .admin-banner__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-banner__image {
+    width: 100px;
+    height: 50px;
+  }
+}

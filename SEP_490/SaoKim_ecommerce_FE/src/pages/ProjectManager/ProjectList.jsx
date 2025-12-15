@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import {
@@ -76,7 +76,7 @@ export default function ProjectList() {
           <div>
             <h1 className="page-title">Danh sách dự án</h1>
             <p className="page-subtitle">
-              Theo dõi tình trạng, giá trị dự án và tiến độ giao hàng ở một nơi.
+              Theo dõi trạng thái, giá trị dự án và tiến độ giao hàng ở một nơi.
             </p>
           </div>
           <div className="actions">
@@ -181,7 +181,7 @@ export default function ProjectList() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => alert("Không được phép xóa dự án từ tài khoản PM")}
+                        onClick={() => alert("Không được phép xóa dự án từ tài khoản Project Manager")}
                       >
                         Xóa
                       </button>

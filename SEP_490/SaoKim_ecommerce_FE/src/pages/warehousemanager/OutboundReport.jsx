@@ -18,8 +18,7 @@ import {
 import { Toast, ToastContainer } from "react-bootstrap";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
-import * as signalR from "@microsoft/signalr";
-import { getDispatchHubConnection } from "../../signalr/dispatchHub";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 export default function OutboundReport() {
   const [rows, setRows] = useState([]);
@@ -78,33 +77,38 @@ export default function OutboundReport() {
   }, [customer, project, destination, fromDate, toDate]);
 
   useEffect(() => {
-    loadData();
+  loadData();
 
-    const connection = getDispatchHubConnection();
+  let disposed = false;
+  const getAccessToken = async () => localStorage.getItem("token") || "";
 
-    connection.off("DispatchSlipsUpdated");
+  ensureRealtimeStarted(getAccessToken)
+    .then(() => {
+      if (disposed) return;
 
-    connection.on("DispatchSlipsUpdated", (payload) => {
-      console.log("DispatchSlipsUpdated (OutboundReport):", payload);
-      loadData();
+      const conn = getRealtimeConnection(getAccessToken);
+
+      conn.off("evt");
+      conn.on("evt", (payload) => {
+        const type = payload?.type;
+        if (!type) return;
+
+        if (type.startsWith("dispatch.") || type.startsWith("outbound.")) {
+          loadData();
+        }
+      });
+    })
+    .catch((err) => {
+      console.error("Lỗi kết nối realtime (OutboundReport):", err);
+      setNotify("Không thể kết nối realtime tới máy chủ.");
     });
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => {
-          console.log("SignalR đã kết nối (OutboundReport)");
-        })
-        .catch((err) => {
-          console.error("SignalR mất kết nối (OutboundReport):", err);
-          setNotify("Không thể kết nối realtime tới máy chủ.");
-        });
-    }
-
-    return () => {
-      connection.off("DispatchSlipsUpdated");
-    };
-  }, [loadData]);
+  return () => {
+    disposed = true;
+    const conn = getRealtimeConnection(getAccessToken);
+    conn.off("evt");
+  };
+}, [loadData]);
 
   useEffect(() => {
     if (notify) {
