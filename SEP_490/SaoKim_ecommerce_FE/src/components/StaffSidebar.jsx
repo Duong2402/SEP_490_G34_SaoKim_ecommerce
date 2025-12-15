@@ -9,7 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useLocation } from "react-router-dom";
 
-const StaffSidebar = () => {
+const StaffSidebar = ({ onNavigate }) => {
   const location = useLocation();
 
   const menuItems = [
@@ -59,6 +59,7 @@ const StaffSidebar = () => {
           className={({ isActive: activeByRoute }) =>
             `staff-nav-link ${activeByRoute || isActive(item.link) ? "is-active" : ""}`
           }
+          onClick={onNavigate}
         >
           <span className="staff-nav-link__icon">
             <FontAwesomeIcon icon={item.icon} />

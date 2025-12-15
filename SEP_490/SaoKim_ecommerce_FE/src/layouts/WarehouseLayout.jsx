@@ -6,7 +6,8 @@ import {
   faHeadset,
   faRightFromBracket,
 } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
+import { Offcanvas } from "react-bootstrap";
+import { useLocation, useNavigate } from "react-router-dom";
 import WarehouseSidebar from "../components/WarehouseSidebar";
 import "../assets/css/Warehouse.css";
 
@@ -54,8 +55,11 @@ const authHeaders = () => {
 
 const WarehouseLayout = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [identity, setIdentity] = useState(() => getIdentity());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   const [notiOpen, setNotiOpen] = useState(false);
@@ -70,9 +74,18 @@ const WarehouseLayout = ({ children }) => {
   }, []);
 
   const hardLogout = () => {
-    ["token", "Token", "accessToken", "AccessToken", "jwt", "JWT", "role", "userEmail", "userName"].forEach((key) =>
-      localStorage.removeItem(key)
-    );
+    [
+      "token",
+      "Token",
+      "accessToken",
+      "AccessToken",
+      "jwt",
+      "JWT",
+      "role",
+      "userEmail",
+      "userName",
+    ].forEach((key) => localStorage.removeItem(key));
+
     setUserMenuOpen(false);
     setNotiOpen(false);
     navigate("/login", { replace: true });
@@ -116,6 +129,12 @@ const WarehouseLayout = ({ children }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen, notiOpen]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+    setUserMenuOpen(false);
+    setNotiOpen(false);
+  }, [location.pathname]);
+
   const fetchUnreadCount = async () => {
     try {
       const token = getToken().trim();
@@ -134,7 +153,9 @@ const WarehouseLayout = ({ children }) => {
       if (res.status === 401) {
         // Tạm thời KHÔNG logout để debug
         let body = "";
-        try { body = await res.text(); } catch {}
+        try {
+          body = await res.text();
+        } catch {}
         console.warn("[API] 401 unread-count. Body =", body);
         return;
       }
@@ -158,7 +179,9 @@ const WarehouseLayout = ({ children }) => {
 
       if (res.status === 401) {
         let body = "";
-        try { body = await res.text(); } catch {}
+        try {
+          body = await res.text();
+        } catch {}
         console.warn("[API] 401 list notifications. Body =", body);
         return;
       }
@@ -199,7 +222,9 @@ const WarehouseLayout = ({ children }) => {
 
       if (res.status === 401) {
         let body = "";
-        try { body = await res.text(); } catch {}
+        try {
+          body = await res.text();
+        } catch {}
         console.warn("[API] 401 mark read. Body =", body);
         return;
       }
@@ -234,15 +259,30 @@ const WarehouseLayout = ({ children }) => {
     }
   };
 
+  const openSidebar = () => setSidebarOpen(true);
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="warehouse-shell">
       <WarehouseSidebar />
 
       <div className="warehouse-main">
         <header className="warehouse-topbar">
-          <div className="warehouse-topbar__titles">
-            <span className="warehouse-topbar__subtitle">Sao Kim Lighting</span>
-            <h2 className="warehouse-topbar__title">Điều hành quản lý kho</h2>
+          <div className="warehouse-topbar__left">
+            <button
+              type="button"
+              className="warehouse-topbar__toggle d-lg-none"
+              onClick={openSidebar}
+              aria-label="Mở menu quản lý kho"
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            <div className="warehouse-topbar__titles">
+              <span className="warehouse-topbar__subtitle">Sao Kim Lighting</span>
+              <h2 className="warehouse-topbar__title">Điều hành quản lý kho</h2>
+            </div>
           </div>
 
           <div className="warehouse-topbar__actions">
@@ -348,6 +388,19 @@ const WarehouseLayout = ({ children }) => {
 
         <div className="warehouse-content">{children}</div>
       </div>
+
+      <Offcanvas
+        show={sidebarOpen}
+        onHide={closeSidebar}
+        placement="start"
+        className="warehouse-offcanvas"
+        restoreFocus={false}
+      >
+        <Offcanvas.Header closeButton closeVariant="white" className="warehouse-offcanvas__header" />
+        <Offcanvas.Body className="warehouse-offcanvas__body">
+          <WarehouseSidebar onNavigate={closeSidebar} />
+        </Offcanvas.Body>
+      </Offcanvas>
     </div>
   );
 };

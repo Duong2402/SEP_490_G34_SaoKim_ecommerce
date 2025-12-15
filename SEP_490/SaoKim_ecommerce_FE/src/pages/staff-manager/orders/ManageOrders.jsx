@@ -176,7 +176,7 @@ export default function ManageOrders() {
 
       <div className="staff-panel">
         <Row className="g-3 align-items-end">
-          <Col md={4}>
+          <Col xs={12} md={4}>
             <Form.Label>Tìm kiếm</Form.Label>
             <InputGroup>
               <InputGroup.Text>
@@ -194,7 +194,7 @@ export default function ManageOrders() {
             </InputGroup>
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Trạng thái</Form.Label>
             <Form.Select
               value={status}
@@ -212,7 +212,7 @@ export default function ManageOrders() {
             </Form.Select>
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Từ ngày</Form.Label>
             <DatePicker
               selected={createdFrom}
@@ -227,7 +227,7 @@ export default function ManageOrders() {
             />
           </Col>
 
-          <Col md={2}>
+          <Col xs={12} md={2}>
             <Form.Label>Đến ngày</Form.Label>
             <DatePicker
               selected={createdTo}
@@ -242,7 +242,7 @@ export default function ManageOrders() {
             />
           </Col>
 
-          <Col md="auto" className="ms-auto">
+          <Col xs={12} md="auto" className="ms-md-auto">
             <Dropdown as={ButtonGroup}>
               <Dropdown.Toggle
                 split
