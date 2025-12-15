@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
@@ -8,7 +7,6 @@ import {
   InputGroup,
   Table,
   Button,
-  Alert,
   Badge,
 } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -20,9 +18,12 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import Select from "react-select";
+import { Toast, ToastContainer } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
 
-const API_BASE = "https://localhost:7278";
+const MAX_QTY = 100_000_000; 
+const MAX_UNIT_PRICE = 1_000_000_000; 
+const MAX_LINE_TOTAL = 100_000_000_000; 
 
 const emptyItem = () => ({
   productId: "",
@@ -51,44 +52,83 @@ export default function ReceivingCreate() {
   const [itemErrs, setItemErrs] = useState({});
   const [products, setProducts] = useState([]);
   const [uoms, setUoms] = useState([]);
-
+  const [notify, setNotify] = useState(null);
 
   useEffect(() => {
     const loadProducts = async () => {
       try {
         const res = await apiFetch(`/api/products`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const raw = Array.isArray(data) ? data : data.items || [];
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("GET /api/products failed:", res.status, text);
+          return;
+        }
+
+        const json = await res.json();
+        const payload = json.data ?? json;
+        const raw = Array.isArray(payload) ? payload : payload.items || [];
+
+        console.log("Products raw:", raw);
+
         const normalized = raw
           .map((p) => ({
             id: p.id ?? p.Id ?? p.productID ?? p.ProductID,
             name: p.name ?? p.Name ?? p.productName ?? p.ProductName,
+            uom:
+              p.uom ??
+              p.Uom ??
+              p.unit ??
+              p.Unit ??
+              p.unitOfMeasure ??
+              p.UnitOfMeasure ??
+              p.unitOfMeasureName ??
+              p.UnitOfMeasureName ??
+              "",
           }))
           .filter((p) => p.id != null && p.name);
+
+        console.log("Products normalized:", normalized);
         setProducts(normalized);
-      } catch (_) { }
+      } catch (e) {
+        console.error("Không thể tải products:", e);
+        setNotify("Không thể tải danh sách sản phẩm.");
+      }
     };
-    loadProducts();
 
     const loadUoms = async () => {
       try {
         const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.error("GET /unit-of-measures status:", res.status);
+          return;
+        }
         const data = await res.json();
-        setUoms(data.map(u => u.name));
+        setUoms(data.map((u) => u.name));
       } catch (e) {
         console.error("Không thể tải đơn vị tính:", e);
+        setNotify("Không thể tải danh sách đơn vị tính.");
       }
     };
+
+    loadProducts();
     loadUoms();
   }, []);
 
+  useEffect(() => {
+    if (!notify) return;
+    const t = setTimeout(() => setNotify(null), 3500);
+    return () => clearTimeout(t);
+  }, [notify]);
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
+    const totalQty = items.reduce(
+      (acc, it) => acc + Number(it.quantity || 0),
+      0
+    );
     const totalValue = items.reduce(
-      (acc, it) => acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      (acc, it) =>
+        acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     );
     return { totalQty, totalValue };
@@ -96,10 +136,14 @@ export default function ReceivingCreate() {
 
   const addRow = () => setItems((prev) => [...prev, emptyItem()]);
   const removeRow = (idx) =>
-    setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
+    setItems((prev) =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)
+    );
 
   const patchItem = (idx, patch) =>
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    );
 
   const findProductById = (val) => {
     const n = Number(val);
@@ -116,21 +160,43 @@ export default function ReceivingCreate() {
     const iErrs = {};
     items.forEach((it, idx) => {
       const e = {};
-      if (!it.productName?.trim() && !it.productId) e.productName = "Tên sản phẩm hoặc Mã sản phẩm bắt buộc.";
+      const qty = Number(it.quantity || 0);
+      const price = Number(it.unitPrice || 0);
+      const lineTotal = qty * price;
+
+      if (!it.productName?.trim() && !it.productId)
+        e.productName = "Tên sản phẩm hoặc Mã sản phẩm bắt buộc.";
       if (!it.uom?.trim()) e.uom = "Đơn vị tính bắt buộc.";
-      if (!(Number(it.quantity) > 0)) e.quantity = "Số lượng > 0.";
-      if (Number(it.unitPrice) < 0) e.unitPrice = "Đơn giá >= 0.";
+      if (!(qty > 0)) e.quantity = "Số lượng > 0.";
+      else if (qty > MAX_QTY)
+        e.quantity = "Số lượng tối đa cho 1 dòng là 100.000.000.";
+
+      if (price < 0) e.unitPrice = "Đơn giá >= 0.";
+      else if (price > MAX_UNIT_PRICE)
+        e.unitPrice = "Đơn giá tối đa cho 1 dòng là 1.000.000.000.";
+
+      if (!e.unitPrice && lineTotal > MAX_LINE_TOTAL) {
+        e.unitPrice =
+          "Thành tiền mỗi dòng không được vượt quá 100.000.000.000.";
+      }
+
       if (Object.keys(e).length) iErrs[idx] = e;
     });
     setItemErrs(iErrs);
 
     if (items.length === 0) {
-      setError("Cần ít nhất 1 dòng hàng.");
+      const msg = "Cần ít nhất 1 dòng hàng.";
+      setError(msg);
+      setNotify(msg);
     } else {
       setError("");
     }
 
-    return Object.keys(errs).length === 0 && Object.keys(iErrs).length === 0 && items.length > 0;
+    return (
+      Object.keys(errs).length === 0 &&
+      Object.keys(iErrs).length === 0 &&
+      items.length > 0
+    );
   };
 
   const handleSave = async () => {
@@ -170,10 +236,7 @@ export default function ReceivingCreate() {
 
       const ok = await res.json();
       const newId =
-        ok?.id ??
-        ok?.slip?.id ??
-        ok?.Slip?.Id ??
-        ok?.slip?.Id;
+        ok?.id ?? ok?.slip?.id ?? ok?.Slip?.Id ?? ok?.slip?.Id;
 
       if (newId) {
         navigate(`/warehouse-dashboard/receiving-slips/${newId}/items`);
@@ -181,7 +244,9 @@ export default function ReceivingCreate() {
         navigate(`/warehouse-dashboard/receiving-slips`);
       }
     } catch (e) {
-      setError(e.message || "Không thể tạo phiếu.");
+      const msg = e.message || "Không thể tạo phiếu.";
+      setError(msg);
+      setNotify(msg);
     } finally {
       setSaving(false);
     }
@@ -229,12 +294,6 @@ export default function ReceivingCreate() {
         </div>
       </div>
 
-      {error && (
-        <Alert variant="danger" className="wm-surface">
-          {error}
-        </Alert>
-      )}
-
       <div className="wm-summary">
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng số lượng</span>
@@ -250,7 +309,11 @@ export default function ReceivingCreate() {
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Trạng thái</span>
-          <span className="wm-summary__value"><Badge bg="warning" text="dark">Nháp</Badge></span>
+          <span className="wm-summary__value">
+            <Badge bg="warning" text="dark">
+              Nháp
+            </Badge>
+          </span>
           <span className="wm-subtle-text">Sẽ là Draft khi tạo</span>
         </div>
       </div>
@@ -258,7 +321,9 @@ export default function ReceivingCreate() {
       <div className="wm-surface mb-3">
         <div className="row">
           <div className="col-md-6 mb-3">
-            <Form.Label>Nhà cung cấp <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Nhà cung cấp <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               value={supplier}
               onChange={(e) => setSupplier(e.target.value)}
@@ -271,7 +336,9 @@ export default function ReceivingCreate() {
           </div>
 
           <div className="col-md-6 mb-3">
-            <Form.Label>Ngày nhận <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Ngày nhận <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               type="date"
               value={receiptDate}
@@ -315,32 +382,60 @@ export default function ReceivingCreate() {
               <th style={{ minWidth: 120 }}>Số lượng</th>
               <th style={{ minWidth: 140 }}>Đơn giá</th>
               <th style={{ minWidth: 160 }}>Thành tiền</th>
-              <th className="text-end" style={{ width: 100 }}>Thao tác</th>
+              <th className="text-end" style={{ width: 100 }}>
+                Thao tác
+              </th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="wm-empty">Chưa có dòng hàng.</td>
+                <td colSpan={8} className="wm-empty">
+                  Chưa có dòng hàng.
+                </td>
               </tr>
             ) : (
               items.map((it, idx) => {
-                const lineTotal =
-                  Number(it.quantity || 0) * Number(it.unitPrice || 0);
+                const qtyNum = Number(it.quantity || 0);
+                const priceNum = Number(it.unitPrice || 0);
+                const lineTotal = qtyNum * priceNum;
                 const errs = itemErrs[idx] || {};
                 return (
                   <tr key={idx}>
                     <td>{idx + 1}</td>
                     <td>
                       <Select
-                        options={products.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
-                        value={products.find(p => p.id === it.productId) ? { value: it.productId, label: `${it.productId} - ${findProductById(it.productId)?.name}` } : null}
-                        onChange={(option) => patchItem(idx, {
-                          productId: option?.value || "",
-                          productName: findProductById(option?.value)?.name || "",
-                          uom: findProductById(option?.value)?.unit || "",
-                          unitPrice: findProductById(option?.value)?.price || 0
-                        })}
+                        options={products.map((p) => ({
+                          value: p.id,
+                          label: `${p.id} - ${p.name}`,
+                        }))}
+                        value={
+                          products.find((p) => p.id === it.productId)
+                            ? {
+                                value: it.productId,
+                                label: `${it.productId} - ${
+                                  findProductById(it.productId)?.name
+                                }`,
+                              }
+                            : null
+                        }
+                        onChange={(option) => {
+                          if (!option) {
+                            patchItem(idx, {
+                              productId: "",
+                              productName: "",
+                              uom: "",
+                              unitPrice: 0,
+                            });
+                            return;
+                          }
+                          const p = findProductById(option.value);
+                          patchItem(idx, {
+                            productId: option.value,
+                            productName: p?.name || "",
+                            uom: p?.uom || "",
+                          });
+                        }}
                         placeholder="Chọn"
                         styles={{
                           control: (base) => ({ ...base, minHeight: 45 }),
@@ -361,7 +456,12 @@ export default function ReceivingCreate() {
                           patchItem(idx, { productName: e.target.value })
                         }
                         isInvalid={!!errs.productName}
-                        placeholder="Nhập tên sản phẩm"
+                        placeholder={
+                          it.productId
+                            ? "Tên tự điền từ sản phẩm"
+                            : "Nhập tên sản phẩm"
+                        }
+                        disabled={!!it.productId}
                       />
                       <Form.Control.Feedback type="invalid">
                         {errs.productName}
@@ -369,10 +469,15 @@ export default function ReceivingCreate() {
                     </td>
                     <td>
                       <Select
-                        options={uoms.map(u => ({ value: u, label: u }))}
-                        value={it.uom ? { value: it.uom, label: it.uom } : null}
-                        onChange={(option) => patchItem(idx, { uom: option?.value || "" })}
+                        options={uoms.map((u) => ({ value: u, label: u }))}
+                        value={
+                          it.uom ? { value: it.uom, label: it.uom } : null
+                        }
+                        onChange={(option) =>
+                          patchItem(idx, { uom: option?.value || "" })
+                        }
                         placeholder="Chọn ĐVT"
+                        isDisabled={!!it.uom}
                         styles={{
                           control: (base) => ({ ...base, minHeight: 40 }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
@@ -393,9 +498,12 @@ export default function ReceivingCreate() {
                           type="number"
                           min={1}
                           value={it.quantity}
-                          onChange={(e) =>
-                            patchItem(idx, { quantity: e.target.value })
-                          }
+                          onChange={(e) => {
+                            let v = Number(e.target.value || 0);
+                            if (v < 0) v = 0;
+                            if (v > MAX_QTY) v = MAX_QTY;
+                            patchItem(idx, { quantity: v });
+                          }}
                           isInvalid={!!errs.quantity}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -408,9 +516,12 @@ export default function ReceivingCreate() {
                         type="number"
                         min={0}
                         value={it.unitPrice}
-                        onChange={(e) =>
-                          patchItem(idx, { unitPrice: e.target.value })
-                        }
+                        onChange={(e) => {
+                          let v = Number(e.target.value || 0);
+                          if (v < 0) v = 0;
+                          if (v > MAX_UNIT_PRICE) v = MAX_UNIT_PRICE;
+                          patchItem(idx, { unitPrice: v });
+                        }}
                         isInvalid={!!errs.unitPrice}
                       />
                       <Form.Control.Feedback type="invalid">
@@ -426,7 +537,11 @@ export default function ReceivingCreate() {
                         size="sm"
                         onClick={() => removeRow(idx)}
                         disabled={items.length === 1}
-                        title={items.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng"}
+                        title={
+                          items.length === 1
+                            ? "Cần ít nhất 1 dòng"
+                            : "Xóa dòng"
+                        }
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </Button>
@@ -438,6 +553,31 @@ export default function ReceivingCreate() {
           </tbody>
         </Table>
       </div>
+
+      {notify && (
+        <ToastContainer
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 9999,
+          }}
+        >
+          <Toast
+            onClose={() => setNotify(null)}
+            show={!!notify}
+            delay={3500}
+            autohide
+            bg="danger"
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body>{notify}</Toast.Body>
+          </Toast>
+        </ToastContainer>
+      )}
     </WarehouseLayout>
   );
 }

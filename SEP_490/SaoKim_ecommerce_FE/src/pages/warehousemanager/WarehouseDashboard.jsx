@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Breadcrumb } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -18,27 +18,33 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
+
 const ALERTS = [
   {
     id: 1,
     badge: "SKU-LGT-201",
     title: "Tồn kho dưới ngưỡng cảnh báo",
-    description: "Cần nhập tối thiểu 50 bộ đèn spotlight để đáp ứng tiến độ thi công showroom.",
+    description:
+      "Cần nhập tối thiểu 50 bộ đèn spotlight để đáp ứng tiến độ thi công showroom.",
   },
   {
     id: 2,
     badge: "PXK-3398",
     title: "Phiếu xuất chờ xác nhận",
-    description: "Đơn hàng dự án Sao Kim Solar cần được duyệt trước 14:00 hôm nay.",
+    description:
+      "Đơn hàng dự án Sao Kim Solar cần được duyệt trước 14:00 hôm nay.",
   },
   {
     id: 3,
     badge: "QC-08/11",
     title: "Lô hàng chờ kiểm định chất lượng",
-    description: "02 pallet đèn panel nhập mới đang chờ QC tại khu vực tiếp nhận.",
+    description:
+      "02 pallet đèn panel nhập mới đang chờ QC tại khu vực tiếp nhận.",
   },
 ];
 
@@ -49,17 +55,23 @@ const SUMMARY = [
 
 const WarehouseDashboard = () => {
   const [stats, setStats] = useState({
-    totalInbound: 0,
-    totalOutbound: 95,
-    totalStock: 540,
-    lowStockItems: 12,
+    totalStock: 0,
+    lowStockItems: 0,
   });
 
-  const navigate = useNavigate();
-  const [weeklyInbound, setWeeklyInbound] = useState({ thisWeek: 0, lastWeek: 0 });
-  const [weeklyOutbound, setWeeklyOutbound] = useState({ thisWeek: 0, lastWeek: 0 });
+  const [weeklyInbound, setWeeklyInbound] = useState({
+    thisWeek: 0,
+    lastWeek: 0,
+  });
+  const [weeklyOutbound, setWeeklyOutbound] = useState({
+    thisWeek: 0,
+    lastWeek: 0,
+  });
 
   const [chartData, setChartData] = useState([]);
+  const [notify, setNotify] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const data = [
@@ -71,54 +83,152 @@ const WarehouseDashboard = () => {
       { name: "Th 7", inbound: 35, outbound: 27 },
     ];
     setChartData(data);
+
     const fetchWeeklyInbound = async () => {
       try {
-        const res = await apiFetch("/api/warehousemanager/receiving-slips/weekly-summary");
+        const res = await apiFetch(
+          "/api/warehousemanager/receiving-slips/weekly-summary"
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(
+            `Không tải được thống kê nhập kho tuần (HTTP ${res.status}) ${text}`
+          );
+        }
         const data = await res.json();
         setWeeklyInbound(data);
-        setStats(prev => ({
+      } catch (err) {
+        console.error("Không thể tải thống kê phiếu nhập trong tuần:", err);
+        setNotify(
+          err.message || "Không thể tải thống kê phiếu nhập trong tuần."
+        );
+      }
+    };
+
+    const fetchWeeklyOutbound = async () => {
+      try {
+        const res = await apiFetch(
+          "/api/warehousemanager/dispatch-slips/weekly-summary"
+        );
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(
+            `Không tải được thống kê xuất kho tuần (HTTP ${res.status}) ${text}`
+          );
+        }
+        const data = await res.json();
+        setWeeklyOutbound(data);
+      } catch (err) {
+        console.error("Không thể tải thống kê phiếu xuất trong tuần:", err);
+        setNotify(
+          err.message || "Không thể tải thống kê phiếu xuất trong tuần."
+        );
+      }
+    };
+
+    const fetchTotalStock = async () => {
+      try {
+        const resStock = await apiFetch(
+          "/api/warehousemanager/total-stock"
+        );
+        if (!resStock.ok) {
+          const text = await resStock.text().catch(() => "");
+          throw new Error(
+            `Không tải được tổng tồn kho (HTTP ${resStock.status}) ${text}`
+          );
+        }
+        const dataStock = await resStock.json();
+
+        setStats((prev) => ({
           ...prev,
-          totalInbound: data.thisWeek,
+          totalStock: dataStock.totalStock ?? 0,
         }));
       } catch (err) {
-        console.error("Failed to fetch weekly inbound:", err);
+        console.error("Không thể tải tổng tồn kho:", err);
+        setNotify(err.message || "Không thể tải tổng tồn kho.");
+      }
+    };
+
+    const fetchLowStockItems = async () => {
+      try {
+        const makeCall = async (status) => {
+          const params = new URLSearchParams({
+            page: "1",
+            pageSize: "1",
+            status,
+          });
+          const res = await apiFetch(
+            `/api/warehousemanager/inventory-report?${params.toString()}`
+          );
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(
+              `Không tải được thống kê tồn kho (${status}) (HTTP ${res.status}) ${text}`
+            );
+          }
+          const data = await res.json();
+          return data.totalItems ?? data.total ?? (data.items ? data.items.length : 0);
+        };
+
+        const [alertCount, criticalCount] = await Promise.all([
+          makeCall("alert"),
+          makeCall("critical"),
+        ]);
+
+        setStats((prev) => ({
+          ...prev,
+          lowStockItems: alertCount + criticalCount,
+        }));
+      } catch (err) {
+        console.error("Không thể tải thống kê SKU dưới định mức:", err);
+        setNotify(
+          err.message || "Không thể tải thống kê SKU dưới định mức."
+        );
       }
     };
 
     fetchWeeklyInbound();
-
-    const fetchWeeklyOutbound = async () => {
-      try {
-        const res = await apiFetch("/api/warehousemanager/dispatch-slips/weekly-summary");
-        const data = await res.json();
-        setWeeklyOutbound(data);
-        setStats(prev => ({
-          ...prev,
-          totalOutbound: data.thisWeek,
-        }));
-      } catch (err) {
-        console.error("Failed to fetch weekly outbound:", err);
-      }
-    };
-
     fetchWeeklyOutbound();
-
-    const fetchStats = async () => {
-      try {
-        const resStock = await apiFetch("/api/warehousemanager/total-stock");
-        const dataStock = await resStock.json();
-
-        setStats(prev => ({
-          ...prev,
-          totalStock: dataStock.totalStock
-        }));
-      } catch (err) {
-        console.error("Failed to fetch total stock:", err);
-      }
-    };
-
-    fetchStats();
+    fetchTotalStock();
+    fetchLowStockItems();
   }, []);
+  
+  useEffect(() => {
+    const conn = getRealtimeConnection();
+
+    conn.off("evt");
+
+    conn.on("evt", (evt) => {
+      const type = evt?.type;
+      if (!type) return;
+
+      const shouldRefresh =
+        type.startsWith("receiving.") ||
+        type.startsWith("dispatch.") ||
+        type.startsWith("inventory.");
+
+      if (!shouldRefresh) return;
+
+      fetchWeeklyInbound();
+      fetchWeeklyOutbound();
+      fetchTotalStock();
+      fetchLowStockItems();
+    });
+
+    ensureRealtimeStarted().catch(() => {
+      setNotify("Không thể kết nối realtime tới máy chủ.");
+    });
+
+    return () => {
+      conn.off("evt");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notify) return;
+    const t = setTimeout(() => setNotify(null), 3500);
+    return () => clearTimeout(t);
+  }, [notify]);
 
   const statCards = [
     {
@@ -128,7 +238,7 @@ const WarehouseDashboard = () => {
       value: weeklyInbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyInbound;
-        if (lastWeek === 0) return "N/A";
+        if (!lastWeek) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -143,7 +253,7 @@ const WarehouseDashboard = () => {
       value: weeklyOutbound.thisWeek,
       meta: (() => {
         const { thisWeek, lastWeek } = weeklyOutbound;
-        if (lastWeek === 0) return "N/A";
+        if (!lastWeek) return "Chưa có dữ liệu so sánh";
         const diffPercent = ((thisWeek - lastWeek) / lastWeek) * 100;
         return diffPercent >= 0
           ? `+${diffPercent.toFixed(1)}% so với tuần trước`
@@ -180,15 +290,9 @@ const WarehouseDashboard = () => {
           </div>
           <h1 className="wm-page-title">Tổng quan kho Sao Kim</h1>
           <p className="wm-page-subtitle">
-            Theo dõi hoạt động nhập - xuất, cảnh báo tồn kho và tình trạng thực thi trong tuần.
+            Theo dõi hoạt động nhập - xuất, cảnh báo tồn kho và tình trạng thực
+            thi trong tuần.
           </p>
-        </div>
-
-        <div className="wm-page-actions">
-          <button type="button" className="wm-btn wm-btn--primary">
-            <FontAwesomeIcon icon={faArrowTrendUp} />
-            Tải báo cáo tuần
-          </button>
         </div>
       </div>
 
@@ -231,25 +335,28 @@ const WarehouseDashboard = () => {
             </div>
             <span className="wm-tag">
               <FontAwesomeIcon icon={faArrowTrendUp} />
-              Dữ liệu realtime
+              Dữ liệu thời gian thực
             </span>
           </div>
 
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={chartData} margin={{ top: 12, right: 24, left: -12, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#dbe3ff" />
-              <XAxis dataKey="name" stroke="#7081b9" />
-              <YAxis stroke="#7081b9" />
+            <BarChart
+              data={chartData}
+              margin={{ top: 12, right: 24, left: -12, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="4 4" stroke="#d6e3f4" />
+              <XAxis dataKey="name" stroke="#6c7ba0" />
+              <YAxis stroke="#6c7ba0" />
               <Tooltip
-                cursor={{ fill: "rgba(31, 91, 255, 0.08)" }}
+                cursor={{ fill: "rgba(31, 118, 192, 0.08)" }}
                 contentStyle={{
                   borderRadius: 14,
-                  border: "1px solid rgba(31, 91, 255, 0.18)",
+                  border: "1px solid rgba(31, 118, 192, 0.18)",
                   boxShadow: "0 18px 40px -30px rgba(15, 27, 61, 0.8)",
                 }}
               />
-              <Bar dataKey="inbound" fill="#1f5bff" radius={[10, 10, 4, 4]} />
-              <Bar dataKey="outbound" fill="#0ea5e9" radius={[10, 10, 4, 4]} />
+              <Bar dataKey="inbound" fill="#1f76c0" radius={[10, 10, 4, 4]} />
+              <Bar dataKey="outbound" fill="#35a0e8" radius={[10, 10, 4, 4]} />
             </BarChart>
           </ResponsiveContainer>
         </section>
@@ -270,9 +377,33 @@ const WarehouseDashboard = () => {
           </ul>
         </section>
       </div>
+
+      {notify && (
+        <ToastContainer
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 9999,
+          }}
+        >
+          <Toast
+            onClose={() => setNotify(null)}
+            show={!!notify}
+            delay={3500}
+            autohide
+            bg="danger"
+          >
+            <Toast.Header closeButton>
+              <strong className="me-auto">Thông báo</strong>
+            </Toast.Header>
+            <Toast.Body>{notify}</Toast.Body>
+          </Toast>
+        </ToastContainer>
+      )}
     </WarehouseLayout>
   );
 };
 
 export default WarehouseDashboard;
-

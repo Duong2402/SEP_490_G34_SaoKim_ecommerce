@@ -1,241 +1,127 @@
-﻿
-using DocumentFormat.OpenXml.Bibliography;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
-using SaoKim_ecommerce_BE.Entities;
+using SaoKim_ecommerce_BE.Models.Requests;
 using SaoKim_ecommerce_BE.Services;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using System;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-
 public class AuthController : ControllerBase
 {
-    private readonly SaoKimDBContext _context;
-    private readonly IConfiguration _config;
+    private readonly IAuthService _authService;
 
-    public AuthController(SaoKimDBContext context, IConfiguration config)
+    public AuthController(IAuthService authService)
     {
-        _context = context;
-        _config = config;
+        _authService = authService;
     }
 
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromForm] RegisterRequest req)
     {
-        if (!ModelState.IsValid)
-            return ValidationProblem(ModelState);
-
-        if (await _context.Users.AnyAsync(u => u.Email == req.Email))
+        try
         {
-            ModelState.AddModelError("Email", "Email already exists");
-            return ValidationProblem(ModelState);
-        }
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
-        var roleName = string.IsNullOrWhiteSpace(req.Role) ? "customer" : req.Role;
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
-        if (role == null)
-        {
-            ModelState.AddModelError("Role", "Role not found");
-            return ValidationProblem(ModelState);
-        }
+            var result = await _authService.RegisterAsync(req);
 
-        string? imagePath = null;
-        if (req.Image != null && req.Image.Length > 0)
-        {
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            if (!Directory.Exists(uploadDir))
-                Directory.CreateDirectory(uploadDir);
-
-            var fileName = $"{Guid.NewGuid()}_{req.Image.FileName}";
-            var filePath = Path.Combine(uploadDir, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            return Ok(new
             {
-                await req.Image.CopyToAsync(stream);
-            }
-
-            imagePath = $"/uploads/{fileName}";
+                message = result.Message,
+                email = result.Email,
+                role = result.Role,
+                image = result.Image
+            });
         }
-
-        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
-        var user = new User
+        catch (ArgumentException ex)
         {
-            Name = req.Name,
-            Email = req.Email,
-            Password = hashedPassword,
-            RoleId = role.RoleId,
-            PhoneNumber = req.PhoneNumber,
-            DOB = req.DOB.HasValue
-    ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc)
-    : (DateTime?)null,
-            Image = imagePath,
-            Status = "Active",
-            CreateAt = DateTime.UtcNow
-        };
-
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        return Ok(new
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
         {
-            message = "Register successful",
-            email = user.Email,
-            role = role.Name,
-            image = imagePath
-        });
+            return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
+        }
     }
-
 
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Email) && string.IsNullOrWhiteSpace(req.Password))
-            return BadRequest(new { message = "Invalid email or password" });
-
-        if (string.IsNullOrWhiteSpace(req.Email))
-            return BadRequest(new { message = "Please enter your email" });
-
-        if (string.IsNullOrWhiteSpace(req.Password))
-            return BadRequest(new { message = "Please enter your password" });
-
-        var user = await _context.Users
-            .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.Email == req.Email);
-
-        if (user == null)
-            return Unauthorized(new { message = "Invalid email or password" });
-
-        if (!BCrypt.Net.BCrypt.Verify(req.Password, user.Password))
-            return Unauthorized(new { message = "Invalid email or password" });
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"]);
-        var issuer = _config["Jwt:Issuer"];
-        var audience = _config["Jwt:Audience"];
-
-        var tokenDescriptor = new SecurityTokenDescriptor
+        try
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-            new Claim(ClaimTypes.Name, user.Email),
-            new Claim("UserId", user.UserID.ToString()),
-            new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
-        }),
-            Expires = DateTime.UtcNow.AddHours(2),
-            Issuer = issuer,
-            Audience = audience,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha256Signature)
-        };
-
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-
-        return Ok(new LoginResponse
+            var response = await _authService.LoginAsync(req);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
         {
-            Token = tokenHandler.WriteToken(token),
-            Email = user.Email,
-            FullName = user.Name,
-            Role = user.Role?.Name
-        });
+            // Thiếu email / password
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Sai thông tin đăng nhập / tài khoản bị khóa
+            return Unauthorized(new { message = ex.Message });
+        }
     }
 
     [AllowAnonymous]
     [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req,
-        [FromServices] IPasswordResetService resetService,
-        [FromServices] IEmailService emailService)
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Email))
-            return BadRequest(new { message = "Email required" });
-
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null)
-            return BadRequest(new { message = "Email not found" });
-
-        var ttl = TimeSpan.FromMinutes(5);
-        var code = resetService.GenerateCode(req.Email, ttl);
-
-        var resetLink = $"http://localhost:5173/reset-password/{code}";
-
-        var subject = "Reset your password";
-        var body = $@"
-        Hi {user.Email},
-        Click the link below to reset your password. This link will expire in {ttl.TotalMinutes} minutes: {resetLink}
-        If you didn't request this, you can safely ignore this email.
-    ";
-        await emailService.SendAsync(req.Email, subject, body);
-        return Ok(new { message = "Password reset link has been sent to your email." });
+        try
+        {
+            await _authService.ForgotPasswordAsync(req);
+            return Ok(new { message = "Link đặt lại mật khẩu đã gửi đến email của bạn" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
-
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req,
-        [FromServices] IPasswordResetService resetService)
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.NewPassword))
-            return BadRequest(new { message = "Missing data" });
-
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null) return BadRequest(new { message = "User not found" });
-
-        user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Password reset successful" });
+        try
+        {
+            await _authService.ResetPasswordAsync(req);
+            return Ok(new { message = "Đặt lại mật khẩu thành công" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // POST: /api/auth/change-password
-    //[Authorize] // yêu cầu đăng nhập; nếu chưa cấu hình JWT có thể tạm bỏ dòng này
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         var emailFromToken = User?.Identity?.Name;
-        var email = string.IsNullOrWhiteSpace(emailFromToken) ? req.Email : emailFromToken;
 
-        if (string.IsNullOrWhiteSpace(email))
-            return BadRequest(new { message = "Email is required" });
-
-        if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
-            return BadRequest(new { message = "CurrentPassword and NewPassword are required" });
-
-        if (req.CurrentPassword == req.NewPassword)
-            return BadRequest(new { message = "New password must be different from current password" });
-
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
-            return NotFound(new { message = "User not found" });
-
-        var ok = BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.Password);
-        if (!ok)
-            return BadRequest(new { message = "Current password is incorrect" });
-
-        if (req.NewPassword.Length < 6)
-            return BadRequest(new { message = "New password must be at least 6 characters" });
-
-        user.Password = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Password changed successfully" });
+        try
+        {
+            await _authService.ChangePasswordAsync(emailFromToken, req);
+            return Ok(new { message = "Thay đổi mật khẩu thành công" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
-
 
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        return Ok(new { message = "Logged out" });
+        return Ok(new { message = "Đăng xuất thành công" });
     }
 }

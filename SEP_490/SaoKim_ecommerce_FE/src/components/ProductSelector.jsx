@@ -1,8 +1,6 @@
-// src/components/ProductSelector.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { ProductsAPI } from "../api/products";
-
-function ProductSelector({ value, onSelect }) {
+export default function ProductSelector({ value, onSelect }) {
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState([]);
   const [query, setQuery] = useState("");
@@ -12,10 +10,24 @@ function ProductSelector({ value, onSelect }) {
     (async () => {
       try {
         setLoading(true);
-        const res = await ProductsAPI.list();
-        // BE: { items: [...], page, pageSize, total, totalPages }
-        const list = res?.data?.items ?? [];
-        if (mounted) setAll(Array.isArray(list) ? list : []);
+        const res = await ProductsAPI.list({ page: 1, pageSize: 1000 });
+
+        let raw = res?.data?.items;
+
+        if (!Array.isArray(raw)) raw = res?.data?.data?.items;
+
+        if (!Array.isArray(raw)) raw = Array.isArray(res?.data) ? res?.data : [];
+
+        const normalized = (raw || []).map((p) => ({
+          id: p.id ?? p.productId ?? p.product_id,
+          name: p.name ?? p.productName ?? p.product_name,
+          sku: p.sku ?? p.productCode ?? p.product_code,
+          price: p.price ?? 0,
+          unit: p.unit ?? p.uom ?? p.Unit ?? "",
+          _raw: p,
+        })).filter(x => x.id != null);
+
+        if (mounted) setAll(normalized);
       } catch (e) {
         console.error(e);
         if (mounted) setAll([]);
@@ -23,9 +35,7 @@ function ProductSelector({ value, onSelect }) {
         if (mounted) setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const filtered = useMemo(() => {
@@ -56,7 +66,7 @@ function ProductSelector({ value, onSelect }) {
 
       <div
         style={{
-          border: "1px solid rgba(148,163,184,.2)",
+          border: "1px solid #e5e7eb",
           borderRadius: 8,
           maxHeight: 260,
           overflow: "auto",
@@ -70,7 +80,7 @@ function ProductSelector({ value, onSelect }) {
             <thead>
               <tr>
                 <th style={{ minWidth: 220 }}>Tên sản phẩm</th>
-                <th style={{ width: 140 }}>Mã</th>
+                <th style={{ width: 160 }}>Mã</th>
                 <th style={{ width: 120, textAlign: "right" }}>Giá</th>
                 <th style={{ width: 100 }}></th>
               </tr>
@@ -100,39 +110,6 @@ function ProductSelector({ value, onSelect }) {
           <div style={{ padding: 12, color: "#64748b" }}>Không có sản phẩm phù hợp.</div>
         )}
       </div>
-
-      {value ? (
-        <div
-          style={{
-            padding: 10,
-            borderRadius: 8,
-            background: "rgba(59,130,246,.06)",
-            border: "1px solid rgba(59,130,246,.15)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 600 }}>{value.name}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>
-              Mã: {value.sku || "-"} • Giá:{" "}
-              {Number(value.price || 0).toLocaleString("vi-VN")} VND
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => onSelect?.(null)}
-            style={{ color: "#dc2626" }}
-          >
-            Bỏ chọn
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
-
-export default ProductSelector;

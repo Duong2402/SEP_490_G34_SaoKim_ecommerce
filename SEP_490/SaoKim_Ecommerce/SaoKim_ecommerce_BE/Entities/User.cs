@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DocumentFormat.OpenXml.Drawing.Charts;
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -62,5 +64,18 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Column("update_at")]
         public DateTime? UpdateAt { get; set; }
+
+        [Column("deleted_at")]
+        public DateTime? DeletedAt { get; set; }
+
+        public ICollection<Order> Orders { get; set; } = new List<Order>();
+
+        public ICollection<CustomerNote> Notes { get; set; } = new List<CustomerNote>();
+
+        public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+
+        [InverseProperty(nameof(Project.ProjectManager))]
+        public ICollection<Project> ManagedProjects { get; set; } = new List<Project>();
+
     }
 }

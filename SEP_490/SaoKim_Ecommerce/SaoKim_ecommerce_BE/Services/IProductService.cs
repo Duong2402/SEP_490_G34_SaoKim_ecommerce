@@ -1,4 +1,5 @@
 ﻿using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Entities;
 
 namespace SaoKim_ecommerce_BE.Services
 {
@@ -6,5 +7,8 @@ namespace SaoKim_ecommerce_BE.Services
     {
         Task<HomeProductsDto> GetHomeAsync(ProductQueryParams query);
         Task<PagedResult<ProductListItemDto>> GetPagedAsync(ProductQueryParams query);
+
+
     }
 }
+

@@ -1,9 +1,10 @@
-const PROJECT_STATUSES = [
-  { value: "Draft", labelKey: "projects.statusLabels.Draft", tone: "neutral" },
-  { value: "InProgress", labelKey: "projects.statusLabels.InProgress", tone: "warning" },
-  { value: "Delivered", labelKey: "projects.statusLabels.Delivered", tone: "success" },
-  { value: "Done", labelKey: "projects.statusLabels.Done", tone: "success" },
-  { value: "Cancelled", labelKey: "projects.statusLabels.Cancelled", tone: "danger" },
+﻿const PROJECT_STATUSES = [
+  { value: "Draft", label: "Bản nháp", tone: "neutral" },
+  { value: "Active", label: "Đang triển khai", tone: "warning" },
+  { value: "InProgress", label: "Đang thực hiện", tone: "warning" },
+  { value: "Delivered", label: "Đã bàn giao", tone: "success" },
+  { value: "Done", label: "Hoàn thành", tone: "success" },
+  { value: "Cancelled", label: "Đã hủy", tone: "danger" },
 ];
 
 const STATUS_LOOKUP = PROJECT_STATUSES.reduce((acc, status) => {
@@ -12,38 +13,42 @@ const STATUS_LOOKUP = PROJECT_STATUSES.reduce((acc, status) => {
 }, {});
 
 const BADGE_TONE_CLASS = {
-  success: "badge badge-success",
-  warning: "badge badge-warning",
-  danger: "badge badge-danger",
-  neutral: "badge badge-neutral",
+  success: "badge badge-status badge-status--success",
+  warning: "badge badge-status badge-status--warning",
+  danger: "badge badge-status badge-status--danger",
+  neutral: "badge badge-status badge-status--neutral",
 };
 
 const numberFormatters = {
-  en: new Intl.NumberFormat("en-US"),
   vi: new Intl.NumberFormat("vi-VN"),
 };
 
 const dateLocales = {
-  en: "en-GB",
   vi: "vi-VN",
 };
 
-const formatBudget = (value, lang = "en") => {
-  if (typeof value !== "number" || Number.isNaN(value)) return "-";
-  const formatter = numberFormatters[lang] || numberFormatters.en;
-  return `${formatter.format(value)} VND`;
-};
-
-const formatBudgetCompact = (value, lang = "en") => {
-  if (typeof value !== "number" || Number.isNaN(value)) return "0";
-  const formatter = numberFormatters[lang] || numberFormatters.en;
+const formatNumber = (value, lang = "vi") => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "";
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
   return formatter.format(value);
 };
 
-const formatDate = (value, lang = "en") => {
+const formatBudget = (value, lang = "vi") => {
+  if (typeof value !== "number" || Number.isNaN(value)) return "-";
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
+  return `${formatter.format(value)} VND`;
+};
+
+const formatBudgetCompact = (value, lang = "vi") => {
+  if (typeof value !== "number" || Number.isNaN(value)) return "0";
+  const formatter = numberFormatters[lang] || numberFormatters.vi;
+  return formatter.format(value);
+};
+
+const formatDate = (value, lang = "vi") => {
   if (!value) return "-";
   try {
-    return new Date(value).toLocaleDateString(dateLocales[lang] || dateLocales.en);
+    return new Date(value).toLocaleDateString(dateLocales[lang] || dateLocales.vi);
   } catch {
     return "-";
   }
@@ -56,10 +61,7 @@ const getStatusBadgeClass = (status) => {
   return BADGE_TONE_CLASS[meta.tone] ?? BADGE_TONE_CLASS.neutral;
 };
 
-const getStatusLabel = (status, t) => {
-  const meta = getStatusMeta(status);
-  return t(meta.labelKey);
-};
+const getStatusLabel = (status) => getStatusMeta(status).label;
 
 export {
   PROJECT_STATUSES,
@@ -68,6 +70,7 @@ export {
   formatBudget,
   formatBudgetCompact,
   formatDate,
+  formatNumber,
   getStatusMeta,
   getStatusBadgeClass,
   getStatusLabel,

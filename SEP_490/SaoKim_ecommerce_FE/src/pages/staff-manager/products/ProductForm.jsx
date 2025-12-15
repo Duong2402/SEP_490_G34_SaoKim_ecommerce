@@ -1,16 +1,34 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useForm } from "react-hook-form";
-import { Row, Col, Form, Button } from "@themesberg/react-bootstrap";
+import { Button, Form } from "@themesberg/react-bootstrap";
+import useCategoriesApi from "../api/useCategories";
+import useProductsApi from "../api/useProducts";
 
 const normalizeDefaults = (d = {}) => ({
-  sku: d.sku ?? "",
-  name: d.name ?? "",
-  category: d.category ?? "",
+  sku: d.sku ?? d.productCode ?? "",
+  name: d.name ?? d.productName ?? "",
+  categoryId: d.categoryId ?? "",
   price: d.price ?? 0,
-  stock: d.stock ?? 0,
-  active: d.active ?? true,
+  stock: d.stock ?? d.quantity ?? 0,
+  active: d.active ?? (d.status ? d.status === "Active" : true),
+  unit: d.unit ?? "",
+  description: d.description ?? "",
+  supplier: d.supplier ?? "",
+  note: d.note ?? "",
+  imageFile: null,
+  updateAt: d.updateAt ?? d.update_at ?? d.UpdateAt ?? null,
 });
+
+const formatPrice = (value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(/[^\d]/g, ""));
+  if (Number.isNaN(num)) return "";
+  return num.toLocaleString("vi-VN");
+};
 
 export default function ProductForm({
   defaultValues,
@@ -19,139 +37,319 @@ export default function ProductForm({
   onSubmit,
   onCancel,
 }) {
+  const defaults = normalizeDefaults(defaultValues);
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: normalizeDefaults(defaultValues),
+    defaultValues: defaults,
     mode: "onBlur",
   });
 
   const disabled = loading || isSubmitting;
 
+  const { getCategories, createCategory } = useCategoriesApi();
+  const { getUoms } = useProductsApi();
+
+  const [categories, setCategories] = useState([]);
+  const [uoms, setUoms] = useState([]);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+
+  const isEdit = !!defaultValues?.id;
+
+  const categoryId = watch("categoryId");
+  const price = watch("price");
+  const updateAt = defaults.updateAt;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [catList, uomList] = await Promise.all([
+          getCategories(),
+          getUoms(),
+        ]);
+        setCategories(catList || []);
+        setUoms(uomList || []);
+      } catch {
+        setCategories([]);
+        setUoms([]);
+      }
+    })();
+  }, []);
+
+  const handleCategorySelect = (e) => {
+    const v = e.target.value;
+    if (v === "__NEW__") {
+      setAddingNew(true);
+      setValue("categoryId", "");
+    } else {
+      setAddingNew(false);
+      setValue("categoryId", v);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return;
+    try {
+      const created = await createCategory({ name });
+      setCategories((prev) => [...prev, created]);
+      setValue("categoryId", String(created.id), { shouldValidate: true });
+      setAddingNew(false);
+      setNewCategory("");
+    } catch (err) {
+      alert(err.message || "Tạo danh mục thất bại");
+    }
+  };
+
+  const submitWrapped = (values) => {
+    return onSubmit({
+      ...values,
+      categoryId: values.categoryId ? Number(values.categoryId) : null,
+      price:
+        typeof values.price === "number"
+          ? values.price
+          : Number(String(values.price).replace(/[^\d]/g, "")) || 0,
+    });
+  };
+
+  const priceField = register("price", {
+    required: "Giá bán là bắt buộc",
+  });
+
+  const handlePriceChange = (e) => {
+    const raw = e.target.value.replace(/[^\d]/g, "");
+    if (raw === "") {
+      setValue("price", "", { shouldValidate: true });
+      return;
+    }
+    const num = parseInt(raw, 10);
+    if (!Number.isNaN(num)) {
+      setValue("price", num, { shouldValidate: true });
+    }
+  };
+
   return (
-    <Form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <Row className="g-3">
-        <Col md={6}>
+    <Form onSubmit={handleSubmit(submitWrapped)} noValidate>
+      <div className="staff-form-grid">
+        {isEdit && (
           <Form.Group>
-            <Form.Label>SKU</Form.Label>
+            <Form.Label>Mã SKU</Form.Label>
             <Form.Control
               type="text"
-              placeholder="e.g. LED10W-WH"
-              {...register("sku", {
-                required: "SKU is required",
-                minLength: { value: 3, message: "Min 3 characters" },
-              })}
-              isInvalid={!!errors.sku}
-              disabled={disabled}
+              placeholder="SKU tự sinh"
+              {...register("sku")}
+              disabled={true}
+              readOnly
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.sku?.message}
-            </Form.Control.Feedback>
           </Form.Group>
-        </Col>
+        )}
 
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label>Name</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Product name"
-              {...register("name", { required: "Name is required" })}
-              isInvalid={!!errors.name}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.name?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={6}>
-          <Form.Group>
-            <Form.Label>Category</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="e.g. Đèn"
-              {...register("category", { required: "Category is required" })}
-              isInvalid={!!errors.category}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.category?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={3}>
-          <Form.Group>
-            <Form.Label>Price</Form.Label>
-            <Form.Control
-              type="number"
-              step="1"
-              min={0}
-              placeholder="0"
-              {...register("price", {
-                required: "Price is required",
-                valueAsNumber: true,
-                min: { value: 0, message: "Price must be ≥ 0" },
-              })}
-              isInvalid={!!errors.price}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.price?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={3}>
-          <Form.Group>
-            <Form.Label>Stock</Form.Label>
-            <Form.Control
-              type="number"
-              min={0}
-              placeholder="0"
-              {...register("stock", {
-                required: "Stock is required",
-                valueAsNumber: true,
-                min: { value: 0, message: "Stock must be ≥ 0" },
-              })}
-              isInvalid={!!errors.stock}
-              disabled={disabled}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.stock?.message}
-            </Form.Control.Feedback>
-          </Form.Group>
-        </Col>
-
-        <Col md={12}>
-          <Form.Check
-            type="switch"
-            id="active-switch"
-            label="Active"
-            {...register("active")}
+        <Form.Group>
+          <Form.Label>Tên sản phẩm</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Nhập tên sản phẩm"
+            {...register("name", { required: "Tên sản phẩm là bắt buộc" })}
+            isInvalid={!!errors.name}
             disabled={disabled}
           />
-        </Col>
+          <Form.Control.Feedback type="invalid">
+            {errors.name?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
 
-        <Col md={12} className="d-flex gap-2 justify-content-end">
-          {onCancel && (
-            <Button
-              variant="outline-secondary"
-              onClick={onCancel}
+        <Form.Group>
+          <Form.Label>Danh mục</Form.Label>
+
+          {!addingNew && (
+            <Form.Select
+              onChange={handleCategorySelect}
+              value={categoryId ?? ""}
+              {...register("categoryId", {
+                validate: (v) => (v ? true : "Vui lòng chọn danh mục"),
+              })}
+              isInvalid={!!errors.categoryId}
               disabled={disabled}
             >
-              Cancel
-            </Button>
+              <option value="">-- Chọn danh mục --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              <option value="__NEW__">Thêm danh mục mới</option>
+            </Form.Select>
           )}
-          <Button type="submit" disabled={disabled}>
-            {submitLabel}
+
+          {(addingNew || categoryId === "__NEW__") && (
+            <div className="d-flex gap-2 mt-2">
+              <Form.Control
+                type="text"
+                placeholder="Tên danh mục mới"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                disabled={disabled}
+              />
+              <Button
+                variant="primary"
+                onClick={handleAddCategory}
+                disabled={disabled}
+              >
+                Lưu
+              </Button>
+              <Button
+                variant="outline-secondary"
+                onClick={() => {
+                  setAddingNew(false);
+                  setNewCategory("");
+                  setValue("categoryId", "");
+                }}
+                disabled={disabled}
+              >
+                Hủy
+              </Button>
+            </div>
+          )}
+
+          <Form.Control.Feedback type="invalid">
+            {errors.categoryId?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Giá bán</Form.Label>
+          <Form.Control
+            type="text"
+            inputMode="numeric"
+            {...priceField}
+            value={formatPrice(price)}
+            onChange={handlePriceChange}
+            isInvalid={!!errors.price}
+            disabled={disabled}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.price?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Số lượng</Form.Label>
+          <Form.Control
+            type="number"
+            min={0}
+            {...register("stock", {
+              required: "Số lượng là bắt buộc",
+              valueAsNumber: true,
+            })}
+            isInvalid={!!errors.stock}
+            disabled={disabled}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.stock?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Đơn vị tính</Form.Label>
+          <Form.Select
+            {...register("unit", {
+              required: "Đơn vị tính là bắt buộc",
+            })}
+            isInvalid={!!errors.unit}
+            disabled={disabled || uoms.length === 0}
+          >
+            <option value="">-- Chọn đơn vị tính --</option>
+            {uoms.map((u) => (
+              <option key={u.id ?? u.Id} value={u.name ?? u.Name}>
+                {u.name ?? u.Name}
+              </option>
+            ))}
+          </Form.Select>
+          <Form.Control.Feedback type="invalid">
+            {errors.unit?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Ảnh sản phẩm</Form.Label>
+          <Form.Control
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setValue("imageFile", file, { shouldValidate: false });
+            }}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Mô tả</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            placeholder="Mô tả ngắn về sản phẩm"
+            {...register("description")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Nhà cung cấp</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Tên nhà cung cấp"
+            {...register("supplier")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        <Form.Group>
+          <Form.Label>Ghi chú</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={2}
+            placeholder="Ghi chú nội bộ"
+            {...register("note")}
+            disabled={disabled}
+          />
+        </Form.Group>
+
+        <Form.Check
+          type="switch"
+          id="active-switch"
+          label="Kích hoạt hiển thị"
+          {...register("active")}
+          disabled={disabled}
+        />
+      </div>
+
+      {updateAt && (
+        <div className="mt-2 text-muted small">
+          Cập nhật lần cuối: {new Date(updateAt).toLocaleString("vi-VN")}
+        </div>
+      )}
+
+      <div className="d-flex gap-2 justify-content-end mt-3">
+        {onCancel && (
+          <Button
+            variant="outline-secondary"
+            onClick={onCancel}
+            disabled={disabled}
+          >
+            Hủy
           </Button>
-        </Col>
-      </Row>
+        )}
+        <Button type="submit" disabled={disabled}>
+          {submitLabel}
+        </Button>
+      </div>
     </Form>
   );
 }
@@ -166,7 +364,7 @@ ProductForm.propTypes = {
 
 ProductForm.defaultProps = {
   defaultValues: {},
-  submitLabel: "Save",
+  submitLabel: "Lưu",
   loading: false,
   onCancel: undefined,
 };

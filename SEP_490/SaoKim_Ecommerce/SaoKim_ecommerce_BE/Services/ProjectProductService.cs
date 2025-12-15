@@ -13,7 +13,6 @@ namespace SaoKim_ecommerce_BE.Services
         {
             _db = db;
         }
-
         public async Task<ProjectProductListDTO> GetProductsAsync(int projectId)
         {
             var exists = await _db.Projects.AsNoTracking().AnyAsync(p => p.Id == projectId);
@@ -49,25 +48,42 @@ namespace SaoKim_ecommerce_BE.Services
             var project = await _db.Projects.FindAsync(projectId);
             if (project == null) throw new KeyNotFoundException("Project not found");
 
-            var product = await _db.Products.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.ProductID == dto.ProductId);
-            if (product == null) throw new KeyNotFoundException("Product not found");
+            var productInfo = await _db.Products
+                .Where(p => p.ProductID == dto.ProductId)
+                .Select(p => new
+                {
+                    Product = p,
+                    Detail = p.ProductDetails
+                        .OrderByDescending(d => d.Id)
+                        .FirstOrDefault()
+                })
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
 
-            // chặn trùng (ProjectId, ProductId)
+            if (productInfo == null || productInfo.Product == null)
+                throw new KeyNotFoundException("Product not found");
+
+            var product = productInfo.Product;
+            var detail = productInfo.Detail;
+
             var dup = await _db.ProjectProducts
                 .AnyAsync(x => x.ProjectId == projectId && x.ProductId == dto.ProductId);
             if (dup) throw new InvalidOperationException("Product already added to this project");
 
-            var unitPrice = dto.UnitPrice ?? product.Price;
+            if (!dto.UnitPrice.HasValue && detail == null)
+                throw new InvalidOperationException("Unit price is required because product has no detail price");
 
+            var unitPrice = dto.UnitPrice ?? detail!.Price;
             var total = unitPrice * dto.Quantity;
+
+            var uom = detail?.Unit ?? "pcs";
 
             var entity = new ProjectProduct
             {
                 ProjectId = projectId,
                 ProductId = dto.ProductId,
                 ProductName = product.ProductName,
-                Uom = product.Unit ?? "pcs",
+                Uom = uom,
                 Quantity = dto.Quantity,
                 UnitPrice = unitPrice,
                 Total = total,
@@ -116,7 +132,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Note = entity.Note
             };
         }
-
         public async Task<bool> RemoveProductAsync(int projectId, int projectProductId)
         {
             var entity = await _db.ProjectProducts

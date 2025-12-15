@@ -5,15 +5,14 @@ using Microsoft.Extensions.Configuration;
 
 namespace SaoKim_ecommerce_BE.Services
 {
-    public interface IEmailService
-    {
-        Task SendAsync(string to, string subject, string body);
-    }
-
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _cfg;
-        public EmailService(IConfiguration cfg) => _cfg = cfg;
+
+        public EmailService(IConfiguration cfg)
+        {
+            _cfg = cfg;
+        }
 
         public async Task SendAsync(string to, string subject, string body)
         {
@@ -29,7 +28,11 @@ namespace SaoKim_ecommerce_BE.Services
                 EnableSsl = true
             };
 
-            var msg = new MailMessage(from, to, subject, body) { IsBodyHtml = false };
+            var msg = new MailMessage(from, to, subject, body)
+            {
+                IsBodyHtml = false
+            };
+
             await client.SendMailAsync(msg);
         }
     }

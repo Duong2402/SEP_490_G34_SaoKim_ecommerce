@@ -1,13 +1,84 @@
-﻿import { useEffect, useMemo, useState, memo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import EcommerceHeader from "../../components/EcommerceHeader";
+import { Toast, ToastContainer } from "react-bootstrap";
+import HomepageHeader from "../../components/HomepageHeader";
+import EcommerceFooter from "../../components/EcommerceFooter";
+import ProductCard from "../../components/products/ProductCard";
 import "../../styles/product-detail.css";
 
 let API_BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "";
 if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/800x600?text=No+Image";
+
+function getCartOwnerKey() {
+  if (typeof window === "undefined") return "guest";
+  const email = localStorage.getItem("userEmail");
+  const name = localStorage.getItem("userName");
+  return (email || name || "guest").toString();
+}
+
+function getCartKeys() {
+  const owner = getCartOwnerKey();
+  return {
+    itemsKey: `cartItems_${owner}`,
+    countKey: `cartCount_${owner}`,
+    checkoutKey: `checkoutItems_${owner}`,
+  };
+}
+
+function readCart() {
+  try {
+    const { itemsKey } = getCartKeys();
+    const raw = localStorage.getItem(itemsKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCart(items) {
+  const normalized = Array.isArray(items) ? items : [];
+  const { itemsKey, countKey } = getCartKeys();
+
+  localStorage.setItem(itemsKey, JSON.stringify(normalized));
+
+  const totalQty = normalized.reduce(
+    (sum, it) => sum + (Number(it.quantity) || 0),
+    0
+  );
+  localStorage.setItem(countKey, String(totalQty));
+
+  window.dispatchEvent(new Event("localStorageChange"));
+}
+
+function addToCartFromProduct(product, quantity = 1) {
+  if (!product) return;
+  const cart = readCart();
+  const idx = cart.findIndex((it) => it.id === product.id);
+
+  if (idx >= 0) {
+    const currentQty = Number(cart[idx].quantity) || 0;
+    cart[idx] = {
+      ...cart[idx],
+      quantity: currentQty + quantity,
+    };
+  } else {
+    cart.push({
+      id: product.id,
+      name: product.name || "San pham",
+      price: Number(product.price) || 0,
+      image: (product.image || product.thumbnailUrl) ?? "",
+      code: product.code || product.sku || product.productCode,
+      quantity: quantity,
+    });
+  }
+
+  writeCart(cart);
+}
 
 async function fetchJson(url, opts = {}) {
   const response = await fetch(url, opts);
@@ -18,7 +89,8 @@ async function fetchJson(url, opts = {}) {
 
 function buildImageUrl(pathOrFile) {
   if (!pathOrFile) return FALLBACK_IMAGE;
-  if (pathOrFile.startsWith("http://") || pathOrFile.startsWith("https://")) return pathOrFile;
+  if (pathOrFile.startsWith("http://") || pathOrFile.startsWith("https://"))
+    return pathOrFile;
   const relative = pathOrFile.startsWith("/") ? pathOrFile : `/${pathOrFile}`;
   return `${API_BASE}${relative}`;
 }
@@ -26,7 +98,10 @@ function buildImageUrl(pathOrFile) {
 function formatCurrency(value) {
   const numeric = Number(value || 0);
   if (!numeric) return "Contact for pricing";
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(numeric);
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(numeric);
 }
 
 function adaptProductResponse(payload) {
@@ -46,7 +121,10 @@ function adaptProductResponse(payload) {
     };
   }
   if (payload.id || payload.name) {
-    return { product: payload, related: payload.related ?? payload.relatedProducts ?? [] };
+    return {
+      product: payload,
+      related: payload.related ?? payload.relatedProducts ?? [],
+    };
   }
   return { product: null, related: [] };
 }
@@ -122,7 +200,9 @@ function pickHighlights(product) {
   const source = product.highlights || product.features || product.tags;
   if (!source) return [];
   if (Array.isArray(source)) {
-    return source.map((item) => (typeof item === "string" ? item : item?.label ?? item?.name));
+    return source.map((item) =>
+      typeof item === "string" ? item : item?.label ?? item?.name
+    );
   }
   if (typeof source === "string") {
     return source
@@ -133,49 +213,28 @@ function pickHighlights(product) {
   return [];
 }
 
-const RelatedProductCard = memo(function RelatedProductCard({ product }) {
-  const [imageError, setImageError] = useState(false);
-
-  if (!product) return null;
-
-  const imageUrl = buildImageUrl(product.image || product.thumbnailUrl);
-
-  return (
-    <Link to={`/products/${product.id}`} className="product-related-card">
-      <div className="product-related-card__media">
-        <img
-          src={imageError ? FALLBACK_IMAGE : imageUrl}
-          alt={product.name || "San pham"}
-          loading="lazy"
-          onError={() => setImageError(true)}
-        />
-      </div>
-      <div className="product-related-card__body">
-        <div className="product-related-card__title">{product.name || "San pham"}</div>
-        <div className="product-related-card__price">{formatCurrency(product.price)}</div>
-      </div>
-    </Link>
-  );
-}, (prevProps, nextProps) => {
-  if (!prevProps.product || !nextProps.product) return false;
-  return (
-    prevProps.product.id === nextProps.product.id &&
-    prevProps.product.name === nextProps.product.name &&
-    prevProps.product.price === nextProps.product.price &&
-    prevProps.product.image === nextProps.product.image
-  );
-});
-
-RelatedProductCard.displayName = "RelatedProductCard";
-
 export default function ProductDetail() {
   const { id } = useParams();
   const [data, setData] = useState({ product: null, related: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [authState, setAuthState] = useState({ isLoggedIn: false, name: "" });
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    name: "",
+  });
+  const [quantity, setQuantity] = useState(1);
+  const [showToast, setShowToast] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mainImageError, setMainImageError] = useState(false);
+  const [reviews, setReviews] = useState({
+    items: [],
+    averageRating: 0,
+    count: 0,
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +249,8 @@ export default function ProductDetail() {
         setData(adaptProductResponse(payload));
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || "Unable to load product information");
+        if (!cancelled)
+          setError(err.message || "Unable to load product information");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -202,9 +262,42 @@ export default function ProductDetail() {
   }, [id]);
 
   useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    setReviewError("");
+    setReviews({ items: [], averageRating: 0, count: 0 });
+
+    const url = `${API_BASE}/api/products/${id}/reviews`;
+    fetchJson(url)
+      .then((payload) => {
+        if (cancelled) return;
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        setReviews({
+          items,
+          averageRating: Number(payload?.averageRating || 0),
+          count: Number(payload?.count || items.length || 0),
+        });
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setReviewError(err.message || "Unable to load reviews");
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
     const syncAuth = () => {
       const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName") || "";
+      const name =
+        localStorage.getItem("userName") ||
+        localStorage.getItem("userEmail") ||
+        "";
       const isLoggedIn = Boolean(token && name);
       setAuthState((prev) => {
         if (prev.isLoggedIn === isLoggedIn && prev.name === name) return prev;
@@ -232,7 +325,10 @@ export default function ProductDetail() {
 
   const product = data.product;
   const gallery = useMemo(() => buildGallery(product), [product]);
-  const specifications = useMemo(() => normalizeSpecifications(product), [product]);
+  const specifications = useMemo(
+    () => normalizeSpecifications(product),
+    [product]
+  );
   const highlights = useMemo(() => pickHighlights(product), [product]);
   const relatedProducts = Array.isArray(data.related) ? data.related : [];
 
@@ -240,23 +336,23 @@ export default function ProductDetail() {
     if (!product) return [];
     return [
       {
-        label: "Product code",
+        label: "Mã sản phẩm",
         value: product.code || product.sku || product.productCode || "-",
       },
       {
-        label: "Category",
-        value: product.category || product.categoryName || "Updating",
+        label: "Danh mục",
+        value: product.category || product.categoryName || "Đang cập nhật",
       },
       {
-        label: "Inventory",
+        label: "Tồn kho",
         value:
           typeof product.quantity === "number"
-            ? `${product.quantity} items`
-            : product.stockStatus || "Contact us",
+            ? `${product.quantity} sản phẩm`
+            : product.stockStatus || "Liên hệ",
       },
       {
-        label: "Warranty",
-        value: product.warranty || "12 months standard",
+        label: "Bảo hành",
+        value: product.warranty || "12 tháng",
       },
     ].filter((item) => item.value);
   }, [product]);
@@ -283,188 +379,375 @@ export default function ProductDetail() {
   }, [product]);
 
   const activeImage =
-    !mainImageError && gallery[activeImageIndex] ? gallery[activeImageIndex] : FALLBACK_IMAGE;
+    !mainImageError && gallery[activeImageIndex]
+      ? gallery[activeImageIndex]
+      : FALLBACK_IMAGE;
 
   const renderStatus = (message) => (
     <div className="product-detail-page">
-      <EcommerceHeader />
+      <HomepageHeader />
       <main className="product-detail-main">
-        <div className="product-detail-container">
+        <div className="container product-detail-container">
           <div className="product-detail-status">{message}</div>
         </div>
       </main>
+      <EcommerceFooter />
     </div>
   );
 
-  if (loading) return renderStatus("Loading product details...");
-  if (error) return renderStatus(`Something went wrong: ${error}`);
-  if (!product) return renderStatus("Product not found.");
+  const handleQtyChange = (delta) => {
+    setQuantity((prev) => {
+      const next = Math.max(1, (Number(prev) || 1) + delta);
+      return next;
+    });
+  };
+
+  const handleAddToCart = () => {
+    addToCartFromProduct(product, quantity);
+    setShowToast(true);
+  };
+
+  if (loading) return renderStatus("Đang tải thông tin sản phẩm...");
+  if (error) return renderStatus(`Có lỗi xảy ra: ${error}`);
+  if (!product) return renderStatus("Không tìm thấy sản phẩm.");
 
   return (
     <div className="product-detail-page">
-      <EcommerceHeader />
+      <HomepageHeader />
       <main className="product-detail-main">
-        <div className="product-detail-container">
-          <section className="product-detail-hero">
+        <div className="container product-detail-container">
+          <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1060 }}>
+            <Toast
+              bg="success"
+              show={showToast}
+              autohide
+              delay={2000}
+              onClose={() => setShowToast(false)}
+            >
+              <Toast.Body className="text-white">Đã thêm vào giỏ</Toast.Body>
+            </Toast>
+          </ToastContainer>
+
+          <section className="product-detail-hero card-section">
             <div className="product-detail-breadcrumbs">
-              <Link to="/">Home</Link>
+              <Link to="/">Trang chủ</Link>
               <span>/</span>
-              <Link to="/#catalog">Product catalogue</Link>
+              <Link to="/products">Sản phẩm</Link>
               <span>/</span>
-              <span>{product.name || "San pham"}</span>
+              <span>{product.name || "Sản phẩm"}</span>
             </div>
-            <div className="product-detail-hero__content">
-              <h1>{product.name || "San pham"}</h1>
-              <p>{heroSummary}</p>
-              <div className="product-detail-hero__meta">
-                <span className="product-detail-hero__badge">Authentic product</span>
-                {product.brand && <span className="product-detail-hero__badge">Brand: {product.brand}</span>}
-                {product.category && (
-                  <span className="product-detail-hero__badge">Category: {product.category}</span>
+            <h1 className="product-detail-title">{product.name || "Sản phẩm"}</h1>
+            <p className="product-detail-subtitle">
+              {heroSummary || "Giải pháp chiếu sáng tinh tế cho mọi không gian."}
+            </p>
+          </section>
+
+          <div className="product-detail-grid row g-4">
+            <div className="col-lg-6">
+              <div className="product-card gallery-card">
+                <div className="product-gallery__main">
+                  <img
+                    src={activeImage}
+                    alt={product.name || "Sản phẩm"}
+                    onError={() => setMainImageError(true)}
+                  />
+                </div>
+                {gallery.length > 1 && (
+                  <div className="product-gallery__thumbs">
+                    {gallery.map((image, index) => (
+                      <button
+                        type="button"
+                        key={image}
+                        className={`product-gallery__thumb${
+                          index === activeImageIndex ? " is-active" : ""
+                        }`}
+                        onClick={() => setActiveImageIndex(index)}
+                      >
+                        <img src={image} alt={`Xem ảnh ${index + 1}`} />
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
-          </section>
 
-          <div className="product-detail-grid">
-            <div className="product-gallery">
-              <div className="product-gallery__main">
-                <img
-                  src={activeImage}
-                  alt={product.name || "San pham"}
-                  onError={() => setMainImageError(true)}
-                />
-              </div>
-              {gallery.length > 1 && (
-                <div className="product-gallery__thumbs">
-                  {gallery.map((image, index) => (
-                    <button
-                      type="button"
-                      key={image}
-                      className={`product-gallery__thumb${index === activeImageIndex ? " is-active" : ""}`}
-                      onClick={() => setActiveImageIndex(index)}
-                    >
-                      <img src={image} alt={`View image ${index + 1}`} />
-                    </button>
-                  ))}
+            <div className="col-lg-6">
+              <div className="product-card info-card">
+                <div className="product-info__price text-accent">
+                  {formatCurrency(product.price)}
                 </div>
-              )}
-            </div>
-
-            <div className="product-info">
-              <div>
-                <div className="product-info__price">{formatCurrency(product.price)}</div>
                 <div className="product-info__stock">
                   {typeof product.quantity === "number" && product.quantity > 0 ? (
                     <>
                       <i className="fa-solid fa-circle-check" aria-hidden="true" />
-                      <span>In stock</span>
+                      <span>Còn hàng</span>
                     </>
                   ) : (
                     <>
                       <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
-                      <span>Contact us for stock availability</span>
+                      <span>Liên hệ để kiểm tra tồn kho</span>
                     </>
                   )}
                 </div>
-              </div>
 
-              {!!quickFacts.length && (
-                <dl className="product-info__facts">
-                  {quickFacts.map((item) => (
-                    <div className="product-info__fact" key={`${item.label}-${item.value}`}>
-                      <dt>{item.label}</dt>
-                      <dd>{item.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-
-              {highlights.length > 0 && (
-                <ul className="product-info__highlights">
-                  {highlights.slice(0, 4).map((highlight, index) => (
-                    <li key={index}>{highlight}</li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="product-info__cta">
-                {authState.isLoggedIn ? (
-                  <>
-                    <button type="button" className="btn btn-primary product-info__cta-primary">
-                      Add to cart
-                    </button>
-                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
-                      Lighting consultation
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/login" className="btn btn-primary product-info__cta-primary">
-                      Sign in to purchase
-                    </Link>
-                    <a className="btn btn-outline product-info__cta-secondary" href="tel:0918113559">
-                      Call 0918 113 559
-                    </a>
-                  </>
+                {!!quickFacts.length && (
+                  <dl className="product-info__facts">
+                    {quickFacts.map((item) => (
+                      <div className="product-info__fact" key={`${item.label}-${item.value}`}>
+                        <dt>{item.label}</dt>
+                        <dd>{item.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 )}
-              </div>
 
-              <div className="product-info__service">
-                <span>
-                  <i className="fa-solid fa-truck-fast" aria-hidden="true" />
-                  Nationwide delivery within 2-4 days
-                </span>
-                <span>
-                  <i className="fa-solid fa-shield-halved" aria-hidden="true" />
-                  7-day return policy for manufacturing faults
-                </span>
-                <span>
-                  <i className="fa-solid fa-lightbulb" aria-hidden="true" />
-                  Complimentary lighting design consultation
-                </span>
+                {highlights.length > 0 && (
+                  <ul className="product-info__highlights">
+                    {highlights.slice(0, 4).map((highlight, index) => (
+                      <li key={index}>{highlight}</li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="product-qty">
+                  <span className="text-muted">Số lượng</span>
+                  <div className="product-qty-controls">
+                    <button type="button" onClick={() => handleQtyChange(-1)} disabled={quantity <= 1}>
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                    <button type="button" onClick={() => handleQtyChange(1)}>
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="product-info__cta">
+                  {authState.isLoggedIn ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn brand-primary product-info__cta-primary"
+                        onClick={handleAddToCart}
+                      >
+                        Thêm vào giỏ
+                      </button>
+                      <a className="btn btn-outline-light product-info__cta-secondary" href="tel:0918113559">
+                        Nhận tư vấn chiếu sáng
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" className="btn brand-primary product-info__cta-primary">
+                        Đăng nhập để mua hàng
+                      </Link>
+                      <a className="btn btn-outline-light product-info__cta-secondary" href="tel:0918113559">
+                        Liên hệ 0918 113 559
+                      </a>
+                    </>
+                  )}
+                </div>
+
+                <div className="product-info__service">
+                  <span>
+                    <i className="fa-solid fa-truck-fast" aria-hidden="true" />
+                    Giao hàng toàn quốc
+                  </span>
+                  <span>
+                    <i className="fa-solid fa-shield-halved" aria-hidden="true" />
+                    Đổi trả trong 7 ngày nếu lỗi sản xuất
+                  </span>
+                  <span>
+                    <i className="fa-solid fa-lightbulb" aria-hidden="true" />
+                    Tư vấn thiết kế chiếu sáng miễn phí
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           {descriptionParagraphs.length > 0 && (
-            <section className="product-description">
-              <h3>Product details</h3>
-              {descriptionParagraphs.map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
+            <section className="product-section">
+              <div className="product-card">
+                <h3 className="section-title">Mô tả sản phẩm</h3>
+                {descriptionParagraphs.map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
+              </div>
             </section>
           )}
 
           {!!specifications.length && (
-            <section className="product-specs">
-              <h3>Specifications</h3>
-              <dl className="product-specs__list">
-                {specifications.map((spec) => (
-                  <div className="product-specs__row" key={`${spec.label}-${spec.value}`}>
-                    <dt>{spec.label}</dt>
-                    <dd>{spec.value}</dd>
-                  </div>
-                ))}
-              </dl>
+            <section className="product-section">
+              <div className="product-card">
+                <h3 className="section-title">Thông số kỹ thuật</h3>
+                <dl className="product-specs__list">
+                  {specifications.map((spec) => (
+                    <div className="product-specs__row" key={`${spec.label}-${spec.value}`}>
+                      <dt>{spec.label}</dt>
+                      <dd>{spec.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             </section>
           )}
 
           {relatedProducts.length > 0 && (
-            <section className="product-related">
-              <div className="product-related__header">
-                <h3>Related products</h3>
-                <Link to="/#catalog">Browse catalogue</Link>
-              </div>
-              <div className="product-related__grid">
-                {relatedProducts.slice(0, 6).map((related) => (
-                  <RelatedProductCard key={related.id} product={related} />
-                ))}
+            <section className="product-section">
+              <div className="product-card">
+                <div className="product-section-header">
+                  <h3 className="section-title mb-0">Sản phẩm liên quan</h3>
+                  <Link to="/products" className="text-decoration-none fw-semibold">
+                    Xem thêm
+                  </Link>
+                </div>
+                <div className="row g-4">
+                  {relatedProducts.slice(0, 4).map((related) => (
+                    <div className="col-md-6 col-lg-3" key={related.id}>
+                      <ProductCard
+                        product={{
+                          id: related.id,
+                          name: related.name,
+                          price: related.price,
+                          image: related.thumbnailUrl || related.image || related.imageUrl,
+                          category: related.category,
+                        }}
+                        onView={() => (window.location.href = `/products/${related.id}`)}
+                        formatPrice={formatCurrency}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
           )}
+
+          <section className="product-section">
+            <div className="product-card">
+              <h3 className="section-title">Đánh giá của khách hàng</h3>
+              {reviewsLoading ? (
+                <div>Đang tải đánh giá...</div>
+              ) : reviewError ? (
+                <div className="text-danger">{reviewError}</div>
+              ) : (
+                <>
+                  <div className="product-reviews__summary">
+                    <strong>Điểm trung bình:</strong> {reviews.averageRating} / 5 ({reviews.count} đánh giá)
+                  </div>
+                  <ul className="product-reviews__list">
+                    {reviews.items.length === 0 && <li>Chưa có đánh giá nào.</li>}
+                    {reviews.items.map((r) => (
+                      <li key={r.id} className="product-reviews__item">
+                        <div className="product-reviews__item-head">
+                          <span className="product-reviews__user">{r.userName || "Khách hàng"}</span>
+                          <span className="product-reviews__rating">
+                            {"★".repeat(r.rating)}
+                            {"☆".repeat(5 - r.rating)}
+                          </span>
+                        </div>
+                        {r.comment && <div className="product-reviews__comment">{r.comment}</div>}
+                        <div className="product-reviews__date">{new Date(r.createdAt).toLocaleString()}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {authState.isLoggedIn ? (
+                <form
+                  className="product-reviews__form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (submittingReview) return;
+                    setSubmittingReview(true);
+                    const token = localStorage.getItem("token");
+                    try {
+                      const res = await fetch(`${API_BASE}/api/products/${id}/reviews`, {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          rating: Number(reviewForm.rating),
+                          comment: reviewForm.comment,
+                        }),
+                      });
+                      const text = await res.text();
+                      if (!res.ok) throw new Error(text || res.statusText);
+                      const payload = text ? JSON.parse(text) : { items: [] };
+                      const items = Array.isArray(payload?.items) ? payload.items : [];
+                      setReviews({
+                        items,
+                        averageRating: Number(payload?.averageRating || 0),
+                        count: Number(payload?.count || items.length || 0),
+                      });
+                      setReviewForm({ rating: 5, comment: "" });
+                    } catch (err) {
+                      alert(err.message || "Không thể gửi đánh giá");
+                    } finally {
+                      setSubmittingReview(false);
+                    }
+                  }}
+                >
+                  <div className="form-group">
+                    <label htmlFor="rating">Đánh giá của bạn</label>
+                    <select
+                      id="rating"
+                      className="form-control"
+                      value={reviewForm.rating}
+                      onChange={(e) =>
+                        setReviewForm((s) => ({
+                          ...s,
+                          rating: e.target.value,
+                        }))
+                      }
+                    >
+                      {[5, 4, 3, 2, 1].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="comment">Chia sẻ trải nghiệm</label>
+                    <textarea
+                      id="comment"
+                      className="form-control"
+                      rows={3}
+                      maxLength={1000}
+                      placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này"
+                      value={reviewForm.comment}
+                      onChange={(e) =>
+                        setReviewForm((s) => ({
+                          ...s,
+                          comment: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <button type="submit" className="btn brand-primary" disabled={submittingReview}>
+                    {submittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+                  </button>
+                </form>
+              ) : (
+                <div className="product-reviews__signin">
+                  <Link to="/login">Đăng nhập</Link> để viết đánh giá.
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </main>
+      <EcommerceFooter />
     </div>
   );
 }
+

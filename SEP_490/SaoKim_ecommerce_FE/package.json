@@ -13,8 +13,11 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-brands-svg-icons": "^7.1.0",
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/react-fontawesome": "^3.1.0",
+    "@microsoft/signalr": "^9.0.6",
+    "@react-google-maps/api": "^2.20.7",
     "@themesberg/react-bootstrap": "^1.4.1",
     "axios": "^1.13.1",
     "bootstrap": "^5.3.8",
@@ -22,11 +25,13 @@
     "prop-types": "^15.8.1",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
+    "react-datepicker": "^8.9.0",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.65.0",
     "react-router-dom": "^7.9.4",
     "react-select": "^5.10.2",
-    "recharts": "^3.3.0"
+    "recharts": "^3.5.1",
+    "vietnam-provinces-js": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

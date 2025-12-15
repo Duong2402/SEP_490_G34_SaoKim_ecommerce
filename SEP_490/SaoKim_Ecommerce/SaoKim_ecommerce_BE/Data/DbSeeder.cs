@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Entities;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace SaoKim_ecommerce_BE.Data
 {
@@ -20,166 +22,120 @@ namespace SaoKim_ecommerce_BE.Data
                 if (!await db.Roles.AnyAsync(x => x.Name == r.Name)) db.Roles.Add(r);
             await db.SaveChangesAsync();
 
-            var seeds = new List<Product>
+            // ----- Seed Categories -----
+            var catNames = new[] { "Đèn LED" };
+            foreach (var name in catNames)
             {
-                new() {
-                    ProductName = "Đèn Rạng Đông",
-                    ProductCode = "RD-01",
-                    Supplier    = "Rạng Đông",
-                    Quantity    = 120,
-                    Unit        = "Cái",
-                    Price       = 120000m,
-                    Status      = "Active",
-                    Category    = "Đèn LED",
-                    Description = "Đèn LED Rạng Đông công suất 12W",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Rang+Dong",
-                    CreateAt    = DateTime.UtcNow
-                },
-                new() {
-                    ProductName = "Đèn Hừng Sáng",
-                    ProductCode = "HS-01",
-                    Supplier    = "Hừng Sáng",
-                    Quantity    = 85,
-                    Unit        = "Cái",
-                    Price       = 95000m,
-                    Status      = "Active",
-                    Category    = "Đèn LED",
-                    Description = "Đèn LED Hừng Sáng siêu tiết kiệm",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Hung+Sang",
-                    CreateAt    = DateTime.UtcNow
-                },
-                new() {
-                    ProductName = "Đèn Sáng",
-                    ProductCode = "HS-02",
-                    Supplier    = "Sáng",
-                    Quantity    = 60,
-                    Unit        = "Cái",
-                    Price       = 110000m,
-                    Status      = "Active",
-                    Category    = "Đèn LED",
-                    Description = "Mẫu đèn khác để test",
-                    Image       = "https://via.placeholder.com/200x150?text=Den+Sang",
-                    CreateAt    = DateTime.UtcNow
-                }
-            };
-
-            foreach (var s in seeds)
-            {
-                var exist = await db.Products.SingleOrDefaultAsync(x => x.ProductCode == s.ProductCode);
-                if (exist == null)
-                    db.Products.Add(s);
-                else
+                if (!await db.Categories.AnyAsync(c => c.Name.ToLower() == name.ToLower()))
                 {
-                    exist.ProductName = s.ProductName;
-                    exist.Supplier = s.Supplier;
-                    exist.Quantity = s.Quantity;
-                    exist.Unit = s.Unit;
-                    exist.Price = s.Price;
-                    exist.Status = s.Status;
-                    exist.Category = s.Category;
-                    exist.Description = s.Description;
-                    exist.Image = s.Image;
-                    exist.UpdateAt = DateTime.UtcNow;
+                    db.Categories.Add(new Category
+                    {
+                        Name = name,
+                        Slug = Slugify(name),
+                        Created = DateTime.UtcNow
+                    });
                 }
             }
             await db.SaveChangesAsync();
 
-            var rd = await db.Products.SingleAsync(p => p.ProductCode == "RD-01");
-            var hs1 = await db.Products.SingleAsync(p => p.ProductCode == "HS-01");
+            var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();
 
-            if (!await db.ReceivingSlips.AnyAsync())
+
+            if (!await db.Users.AnyAsync())
             {
-                var slip1 = new ReceivingSlip
+                var users = new List<User>
                 {
-                    ReferenceNo = "RCV-001",
-                    Supplier = "Rạng Đông",
-                    ReceiptDate = DateTime.UtcNow,
-                    Status = ReceivingSlipStatus.Draft,
-                    Note = "Seed 1"
-                };
-                db.ReceivingSlips.Add(slip1);
-                await db.SaveChangesAsync();
-
-                db.ReceivingSlipItems.AddRange(
-                    new ReceivingSlipItem
+                    new User
                     {
-                        ReceivingSlipId = slip1.Id,
-                        ProductName = rd.ProductName,
-                        ProductId = rd.ProductID,
-                        Uom = "Cái",
-                        Quantity = 10,
-                        UnitPrice = 200000m,
-                        Total = 10 * 200000m
+                        UserID = 1,
+                        Name = "Admin User",
+                        Email = "admin@saokim.vn",
+                        Password = HashPassword("123456789"),
+                        RoleId = 1,
+                        PhoneNumber = "0900000001",
+                        Status = "Active",
+                        Address = "Hà Nội, Việt Nam",
+                        CreateBy = "Seeder"
                     },
-                    new ReceivingSlipItem
+                    new User
                     {
-                        ReceivingSlipId = slip1.Id,
-                        ProductName = hs1.ProductName,
-                        ProductId = hs1.ProductID,
-                        Uom = "Cái",
-                        Quantity = 5,
-                        UnitPrice = 350000m,
-                        Total = 5 * 350000m
+                        UserID = 2,
+                        Name = "Warehouse Manager",
+                        Email = "warehousemanager@saokim.vn",
+                        Password = HashPassword("123456789"),
+                        RoleId = 2,
+                        PhoneNumber = "0900000002",
+                        Status = "Active",
+                        Address = "Hà Nội, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 3,
+                        Name = "Staff User",
+                        Email = "staff@saokim.vn",
+                        Password = HashPassword("123456789"),
+                        RoleId = 3,
+                        PhoneNumber = "0900000003",
+                        Status = "Active",
+                        Address = "Đà Nẵng, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 4,
+                        Name = "Project Manager",
+                        Email = "projectmanager@saokim.vn",
+                        Password = HashPassword("123456789"),
+                        RoleId = 6,
+                        PhoneNumber = "0900000004",
+                        Status = "Active",
+                        Address = "TP. Hồ Chí Minh, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 5,
+                        Name = "Manager User",
+                        Email = "manager@saokim.vn",
+                        Password = HashPassword("123456789"),
+                        RoleId = 5,
+                        PhoneNumber = "0900000005",
+                        Status = "Active",
+                        Address = "Hà Nội, Việt Nam",
+                        CreateBy = "Seeder"
                     }
-                );
+                };
+
+                await db.Users.AddRangeAsync(users);
                 await db.SaveChangesAsync();
             }
 
-            await SeedDispatchesAsync(db);
-        }
-
-        public static async Task SeedDispatchesAsync(SaoKimDBContext db)
-        {
-            if (await db.Dispatches.AnyAsync())
-                return;
-
-            var retail1 = new RetailDispatch
+            var uomSeeds = new List<UnitOfMeasure>
             {
-                ReferenceNo = "R-001",
-                CustomerName = "Khách hàng A",
-                CustomerId = 101,
-                DispatchDate = DateTime.UtcNow.AddDays(-3),
-                Status = DispatchStatus.Draft,
-                Note = "Phiếu bán lẻ A",
-                CreatedAt = DateTime.UtcNow.AddDays(-5)
+                new UnitOfMeasure { Name = "Bộ", Status = "Active" },
+                new UnitOfMeasure { Name = "Cái", Status = "Active" },
+                new UnitOfMeasure { Name = "Chùm", Status = "Active" },
+                new UnitOfMeasure { Name = "Bóng", Status = "Active" },
+                new UnitOfMeasure { Name = "Bộ phận", Status = "Active" },
+                new UnitOfMeasure { Name = "Chiếc", Status = "Active" }
             };
-
-            var retail2 = new RetailDispatch
-            {
-                ReferenceNo = "R-002",
-                CustomerName = "Khách hàng B",
-                CustomerId = 102,
-                DispatchDate = DateTime.UtcNow.AddDays(-2),
-                Status = DispatchStatus.Confirmed,
-                ConfirmedAt = DateTime.UtcNow.AddDays(-1),
-                Note = "Phiếu bán lẻ B",
-                CreatedAt = DateTime.UtcNow.AddDays(-4)
-            };
-
-            var project1 = new ProjectDispatch
-            {
-                ReferenceNo = "P-001",
-                ProjectName = "Dự án X",
-                ProjectId = 201,
-                DispatchDate = DateTime.UtcNow.AddDays(-1),
-                Status = DispatchStatus.Draft,
-                Note = "Phiếu dự án X",
-                CreatedAt = DateTime.UtcNow.AddDays(-3)
-            };
-
-            var project2 = new ProjectDispatch
-            {
-                ReferenceNo = "P-002",
-                ProjectName = "Dự án Y",
-                ProjectId = 202,
-                DispatchDate = DateTime.UtcNow,
-                Status = DispatchStatus.Confirmed,
-                ConfirmedAt = DateTime.UtcNow,
-                Note = "Phiếu dự án Y",
-                CreatedAt = DateTime.UtcNow.AddDays(-2)
-            };
-            await db.Dispatches.AddRangeAsync(retail1, retail2, project1, project2);
+            foreach (var u in uomSeeds)
+                if (!await db.UnitOfMeasures.AnyAsync(x => x.Name == u.Name)) db.UnitOfMeasures.Add(u);
             await db.SaveChangesAsync();
         }
+
+        private static string Slugify(string input)
+        {
+            var s = input.Trim().ToLower();
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", "-");
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"[^a-z0-9\-]", "");
+            return s;
+        }
+        private static string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
     }
 }

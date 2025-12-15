@@ -1,0 +1,181 @@
+/* EcommerceHeader.css */
+
+:root {
+  --header-height: 80px;
+  --primary-color: #003366;
+  --accent-color: #FF8C00;
+  --text-dark: #1a1a1a;
+  --text-gray: #6c757d;
+  --bg-white: #ffffff;
+}
+
+.ecommerce-header {
+  background-color: var(--bg-white);
+  height: var(--header-height);
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.ecommerce-header.scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  height: 70px;
+  /* Shrink slightly on scroll */
+}
+
+/* Brand */
+.brand-logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.brand-text {
+  font-family: 'Playfair Display', serif;
+  /* Or Inter if preferred, but Playfair fits luxury */
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  letter-spacing: 0.5px;
+}
+
+/* Search Bar */
+.search-container {
+  max-width: 500px;
+  width: 100%;
+}
+
+.search-input {
+  border-top-left-radius: 50px;
+  border-bottom-left-radius: 50px;
+  border: 1px solid #e0e0e0;
+  padding-left: 20px;
+  background-color: #f8f9fa;
+  font-size: 0.95rem;
+}
+
+.search-input:focus {
+  box-shadow: none;
+  border-color: var(--primary-color);
+  background-color: #fff;
+}
+
+.search-btn {
+  border-top-right-radius: 50px;
+  border-bottom-right-radius: 50px;
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+  padding-left: 20px;
+  padding-right: 20px;
+  transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+  background-color: #e67e00;
+  border-color: #e67e00;
+}
+
+/* Navigation Links */
+.nav-item-link {
+  color: var(--text-dark) !important;
+  font-weight: 500;
+  font-size: 1rem;
+  margin: 0 10px;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.nav-item-link:hover {
+  color: var(--primary-color) !important;
+}
+
+.nav-item-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--accent-color);
+  transition: width 0.3s ease;
+}
+
+.nav-item-link:hover::after {
+  width: 100%;
+}
+
+/* Icons */
+.icon-link {
+  color: var(--text-dark) !important;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.icon-link:hover {
+  color: var(--accent-color) !important;
+}
+
+.cart-badge {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  font-size: 0.7rem;
+  padding: 0.25em 0.5em;
+}
+
+/* User Avatar */
+.user-dropdown-toggle::after {
+  display: none;
+  /* Hide default caret */
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+}
+
+.user-menu {
+  border: none;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.user-menu .dropdown-item {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+}
+
+.user-menu .dropdown-item:active {
+  background-color: var(--primary-color);
+}
+
+/* Mobile Responsive */
+@media (max-width: 991px) {
+  .ecommerce-header {
+    height: auto;
+    padding: 15px 0;
+  }
+
+  .search-container {
+    margin: 15px 0;
+  }
+
+  .nav-item-link {
+    margin: 5px 0;
+  }
+}

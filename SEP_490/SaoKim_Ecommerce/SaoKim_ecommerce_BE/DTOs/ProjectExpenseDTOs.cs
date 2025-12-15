@@ -1,5 +1,6 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using SaoKim_ecommerce_BE.Services;
+
 
 namespace SaoKim_ecommerce_BE.DTOs
 {
@@ -41,13 +42,12 @@ namespace SaoKim_ecommerce_BE.DTOs
         public DateTime? To { get; set; }
         public string? Category { get; set; }
         public string? Vendor { get; set; }
-        public string? Keyword { get; set; } // tìm trong Vendor/Description
+        public string? Keyword { get; set; } 
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
-        public string? Sort { get; set; } = "-Date"; // Date, -Date, Amount, -Amount
+        public string? Sort { get; set; } = "-Date"; 
     }
 
-    // Kết quả list + tổng thực chi để FE hiển thị nhanh
     public class ProjectExpenseListResult
     {
         public PagedResult<ProjectExpenseListItemDTO> Page { get; set; } = default!;

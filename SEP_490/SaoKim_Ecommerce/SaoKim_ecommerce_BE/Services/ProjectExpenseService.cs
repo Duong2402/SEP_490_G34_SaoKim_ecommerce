@@ -21,10 +21,8 @@ namespace SaoKim_ecommerce_BE.Services
             ReceiptUrl = x.ReceiptUrl,
             CreatedAt = x.CreatedAt
         };
-
         public async Task<ProjectExpenseListResult> QueryAsync(int projectId, ProjectExpenseQuery q)
         {
-            // Kiểm tra dự án có tồn tại
             var projectExists = await _db.Projects.AsNoTracking().AnyAsync(p => p.Id == projectId);
             if (!projectExists) throw new KeyNotFoundException("Project not found");
 
@@ -45,7 +43,6 @@ namespace SaoKim_ecommerce_BE.Services
                 );
             }
 
-            // sort
             if (!string.IsNullOrWhiteSpace(q.Sort))
             {
                 var desc = q.Sort.StartsWith("-");
@@ -70,7 +67,6 @@ namespace SaoKim_ecommerce_BE.Services
             var items = await query.Skip((page - 1) * size).Take(size)
                                    .Select(x => Map(x)).ToListAsync();
 
-            // tổng thực chi (theo filter)
             var totalAmount = await query.SumAsync(x => (decimal?)x.Amount) ?? 0m;
 
             var paged = new PagedResult<ProjectExpenseListItemDTO>
@@ -87,14 +83,12 @@ namespace SaoKim_ecommerce_BE.Services
                 TotalAmount = totalAmount
             };
         }
-
         public async Task<ProjectExpenseListItemDTO?> GetAsync(int projectId, int id)
         {
             var x = await _db.ProjectExpenses.AsNoTracking()
                         .FirstOrDefaultAsync(e => e.ProjectId == projectId && e.Id == id);
             return x == null ? null : Map(x);
         }
-
         public async Task<ProjectExpenseListItemDTO> CreateAsync(int projectId, ProjectExpenseCreateDTO dto, string? who)
         {
             var projectExists = await _db.Projects.AsNoTracking().AnyAsync(p => p.Id == projectId);
@@ -118,7 +112,6 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
             return Map(entity);
         }
-
         public async Task<ProjectExpenseListItemDTO?> UpdateAsync(int projectId, int id, ProjectExpenseUpdateDTO dto, string? who)
         {
             var entity = await _db.ProjectExpenses.FirstOrDefaultAsync(e => e.ProjectId == projectId && e.Id == id);
@@ -136,7 +129,6 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
             return Map(entity);
         }
-
         public async Task<bool> DeleteAsync(int projectId, int id)
         {
             var entity = await _db.ProjectExpenses.FirstOrDefaultAsync(e => e.ProjectId == projectId && e.Id == id);

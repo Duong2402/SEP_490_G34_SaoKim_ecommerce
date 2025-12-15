@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLanguage } from "../../i18n/LanguageProvider.jsx";
-import { PROJECT_STATUSES, getStatusLabel } from "./projectHelpers";
+import { PROJECT_STATUSES, getStatusLabel, formatNumber } from "./projectHelpers";
 
 const DEFAULT_FORM_VALUES = {
   code: "",
@@ -41,8 +40,6 @@ export default function ProjectForm({
   submitLabel,
   showCode = true,
 }) {
-  const { t, formatNumber } = useLanguage();
-
   const initialState = useMemo(() => {
     const base = { ...DEFAULT_FORM_VALUES };
     if (initialValues) {
@@ -71,23 +68,32 @@ export default function ProjectForm({
   const errors = useMemo(() => {
     const issues = {};
     if (!form.name.trim()) {
-      issues.name = t("projects.form.validations.name");
+      issues.name = "Vui lòng nhập tên dự án.";
     }
 
     if (form.startDate && form.endDate) {
       const start = new Date(form.startDate);
       const end = new Date(form.endDate);
       if (end < start) {
-        issues.endDate = t("projects.form.validations.endDate");
+        issues.endDate = "Ngày kết thúc phải sau ngày bắt đầu.";
+      }
+    }
+
+    if (!initialValues && form.startDate) {
+      const start = new Date(form.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (start < today) {
+        issues.startDate = "Ngày bắt đầu không thể trong quá khứ.";
       }
     }
 
     if (form.budget && parseBudgetInput(form.budget) === null) {
-      issues.budget = t("projects.form.validations.budget");
+      issues.budget = "Giá trị dự án chỉ gồm số.";
     }
 
     return issues;
-  }, [form, t]);
+  }, [form, initialValues]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -127,64 +133,63 @@ export default function ProjectForm({
     onSubmit(payload);
   };
 
-  const resolvedSubmitLabel =
-    submitLabel || (showCode ? t("projects.form.submitCreate") : t("projects.form.submitUpdate"));
+  const resolvedSubmitLabel = submitLabel || (showCode ? "Tạo dự án" : "Lưu thay đổi");
 
   return (
     <form onSubmit={handleSubmit} className="form-grid">
       {showCode && (
-        <Field label={t("projects.form.codeLabel")} name="code">
+        <Field label="Mã dự án" name="code">
           <input
             id="code"
             name="code"
             value={form.code}
             onChange={handleChange}
             className="input"
-            placeholder={t("projects.form.codePlaceholder")}
+            placeholder="PRJ-2025-001"
             disabled={submitting}
           />
         </Field>
       )}
 
-      <Field label={t("projects.form.nameLabel")} name="name" error={errors.name}>
+      <Field label="Tên dự án *" name="name" error={errors.name}>
         <input
           id="name"
           name="name"
           value={form.name}
           onChange={handleChange}
           className="input"
-          placeholder={t("projects.form.namePlaceholder")}
+          placeholder="Lập đề xuất ánh sáng cho công ty ABC"
           disabled={submitting}
         />
       </Field>
 
       <div className="form-grid double">
-        <Field label={t("projects.form.customerLabel")} name="customerName">
+        <Field label="Khách hàng" name="customerName">
           <input
             id="customerName"
             name="customerName"
             value={form.customerName}
             onChange={handleChange}
             className="input"
-            placeholder={t("projects.form.customerPlaceholder")}
+            placeholder="Công ty Acme"
             disabled={submitting}
           />
         </Field>
-        <Field label={t("projects.form.contactLabel")} name="customerContact">
+        <Field label="Liên hệ khách hàng" name="customerContact">
           <input
             id="customerContact"
             name="customerContact"
             value={form.customerContact}
             onChange={handleChange}
             className="input"
-            placeholder={t("projects.form.contactPlaceholder")}
+            placeholder="contact@acme.co"
             disabled={submitting}
           />
         </Field>
       </div>
 
       <div className="form-grid double">
-        <Field label={t("projects.form.statusLabel")} name="status">
+        <Field label="Trạng thái" name="status">
           <select
             id="status"
             name="status"
@@ -195,20 +200,20 @@ export default function ProjectForm({
           >
             {PROJECT_STATUSES.map((status) => (
               <option key={status.value} value={status.value}>
-                {getStatusLabel(status.value, t)}
+                {getStatusLabel(status.value)}
               </option>
             ))}
           </select>
         </Field>
 
-        <Field label={t("projects.form.budgetLabel")} name="budget" error={errors.budget}>
+        <Field label="Giá trị dự án (VND)" name="budget" error={errors.budget}>
           <input
             id="budget"
             name="budget"
             value={form.budget}
             onChange={handleChange}
             className="input"
-            placeholder={t("projects.form.budgetPlaceholder")}
+            placeholder="120.000.000"
             inputMode="numeric"
             disabled={submitting}
           />
@@ -216,7 +221,7 @@ export default function ProjectForm({
       </div>
 
       <div className="form-grid double">
-        <Field label={t("projects.form.startLabel")} name="startDate">
+        <Field label="Ngày bắt đầu" name="startDate" error={errors.startDate}>
           <input
             id="startDate"
             name="startDate"
@@ -228,7 +233,7 @@ export default function ProjectForm({
           />
         </Field>
 
-        <Field label={t("projects.form.endLabel")} name="endDate" error={errors.endDate}>
+        <Field label="Ngày kết thúc" name="endDate" error={errors.endDate}>
           <input
             id="endDate"
             name="endDate"
@@ -241,7 +246,7 @@ export default function ProjectForm({
         </Field>
       </div>
 
-      <Field label={t("projects.form.descriptionLabel")} name="description">
+      <Field label="Mô tả chi tiết" name="description">
         <textarea
           id="description"
           name="description"
@@ -249,7 +254,7 @@ export default function ProjectForm({
           value={form.description}
           onChange={handleChange}
           className="textarea"
-          placeholder={t("projects.form.descriptionPlaceholder")}
+          placeholder="Hạng mục chính, tiêu chí thành công và phạm vi công việc."
           disabled={submitting}
         />
       </Field>
@@ -261,14 +266,14 @@ export default function ProjectForm({
           onClick={handleReset}
           disabled={submitting}
         >
-          {t("projects.form.reset")}
+          Đặt lại
         </button>
         <button
           type="submit"
           className="btn btn-primary"
           disabled={submitting || Object.keys(errors).length > 0}
         >
-          {submitting ? t("common.status.loading") : resolvedSubmitLabel}
+          {submitting ? "Đang lưu..." : resolvedSubmitLabel}
         </button>
       </div>
     </form>

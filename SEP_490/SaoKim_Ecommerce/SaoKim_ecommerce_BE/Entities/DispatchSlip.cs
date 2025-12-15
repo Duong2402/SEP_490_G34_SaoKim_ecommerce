@@ -28,6 +28,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public DateTime? ConfirmedAt { get; set; }
         public ICollection<DispatchItem> Items { get; set; } = new List<DispatchItem>();
         public abstract string Type { get; }
+        public bool IsDeleted { get; set; } = false;
     }
     public class RetailDispatch : DispatchBase
     {
@@ -54,7 +55,7 @@ namespace SaoKim_ecommerce_BE.Entities
 
         [Required, MaxLength(200)]
         public string ProductName { get; set; } = string.Empty;
-        public int ProductId { get; set; }
+        public int? ProductId { get; set; }
 
         [MaxLength(50)]
         public string Uom { get; set; } = "pcs";
@@ -68,4 +69,13 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public DispatchBase? Dispatch { get; set; }
     }
+    public class OutboundReportQuery
+    {
+        public string? Customer { get; set; }
+        public string? Project { get; set; }
+        public string? Destination { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+    }
+
 }

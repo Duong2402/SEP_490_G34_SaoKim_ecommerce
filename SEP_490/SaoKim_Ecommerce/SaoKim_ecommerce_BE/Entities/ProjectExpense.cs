@@ -14,7 +14,7 @@ namespace SaoKim_ecommerce_BE.Entities
         public int ProjectId { get; set; }
 
         [Required]
-        public DateTime Date { get; set; }   // timestamp with time zone in DB
+        public DateTime Date { get; set; }
 
         [MaxLength(100)]
         public string? Category { get; set; }
@@ -34,7 +34,6 @@ namespace SaoKim_ecommerce_BE.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // optional navigation
         public Project? Project { get; set; }
     }
 }
