@@ -12,10 +12,12 @@ namespace SaoKim_ecommerce_BE.Services
     public class PromotionService : IPromotionService
     {
         private readonly SaoKimDBContext _db;
+        private readonly INotificationService _notificationService;
 
-        public PromotionService(SaoKimDBContext db)
+        public PromotionService(SaoKimDBContext db ,INotificationService notificationService)
         {
             _db = db;
+            _notificationService = notificationService;
         }
 
         public async Task<(IEnumerable<PromotionListItemDto> Items, int Total)> ListAsync(
@@ -159,6 +161,11 @@ namespace SaoKim_ecommerce_BE.Services
 
             _db.Promotions.Add(entity);
             await _db.SaveChangesAsync();
+
+            if (entity.Status == PromotionStatus.Active && entity.StartDate <= DateTimeOffset.UtcNow)
+            {
+                await _notificationService.CreatePromotionNotificationAsync(entity.Id);
+            }
 
             return entity.Id;
         }

@@ -105,6 +105,7 @@ builder.Services.AddScoped<IShippingService, ShippingService>();
 builder.Services.AddScoped<IStaffOrdersService, StaffOrdersService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
@@ -250,6 +251,6 @@ app.MapControllers();
 app.MapHub<DispatchHub>("/hubs/dispatch");
 app.MapHub<ReceivingHub>("/hubs/receiving");
 app.MapHub<InventoryHub>("/hubs/inventory");
-
+app.MapHub<NotificationsHub>("/hubs/notifications");
 // Start the application
 app.Run();
