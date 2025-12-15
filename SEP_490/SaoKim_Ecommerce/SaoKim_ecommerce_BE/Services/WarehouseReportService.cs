@@ -1,19 +1,20 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
-using SaoKim_ecommerce_BE.Hubs;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
     public class WarehouseReportService : IWarehouseReportService
     {
         private readonly SaoKimDBContext _db;
+        private readonly IRealtimePublisher _rt;
 
-        public WarehouseReportService(SaoKimDBContext db)
+        public WarehouseReportService(SaoKimDBContext db, IRealtimePublisher rt)
         {
             _db = db;
+            _rt = rt;
         }
 
         public async Task<List<InboundReportDto>> GetInboundReportAsync(InboundReportQuery q)
@@ -537,6 +538,13 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+            await _rt.PublishToWarehouseAsync("inventory.min_stock.updated", new
+            {
+                productId,
+                minStock = threshold.MinStock,
+                updatedAtUtc = threshold.UpdatedAt
+            });
+
             return threshold;
         }
         public async Task<List<TraceSearchResultDto>> SearchTraceAsync(TraceSearchQuery q)

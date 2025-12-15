@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Breadcrumb } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -22,6 +22,7 @@ import { Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const ALERTS = [
   {
@@ -73,7 +74,6 @@ const WarehouseDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Data demo cho chart
     const data = [
       { name: "Th 2", inbound: 30, outbound: 20 },
       { name: "Th 3", inbound: 42, outbound: 24 },
@@ -149,7 +149,6 @@ const WarehouseDashboard = () => {
       }
     };
 
-    // Lấy tổng số SKU dưới định mức (alert + critical) từ inventory-report
     const fetchLowStockItems = async () => {
       try {
         const makeCall = async (status) => {
@@ -168,8 +167,7 @@ const WarehouseDashboard = () => {
             );
           }
           const data = await res.json();
-          // API inventory-report: { items, total }
-          return data.total ?? (data.items ? data.items.length : 0);
+          return data.totalItems ?? data.total ?? (data.items ? data.items.length : 0);
         };
 
         const [alertCount, criticalCount] = await Promise.all([
@@ -193,6 +191,37 @@ const WarehouseDashboard = () => {
     fetchWeeklyOutbound();
     fetchTotalStock();
     fetchLowStockItems();
+  }, []);
+  
+  useEffect(() => {
+    const conn = getRealtimeConnection();
+
+    conn.off("evt");
+
+    conn.on("evt", (evt) => {
+      const type = evt?.type;
+      if (!type) return;
+
+      const shouldRefresh =
+        type.startsWith("receiving.") ||
+        type.startsWith("dispatch.") ||
+        type.startsWith("inventory.");
+
+      if (!shouldRefresh) return;
+
+      fetchWeeklyInbound();
+      fetchWeeklyOutbound();
+      fetchTotalStock();
+      fetchLowStockItems();
+    });
+
+    ensureRealtimeStarted().catch(() => {
+      setNotify("Không thể kết nối realtime tới máy chủ.");
+    });
+
+    return () => {
+      conn.off("evt");
+    };
   }, []);
 
   useEffect(() => {

@@ -651,6 +651,45 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("invoice_items", (string)null);
                 });
 
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Notification", b =>
+                {
+                    b.Property<int>("NotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("notification_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NotificationId"));
+
+                    b.Property<string>("Body")
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("link_url");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.HasKey("NotificationId");
+
+                    b.ToTable("notifications");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.OrderItem", b =>
                 {
                     b.Property<int>("OrderItemId")
@@ -1483,6 +1522,38 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.ToTable("users");
                 });
 
+            modelBuilder.Entity("UserNotification", b =>
+                {
+                    b.Property<int>("UserNotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("user_notification_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserNotificationId"));
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<int>("NotificationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("notification_id");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("UserNotificationId");
+
+                    b.HasIndex("NotificationId");
+
+                    b.ToTable("user_notifications");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectDispatch", b =>
                 {
                     b.HasBaseType("SaoKim_ecommerce_BE.Entities.DispatchBase");
@@ -1801,6 +1872,17 @@ namespace SaoKim_ecommerce_BE.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("UserNotification", b =>
+                {
+                    b.HasOne("SaoKim_ecommerce_BE.Entities.Notification", "Notification")
+                        .WithMany("UserNotifications")
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Notification");
+                });
+
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.ProjectDispatch", b =>
                 {
                     b.HasOne("SaoKim_ecommerce_BE.Entities.DispatchBase", null)
@@ -1839,6 +1921,11 @@ namespace SaoKim_ecommerce_BE.Migrations
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Invoice", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Notification", b =>
+                {
+                    b.Navigation("UserNotifications");
                 });
 
             modelBuilder.Entity("SaoKim_ecommerce_BE.Entities.Product", b =>

@@ -1,25 +1,11 @@
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faHome,
-  faSearch,
-} from "@fortawesome/free-solid-svg-icons";
-import {
-  Breadcrumb,
-  Form,
-  InputGroup,
-  Badge,
-} from "@themesberg/react-bootstrap";
+import { faHome, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { Breadcrumb, Form, InputGroup, Badge } from "@themesberg/react-bootstrap";
 import { Toast, ToastContainer } from "react-bootstrap";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
-import * as signalR from "@microsoft/signalr";
-import { getReceivingHubConnection } from "../../signalr/receivingHub";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 export default function InboundReport() {
   const [rows, setRows] = useState([]);
@@ -58,9 +44,7 @@ export default function InboundReport() {
       if (fromDate) params.append("fromDate", fromDate);
       if (toDate) params.append("toDate", toDate);
 
-      const res = await apiFetch(
-        `/api/warehousemanager/inbound-report?${params.toString()}`
-      );
+      const res = await apiFetch(`/api/warehousemanager/inbound-report?${params.toString()}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Không thể tải báo cáo nhập kho.");
@@ -79,39 +63,55 @@ export default function InboundReport() {
 
   useEffect(() => {
     loadData();
-
-    const connection = getReceivingHubConnection();
-
-    connection.off("ReceivingSlipsUpdated");
-
-    connection.on("ReceivingSlipsUpdated", (payload) => {
-      console.log("Nhận sự kiện ReceivingSlipsUpdated (InboundReport):", payload);
-      loadData();
-    });
-
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => {
-          console.log("Đã kết nối SignalR cho InboundReport");
-        })
-        .catch((err) => {
-          console.error("Lỗi kết nối SignalR cho InboundReport:", err);
-          setNotify("Không thể kết nối realtime tới máy chủ.");
-        });
-    }
-
-    return () => {
-      connection.off("ReceivingSlipsUpdated");
-    };
   }, [loadData]);
 
   useEffect(() => {
-    if (notify) {
-      const t = setTimeout(() => setNotify(null), 3500);
-      return () => clearTimeout(t);
-    }
+    if (!notify) return;
+    const t = setTimeout(() => setNotify(null), 3500);
+    return () => clearTimeout(t);
   }, [notify]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const getAccessToken = async () => localStorage.getItem("token") || "";
+
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
+
+        const conn = getRealtimeConnection(getAccessToken);
+
+        conn.off("evt");
+
+        conn.on("evt", (payload) => {
+          const type = payload?.type;
+          if (!type) return;
+
+          // Bạn map theo backend: receiving.* / inbound.* tùy bạn đang publish
+          // Tạm thời: chỉ cần có event liên quan receiving/ inbound là reload report
+          if (
+            type.startsWith("receiving.") ||
+            type.startsWith("inbound.") ||
+            type === "receiving.created" ||
+            type === "receiving.updated" ||
+            type === "receiving.deleted"
+          ) {
+            loadData();
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("Lỗi kết nối realtime (InboundReport):", err);
+        setNotify("Không thể kết nối realtime tới máy chủ.");
+      });
+
+    return () => {
+      disposed = true;
+      const conn = getRealtimeConnection(getAccessToken);
+      conn.off("evt");
+    };
+  }, [loadData]);
 
   const searchedData = useMemo(() => {
     if (!search) return rows;
@@ -141,12 +141,8 @@ export default function InboundReport() {
       entry.slipsCount += 1;
 
       const d = r.receiptDate ? new Date(r.receiptDate) : null;
-      const first = entry.firstReceiptDate
-        ? new Date(entry.firstReceiptDate)
-        : null;
-      const last = entry.lastReceiptDate
-        ? new Date(entry.lastReceiptDate)
-        : null;
+      const first = entry.firstReceiptDate ? new Date(entry.firstReceiptDate) : null;
+      const last = entry.lastReceiptDate ? new Date(entry.lastReceiptDate) : null;
 
       if (d) {
         if (!first || d < first) entry.firstReceiptDate = r.receiptDate;
@@ -154,13 +150,10 @@ export default function InboundReport() {
       }
     }
 
-    return Array.from(map.values()).sort(
-      (a, b) => b.totalQuantity - a.totalQuantity
-    );
+    return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
   }, [searchedData]);
 
-  const currentData =
-    viewMode === "slips" ? searchedData : supplierSummary;
+  const currentData = viewMode === "slips" ? searchedData : supplierSummary;
 
   const total = currentData.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -173,34 +166,19 @@ export default function InboundReport() {
   const summary = useMemo(() => {
     const base = viewMode === "slips" ? searchedData : supplierSummary;
 
-    const totalQty = base.reduce(
-      (acc, r) => acc + Number(r.totalQuantity || 0),
-      0
-    );
-    const totalValue = base.reduce(
-      (acc, r) => acc + Number(r.totalValue || 0),
-      0
-    );
-    const totalSuppliers = new Set(
-      (viewMode === "slips" ? searchedData : supplierSummary).map(
-        (r) => r.supplier
-      )
-    ).size;
+    const totalQty = base.reduce((acc, r) => acc + Number(r.totalQuantity || 0), 0);
+    const totalValue = base.reduce((acc, r) => acc + Number(r.totalValue || 0), 0);
+    const totalSuppliers = new Set((viewMode === "slips" ? searchedData : supplierSummary).map((r) => r.supplier)).size;
 
     return { totalQty, totalValue, totalSuppliers };
   }, [searchedData, supplierSummary, viewMode]);
 
-  const topSuppliers = useMemo(() => {
-    return [...supplierSummary].slice(0, 5);
-  }, [supplierSummary]);
+  const topSuppliers = useMemo(() => [...supplierSummary].slice(0, 5), [supplierSummary]);
 
-  const formatDate = (v) =>
-    v ? new Date(v).toLocaleDateString("vi-VN") : "-";
+  const formatDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "-");
 
   const formatNumber = (v) =>
-    typeof v === "number"
-      ? v.toLocaleString("vi-VN")
-      : Number(v || 0).toLocaleString("vi-VN");
+    typeof v === "number" ? v.toLocaleString("vi-VN") : Number(v || 0).toLocaleString("vi-VN");
 
   const applyRangePreset = (type) => {
     const today = new Date();
@@ -238,16 +216,13 @@ export default function InboundReport() {
               <Breadcrumb.Item href="/warehouse-dashboard">
                 <FontAwesomeIcon icon={faHome} /> Bảng điều phối
               </Breadcrumb.Item>
-              <Breadcrumb.Item href="/warehouse-dashboard/warehouse-report">
-                Thống kê báo cáo
-              </Breadcrumb.Item>
+              <Breadcrumb.Item href="/warehouse-dashboard/warehouse-report">Thống kê báo cáo</Breadcrumb.Item>
               <Breadcrumb.Item active>Báo cáo nhập kho</Breadcrumb.Item>
             </Breadcrumb>
           </div>
           <h1 className="wm-page-title">Báo cáo nhập kho</h1>
           <p className="wm-page-subtitle">
-            Tổng quan hàng đã tiếp nhận theo nhà cung cấp và ngày nhận, hỗ trợ
-            đối soát và lập kế hoạch nhập hàng.
+            Tổng quan hàng đã tiếp nhận theo nhà cung cấp và ngày nhận, hỗ trợ đối soát và lập kế hoạch nhập hàng.
           </p>
         </div>
 
@@ -255,9 +230,7 @@ export default function InboundReport() {
           <div className="btn-group me-3" role="group">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "slips" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "slips" ? "active" : ""}`}
               onClick={() => {
                 setViewMode("slips");
                 setPage(1);
@@ -267,9 +240,7 @@ export default function InboundReport() {
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "suppliers" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "suppliers" ? "active" : ""}`}
               onClick={() => {
                 setViewMode("suppliers");
                 setPage(1);
@@ -290,32 +261,24 @@ export default function InboundReport() {
           </div>
           <div className="wm-summary__card">
             <span className="wm-summary__label">Nhà cung cấp tham gia</span>
-            <span className="wm-summary__value">
-              {summary.totalSuppliers}
-            </span>
+            <span className="wm-summary__value">{summary.totalSuppliers}</span>
             <span className="wm-subtle-text">Đang có hàng trong báo cáo</span>
           </div>
           <div className="wm-summary__card">
             <span className="wm-summary__label">Tổng số lượng</span>
-            <span className="wm-summary__value">
-              {formatNumber(summary.totalQty)}
-            </span>
+            <span className="wm-summary__value">{formatNumber(summary.totalQty)}</span>
             <span className="wm-subtle-text">Theo đơn vị nhập báo cáo</span>
           </div>
           <div className="wm-summary__card">
             <span className="wm-summary__label">Tổng giá trị</span>
-            <span className="wm-summary__value">
-              {formatNumber(summary.totalValue)}
-            </span>
+            <span className="wm-summary__value">{formatNumber(summary.totalValue)}</span>
             <span className="wm-subtle-text">Tổng giá trị các phiếu</span>
           </div>
         </div>
 
         <div className="wm-surface" style={{ minWidth: 280 }}>
           <h6 className="mb-3">Top nhà cung cấp theo số lượng</h6>
-          {topSuppliers.length === 0 && (
-            <div className="wm-empty">Chưa có dữ liệu.</div>
-          )}
+          {topSuppliers.length === 0 && <div className="wm-empty">Chưa có dữ liệu.</div>}
           <ul className="list-unstyled mb-0">
             {topSuppliers.map((s, idx) => (
               <li
@@ -327,16 +290,11 @@ export default function InboundReport() {
                     {truncate(s.supplier, 30, "Khác")}
                   </div>
                   <small className="text-muted">
-                    {s.slipsCount} phiếu •{" "}
-                    {formatNumber(s.totalQuantity)} đơn vị
+                    {s.slipsCount} phiếu • {formatNumber(s.totalQuantity)} đơn vị
                   </small>
                 </div>
                 <Badge bg={idx === 0 ? "success" : "info"}>
-                  {(
-                    (s.totalQuantity / (summary.totalQty || 1)) *
-                    100
-                  ).toFixed(1)}
-                  %
+                  {(((s.totalQuantity / (summary.totalQty || 1)) * 100) || 0).toFixed(1)}%
                 </Badge>
               </li>
             ))}
@@ -366,44 +324,24 @@ export default function InboundReport() {
 
           <div>
             <label className="form-label mb-1">Từ ngày</label>
-            <Form.Control
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
+            <Form.Control type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           </div>
 
           <div>
             <label className="form-label mb-1">Đến ngày</label>
-            <Form.Control
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
+            <Form.Control type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
 
           <div>
             <label className="form-label mb-1">Khoảng thời gian nhanh</label>
             <div className="btn-group d-flex">
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm"
-                onClick={() => applyRangePreset("7d")}
-              >
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => applyRangePreset("7d")}>
                 Tuần
               </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm"
-                onClick={() => applyRangePreset("30d")}
-              >
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => applyRangePreset("30d")}>
                 Tháng
               </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm"
-                onClick={() => applyRangePreset("year")}
-              >
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => applyRangePreset("year")}>
                 Năm
               </button>
             </div>
@@ -468,9 +406,7 @@ export default function InboundReport() {
                     </td>
                     <td>{formatDate(item.receiptDate)}</td>
                     <td>
-                      <Badge bg="info">
-                        {item.totalItems ?? 0} dòng
-                      </Badge>
+                      <Badge bg="info">{item.totalItems ?? 0} dòng</Badge>
                     </td>
                     <td>{formatNumber(item.totalQuantity)}</td>
                     <td>{formatNumber(item.totalValue)}</td>
@@ -495,8 +431,7 @@ export default function InboundReport() {
                   <td>{formatNumber(item.totalQuantity)}</td>
                   <td>{formatNumber(item.totalValue)}</td>
                   <td>
-                    {formatDate(item.firstReceiptDate)} -{" "}
-                    {formatDate(item.lastReceiptDate)}
+                    {formatDate(item.firstReceiptDate)} - {formatDate(item.lastReceiptDate)}
                   </td>
                 </tr>
               ))
@@ -520,10 +455,7 @@ export default function InboundReport() {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(
-              (p) =>
-                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-            )
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -531,19 +463,13 @@ export default function InboundReport() {
             }, [])
             .map((p, i) =>
               p === "..." ? (
-                <button
-                  key={`gap-${i}`}
-                  className="btn btn-outline-light"
-                  disabled
-                >
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
                   ...
                 </button>
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -572,13 +498,7 @@ export default function InboundReport() {
             zIndex: 9999,
           }}
         >
-          <Toast
-            onClose={() => setNotify(null)}
-            show={!!notify}
-            delay={3500}
-            autohide
-            bg="warning"
-          >
+          <Toast onClose={() => setNotify(null)} show={!!notify} delay={3500} autohide bg="warning">
             <Toast.Header closeButton>
               <strong className="me-auto">Thông báo</strong>
             </Toast.Header>

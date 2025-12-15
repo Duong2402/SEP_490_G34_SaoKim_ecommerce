@@ -2,16 +2,19 @@
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
     public class UserService : IUserService
     {
         private readonly SaoKimDBContext _db;
+        private readonly IRealtimePublisher _rt;
 
-        public UserService(SaoKimDBContext db)
+        public UserService(SaoKimDBContext db, IRealtimePublisher rt)
         {
             _db = db;
+            _rt = rt;
         }
 
         public async Task<PagedResult<UserListItemDto>> GetAllAsync(
@@ -139,6 +142,15 @@ namespace SaoKim_ecommerce_BE.Services
                 user.RoleId = dto.RoleId.Value;
 
             await _db.SaveChangesAsync();
+            await _rt.PublishAsync("users.updated", new
+            {
+                id = user.UserID,
+                user.Name,
+                user.Email,
+                phone = user.PhoneNumber,
+                user.Status,
+                user.RoleId
+            });
             return true;
         }
 
@@ -230,6 +242,17 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+            await _rt.PublishToUserAsync(user.UserID, "me.updated", new
+            {
+                id = user.UserID,
+                name = user.Name,
+                phone = user.PhoneNumber,
+                address = user.Address,
+                dob = user.DOB,
+                image = user.Image,
+                status = user.Status,
+                roleId = user.RoleId
+            });
             return true;
         }
     }

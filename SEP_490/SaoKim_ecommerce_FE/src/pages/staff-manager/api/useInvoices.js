@@ -13,10 +13,18 @@ export default function useInvoicesApi() {
   };
 
   const fetchInvoices = async (opts = {}) => {
-    const qs = buildQuery(opts);
-    const res = await http.get(`/invoices${qs ? "?" + qs : ""}`);
-    return res;
+  const qs = buildQuery(opts);
+  const res = await http.get(`/invoices${qs ? "?" + qs : ""}`);
+  const data = res?.data ?? res;
+
+  return {
+    items: data?.Items ?? data?.items ?? [],
+    total: data?.TotalItems ?? data?.totalItems ?? 0,
+    page: data?.Page ?? data?.page ?? opts.page ?? 1,
+    pageSize: data?.PageSize ?? data?.pageSize ?? opts.pageSize ?? 10,
   };
+};
+
 
   const getInvoice = async (id) => {
     const res = await http.get(`/invoices/${id}`);

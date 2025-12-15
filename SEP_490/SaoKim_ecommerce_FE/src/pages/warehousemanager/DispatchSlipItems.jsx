@@ -1,12 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  Breadcrumb,
-  Table,
-  Button,
-  Form,
-  InputGroup,
-} from "@themesberg/react-bootstrap";
+import { Breadcrumb, Table, Button, Form, InputGroup } from "@themesberg/react-bootstrap";
 import { Modal, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -21,19 +15,17 @@ import {
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
-import { getDispatchHubConnection } from "../../signalr/dispatchHub";
-import * as signalR from "@microsoft/signalr";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
-const MAX_QTY = 100_000_000; 
-const MAX_UNIT_PRICE = 1_000_000_000; 
-const MAX_LINE_TOTAL = 100_000_000_000; 
+const MAX_QTY = 100_000_000;
+const MAX_UNIT_PRICE = 1_000_000_000;
+const MAX_LINE_TOTAL = 100_000_000_000;
 
 const initialForm = {
   productId: "",
   productName: "",
   uom: "",
   quantity: 1,
-  deliveredQuantity: 0,
   note: "",
   unitPrice: 0,
 };
@@ -41,21 +33,27 @@ const initialForm = {
 const DispatchSlipItems = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [productInputMode, setProductInputMode] = useState("select");
+
   const [showModal, setShowModal] = useState(false);
-  const [mode, setMode] = useState("create");
+  const [mode, setMode] = useState("create"); 
   const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
+
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+
   const [notification, setNotification] = useState(null);
+
   const [exporting, setExporting] = useState(false);
+
   const [total, setTotal] = useState(0);
   const [totalQty, setTotalQty] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -74,52 +72,45 @@ const DispatchSlipItems = () => {
   }, [notification]);
 
   useEffect(() => {
-    const connection = getDispatchHubConnection();
+  let disposed = false;
 
-    connection.off("DispatchItemsUpdated");
+  const getAccessToken = async () => localStorage.getItem("token") || "";
 
-    connection.on("DispatchItemsUpdated", (payload) => {
-      console.log("Sự kiện DispatchItemsUpdated:", payload);
+  ensureRealtimeStarted(getAccessToken)
+    .then(() => {
+      if (disposed) return;
 
-      const { action, dispatchId, item, itemId } = payload || {};
-      if (!action) return;
+      const conn = getRealtimeConnection(getAccessToken);
 
-      if (Number(dispatchId) !== Number(id)) return;
+      conn.off("evt");
 
-      setItems((prev) => {
-        switch (action) {
-          case "created":
-            if (item && !prev.some((x) => x.id === item.id)) {
-              return [...prev, item];
-            }
-            return prev;
+      conn.on("evt", (payload) => {
+        const type = payload?.type;
+        if (!type) return;
 
-          case "deleted":
-            return prev.filter((x) => x.id !== itemId);
+        if (
+          type === "dispatch.item.created" ||
+          type === "dispatch.item.updated" ||
+          type === "dispatch.item.deleted"
+        ) {
+          const dispatchId = payload?.data?.dispatchId ?? payload?.data?.DispatchId;
+          if (dispatchId != null && Number(dispatchId) !== Number(id)) return;
 
-          case "updated":
-            if (!item) return prev;
-            return prev.map((x) => (x.id === item.id ? { ...x, ...item } : x));
-
-          default:
-            return prev;
+          load();
         }
       });
+    })
+    .catch((err) => {
+      console.error("Lỗi kết nối realtime (DispatchSlipItems):", err);
     });
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => console.log("Đã kết nối SignalR cho DispatchSlipItems"))
-        .catch((err) =>
-          console.error("Lỗi kết nối SignalR cho DispatchSlipItems:", err)
-        );
-    }
+  return () => {
+    disposed = true;
+    const conn = getRealtimeConnection(getAccessToken);
+    conn.off("evt");
+  };
+}, [id, load]);
 
-    return () => {
-      connection.off("DispatchItemsUpdated");
-    };
-  }, [id]);
 
   const totals = useMemo(
     () => ({
@@ -132,16 +123,16 @@ const DispatchSlipItems = () => {
 
   async function load() {
     setLoading(true);
-    setError("");
     try {
       const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("pageSize", pageSize);
+      params.append("page", String(page));
+      params.append("pageSize", String(pageSize));
 
       const res = await apiFetch(
         `/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`
       );
       if (!res.ok) throw new Error(`Lỗi HTTP ${res.status}`);
+
       const data = await res.json();
 
       setItems(data.items || []);
@@ -149,12 +140,8 @@ const DispatchSlipItems = () => {
       setTotalQty(data.totalQty || 0);
       setTotalAmount(data.totalAmount || 0);
     } catch (e) {
-      const msg = e.message || "Không thể tải danh sách hàng hóa.";
-      setError(msg);
-      setNotification({
-        type: "danger",
-        message: msg,
-      });
+      const msg = e?.message || "Không thể tải danh sách hàng hóa.";
+      setNotification({ type: "danger", message: msg });
     } finally {
       setLoading(false);
     }
@@ -163,9 +150,7 @@ const DispatchSlipItems = () => {
   async function loadProducts() {
     try {
       const res = await apiFetch(`/api/products`);
-
       const json = await res.json();
-      console.log("Kết quả GET /api/products:", json);
 
       const payload = json.data ?? json;
       const raw = Array.isArray(payload) ? payload : payload.items || [];
@@ -187,14 +172,10 @@ const DispatchSlipItems = () => {
         }))
         .filter((p) => p.id != null && p.name);
 
-      console.log("Danh sách sản phẩm sau chuẩn hóa:", normalized);
       setProducts(normalized);
     } catch (e) {
       console.error("Lỗi khi tải danh mục sản phẩm:", e);
-      setNotification({
-        type: "danger",
-        message: "Không thể tải danh mục sản phẩm.",
-      });
+      setNotification({ type: "danger", message: "Không thể tải danh mục sản phẩm." });
     }
   }
 
@@ -203,29 +184,6 @@ const DispatchSlipItems = () => {
     if (Number.isNaN(n)) return null;
     return products.find((p) => Number(p.id) === n) || null;
   }
-
-  const handleDelete = async (itemId) => {
-    if (!window.confirm("Xóa dòng hàng này khỏi phiếu xuất?")) return;
-    try {
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-items/${itemId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
-      setNotification({
-        type: "success",
-        message: "Đã xóa dòng hàng.",
-      });
-    } catch (err) {
-      setNotification({
-        type: "danger",
-        message: "Không thể xóa: " + err.message,
-      });
-    }
-  };
 
   const openCreate = () => {
     setMode("create");
@@ -244,9 +202,9 @@ const DispatchSlipItems = () => {
       productName: item.productName ?? "",
       uom: item.uom ?? "",
       quantity: item.quantity ?? 1,
-      deliveredQuantity: item.deliveredQuantity ?? 0,
       note: item.note ?? "",
       unitPrice: item.unitPrice ?? 0,
+      productCode: item.productCode ?? "",
     });
     setShowModal(true);
   };
@@ -257,32 +215,19 @@ const DispatchSlipItems = () => {
     const price = Number(form.unitPrice);
     const lineTotal = qty * price;
 
-    if (!form.productId && !form.productName) {
-      errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
-    }
-    if (!form.productName) {
-      errs.productName = "Tên sản phẩm không được để trống.";
-    }
-    if (!form.uom) {
-      errs.uom = "Đơn vị tính không được để trống.";
-    }
-    if (!qty || qty <= 0) {
-      errs.quantity = "Số lượng phải lớn hơn 0.";
-    } else if (qty > MAX_QTY) {
-      errs.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
-    }
-    if (price == null || price < 0) {
-      errs.unitPrice = "Đơn giá không được âm.";
-    } else if (price > MAX_UNIT_PRICE) {
-      errs.unitPrice = `Đơn giá tối đa ${MAX_UNIT_PRICE.toLocaleString(
-        "vi-VN"
-      )}.`;
-    }
-    if (!errs.unitPrice && lineTotal > MAX_LINE_TOTAL) {
-      errs.unitPrice = `Thành tiền tối đa ${MAX_LINE_TOTAL.toLocaleString(
-        "vi-VN"
-      )}.`;
-    }
+    if (!form.productId && !form.productName) errs.productId = "Vui lòng chọn sản phẩm.";
+    if (!form.productName) errs.productName = "Tên sản phẩm không được để trống.";
+    if (!form.uom) errs.uom = "Đơn vị tính không được để trống.";
+
+    if (!qty || qty <= 0) errs.quantity = "Số lượng phải lớn hơn 0.";
+    else if (qty > MAX_QTY) errs.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
+
+    if (price == null || price < 0) errs.unitPrice = "Đơn giá không được âm.";
+    else if (price > MAX_UNIT_PRICE)
+      errs.unitPrice = `Đơn giá tối đa ${MAX_UNIT_PRICE.toLocaleString("vi-VN")}.`;
+
+    if (!errs.unitPrice && lineTotal > MAX_LINE_TOTAL)
+      errs.unitPrice = `Thành tiền tối đa ${MAX_LINE_TOTAL.toLocaleString("vi-VN")}.`;
 
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
@@ -291,21 +236,23 @@ const DispatchSlipItems = () => {
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
+
     const payload = {
       productId: form.productId || null,
       productName: form.productName,
       productCode: form.productCode || null,
       uom: form.uom,
       quantity: Number(form.quantity),
-      deliveredQuantity: Number(form.deliveredQuantity),
       note: form.note,
       unitPrice: Number(form.unitPrice || 0),
     };
+
     try {
       const endpoint =
         mode === "create"
           ? `/api/warehousemanager/dispatch-slips/${id}/items`
           : `/api/warehousemanager/dispatch-items/${editId}`;
+
       const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
@@ -321,27 +268,35 @@ const DispatchSlipItems = () => {
       setShowModal(false);
       setNotification({
         type: "success",
-        message:
-          mode === "create"
-            ? "Đã thêm dòng hàng."
-            : "Đã cập nhật dòng hàng.",
+        message: mode === "create" ? "Đã thêm dòng hàng." : "Đã cập nhật dòng hàng.",
       });
     } catch (err) {
-      setNotification({
-        type: "danger",
-        message: "Không thể lưu: " + err.message,
-      });
+      setNotification({ type: "danger", message: "Không thể lưu: " + err.message });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (itemId) => {
+    if (!window.confirm("Xóa dòng hàng này khỏi phiếu xuất?")) return;
+    try {
+      const res = await apiFetch(`/api/warehousemanager/dispatch-items/${itemId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
+
+      setItems((prev) => prev.filter((i) => i.id !== itemId));
+
+      setNotification({ type: "success", message: "Đã xóa dòng hàng." });
+    } catch (err) {
+      setNotification({ type: "danger", message: "Không thể xóa: " + err.message });
     }
   };
 
   const handleExportPdf = async () => {
     try {
       setExporting(true);
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}/print`
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/print`);
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -353,10 +308,7 @@ const DispatchSlipItems = () => {
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      setNotification({
-        type: "success",
-        message: "Đã xuất file PDF phiếu xuất.",
-      });
+      setNotification({ type: "success", message: "Đã xuất file PDF phiếu xuất." });
     } catch (err) {
       setNotification({
         type: "danger",
@@ -382,10 +334,10 @@ const DispatchSlipItems = () => {
               <Breadcrumb.Item active>Chi tiết phiếu</Breadcrumb.Item>
             </Breadcrumb>
           </div>
+
           <h1 className="wm-page-title">Chi tiết phiếu xuất #{id}</h1>
           <p className="wm-page-subtitle">
-            Theo dõi phân bổ hàng hóa, kiểm soát số lượng đã giao và ghi chú
-            đặc biệt.
+            Theo dõi phân bổ hàng hóa, kiểm soát số lượng đã giao và ghi chú đặc biệt.
           </p>
         </div>
 
@@ -398,6 +350,7 @@ const DispatchSlipItems = () => {
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
           </button>
+
           <button
             type="button"
             className="wm-btn wm-btn--outline"
@@ -407,11 +360,8 @@ const DispatchSlipItems = () => {
             <FontAwesomeIcon icon={faPrint} />
             {exporting ? "Đang xuất PDF..." : "Xuất phiếu PDF"}
           </button>
-          <button
-            type="button"
-            className="wm-btn wm-btn--primary"
-            onClick={openCreate}
-          >
+
+          <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
             <FontAwesomeIcon icon={faPlus} />
             Thêm dòng hàng
           </button>
@@ -424,15 +374,17 @@ const DispatchSlipItems = () => {
           <span className="wm-summary__value">{totals.totalItems}</span>
           <span className="wm-subtle-text">Theo phiếu xuất hiện tại</span>
         </div>
+
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng số lượng xuất</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
           <span className="wm-subtle-text">Theo kế hoạch xuất kho</span>
         </div>
+
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng tiền</span>
           <span className="wm-summary__value">
-            {totals.totalAmount.toLocaleString("vi-VN")} VNĐ
+            {Number(totals.totalAmount || 0).toLocaleString("vi-VN")} VNĐ
           </span>
           <span className="wm-subtle-text">Tổng giá trị của cả phiếu</span>
         </div>
@@ -469,22 +421,17 @@ const DispatchSlipItems = () => {
             ) : (
               items.map((item, index) => (
                 <tr key={item.id}>
-                  <td>{index + 1}</td>
+                  <td>{(page - 1) * pageSize + index + 1}</td>
                   <td>
-                    <span className="fw-semibold">
-                      {item.productCode || "Chưa có mã"}
-                    </span>
+                    <span className="fw-semibold">{item.productCode || "Chưa có mã"}</span>
                   </td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
-                  <td>
-                    {Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ
-                  </td>
+                  <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ</td>
                   <td>
                     {(
-                      Number(item.unitPrice || 0) *
-                      Number(item.quantity || 0)
+                      Number(item.unitPrice || 0) * Number(item.quantity || 0)
                     ).toLocaleString("vi-VN")}{" "}
                     VNĐ
                   </td>
@@ -528,10 +475,7 @@ const DispatchSlipItems = () => {
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(
-              (p) =>
-                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-            )
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -539,19 +483,13 @@ const DispatchSlipItems = () => {
             }, [])
             .map((p, i) =>
               p === "..." ? (
-                <button
-                  key={`gap-${i}`}
-                  className="btn btn-outline-light"
-                  disabled
-                >
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
                   ...
                 </button>
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >
@@ -570,32 +508,20 @@ const DispatchSlipItems = () => {
         </div>
       </div>
 
-      <Modal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        centered
-        size="lg"
-      >
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>
-            {mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}
-          </Modal.Title>
+          <Modal.Title>{mode === "create" ? "Thêm dòng hàng" : "Cập nhật dòng hàng"}</Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Sản phẩm</Form.Label>
               <Select
-                options={products.map((p) => ({
-                  value: p.id,
-                  label: `${p.id} - ${p.name}`,
-                }))}
+                options={products.map((p) => ({ value: p.id, label: `${p.id} - ${p.name}` }))}
                 value={
                   form.productId
-                    ? {
-                        value: form.productId,
-                        label: `${form.productId} - ${form.productName}`,
-                      }
+                    ? { value: form.productId, label: `${form.productId} - ${form.productName}` }
                     : null
                 }
                 onChange={(option) => {
@@ -610,9 +536,7 @@ const DispatchSlipItems = () => {
                     productName: p.name,
                     uom: p.uom,
                     productCode: p.productCode,
-                    unitPrice: Number(
-                      p.price > MAX_UNIT_PRICE ? MAX_UNIT_PRICE : p.price || 0
-                    ),
+                    unitPrice: Number(p.price > MAX_UNIT_PRICE ? MAX_UNIT_PRICE : p.price || 0),
                   });
                 }}
                 placeholder="Chọn sản phẩm"
@@ -620,9 +544,7 @@ const DispatchSlipItems = () => {
                 styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                 menuPortalTarget={document.body}
               />
-              {formErrs.productId && (
-                <div className="text-danger mt-1">{formErrs.productId}</div>
-              )}
+              {formErrs.productId && <div className="text-danger mt-1">{formErrs.productId}</div>}
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -630,30 +552,21 @@ const DispatchSlipItems = () => {
               <Form.Control
                 type="text"
                 value={form.productName}
-                placeholder={
-                  productInputMode === "input"
-                    ? "Nhập tên sản phẩm"
-                    : "Tên sẽ tự điền theo mã sản phẩm"
-                }
-                onChange={(e) =>
-                  setForm({ ...form, productName: e.target.value })
-                }
-                disabled={
-                  productInputMode === "select" &&
-                  !!findProductById(form.productId)
-                }
+                placeholder="Tên sẽ tự điền theo sản phẩm"
+                onChange={(e) => setForm({ ...form, productName: e.target.value })}
+                disabled={!!findProductById(form.productId)}
                 isInvalid={!!formErrs.productName}
               />
-              <Form.Control.Feedback type="invalid">
-                {formErrs.productName}
-              </Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">{formErrs.productName}</Form.Control.Feedback>
             </Form.Group>
 
             <div className="row">
               <div className="col-md-6 mb-3">
                 <Form.Label>Đơn vị tính</Form.Label>
                 <Form.Control value={form.uom} disabled />
+                {formErrs.uom && <div className="text-danger mt-1">{formErrs.uom}</div>}
               </div>
+
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng xuất</Form.Label>
                 <InputGroup>
@@ -668,21 +581,17 @@ const DispatchSlipItems = () => {
                         setForm({ ...form, quantity: "" });
                         return;
                       }
-                      const clamped = Math.min(
-                        Math.max(raw, 1),
-                        MAX_QTY
-                      );
+                      const clamped = Math.min(Math.max(raw, 1), MAX_QTY);
                       setForm({ ...form, quantity: clamped });
                     }}
                     isInvalid={!!formErrs.quantity}
                   />
                   <InputGroup.Text>{form.uom || "đơn vị"}</InputGroup.Text>
-                  <Form.Control.Feedback type="invalid">
-                    {formErrs.quantity}
-                  </Form.Control.Feedback>
+                  <Form.Control.Feedback type="invalid">{formErrs.quantity}</Form.Control.Feedback>
                 </InputGroup>
               </div>
             </div>
+
             <Form.Group className="mb-3">
               <Form.Label>Đơn giá</Form.Label>
               <InputGroup>
@@ -697,18 +606,13 @@ const DispatchSlipItems = () => {
                       setForm({ ...form, unitPrice: "" });
                       return;
                     }
-                    const clamped = Math.min(
-                      Math.max(raw, 0),
-                      MAX_UNIT_PRICE
-                    );
+                    const clamped = Math.min(Math.max(raw, 0), MAX_UNIT_PRICE);
                     setForm({ ...form, unitPrice: clamped });
                   }}
                   isInvalid={!!formErrs.unitPrice}
                 />
                 <InputGroup.Text>VNĐ</InputGroup.Text>
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.unitPrice}
-                </Form.Control.Feedback>
+                <Form.Control.Feedback type="invalid">{formErrs.unitPrice}</Form.Control.Feedback>
               </InputGroup>
             </Form.Group>
 
@@ -718,20 +622,15 @@ const DispatchSlipItems = () => {
                 as="textarea"
                 rows={3}
                 value={form.note}
-                onChange={(e) =>
-                  setForm({ ...form, note: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
                 placeholder="Thông tin giao hàng, lưu ý đặc biệt..."
               />
             </Form.Group>
           </Form>
         </Modal.Body>
+
         <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            onClick={() => setShowModal(false)}
-            disabled={saving}
-          >
+          <Button variant="outline-secondary" onClick={() => setShowModal(false)} disabled={saving}>
             Hủy
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -771,8 +670,7 @@ const DispatchSlipItems = () => {
             </Toast.Header>
             <Toast.Body
               className={
-                notification.type === "danger" ||
-                notification.type === "warning"
+                notification.type === "danger" || notification.type === "warning"
                   ? "text-white"
                   : "text-dark"
               }
