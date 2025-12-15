@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
 import "../../assets/css/Warehouse.css";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const PAGE_SIZE = 10;
 
