@@ -20,7 +20,7 @@ namespace SaoKim_ecommerce_BE.Services
         {
             _db = db;
         }
-
+        //comment
         private async Task<int> GetCustomerRoleIdAsync()
         {
             return await _db.Roles
