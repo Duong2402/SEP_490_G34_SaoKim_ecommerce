@@ -133,10 +133,12 @@ namespace SaoKim_ecommerce_BE.Services
             if (u == null) return null;
 
             var addr = await _db.Addresses
-                .Where(a => a.UserId == u.UserID && a.IsDefault)
+                .AsNoTracking()
+                .Where(a => a.UserId == u.UserID)
+                .OrderByDescending(a => a.IsDefault)
+                .ThenByDescending(a => a.CreateAt)
                 .FirstOrDefaultAsync();
-
-            string addressDisplay =
+            string? addressDisplay =
                 addr != null
                     ? string.Join(", ", new[]
                         {
@@ -145,7 +147,7 @@ namespace SaoKim_ecommerce_BE.Services
                             addr.District,
                             addr.Province
                         }.Where(x => !string.IsNullOrWhiteSpace(x)))
-                    : (u.Address ?? "");
+                    : (string.IsNullOrWhiteSpace(u.Address) ? null : u.Address);
 
             var dto = new CustomerDetailDto(
                 u.UserID,

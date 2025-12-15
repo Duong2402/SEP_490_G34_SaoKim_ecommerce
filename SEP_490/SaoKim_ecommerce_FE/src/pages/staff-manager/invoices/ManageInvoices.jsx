@@ -1,4 +1,3 @@
-
 import {
   faCheck,
   faCog,
@@ -70,12 +69,15 @@ export default function ManageInvoices() {
         sortDir: opts.sortDir ?? sortDir,
       });
 
-      setRows(res?.items ?? []);
-      setTotal(res?.total ?? 0);
-      setTotalPages(res?.totalPages ?? 1);
+      const items = res?.items ?? [];
+      const total = res?.total ?? 0;
+      const ps = res?.pageSize ?? pageSize;
+      const tp = Math.max(1, Math.ceil(total / ps));
 
-      if (res?.page && res.page !== page) setPage(res.page);
-      if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
+      setRows(items);
+      setTotal(total);
+      setTotalPages(tp);
+      if (page > tp) setPage(tp);
     } catch (e) {
       console.error(e);
       alert("Không tải được danh sách hóa đơn");
