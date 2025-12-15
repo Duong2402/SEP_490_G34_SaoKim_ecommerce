@@ -29,8 +29,8 @@ namespace SaoKim_ecommerce_BE.DTOs
 
     public class CustomerOrderPaymentDto
     {
-        public string? Method { get; set; }       
-        public string? Status { get; set; }          
+        public string? Method { get; set; }
+        public string? Status { get; set; }
         public DateTime? PaidAt { get; set; }
         public string? TransactionCode { get; set; }
     }
@@ -50,12 +50,16 @@ namespace SaoKim_ecommerce_BE.DTOs
         public int OrderId { get; set; }
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = string.Empty;
+        public decimal Subtotal { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal VatAmount { get; set; }
+        public decimal ShippingFee { get; set; }
         public decimal Total { get; set; }
-
         public CustomerOrderAddressDto? ShippingAddress { get; set; }
         public CustomerOrderPaymentDto? Payment { get; set; }
 
         public List<CustomerOrderItemDto> Items { get; set; } = new();
         public CustomerOrderInvoiceDto? Invoice { get; set; }
     }
+
 }
