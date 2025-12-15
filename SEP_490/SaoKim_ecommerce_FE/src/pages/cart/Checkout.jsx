@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Breadcrumb,
@@ -9,6 +9,7 @@ import {
   Form,
   InputGroup,
   Row,
+  Modal,
 } from "react-bootstrap";
 import HomepageHeader from "../../components/HomepageHeader";
 import EcommerceFooter from "../../components/EcommerceFooter";
@@ -24,6 +25,10 @@ function readCheckoutItemsForOwner() {
   } catch {
     return [];
   }
+}
+
+function makePaymentToken() {
+  return "SK" + Math.random().toString(36).slice(2, 10).toUpperCase();
 }
 
 export default function Checkout() {
@@ -57,21 +62,23 @@ export default function Checkout() {
   const [baseShippingFee, setBaseShippingFee] = useState(0);
 
   const [voucherCode, setVoucherCode] = useState("");
-  const [voucherList] = useState([
-    { code: "SALE10", label: "Giảm 10%", type: "percent", value: 10 },
-    { code: "GIAM30K", label: "Giảm 30.000đ", type: "amount", value: 30000 },
-  ]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [voucherStatus, setVoucherStatus] = useState(null);
 
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [autoCheck, setAutoCheck] = useState(false);
 
-  // Modal QR full-screen + ref tránh auto-pay nhiều lần + key để reload QR + token phiên thanh toán
   const [showQrModal, setShowQrModal] = useState(false);
-  const [qrReloadKey, setQrReloadKey] = useState(0);
-  const [paymentToken, setPaymentToken] = useState(null);
-  const autoPaidRef = useRef(false);
+  const [redirected, setRedirected] = useState(false);
+
+  // Payment token giữ ổn định theo phiên checkout
+  const [paymentToken, setPaymentToken] = useState(() => {
+    const cached = localStorage.getItem("checkout_payment_token");
+    if (cached) return cached;
+    const t = makePaymentToken();
+    localStorage.setItem("checkout_payment_token", t);
+    return t;
+  });
 
   const shippingOptions = [
     { value: "standard", label: "Tiết kiệm", time: "Giao 3 - 5 ngày" },
@@ -143,7 +150,6 @@ export default function Checkout() {
     })();
   }, [apiBase]);
 
-
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -202,29 +208,29 @@ export default function Checkout() {
   }, [selectedVoucher, subtotal]);
 
   const vatBase = Math.max(subtotal - discount, 0);
-
   const vat = Math.round(vatBase * 0.1);
-
   const total = Math.max(vatBase + vat + shippingFee, 0);
-  
+
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
+
+  const qrAddInfo = useMemo(() => {
+    return `THANH TOAN DON HANG ${paymentToken}`;
+  }, [paymentToken]);
 
   const checkPaid = async () => {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch(
-        `${apiBase}/api/payments/check-vietqr?amount=${qrAmount}&paymentToken=${encodeURIComponent(
-          paymentToken || ""
-        )}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const url = `${apiBase}/api/payments/check-vietqr?amount=${encodeURIComponent(
+        qrAmount
+      )}&paymentToken=${encodeURIComponent(paymentToken)}`;
+
+      const res = await fetch(url, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       if (!res.ok) {
         console.error("checkPaid backend error", await res.text());
@@ -242,11 +248,30 @@ export default function Checkout() {
   useEffect(() => {
     let interval;
 
-    if (paymentMethod === "QR" && autoCheck && !paymentVerified) {
+    const goSuccess = () => {
+      navigate("/checkout/success", {
+        replace: true,
+        state: {
+          customer: form,
+          total,
+          paymentMethod: "QR",
+          shippingMethod,
+          selectedVoucher,
+          purchased: selectedItems,
+          paymentToken,
+          autoVerified: true,
+        },
+      });
+    };
+
+    if (paymentMethod === "QR" && autoCheck && !paymentVerified && !redirected) {
       interval = setInterval(async () => {
         const paid = await checkPaid();
-        if (paid) {
+        if (paid && !redirected) {
+          setRedirected(true);
           setPaymentVerified(true);
+          setShowQrModal(false);
+          goSuccess();
         }
       }, 3000);
     }
@@ -254,7 +279,20 @@ export default function Checkout() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [paymentMethod, autoCheck, paymentVerified, subtotal, qrAmount, paymentToken]);
+  }, [
+    paymentMethod,
+    autoCheck,
+    paymentVerified,
+    redirected,
+    qrAmount,
+    paymentToken,
+    navigate,
+    form,
+    total,
+    shippingMethod,
+    selectedVoucher,
+    selectedItems,
+  ]);
 
   const handleApplyVoucher = async () => {
     const code = (voucherCode || "").trim();
@@ -375,6 +413,7 @@ export default function Checkout() {
         paymentMethod,
         shippingMethod,
         note: form.note,
+        paymentToken: paymentMethod === "QR" ? paymentToken : undefined,
         items: selectedItems.map((it) => {
           const productId = Number(
             it.productId ?? it.productID ?? it.product_id ?? it.id
@@ -414,6 +453,8 @@ export default function Checkout() {
       const { checkoutKey } = getCartKeys();
       localStorage.removeItem(checkoutKey);
 
+      localStorage.removeItem("checkout_payment_token");
+
       navigate("/checkout/success", {
         replace: true,
         state: {
@@ -424,21 +465,13 @@ export default function Checkout() {
           selectedVoucher,
           purchased: selectedItems,
           order: createdOrder,
+          paymentToken: paymentMethod === "QR" ? paymentToken : undefined,
         },
       });
-
     } finally {
       setSubmitting(false);
     }
   };
-
-  // Khi QR được xác nhận thì auto tạo đơn và sang trang success
-  useEffect(() => {
-    if (paymentMethod === "QR" && paymentVerified && !autoPaidRef.current) {
-      autoPaidRef.current = true;
-      handlePay();
-    }
-  }, [paymentMethod, paymentVerified]);
 
   if (!itemsForCheckout.length) {
     return (
@@ -494,12 +527,9 @@ export default function Checkout() {
           </Breadcrumb>
 
           <div className="d-flex flex-column gap-2 mb-4">
-            <h1 className="checkout-title display-5 fw-bold mb-0">
-              Thanh toán
-            </h1>
+            <h1 className="checkout-title display-5 fw-bold mb-0">Thanh toán</h1>
             <p className="checkout-subtitle text-muted mb-0">
-              Xem lại thông tin giao hàng, vận chuyển và hoàn tất đơn hàng của
-              bạn.
+              Xem lại thông tin giao hàng, vận chuyển và hoàn tất đơn hàng của bạn.
             </p>
           </div>
 
@@ -545,8 +575,9 @@ export default function Checkout() {
                           {addresses.map((a) => (
                             <label
                               key={a.addressId}
-                              className={`address-option ${selectedAddressId === a.addressId ? "active" : ""
-                                }`}
+                              className={`address-option ${
+                                selectedAddressId === a.addressId ? "active" : ""
+                              }`}
                             >
                               <Form.Check
                                 type="radio"
@@ -637,8 +668,9 @@ export default function Checkout() {
                         return (
                           <label
                             key={opt.value}
-                            className={`shipping-option ${shippingMethod === opt.value ? "active" : ""
-                              }`}
+                            className={`shipping-option ${
+                              shippingMethod === opt.value ? "active" : ""
+                            }`}
                           >
                             <Form.Check
                               type="radio"
@@ -650,14 +682,20 @@ export default function Checkout() {
                             <div className="w-100">
                               <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
                                 <div>
-                                  <div className="fw-semibold text-primary">{opt.label}</div>
-                                  <div className="text-muted small">{opt.time}</div>
+                                  <div className="fw-semibold text-primary">
+                                    {opt.label}
+                                  </div>
+                                  <div className="text-muted small">
+                                    {opt.time}
+                                  </div>
                                 </div>
                                 <div className="text-end">
                                   <div className="fw-semibold text-dark">
                                     {formatCurrency(optionFee)}
                                   </div>
-                                  <div className="text-muted small">Ước tính phí</div>
+                                  <div className="text-muted small">
+                                    Ước tính phí
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -667,100 +705,12 @@ export default function Checkout() {
                     </div>
                   </Card.Body>
                 </Card>
-                                      <Card className="checkout-card mb-4">
+
+                <Card className="checkout-card mb-4">
                   <Card.Body>
                     <Card.Title className="checkout-card-title mb-3">
                       Mã giảm giá
                     </Card.Title>
-                    <div className="d-grid gap-3">
-                      <label
-                        className={`payment-option ${paymentMethod === "COD" ? "active" : ""
-                          }`}
-                      >
-                        <Form.Check
-                          type="radio"
-                          name="payment"
-                          checked={paymentMethod === "COD"}
-                          onChange={() => {
-                            setPaymentMethod("COD");
-                            setPaymentVerified(false);
-                            setAutoCheck(false);
-                          }}
-                          className="mt-1 me-3"
-                        />
-                        <div>
-                          <div className="fw-semibold text-primary">
-                            Thanh toán khi nhận hàng (COD)
-                          </div>
-                          <div className="text-muted small">
-                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao hàng.
-                          </div>
-                        </div>
-                      </label>
-
-                      <label
-                        className={`payment-option ${paymentMethod === "QR" ? "active" : ""
-                          }`}
-                      >
-                        <Form.Check
-                          type="radio"
-                          name="payment"
-                          checked={paymentMethod === "QR"}
-                          onChange={() => {
-                            setPaymentMethod("QR");
-                            setPaymentVerified(false);
-                            setAutoCheck(true);
-                          }}
-                          className="mt-1 me-3"
-                        />
-                        <div>
-                          <div className="fw-semibold text-primary">Chuyển khoản qua QR</div>
-                          <div className="text-muted small">
-                            Quét mã QR để thanh toán chuyển khoản.
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-
-                    {paymentMethod === "QR" && (
-                      <div className="qr-box mt-3">
-                        <div className="d-flex flex-wrap gap-3 align-items-start">
-                          <img
-                            alt="QR thanh toán"
-                            width={180}
-                            className="qr-image rounded-3"
-                            src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}&addInfo=${encodeURIComponent(
-                              " thanh toan don hang"
-                            )}`}
-                          />
-                          <div className="flex-grow-1">
-                            <div className="d-flex align-items-center gap-2 mb-2">
-                              <span className="badge-soft-primary">Tài khoản MB Bank</span>
-                              <span className="text-muted small">
-                                Số tiền: {formatCurrency(qrAmount)}
-                              </span>
-                            </div>
-                            {!paymentVerified && (
-                              <p className="text-muted small mb-2">
-                                Đang chờ thanh toán qua QR. Hệ thống sẽ tự động ghi nhận khi tiền về
-                                tài khoản.
-                              </p>
-                            )}
-                            {paymentVerified && (
-                              <p className="text-success fw-semibold mb-0">
-                                Thanh toán thành công!
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </Card.Body>
-                </Card>
-
-                <Card className="checkout-card mb-4">
-                  <Card.Body>
-                    <Card.Title className="checkout-card-title mb-3">Mã giảm giá</Card.Title>
                     <InputGroup className="discount-group">
                       <Form.Control
                         value={voucherCode}
@@ -790,78 +740,78 @@ export default function Checkout() {
                   </Card.Body>
                 </Card>
 
-                {/* PHƯƠNG THỨC THANH TOÁN: 2 NÚT TRẢ SAU / TRẢ TRƯỚC */}
                 <Card className="checkout-card mb-4">
                   <Card.Body>
                     <Card.Title className="checkout-card-title mb-3">
                       Phương thức thanh toán
                     </Card.Title>
 
-                    <div className="d-flex flex-wrap gap-3 mb-3">
-                      <Button
-                        type="button"
-                        variant={
-                          paymentMethod === "COD"
-                            ? "primary"
-                            : "outline-primary"
-                        }
-                        className="rounded-3 px-4 py-2 flex-grow-1 text-start"
-                        onClick={() => {
-                          setPaymentMethod("COD");
-                          setPaymentVerified(false);
-                          setAutoCheck(false);
-                          setShowQrModal(false);
-                          setPaymentToken(null);
-                          autoPaidRef.current = false;
-                        }}
+                    <div className="d-grid gap-3">
+                      <label
+                        className={`payment-option ${
+                          paymentMethod === "COD" ? "active" : ""
+                        }`}
                       >
-                        <div className="fw-semibold">Trả sau</div>
-                        <div className="text-muted small">
-                          Thanh toán khi nhận hàng (COD)
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "COD"}
+                          onChange={() => {
+                            setPaymentMethod("COD");
+                            setPaymentVerified(false);
+                            setAutoCheck(false);
+                            setShowQrModal(false);
+                            setRedirected(false);
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">
+                            Thanh toán khi nhận hàng (COD)
+                          </div>
+                          <div className="text-muted small">
+                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao hàng.
+                          </div>
                         </div>
-                      </Button>
+                      </label>
 
-                      <Button
-                        type="button"
-                        variant={
-                          paymentMethod === "QR"
-                            ? "primary"
-                            : "outline-primary"
-                        }
-                        className="rounded-3 px-4 py-2 flex-grow-1 text-start"
-                        onClick={() => {
-                          setPaymentMethod("QR");
-                          setPaymentVerified(false);
-                          setAutoCheck(true); // bật polling
-                          setShowQrModal(true); // mở QR overlay
-                          autoPaidRef.current = false;
-
-                          // tạo token phiên thanh toán
-                          const newToken =
-                            "ORD-" +
-                            Date.now() +
-                            "-" +
-                            Math.floor(Math.random() * 100000);
-                          setPaymentToken(newToken);
-
-                          setQrReloadKey(Date.now()); // ép QR load lại
-                        }}
+                      <label
+                        className={`payment-option ${
+                          paymentMethod === "QR" ? "active" : ""
+                        }`}
                       >
-                        <div className="fw-semibold">Trả trước</div>
-                        <div className="text-muted small">
-                          Thanh toán chuyển khoản qua mã QR
+                        <Form.Check
+                          type="radio"
+                          name="payment"
+                          checked={paymentMethod === "QR"}
+                          onChange={() => {
+                            setPaymentMethod("QR");
+                            setPaymentVerified(false);
+                            setAutoCheck(true);
+                            setShowQrModal(true);
+                            setRedirected(false);
+
+                            setPaymentToken((prev) => {
+                              if (prev) return prev;
+                              const t = makePaymentToken();
+                              localStorage.setItem("checkout_payment_token", t);
+                              return t;
+                            });
+                          }}
+                          className="mt-1 me-3"
+                        />
+                        <div>
+                          <div className="fw-semibold text-primary">
+                            Chuyển khoản qua QR
+                          </div>
+                          <div className="text-muted small">
+                            Quét mã QR để thanh toán chuyển khoản.
+                          </div>
                         </div>
-                      </Button>
+                      </label>
                     </div>
-
-                    <p className="text-muted small mb-0">
-                      Chọn Trả trước để thanh toán ngay qua QR. Sau khi hệ thống
-                      ghi nhận thanh toán, đơn hàng sẽ được tạo tự động và
-                      chuyển sang trang xác nhận.
-                    </p>
                   </Card.Body>
                 </Card>
-
               </Form>
             </Col>
 
@@ -884,9 +834,7 @@ export default function Checkout() {
                           <div className="fw-semibold text-primary">
                             {it.name}
                           </div>
-                          <div className="text-muted small">
-                            × {it.quantity}
-                          </div>
+                          <div className="text-muted small">× {it.quantity}</div>
                         </div>
                         <div className="text-end text-dark fw-semibold">
                           {formatCurrency(it.price)}
@@ -941,10 +889,9 @@ export default function Checkout() {
                       }
                       onClick={handlePay}
                     >
-                      {noneChecked
-                        ? "Chọn sản phẩm để thanh toán"
-                        : "Đặt hàng"}
+                      {noneChecked ? "Chọn sản phẩm để thanh toán" : "Đặt hàng"}
                     </Button>
+
                     <Button
                       as={Link}
                       to="/cart"
@@ -961,90 +908,53 @@ export default function Checkout() {
         </Container>
       </section>
 
-      {/* QR OVERLAY FULL MÀN HÌNH KHI CHỌN TRẢ TRƯỚC */}
-      {showQrModal && paymentMethod === "QR" && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 12,
-              padding: 24,
-              maxWidth: 420,
-              width: "90%",
-              textAlign: "center",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-            }}
-          >
-            <h2 className="mb-2">Thanh toán qua QR</h2>
-            <p className="text-muted small mb-3">
-              Mở ứng dụng ngân hàng, quét mã QR với số tiền chính xác để hoàn
-              tất thanh toán.
-            </p>
+      <EcommerceFooter />
 
+      <Modal
+        show={showQrModal}
+        onHide={() => setShowQrModal(false)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Quét mã QR để thanh toán</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body style={{ minHeight: 520 }}>
+          <div
+            className="d-flex flex-column align-items-center justify-content-center text-center"
+            style={{ height: "100%" }}
+          >
             <img
-              key={qrReloadKey}
               alt="QR thanh toán"
-              width={260}
-              height={260}
-              className="qr-image rounded-3 mb-3"
+              style={{ width: 420, maxWidth: "100%", height: "auto" }}
+              className="rounded-3"
               src={`https://img.vietqr.io/image/MB-0000126082016-qr_only.png?amount=${qrAmount}&addInfo=${encodeURIComponent(
-                paymentToken
-                  ? `THANH TOAN DON HANG ${paymentToken}`
-                  : "THANH TOAN DON HANG"
+                qrAddInfo
               )}`}
             />
 
-            <div className="mb-2 text-muted small">
-              Số tiền cần thanh toán:{" "}
-              <span className="fw-semibold text-dark">
-                {formatCurrency(qrAmount)}
-              </span>
+            <div className="mt-3">
+              <div className="fw-semibold">
+                Số tiền: {formatCurrency(qrAmount)}
+              </div>
+              <div className="text-muted small mt-1">
+                Nội dung: <span className="fw-semibold">{qrAddInfo}</span>
+              </div>
+
+              {!paymentVerified ? (
+                <div className="text-muted small mt-2">
+                  Đang chờ xác nhận thanh toán...
+                </div>
+              ) : (
+                <div className="text-success fw-semibold mt-2">
+                  Thanh toán thành công!
+                </div>
+              )}
             </div>
-
-            {!paymentVerified && (
-              <p className="text-muted small mb-2">
-                Đang chờ thanh toán... Hệ thống sẽ tự động ghi nhận khi tiền về
-                tài khoản.
-              </p>
-            )}
-            {paymentVerified && (
-              <p className="text-success fw-semibold mb-2">
-                Đã nhận thanh toán, đang tạo đơn hàng và chuyển sang trang xác
-                nhận...
-              </p>
-            )}
-
-            <Button
-              type="button"
-              variant="outline-secondary"
-              className="rounded-pill mt-2 px-4"
-              onClick={() => {
-                setShowQrModal(false);
-                setPaymentMethod("COD");
-                setPaymentVerified(false);
-                setAutoCheck(false);
-                setPaymentToken(null);
-                autoPaidRef.current = false;
-              }}
-              disabled={submitting}
-            >
-              Đóng
-            </Button>
           </div>
-        </div>
-      )}
-
-      <EcommerceFooter />
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
