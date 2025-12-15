@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Models;
+using System.Security.Claims;
+
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -21,7 +23,8 @@ namespace SaoKim_ecommerce_BE.Controllers
         [HttpGet("unread-count")]
         public async Task<IActionResult> UnreadCount()
         {
-            var userId = int.Parse(User.FindFirst("UserId")!.Value);
+            if (!TryGetUserId(out var userId))
+                return Unauthorized(ApiResponse<object>.Fail("Token thiếu userId claim"));
 
             var count = await _db.UserNotifications
                 .CountAsync(x => x.UserID == userId && !x.IsRead);
@@ -73,12 +76,25 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
         }
+        private bool TryGetUserId(out int userId)
+        {
+            userId = 0;
 
-        // POST /api/notifications/{userNotificationId}/read
+            var raw =
+                User.FindFirstValue("userId") ??
+                User.FindFirstValue("UserID") ??
+                User.FindFirstValue("id") ??
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("sub");
+
+            return int.TryParse(raw, out userId);
+        }
+
         [HttpPost("{userNotificationId:int}/read")]
         public async Task<IActionResult> MarkRead([FromRoute] int userNotificationId)
         {
-            var userId = int.Parse(User.FindFirst("Userid")!.Value);
+            if (!TryGetUserId(out var userId))
+                return Unauthorized(ApiResponse<object>.Fail("Token thiếu userId"));
 
             var row = await _db.UserNotifications
                 .FirstOrDefaultAsync(x =>
@@ -98,27 +114,5 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(new { }, "Đã đọc"));
         }
 
-        // POST /api/notifications/read-all
-        [HttpPost("read-all")]
-        public async Task<IActionResult> MarkAllRead()
-        {
-            var userId = int.Parse(User.FindFirst("UserId")!.Value);
-
-            var rows = await _db.UserNotifications
-                .Where(x => x.UserID == userId && !x.IsRead)
-                .ToListAsync();
-
-            if (rows.Count == 0)
-                return Ok(ApiResponse<object>.Ok(new { }, "Không có thông báo chưa đọc"));
-
-            foreach (var r in rows)
-            {
-                r.IsRead = true;
-                r.ReadAt = DateTime.UtcNow;
-            }
-
-            await _db.SaveChangesAsync();
-            return Ok(ApiResponse<object>.Ok(new { }, "Đã đọc tất cả"));
-        }
     }
 }

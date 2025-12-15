@@ -103,9 +103,8 @@ namespace SaoKim_ecommerce_BE.Services
             });
         }
 
-        public async Task CreateNewOrderNotificationToWarehouseAsync(int orderId)
+        public async Task CreateNewOrderNotificationToWarehouseAsync(int orderId, int dispatchSlipId)
         {
-            // chống tạo trùng
             var startOfDay = DateTime.UtcNow.Date;
             var endOfDay = startOfDay.AddDays(1);
 
@@ -123,7 +122,7 @@ namespace SaoKim_ecommerce_BE.Services
                 Title = title,
                 Body = "Xem phiếu xuất kho",
                 Type = "Order",
-                LinkUrl = $"/warehouse/dispatch-slips?salesOrderNo=ORD-{orderId}",
+                LinkUrl = $"/warehouse-dashboard/dispatch-slips/{dispatchSlipId}/items",
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -131,10 +130,7 @@ namespace SaoKim_ecommerce_BE.Services
             await _db.SaveChangesAsync();
 
             var warehouseRoleIds = await _db.Roles
-                .Where(r => r.Name != null && (
-                    r.Name.Trim().ToLower() == "warehouse" ||
-                    r.Name.Trim().ToLower() == "warehouse manager" ||
-                    r.Name.Trim().ToLower() == "staff_warehouse"))
+                .Where(r => r.Name != null && r.Name.Trim().ToLower() == "warehouse_manager")
                 .Select(r => r.RoleId)
                 .ToListAsync();
 
@@ -167,6 +163,5 @@ namespace SaoKim_ecommerce_BE.Services
                 createdAt = noti.CreatedAt
             });
         }
-
     }
 }

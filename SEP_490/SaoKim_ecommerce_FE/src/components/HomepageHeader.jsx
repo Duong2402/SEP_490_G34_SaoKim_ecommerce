@@ -12,15 +12,20 @@ if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 const HomepageHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [userName, setUserName] = useState(null);
   const [query, setQuery] = useState("");
   const fetchingNameRef = useRef(false);
+
+  // Notification state
   const [notificationCount, setNotificationCount] = useState(0);
   const [notiItems, setNotiItems] = useState([]);
-  const [notiGroup, setNotiGroup] = useState("All");
   const [tab, setTab] = useState("all");
+  const [notiOpen, setNotiOpen] = useState(false);
+  const [loadingNoti, setLoadingNoti] = useState(false);
+  const notiRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 8);
@@ -40,68 +45,119 @@ const HomepageHeader = () => {
       .join(" ");
   };
 
+  const deriveNameFromEmail = (email) => formatDisplayName(email?.split("@")[0] || "");
+
+  const authToken = () => localStorage.getItem("token") || "";
+
   const fetchUnreadCount = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return setNotificationCount(0);
+    const token = authToken();
+    if (!token) {
+      setNotificationCount(0);
+      return;
+    }
 
-    const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
 
-    const json = await res.json();
-    setNotificationCount(json?.data?.count ?? 0);
+      const json = await res.json();
+      setNotificationCount(json?.data?.count ?? json?.count ?? 0);
+    } catch {
+      // ignore
+    }
   };
 
   const fetchNotiList = async () => {
-    const token = localStorage.getItem("token");
+    const token = authToken();
     if (!token) return;
 
-    const unreadParam = tab === "unread" ? "&onlyUnread=true" : "";
-    const res = await fetch(`${API_BASE}/api/notifications?page=1&pageSize=10${unreadParam}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
+    setLoadingNoti(true);
+    try {
+      const unreadParam = tab === "unread" ? "&onlyUnread=true" : "";
+      const res = await fetch(`${API_BASE}/api/notifications?page=1&pageSize=10${unreadParam}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
 
-    const json = await res.json();
-    setNotiItems(json?.data?.items ?? []);
+      const json = await res.json();
+      setNotiItems(json?.data?.items ?? json?.items ?? []);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingNoti(false);
+    }
   };
 
   useEffect(() => {
     fetchNotiList();
   }, [tab]);
 
-  const handleReadAll = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+  useEffect(() => {
+    fetchUnreadCount();
+    const t = setInterval(fetchUnreadCount, 15000);
+    return () => clearInterval(t);
+  }, []);
 
-    const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return;
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notiOpen && notiRef.current && !notiRef.current.contains(e.target)) {
+        setNotiOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [notiOpen]);
 
-    await fetchUnreadCount();
-    await fetchNotiList();
+  const goByLink = (linkUrl) => {
+    if (!linkUrl) return;
+
+    const normalized = /^https?:\/\//i.test(linkUrl)
+      ? linkUrl
+      : linkUrl.startsWith("/")
+        ? linkUrl
+        : `/${linkUrl}`;
+
+    if (/^https?:\/\//i.test(normalized)) {
+      window.location.href = normalized;
+    } else {
+      navigate(normalized);
+    }
   };
 
-  const handleOpenNoti = async (x) => {
-    const token = localStorage.getItem("token");
+  const handleOpenNotiItem = async (x) => {
+    const token = authToken();
     if (!token) return;
 
-    if (!x.isRead) {
-      await fetch(`${API_BASE}/api/notifications/${x.userNotificationId}/read`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await fetchUnreadCount();
+    try {
+      if (!x.isRead) {
+        await fetch(`${API_BASE}/api/notifications/${x.userNotificationId}/read`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        await fetchUnreadCount();
+      }
+    } catch {
+      // ignore
     }
 
-    const link = x.notification.linkUrl;
-    if (link) navigate(link);
+    setNotiOpen(false);
+    goByLink(x?.notification?.linkUrl);
   };
 
-  const deriveNameFromEmail = (email) => formatDisplayName(email?.split("@")[0] || "");
+  const openNoti = async () => {
+    const token = authToken();
+    if (!token) return;
+
+    const next = !notiOpen;
+    setNotiOpen(next);
+
+    if (next) {
+      await fetchUnreadCount();
+      await fetchNotiList();
+    }
+  };
 
   const syncSession = () => {
     try {
@@ -144,11 +200,10 @@ const HomepageHeader = () => {
       try {
         fetchingNameRef.current = true;
         const res = await fetch(`${API_BASE}/api/users/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return;
+
         const data = await res.json();
         const name = formatDisplayName(data?.name || "");
         if (name) {
@@ -174,9 +229,7 @@ const HomepageHeader = () => {
 
   const handleSearch = (event) => {
     event.preventDefault();
-    if (query.trim()) {
-      navigate(`/products?search=${encodeURIComponent(query.trim())}`);
-    }
+    if (query.trim()) navigate(`/products?search=${encodeURIComponent(query.trim())}`);
   };
 
   const navLinks = [
@@ -191,11 +244,7 @@ const HomepageHeader = () => {
   };
 
   return (
-    <Navbar
-      expand="lg"
-      sticky="top"
-      className={`homepage-navbar ${isScrolled ? "is-sticky" : ""}`}
-    >
+    <Navbar expand="lg" sticky="top" className={`homepage-navbar ${isScrolled ? "is-sticky" : ""}`}>
       <Container fluid className="header-shell">
         <Navbar.Brand as={Link} to="/" className="brand-area">
           <div className="logo-wrapper">
@@ -230,12 +279,7 @@ const HomepageHeader = () => {
 
           <Nav className="ms-auto align-items-center header-nav">
             {navLinks.map(({ to, label }) => (
-              <Nav.Link
-                key={to}
-                as={Link}
-                to={to}
-                className={`nav-pill ${isActive(to) ? "active" : ""}`}
-              >
+              <Nav.Link key={to} as={Link} to={to} className={`nav-pill ${isActive(to) ? "active" : ""}`}>
                 {label}
               </Nav.Link>
             ))}
@@ -248,106 +292,84 @@ const HomepageHeader = () => {
                 </Badge>
               )}
             </Nav.Link>
-            <Dropdown
-              align="end"
-              className="fb-noti"
-              onToggle={(isOpen) => {
-                if (isOpen) fetchNotiList(); // mở dropdown mới load list
-              }}
-            >
-              <Dropdown.Toggle variant="link" className="fb-noti__toggle p-0 border-0">
-                <span className="icon-link position-relative">
-                  <FontAwesomeIcon icon={faBell} />
-                  {notificationCount > 0 && (
-                    <Badge bg="danger" pill className="fb-noti__badge">
-                      {notificationCount}
-                    </Badge>
-                  )}
-                </span>
-              </Dropdown.Toggle>
 
-              <Dropdown.Menu className="fb-noti__menu shadow">
-                <div className="fb-noti__header">
-                  <div className="fb-noti__title">Thông báo</div>
-                  <button type="button" className="fb-noti__more" aria-label="More">
-                    ...
-                  </button>
-                </div>
+            <div className="header-noti" ref={notiRef}>
+              <button
+                type="button"
+                className="header-noti__btn"
+                aria-haspopup="true"
+                aria-expanded={notiOpen}
+                onClick={openNoti}
+                title="Thông báo"
+              >
+                <FontAwesomeIcon icon={faBell} />
+                {notificationCount > 0 && (
+                  <span className="header-noti__badge">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                )}
+              </button>
 
-                <div className="fb-noti__tabs">
-                  <button
-                    type="button"
-                    className={`fb-noti__tab ${tab === "all" ? "is-active" : ""}`}
-                    onClick={() => setTab("all")}
-                  >
-                    Tất cả
-                  </button>
-                  <button
-                    type="button"
-                    className={`fb-noti__tab ${tab === "unread" ? "is-active" : ""}`}
-                    onClick={() => setTab("unread")}
-                  >
-                    Chưa đọc
-                  </button>
-                </div>
+              {notiOpen && (
+                <div className="header-noti__menu" role="menu">
+                  <div className="header-noti__header">
+                    <div className="header-noti__title">Thông báo</div>
 
-                <div className="fb-noti__section">
-                  <div className="fb-noti__sectionTitle">Trước đó</div>
-                  <button type="button" className="fb-noti__seeAll" onClick={() => navigate("/notifications")}>
-                    Xem tất cả
-                  </button>
-                </div>
-
-                <div className="fb-noti__list">
-                  {notiItems.length === 0 ? (
-                    <div className="fb-noti__empty">Chưa có thông báo</div>
-                  ) : (
-                    notiItems.map((x) => (
+                    <div className="header-noti__tabs">
                       <button
-                        key={x.userNotificationId}
                         type="button"
-                        className={`fb-noti__item ${x.isRead ? "" : "is-unread"}`}
-                        onClick={() => handleOpenNoti(x)}
+                        className={"header-noti__tab " + (tab === "all" ? "is-active" : "")}
+                        onClick={() => setTab("all")}
                       >
-                        <div className="fb-noti__avatar">
-                          <img
-                            src={x.imageUrl || "/images/default-avatar.png"}
-                            alt=""
-                            className="fb-noti__avatarImg"
-                          />
-                          <span className="fb-noti__badgeIcon" />
-                        </div>
-
-                        <div className="fb-noti__content">
-                          <div className="fb-noti__text">
-                            <span className="fb-noti__textBold">{x.notification.title}</span>
-                            {x.notification.body ? ` ${x.notification.body}` : ""}
-                          </div>
-                          <div className="fb-noti__time">
-                            {new Date(x.notification.createdAt).toLocaleString()}
-                          </div>
-                        </div>
-
-                        {!x.isRead && <span className="fb-noti__dot" />}
+                        Tất cả
                       </button>
-                    ))
-                  )}
-                </div>
+                      <button
+                        type="button"
+                        className={"header-noti__tab " + (tab === "unread" ? "is-active" : "")}
+                        onClick={() => setTab("unread")}
+                      >
+                        Chưa đọc
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="fb-noti__footer">
-                  <button type="button" className="fb-noti__footerBtn" onClick={() => navigate("/notifications")}>
-                    Xem thông báo trước đó
-                  </button>
+                  <div className="header-noti__list">
+                    {loadingNoti ? (
+                      <div className="header-noti__empty">Đang tải...</div>
+                    ) : notiItems.length === 0 ? (
+                      <div className="header-noti__empty">Chưa có thông báo</div>
+                    ) : (
+                      notiItems.map((x) => (
+                        <button
+                          key={x.userNotificationId}
+                          type="button"
+                          className={"header-noti__item " + (!x.isRead ? "is-unread" : "")}
+                          onClick={() => handleOpenNotiItem(x)}
+                        >
+                          <div className="header-noti__itemTitle">
+                            {x.notification?.title || "Thông báo"}
+                          </div>
+                          {x.notification?.body && (
+                            <div className="header-noti__itemBody">{x.notification.body}</div>
+                          )}
+                          <div className="header-noti__time">
+                            {x.notification?.createdAt
+                              ? new Date(x.notification.createdAt).toLocaleString()
+                              : ""}
+                          </div>
+                          {!x.isRead && <span className="header-noti__dot" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </Dropdown.Menu>
-            </Dropdown>
+              )}
+            </div>
 
             {userName ? (
               <Dropdown align="end" className="user-dropdown">
                 <Dropdown.Toggle variant="link" className="user-toggle p-0 border-0">
-                  <div className="avatar-circle">
-                    {userName.charAt(0).toUpperCase()}
-                  </div>
+                  <div className="avatar-circle">{userName.charAt(0).toUpperCase()}</div>
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu className="user-dropdown-menu shadow">

@@ -47,6 +47,7 @@ namespace SaoKim_ecommerce_BE.Data
                 {
                     new User
                     {
+                        UserID = 1,
                         Name = "Admin User",
                         Email = "admin@saokim.vn",
                         Password = HashPassword("123456789"),
@@ -58,6 +59,7 @@ namespace SaoKim_ecommerce_BE.Data
                     },
                     new User
                     {
+                        UserID = 2,
                         Name = "Warehouse Manager",
                         Email = "warehousemanager@saokim.vn",
                         Password = HashPassword("123456789"),
@@ -69,6 +71,7 @@ namespace SaoKim_ecommerce_BE.Data
                     },
                     new User
                     {
+                        UserID = 3,
                         Name = "Staff User",
                         Email = "staff@saokim.vn",
                         Password = HashPassword("123456789"),
@@ -80,6 +83,7 @@ namespace SaoKim_ecommerce_BE.Data
                     },
                     new User
                     {
+                        UserID = 4,
                         Name = "Project Manager",
                         Email = "projectmanager@saokim.vn",
                         Password = HashPassword("123456789"),
@@ -91,6 +95,7 @@ namespace SaoKim_ecommerce_BE.Data
                     },
                     new User
                     {
+                        UserID = 5,
                         Name = "Manager User",
                         Email = "manager@saokim.vn",
                         Password = HashPassword("123456789"),

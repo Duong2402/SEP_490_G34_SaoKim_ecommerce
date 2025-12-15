@@ -2,6 +2,7 @@
 
 public interface INotificationService
 {
-    Task CreatePromotionNotificationAsync(int promotionId);
-    Task CreateNewOrderNotificationToWarehouseAsync(int orderId);
+    Task CreatePromotionNotificationAsync(int promotionId); 
+    Task CreateNewOrderNotificationToWarehouseAsync(int orderId, int dispatchSlipId);
+
 }
