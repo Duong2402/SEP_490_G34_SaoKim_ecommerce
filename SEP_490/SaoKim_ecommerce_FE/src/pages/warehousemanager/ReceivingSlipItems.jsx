@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Breadcrumb,
@@ -21,8 +21,7 @@ import {
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
-import { getReceivingHubConnection } from "../../signalr/receivingHub";
-import * as signalR from "@microsoft/signalr";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const PAGE_SIZE = 10;
 
@@ -205,45 +204,36 @@ const ReceivingSlipItems = () => {
   }, [id]);
 
   useEffect(() => {
-    const connection = getReceivingHubConnection();
+  const conn = getRealtimeConnection();
 
-    connection.off("ReceivingItemsUpdated");
+  conn.off("evt");
 
-    connection.on("ReceivingItemsUpdated", (payload) => {
-      console.log("ReceivingItemsUpdated:", payload);
+  conn.on("evt", (payload) => {
+    const type = payload?.type;
+    if (!type) return;
 
-      if (payload.slipId !== Number(id)) return;
+    if (
+      type !== "receiving.item.created" &&
+      type !== "receiving.item.updated" &&
+      type !== "receiving.item.deleted"
+    ) return;
 
-      setItems((prev) => {
-        switch (payload.action) {
-          case "created":
-            return [...prev, payload.item];
-          case "deleted":
-            return prev.filter((i) => i.id !== payload.itemId);
-          case "updated":
-            return prev.map((i) =>
-              i.id === payload.item.id ? payload.item : i
-            );
-          default:
-            return prev;
-        }
-      });
-    });
+    const data = payload?.data ?? payload;
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => console.log("SignalR đã kết nối trong ReceivingSlipItems"))
-        .catch((err) => {
-          console.error("SignalR mất kết nối:", err);
-          setNotify("Không thể kết nối realtime tới máy chủ.");
-        });
-    }
+    if (Number(data?.slipId) !== Number(id)) return;
 
-    return () => {
-      connection.off("ReceivingItemsUpdated");
-    };
-  }, [id]);
+    load();
+  });
+
+  ensureRealtimeStarted().catch(() => {
+    setNotify("Không thể kết nối realtime tới máy chủ.");
+  });
+
+  return () => {
+    conn.off("evt");
+  };
+}, [id]);
+
 
   const handleDelete = async (itemId) => {
     if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;

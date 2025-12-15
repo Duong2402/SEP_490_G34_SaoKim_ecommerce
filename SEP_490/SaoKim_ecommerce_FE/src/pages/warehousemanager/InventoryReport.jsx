@@ -1,4 +1,4 @@
-import React, {
+import {
   useEffect,
   useState,
   useMemo,
@@ -24,8 +24,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
-import * as signalR from "@microsoft/signalr";
-import { getInventoryHubConnection } from "../../signalr/inventoryHub";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const MAX_PAGE_SIZE = 1000;
 
@@ -145,28 +144,33 @@ export default function InventoryReport() {
   }, [loadData]);
 
   useEffect(() => {
-    const connection = getInventoryHubConnection();
+    let disposed = false;
+    const getAccessToken = async () => localStorage.getItem("token") || "";
 
-    connection.off("InventoryUpdated");
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
 
-    connection.on("InventoryUpdated", (payload) => {
-      console.log("Sự kiện InventoryUpdated (InventoryReport):", payload);
-      loadData();
-    });
+        const conn = getRealtimeConnection(getAccessToken);
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => {
-          console.log("Đã kết nối SignalR trong InventoryReport");
-        })
-        .catch((err) => {
-          console.error("Lỗi kết nối SignalR trong InventoryReport:", err);
+        conn.off("evt");
+        conn.on("evt", (payload) => {
+          const type = payload?.type;
+          if (!type) return;
+
+          if (type.startsWith("inventory.") || type.startsWith("stock.")) {
+            loadData();
+          }
         });
-    }
+      })
+      .catch((err) => {
+        console.error("Lỗi kết nối realtime (InventoryReport):", err);
+      });
 
     return () => {
-      connection.off("InventoryUpdated");
+      disposed = true;
+      const conn = getRealtimeConnection(getAccessToken);
+      conn.off("evt");
     };
   }, [loadData]);
 
@@ -280,18 +284,16 @@ export default function InventoryReport() {
           <div className="d-flex gap-2">
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "detail" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "detail" ? "active" : ""
+                }`}
               onClick={() => setViewMode("detail")}
             >
               Chi tiết theo sản phẩm
             </button>
             <button
               type="button"
-              className={`wm-btn wm-btn--light ${
-                viewMode === "overview" ? "active" : ""
-              }`}
+              className={`wm-btn wm-btn--light ${viewMode === "overview" ? "active" : ""
+                }`}
               onClick={() => setViewMode("overview")}
             >
               Tổng quan & top sản phẩm

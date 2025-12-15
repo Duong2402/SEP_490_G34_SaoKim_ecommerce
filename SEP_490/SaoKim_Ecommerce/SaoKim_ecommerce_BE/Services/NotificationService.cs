@@ -9,9 +9,9 @@ namespace SaoKim_ecommerce_BE.Services
     public class NotificationService : INotificationService
     {
         private readonly SaoKimDBContext _db;
-        private readonly IHubContext<NotificationsHub> _hub;
+        private readonly IHubContext<RealtimeHub> _hub;
 
-        public NotificationService(SaoKimDBContext db, IHubContext<NotificationsHub> hub)
+        public NotificationService(SaoKimDBContext db, IHubContext<RealtimeHub> hub)
         {
             _db = db;
             _hub = hub;

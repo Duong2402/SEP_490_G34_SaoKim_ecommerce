@@ -17,6 +17,7 @@ import { useParams } from "react-router-dom";
 import Select from "react-select";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const EVENT_TYPE_META = {
   import: {
@@ -161,6 +162,45 @@ export default function ProductTrace() {
       fetchTrace(routeProductId);
     }
   }, [routeProductId]);
+useEffect(() => {
+  let disposed = false;
+
+  const getAccessToken = async () => localStorage.getItem("token") || "";
+
+  ensureRealtimeStarted(getAccessToken)
+    .then(() => {
+      if (disposed) return;
+
+      const conn = getRealtimeConnection(getAccessToken);
+
+      conn.off("evt");
+      conn.on("evt", (payload) => {
+        const type = payload?.type;
+        if (!type) return;
+
+        const isStockRelated =
+          type.startsWith("receiving.") ||
+          type.startsWith("dispatch.") ||
+          type.startsWith("inventory.") ||
+          type.startsWith("trace.");
+
+        if (!isStockRelated) return;
+
+        const currentProductId = selectedProductOption?.value || routeProductId;
+        if (currentProductId) fetchTrace(currentProductId);
+
+      });
+    })
+    .catch((err) => {
+      console.error("Lỗi kết nối realtime (ProductTrace):", err);
+    });
+
+  return () => {
+    disposed = true;
+    const conn = getRealtimeConnection(getAccessToken);
+    conn.off("evt");
+  };
+}, [routeProductId, selectedProductOption]);
 
   const summary = useMemo(() => {
     if (!trace || !trace.movements?.length) return null;

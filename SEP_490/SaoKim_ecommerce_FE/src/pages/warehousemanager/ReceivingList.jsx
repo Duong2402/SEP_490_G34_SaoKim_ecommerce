@@ -22,8 +22,6 @@ import { Modal, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
-import * as signalR from "@microsoft/signalr";
-import { getReceivingHubConnection } from "../../signalr/receivingHub";
 
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
@@ -89,49 +87,33 @@ export default function ReceivingList() {
   );
 
   useEffect(() => {
-    loadData();
+    const conn = getRealtimeConnection();
 
-    const connection = getReceivingHubConnection();
+    conn.off("evt");
 
-    connection.off("ReceivingSlipsUpdated");
+    conn.on("evt", (payload) => {
+      const type = payload?.type;
+      if (!type) return;
 
-    connection.on("ReceivingSlipsUpdated", (payload) => {
-      console.log("ReceivingSlipsUpdated payload:", payload);
-
-      const { action } = payload || {};
-      if (!action) {
-        console.warn("ReceivingSlipsUpdated không có action:", payload);
-        return;
-      }
-
-      if (action === "created") {
-        setRows((prev) => [payload, ...prev]);
-        setTotal((t) => t + 1);
-      } else if (action === "deleted") {
-        setRows((prev) => prev.filter((r) => r.id !== payload.id));
-      } else if (action === "updated" || action === "confirmed") {
-        setRows((prev) =>
-          prev.map((r) => (r.id === payload.id ? { ...r, ...payload } : r))
-        );
-      } else if (action === "imported") {
-        loadData();
+      switch (type) {
+        case "receiving.created":
+        case "receiving.deleted":
+        case "receiving.updated":
+        case "receiving.confirmed":
+        case "receiving.imported":
+          loadData();
+          break;
+        default:
+          break;
       }
     });
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() => {
-          console.log("SignalR đã kết nối");
-        })
-        .catch((err) => {
-          console.error("SignalR mất kết nối:", err);
-          setNotify("Không thể kết nối realtime tới máy chủ.");
-        });
-    }
+    ensureRealtimeStarted().catch(() => {
+      setNotify("Không thể kết nối realtime tới máy chủ.");
+    });
 
     return () => {
-      connection.off("ReceivingSlipsUpdated");
+      conn.off("evt");
     };
   }, [loadData]);
 
@@ -646,9 +628,8 @@ export default function ReceivingList() {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
+                    }`}
                   onClick={() => setPage(p)}
                   disabled={loading}
                 >

@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
+using SaoKim_ecommerce_BE.Services.Realtime;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -106,7 +108,7 @@ builder.Services.AddScoped<IStaffOrdersService, StaffOrdersService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-
+builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
@@ -116,7 +118,7 @@ builder.Services.AddDbContext<SaoKimDBContext>(options =>
 // Read allowed CORS origins from configuration (fallback to localhost FE)
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
-    .Get<string[]>() ?? new[] { "http://localhost:5173" };
+    .Get<string[]>() ?? new[] { "http://localhost:5173", "https://localhost:5173" };
 
 // Configure CORS policy for frontend application
 builder.Services.AddCors(options =>
@@ -139,6 +141,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         var issuer = builder.Configuration["Jwt:Issuer"];
         var audience = builder.Configuration["Jwt:Audience"];
 
+        if (string.IsNullOrWhiteSpace(key))
+            throw new InvalidOperationException("Missing configuration Jwt:Key");
+        if (string.IsNullOrWhiteSpace(issuer))
+            throw new InvalidOperationException("Missing configuration Jwt:Issuer");
+        if (string.IsNullOrWhiteSpace(audience))
+            throw new InvalidOperationException("Missing configuration Jwt:Audience");
+
         // Token validation rules
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -159,33 +168,55 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
+                // Allow passing JWT token via query string for SignalR hubs
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
 
-                // Allow passing JWT token via query string for SignalR hubs
-                if (!string.IsNullOrEmpty(accessToken) &&
-                    path.StartsWithSegments("/hubs"))
+                if (!StringValues.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                 {
-                    context.Token = accessToken;
+                    context.Token = accessToken.ToString();
+                    return Task.CompletedTask;
                 }
 
                 return Task.CompletedTask;
             },
-            OnChallenge = ctx =>
+
+            OnAuthenticationFailed = context =>
             {
-                // Override default challenge response to return JSON instead of HTML
-                ctx.HandleResponse();
-                if (!ctx.Response.HasStarted)
-                {
-                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    ctx.Response.ContentType = "application/json; charset=utf-8";
-                    return ctx.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
-                }
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtBearer");
+
+                logger.LogError(context.Exception, "JWT authentication failed: {Message}", context.Exception.Message);
                 return Task.CompletedTask;
             },
+
+            // Override default challenge response
+            OnChallenge = async ctx =>
+            {
+                ctx.HandleResponse();
+
+                if (ctx.Response.HasStarted) return;
+
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+
+                if (builder.Environment.IsDevelopment())
+                {
+                    var msg = ctx.ErrorDescription;
+                    if (string.IsNullOrWhiteSpace(msg))
+                        msg = ctx.Error ?? "Unauthorized";
+
+                    await ctx.Response.WriteAsync("{\"message\":\"" + msg.Replace("\"", "'") + "\"}");
+                }
+                else
+                {
+                    await ctx.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
+                }
+            },
+
             OnForbidden = ctx =>
             {
-                // Return JSON for forbidden responses
                 ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 ctx.Response.ContentType = "application/json; charset=utf-8";
                 return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
@@ -229,7 +260,7 @@ else
 app.MapGet("/__routes", (EndpointDataSource eds) =>
     Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
 
-// Serve static files from wwwroot (and related folders)
+// Serve static files from wwwroot
 app.UseStaticFiles();
 
 // Redirect HTTP to HTTPS
@@ -247,10 +278,8 @@ app.UseAuthorization();
 // Map API controllers
 app.MapControllers();
 
-// Map SignalR hubs for warehouse-related real-time updates
-app.MapHub<DispatchHub>("/hubs/dispatch");
-app.MapHub<ReceivingHub>("/hubs/receiving");
-app.MapHub<InventoryHub>("/hubs/inventory");
-app.MapHub<NotificationsHub>("/hubs/notifications");
+// Map SignalR hubs
+app.MapHub<RealtimeHub>("/hubs/realtime");
+
 // Start the application
 app.Run();

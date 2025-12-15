@@ -7,7 +7,7 @@ import {
   faEyeSlash,
   faArrowRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { Form, Button, InputGroup, Alert } from "@themesberg/react-bootstrap";
+import { Form, Button, InputGroup } from "@themesberg/react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/AuthLayout";
 import BgImage from "../../assets/signin.svg";
@@ -29,13 +29,22 @@ export default function Login() {
       const msg = data.message ?? data.Message ?? data.error ?? data.title ?? null;
       if (msg) return String(msg);
 
+      if (data.data && typeof data.data === "object") {
+        const msg2 =
+          data.data.message ?? data.data.Message ?? data.data.error ?? data.data.title ?? null;
+        if (msg2) return String(msg2);
+      }
+
       if (data.errors && typeof data.errors === "object") {
         const k = Object.keys(data.errors)[0];
         if (k && Array.isArray(data.errors[k]) && data.errors[k][0]) {
           return String(data.errors[k][0]);
         }
       }
-      try { return JSON.stringify(data); } catch { }
+
+      try {
+        return JSON.stringify(data);
+      } catch {}
     }
 
     if (typeof data === "string" && data.trim()) {
@@ -58,9 +67,16 @@ export default function Login() {
       });
 
       let text = "";
-      try { text = await res.text(); } catch { }
+      try {
+        text = await res.text();
+      } catch {}
+
       let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
 
       if (!res.ok) {
         const msg = extractErrorMessage(res, data ?? text) || "Sai email hoặc mật khẩu.";
@@ -69,17 +85,37 @@ export default function Login() {
         return;
       }
 
-      const token = (data?.token ?? data?.Token) || "";
-      const email = data?.email ?? data?.Email ?? "";
-      const role = data?.role ?? data?.Role ?? "";
+      // Nhiều BE trả về theo dạng ApiResponse: { success, message, data: {...} }
+      const payload = (data && typeof data === "object" && data.data) ? data.data : data;
+
+      const token =
+        (payload?.token ?? payload?.Token ?? payload?.accessToken ?? payload?.AccessToken) || "";
+
+      const email =
+        (payload?.email ?? payload?.Email ?? payload?.userEmail ?? payload?.UserEmail) || "";
+
+      const role =
+        (payload?.role ?? payload?.Role ?? payload?.userRole ?? payload?.UserRole) || "";
+
+      const name =
+        (payload?.userName ?? payload?.UserName ?? payload?.name ?? payload?.Name) || "";
+
       if (!token) {
-        setError("Phản hồi không hợp lệ từ máy chủ.");
+        console.warn("LOGIN RESPONSE (no token):", data ?? text);
+        setError("Phản hồi không hợp lệ từ máy chủ (không có token).");
         return;
       }
 
       localStorage.setItem("token", token);
       if (email) localStorage.setItem("userEmail", email);
+      if (name) localStorage.setItem("userName", name);
       if (role) localStorage.setItem("role", role);
+
+      // Nếu bạn có listener custom "localStorageChange" ở layout thì bắn event luôn
+      try {
+        window.dispatchEvent(new Event("localStorageChange"));
+      } catch {}
+
       const roleNorm = String(role || "").trim().toLowerCase();
       let to = "/";
 
@@ -139,7 +175,7 @@ export default function Login() {
             border: "1px solid #dc3545",
             background: "#ffe5e7",
             color: "#842029",
-            fontWeight: 500
+            fontWeight: 500,
           }}
         >
           {error}
@@ -216,8 +252,7 @@ export default function Login() {
       </div>
 
       <div className="auth-footer-note">
-        Bằng việc tiếp tục, bạn đồng ý với{" "}
-        <Link to="/terms">điều khoản</Link> và{" "}
+        Bằng việc tiếp tục, bạn đồng ý với <Link to="/terms">điều khoản</Link> và{" "}
         <Link to="/privacy">chính sách bảo mật</Link> của chúng tôi.
       </div>
     </AuthLayout>

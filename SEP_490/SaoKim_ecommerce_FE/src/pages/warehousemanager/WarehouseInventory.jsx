@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Breadcrumb, Badge, Form, InputGroup, Button, Table, Spinner } from "@themesberg/react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -16,8 +16,6 @@ import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
-import { getInventoryHubConnection } from "../../signalr/inventoryHub";
-import * as signalR from "@microsoft/signalr";
 import "../../assets/css/Warehouse.css";
 
 const PAGE_SIZE = 10;
@@ -79,20 +77,18 @@ export default function WarehouseInventory() {
   };
 
   const summary = useMemo(() => {
-    const totalSku = total; 
+    const totalSku = total;
     const totalStock = rows.reduce(
       (acc, x) => acc + Number(x.onHand || 0),
       0
     );
 
     const lowStock = rows.filter((x) => {
-      const st = x.status ?? getStatus(x);
+      const st = getStatus(x);
       return st === "alert" || st === "critical";
     }).length;
 
-    const critical = rows.filter(
-      (x) => (x.status ?? getStatus(x)) === "critical"
-    ).length;
+    const critical = rows.filter((x) => getStatus(x) === "critical").length;
 
     return { totalSku, totalStock, lowStock, critical };
   }, [rows, total]);
@@ -103,7 +99,7 @@ export default function WarehouseInventory() {
 
     setApplyingBulk(true);
     try {
-      await Promise.all(
+      const results = await Promise.all(
         rows.map((r) =>
           apiFetch(`/api/warehousemanager/inventory/${r.productId}/min-stock`, {
             method: "PATCH",
@@ -112,6 +108,8 @@ export default function WarehouseInventory() {
           })
         )
       );
+      const bad = results.find((x) => !x.ok);
+      if (bad) throw new Error("Có sản phẩm cập nhật thất bại");
       setRows((prev) => prev.map((r) => ({ ...r, minStock: val })));
       setShowMinModal(false);
       setBulkMin("");
@@ -122,7 +120,7 @@ export default function WarehouseInventory() {
     }
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -158,43 +156,35 @@ export default function WarehouseInventory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, locationFilter, statusFilter]);
 
   useEffect(() => {
-    const connection = getInventoryHubConnection();
+    const conn = getRealtimeConnection();
 
-    connection.off("InventoryUpdated");
+    conn.off("evt");
 
-    connection.on("InventoryUpdated", (payload) => {
-      const { productId, minStock } = payload || {};
-      if (!productId) return;
+    conn.on("evt", (evt) => {
+      const type = evt?.type;
+      if (!type) return;
 
-      setRows((prev) =>
-        prev.map((r) =>
-          r.productId === productId ? { ...r, minStock } : r
-        )
-      );
+      if (!type.startsWith("inventory.")) return;
+
+      load();
+
     });
 
-    if (connection.state === signalR.HubConnectionState.Disconnected) {
-      connection
-        .start()
-        .then(() =>
-          console.log("Đã kết nối SignalR cho màn hình tồn kho")
-        )
-        .catch((err) =>
-          console.error("Lỗi kết nối SignalR tồn kho:", err)
-        );
-    }
+    ensureRealtimeStarted().catch(() => {
+      console.error("Không thể kết nối realtime tới máy chủ.");
+    });
 
     return () => {
-      connection.off("InventoryUpdated");
+      conn.off("evt");
     };
-  }, []);
+  }, [page, search, locationFilter, statusFilter]);
 
   useEffect(() => {
     load();
-  }, [page, search, locationFilter, statusFilter]);
+  }, [load]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -226,7 +216,7 @@ export default function WarehouseInventory() {
         try {
           const t = await res.text();
           if (t) msg += ` - ${t}`;
-        } catch {}
+        } catch { }
         throw new Error(msg);
       }
 
@@ -481,7 +471,7 @@ export default function WarehouseInventory() {
               </tr>
             ) : (
               rows.map((r, idx) => {
-                const st = r.status ?? getStatus(r);
+                const st = getStatus(r);
                 const pid = r.productId;
                 const editing =
                   Object.prototype.hasOwnProperty.call(
@@ -583,11 +573,10 @@ export default function WarehouseInventory() {
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page
+                  className={`btn ${p === page
                       ? "btn-primary"
                       : "btn-outline-secondary"
-                  }`}
+                    }`}
                   onClick={() => setPage(p)}
                 >
                   {p}

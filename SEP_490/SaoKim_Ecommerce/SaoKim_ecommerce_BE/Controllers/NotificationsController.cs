@@ -5,7 +5,6 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Models;
 using System.Security.Claims;
 
-
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
@@ -32,7 +31,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(new { count }));
         }
 
-        // GET /api/notifications?page=1&pageSize=10&group=Promotions&onlyUnread=true
+        // GET /api/notifications?onlyUnread=false&page=1&pageSize=10
         [HttpGet]
         public async Task<IActionResult> List(
             [FromQuery] string? group,
@@ -40,7 +39,8 @@ namespace SaoKim_ecommerce_BE.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {
-            var userId = int.Parse(User.FindFirst("UserId")!.Value);
+            if (!TryGetUserId(out var userId))
+                return Unauthorized(ApiResponse<object>.Fail("Token thiếu userId claim"));
 
             var qry = _db.UserNotifications
                 .Where(x => x.UserID == userId)
@@ -59,12 +59,12 @@ namespace SaoKim_ecommerce_BE.Controllers
                 .Take(pageSize)
                 .Select(x => new
                 {
-                    userNotificationId = x.UserNotificationId,   
+                    userNotificationId = x.UserNotificationId,
                     isRead = x.IsRead,
                     readAt = x.ReadAt,
                     notification = new
                     {
-                        notificationId = x.Notification.NotificationId, 
+                        notificationId = x.Notification.NotificationId,
                         title = x.Notification.Title,
                         body = x.Notification.Body,
                         type = x.Notification.Type,
@@ -76,25 +76,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
         }
-        private bool TryGetUserId(out int userId)
-        {
-            userId = 0;
-
-            var raw =
-                User.FindFirstValue("userId") ??
-                User.FindFirstValue("UserID") ??
-                User.FindFirstValue("id") ??
-                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
-                User.FindFirstValue("sub");
-
-            return int.TryParse(raw, out userId);
-        }
 
         [HttpPost("{userNotificationId:int}/read")]
         public async Task<IActionResult> MarkRead([FromRoute] int userNotificationId)
         {
             if (!TryGetUserId(out var userId))
-                return Unauthorized(ApiResponse<object>.Fail("Token thiếu userId"));
+                return Unauthorized(ApiResponse<object>.Fail("Token thiếu userId claim"));
 
             var row = await _db.UserNotifications
                 .FirstOrDefaultAsync(x =>
@@ -114,5 +101,22 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(ApiResponse<object>.Ok(new { }, "Đã đọc"));
         }
 
+        private bool TryGetUserId(out int userId)
+        {
+            userId = 0;
+
+            var raw =
+                User.FindFirstValue("UserId") ??
+                User.FindFirstValue("userId") ??
+                User.FindFirstValue("UserID") ??
+                User.FindFirstValue("userID") ??
+                User.FindFirstValue("id") ??
+                User.FindFirstValue("Id") ??
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("nameid") ??
+                User.FindFirstValue("sub");
+
+            return int.TryParse(raw, out userId);
+        }
     }
 }

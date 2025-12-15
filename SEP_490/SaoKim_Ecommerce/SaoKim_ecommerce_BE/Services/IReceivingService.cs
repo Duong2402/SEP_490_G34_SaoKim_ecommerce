@@ -16,7 +16,6 @@ namespace SaoKim_ecommerce_BE.Services
         Task<(int SlipId, int ItemId)> DeleteReceivingSlipItemAsync(int itemId);
         Task<int> ImportReceivingSlipsAsync(Stream excelStream, string actor = "warehouse-manager");
         Task<ReceivingSlipConfirmResultDto> ConfirmReceivingSlipAsync(int id);
-        Task<DispatchSlipConfirmResultDto> ConfirmDispatchSlipAsync(int id);
         Task<ReceivingSlip> UpdateSupplierAsync(int id, SupplierUpdateDto dto);
         Task<byte[]> ExportSelectedReceivingSlipsAsync(ReceivingExportRequestDto req);
     }
