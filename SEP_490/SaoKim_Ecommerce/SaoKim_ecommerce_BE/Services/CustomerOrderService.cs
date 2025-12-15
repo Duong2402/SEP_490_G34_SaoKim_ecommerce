@@ -6,6 +6,7 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 
+
 namespace SaoKim_ecommerce_BE.Services
 {
     public class CustomerOrderService : ICustomerOrderService
@@ -128,7 +129,12 @@ namespace SaoKim_ecommerce_BE.Services
                 OrderId = order.OrderId,
                 CreatedAt = order.CreatedAt,
                 Status = order.Status,
+                Subtotal = order.Subtotal,
+                DiscountAmount = order.DiscountAmount,
+                VatAmount = order.VatAmount,
+                ShippingFee = order.ShippingFee,
                 Total = order.Total,
+
                 ShippingAddress = shipping,
                 Payment = payment,
                 Items = items,

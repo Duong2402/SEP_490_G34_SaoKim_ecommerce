@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import {
@@ -99,7 +99,7 @@ export default function ProjectReport() {
           <div>
             <h1 className="page-title">Báo cáo dự án</h1>
             <p className="page-subtitle">
-              #{code || "-"} - {name} {customerName ? `• ${customerName}` : ""}
+              #{code || "-"} - {name} {customerName ? `· ${customerName}` : ""}
             </p>
           </div>
           <div className="actions">
@@ -139,7 +139,7 @@ export default function ProjectReport() {
             <div className="project-overview__label">Mức hoàn thành</div>
             <div className="project-overview__value">{progressPercent}%</div>
             <div className="project-overview__description">
-              {formatNumber(taskCompleted)} hoàn thành • {formatNumber(taskActive)} đang làm • {formatNumber(taskDelayed)} trễ.
+              {formatNumber(taskCompleted)} hoàn thành · {formatNumber(taskActive)} đang làm · {formatNumber(taskDelayed)} trễ.
             </div>
           </article>
         </div>
@@ -181,7 +181,7 @@ export default function ProjectReport() {
             <div>
               <h2 className="project-section-title">Vấn đề & cột mốc</h2>
               <p className="project-section-subtitle">
-                Các công việc chậm tiến độ và mục cần chú ý.
+                Các công việc chậm tiến độ và mốc cần chú ý.
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function ProjectReport() {
           ) : (
             <div className="empty-state">
               <div className="empty-state-title">Không có vấn đề nào</div>
-              <div className="empty-state-subtitle">Tất cả mục đang đúng tiến độ.</div>
+              <div className="empty-state-subtitle">Tất cả mốc đang đúng tiến độ.</div>
             </div>
           )}
         </section>

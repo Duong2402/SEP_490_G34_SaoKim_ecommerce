@@ -1,5 +1,6 @@
 ﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Offcanvas } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown, faKey, faRightFromBracket, faUserPen } from "@fortawesome/free-solid-svg-icons";
 import ProjectManagerSidebar from "../pages/ProjectManager/components/ProjectManagerSidebar";
@@ -36,6 +37,7 @@ export default function ProjectManagerLayout() {
   const navigate = useNavigate();
   const [identity, setIdentity] = useState(() => getIdentity());
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const userMenuRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +63,11 @@ export default function ProjectManagerLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+    setUserMenuOpen(false);
+  }, [location.pathname]);
+
   const pageTitle = useMemo(() => {
     const current = PAGE_TITLES.find((item) => item.match.test(location.pathname));
     return current?.label || "Quản lý dự án";
@@ -83,9 +90,12 @@ export default function ProjectManagerLayout() {
     navigate("/change-password");
   };
 
+  const openSidebar = () => setSidebarOpen(true);
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="pm-shell">
-      <aside className="pm-sidebar" aria-label="Khu vực Project Manager">
+      <aside className="pm-sidebar d-none d-lg-flex" aria-label="Điều hướng Project Manager">
         <div
           className="pm-sidebar__brand"
           role="button"
@@ -105,11 +115,55 @@ export default function ProjectManagerLayout() {
         </div>
       </aside>
 
+      <Offcanvas
+        show={sidebarOpen}
+        onHide={closeSidebar}
+        placement="start"
+        className="pm-offcanvas"
+        restoreFocus={false}
+      >
+        <Offcanvas.Header
+          closeButton
+          closeVariant="white"
+          className="pm-offcanvas__header"
+        >
+          <div
+            className="pm-sidebar__brand"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/")}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/")}
+          >
+            <SaoKimLogo size="large" showText title="Sao Kim Projects" tagline="Khu vực Quản lý dự án" />
+          </div>
+        </Offcanvas.Header>
+        <Offcanvas.Body className="pm-offcanvas__body">
+          <ProjectManagerSidebar onNavigate={closeSidebar} />
+          <div className="pm-sidebar__footer">
+            Phiên làm việc an toàn
+            <br />
+            Hỗ trợ: 0963 811 369
+          </div>
+        </Offcanvas.Body>
+      </Offcanvas>
+
       <div className="pm-main">
         <header className="pm-topbar">
-          <div className="pm-topbar__titles">
-            <span className="pm-topbar__eyebrow">Quản lý dự án</span>
-            <h1 className="pm-topbar__title">{pageTitle}</h1>
+          <div className="pm-topbar__left">
+            <button
+              type="button"
+              className="pm-topbar__toggle d-lg-none"
+              onClick={openSidebar}
+              aria-label="Mở menu điều hướng"
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+            <div className="pm-topbar__titles">
+              <span className="pm-topbar__eyebrow">Khu vực Project Manager</span>
+              <h1 className="pm-topbar__title">{pageTitle}</h1>
+            </div>
           </div>
 
           <div className="pm-topbar__actions">
@@ -123,7 +177,7 @@ export default function ProjectManagerLayout() {
               >
                 <span className="pm-user__avatar">{getInitials(identity.name || identity.email)}</span>
                 <span className="pm-user__meta">
-                  {identity.name || "Project Manager"}
+                  {identity.name || "Quản lý dự án"}
                   <span>{identity.email}</span>
                 </span>
                 <FontAwesomeIcon icon={faChevronDown} />

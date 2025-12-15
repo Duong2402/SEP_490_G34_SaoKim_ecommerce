@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { ProjectProductAPI } from "../api/ProjectManager/project-products";
 import ProductSelector from "./ProductSelector";
 import Portal from "./Portal";

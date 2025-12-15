@@ -64,7 +64,7 @@ export default function ProductDetailPage() {
               <FontAwesomeIcon icon={faHome} />
             </Breadcrumb.Item>
 
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manage-products" }}>
+            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/staff/manager-products" }}>
               Sản phẩm
             </Breadcrumb.Item>
 
@@ -119,72 +119,74 @@ export default function ProductDetailPage() {
                 <Col md={8}>
                   <h5 className="fw-bold text-primary">{product.name}</h5>
 
-                  <Table borderless size="sm" className="mb-0">
-                    <tbody>
-                      <tr>
-                        <th style={{ width: 150 }}>SKU</th>
-                        <td>{product.sku}</td>
-                      </tr>
+                  <div className="table-responsive">
+                    <Table borderless size="sm" className="mb-0">
+                      <tbody>
+                        <tr>
+                          <th style={{ width: 150 }}>SKU</th>
+                          <td>{product.sku}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Danh mục</th>
-                        <td>{product.category || "-"}</td>
-                      </tr>
+                        <tr>
+                          <th>Danh mục</th>
+                          <td>{product.category || "-"}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Giá bán</th>
-                        <td>{(product.price ?? 0).toLocaleString("vi-VN")} ₫</td>
-                      </tr>
+                        <tr>
+                          <th>Giá bán</th>
+                          <td>{(product.price ?? 0).toLocaleString("vi-VN")} ₫</td>
+                        </tr>
 
-                      <tr>
-                        <th>Số lượng</th>
-                        <td>{product.quantity ?? product.stock ?? 0}</td>
-                      </tr>
+                        <tr>
+                          <th>Số lượng</th>
+                          <td>{product.quantity ?? product.stock ?? 0}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Đơn vị tính</th>
-                        <td>{product.unit || "-"}</td>
-                      </tr>
+                        <tr>
+                          <th>Đơn vị tính</th>
+                          <td>{product.unit || "-"}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Trạng thái</th>
-                        <td>{renderStatus(product.status)}</td>
-                      </tr>
+                        <tr>
+                          <th>Trạng thái</th>
+                          <td>{renderStatus(product.status)}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Nhà cung cấp</th>
-                        <td>{product.supplier || "-"}</td>
-                      </tr>
+                        <tr>
+                          <th>Nhà cung cấp</th>
+                          <td>{product.supplier || "-"}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Ghi chú</th>
-                        <td>{product.note || "-"}</td>
-                      </tr>
+                        <tr>
+                          <th>Ghi chú</th>
+                          <td>{product.note || "-"}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Mô tả</th>
-                        <td>{product.description || "-"}</td>
-                      </tr>
+                        <tr>
+                          <th>Mô tả</th>
+                          <td>{product.description || "-"}</td>
+                        </tr>
 
-                      <tr>
-                        <th>Ngày tạo</th>
-                        <td>
-                          {product.created
-                            ? new Date(product.created).toLocaleString("vi-VN")
-                            : "-"}
-                        </td>
-                      </tr>
+                        <tr>
+                          <th>Ngày tạo</th>
+                          <td>
+                            {product.created
+                              ? new Date(product.created).toLocaleString("vi-VN")
+                              : "-"}
+                          </td>
+                        </tr>
 
-                      <tr>
-                        <th>Cập nhật lần cuối</th>
-                        <td>
-                          {product.updateAt
-                            ? new Date(product.updateAt).toLocaleString("vi-VN")
-                            : "-"}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </Table>
+                        <tr>
+                          <th>Cập nhật lần cuối</th>
+                          <td>
+                            {product.updateAt
+                              ? new Date(product.updateAt).toLocaleString("vi-VN")
+                              : "-"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </div>
                 </Col>
               </Row>
             </>

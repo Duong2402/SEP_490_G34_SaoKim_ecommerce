@@ -132,7 +132,7 @@ export default function ManageCustomers() {
       <Card className="staff-panel mb-4">
         <Card.Body>
           <Row className="g-3 align-items-end">
-            <Col md={4}>
+            <Col xs={12} md={4}>
               <Form.Label>Tìm kiếm</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
@@ -150,7 +150,7 @@ export default function ManageCustomers() {
               </InputGroup>
             </Col>
 
-            <Col md={2}>
+            <Col xs={12} md={2}>
               <Form.Label>Từ ngày</Form.Label>
               <DatePicker
                 selected={createdFrom}
@@ -165,7 +165,7 @@ export default function ManageCustomers() {
               />
             </Col>
 
-            <Col md={2}>
+            <Col xs={12} md={2}>
               <Form.Label>Đến ngày</Form.Label>
               <DatePicker
                 selected={createdTo}
@@ -180,7 +180,7 @@ export default function ManageCustomers() {
               />
             </Col>
 
-            <Col md={2}>
+            <Col xs={12} md={2}>
               <Form.Label>Chi tiêu tối thiểu</Form.Label>
               <Form.Control
                 type="number"
@@ -192,7 +192,7 @@ export default function ManageCustomers() {
               />
             </Col>
 
-            <Col md={2}>
+            <Col xs={12} md={2}>
               <Form.Label>Đơn hàng tối thiểu</Form.Label>
               <Form.Control
                 type="number"
@@ -204,7 +204,7 @@ export default function ManageCustomers() {
               />
             </Col>
 
-            <Col md="auto" className="ms-auto">
+            <Col xs={12} md="auto" className="ms-md-auto">
               <Dropdown as={ButtonGroup}>
                 <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
                   <FontAwesomeIcon icon={faCog} />
@@ -273,7 +273,7 @@ export default function ManageCustomers() {
 
       <Card className="staff-panel">
         <Card.Body className="pt-0">
-          <div className="d-flex justify-content-between mb-2">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
             <div>Tổng số: {total}</div>
             {loading && (
               <div className="d-flex align-items-center gap-2">
@@ -283,54 +283,56 @@ export default function ManageCustomers() {
             )}
           </div>
 
-          <Table hover className="user-table mb-0">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Tên khách hàng</th>
-                <th>Email</th>
-                <th>Số điện thoại</th>
-                <th className="text-end">Số đơn</th>
-                <th className="text-end">Tổng chi tiêu</th>
-                <th>Ngày tạo</th>
-                <th className="text-end">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c, idx) => (
-                <tr key={c.id}>
-                  <td>{(page - 1) * pageSize + idx + 1}</td>
-                  <td>
-                    <Button variant="link" className="p-0" onClick={() => navigate(`/staff-view-customers/${c.id}`)}>
-                      {c.name}
-                    </Button>
-                  </td>
-                  <td>{c.email}</td>
-                  <td>{c.phoneNumber}</td>
-                  <td className="text-end">{c.ordersCount}</td>
-                  <td className="text-end">{(c.totalSpend ?? 0).toLocaleString("vi-VN")} ₫</td>
-                  <td>{formatDate(c.createAt)}</td>
-                  <td className="text-end">
-                    <Button
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => navigate(`/staff/manager-orders?customerId=${c.id}`)}
-                    >
-                      Xem đơn
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-
-              {!loading && rows.length === 0 && (
+          <div className="table-responsive">
+            <Table hover className="user-table mb-0">
+              <thead>
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
-                    Chưa có dữ liệu
-                  </td>
+                  <th>#</th>
+                  <th>Tên khách hàng</th>
+                  <th>Email</th>
+                  <th>Số điện thoại</th>
+                  <th className="text-end">Số đơn</th>
+                  <th className="text-end">Tổng chi tiêu</th>
+                  <th>Ngày tạo</th>
+                  <th className="text-end">Thao tác</th>
                 </tr>
-              )}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {rows.map((c, idx) => (
+                  <tr key={c.id}>
+                    <td>{(page - 1) * pageSize + idx + 1}</td>
+                    <td>
+                      <Button variant="link" className="p-0" onClick={() => navigate(`/staff-view-customers/${c.id}`)}>
+                        {c.name}
+                      </Button>
+                    </td>
+                    <td>{c.email}</td>
+                    <td>{c.phoneNumber}</td>
+                    <td className="text-end">{c.ordersCount}</td>
+                    <td className="text-end">{(c.totalSpend ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td>{formatDate(c.createAt)}</td>
+                    <td className="text-end">
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => navigate(`/staff/manager-orders?customerId=${c.id}`)}
+                      >
+                        Xem đơn
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+
+                {!loading && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center text-muted py-4">
+                      Chưa có dữ liệu
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+          </div>
 
           <div className="d-flex justify-content-between align-items-center mt-3">
             <div>

@@ -23,15 +23,14 @@ namespace SaoKim_ecommerce_BE.Services.Realtime
         }
         public Task PublishAsync(string type, object data)
         {
-            return _hub.Clients
-                .Group("warehouse_manager")
-                .SendAsync("evt", new
-                {
-                    type,
-                    createdAtUtc = DateTime.UtcNow,
-                    data
-                });
+            return _hub.Clients.All.SendAsync("evt", new
+            {
+                type,
+                createdAtUtc = DateTime.UtcNow,
+                data
+            });
         }
+
         public Task PublishToUserAsync(int userId, string type, object data)
         {
             return _hub.Clients

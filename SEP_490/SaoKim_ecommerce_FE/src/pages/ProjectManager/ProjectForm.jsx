@@ -158,7 +158,7 @@ export default function ProjectForm({
           value={form.name}
           onChange={handleChange}
           className="input"
-          placeholder="Lắp đặt ánh sáng cho công ty ABC"
+          placeholder="Lập đề xuất ánh sáng cho công ty ABC"
           disabled={submitting}
         />
       </Field>
