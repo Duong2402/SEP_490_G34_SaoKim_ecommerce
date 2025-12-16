@@ -138,6 +138,11 @@ const ChatWidget = () => {
     if (!text || sending) return;
 
     setInput("");
+
+    // Clear gợi ý cũ ngay khi gửi để tránh "lần trước còn, lần này đang chờ vẫn hiện"
+    setSuggestedProducts([]);
+    setQuickReplies([]);
+
     setMessages((p) => [...p, { role: "user", text }]);
 
     try {

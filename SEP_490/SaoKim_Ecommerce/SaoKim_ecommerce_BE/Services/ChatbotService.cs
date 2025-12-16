@@ -28,7 +28,8 @@ namespace SaoKim_ecommerce_BE.Services
                 return new ChatOrchestratorResult
                 {
                     FinalText = "Bạn hãy nhập nhu cầu của bạn, ví dụ: “Gợi ý đèn LED dưới 500k”, “Tìm đèn âm trần”, hoặc “Sản phẩm tương tự”.",
-                    QuickReplies = BuildQuickReplies(req)
+                    QuickReplies = BuildQuickReplies(req),
+                    Products = new List<ChatProductCardDto>()
                 };
             }
 
@@ -63,7 +64,8 @@ namespace SaoKim_ecommerce_BE.Services
                     FinalText = string.IsNullOrWhiteSpace(t)
                         ? "Mình chưa hiểu rõ. Bạn muốn tìm theo tên, theo mã hay theo khoảng giá?"
                         : t,
-                    QuickReplies = BuildQuickReplies(req)
+                    QuickReplies = BuildQuickReplies(req),
+                    Products = new List<ChatProductCardDto>()
                 };
             }
 
@@ -91,8 +93,7 @@ namespace SaoKim_ecommerce_BE.Services
                 var priceMin = GetDecimal(fnArgs, "priceMin") ?? req.Context?.PriceMin;
                 var priceMax = GetDecimal(fnArgs, "priceMax") ?? req.Context?.PriceMax;
 
-                // Lưu ý: ctx.InStockOnly trong dự án của m là bool (không nullable),
-                // nên chỉ dùng ctx.InStockOnly, không dùng ?? true
+                // InStockOnly: ưu tiên args, fallback context, cuối cùng default true
                 var inStockOnly = GetBool(fnArgs, "inStockOnly") ?? req.Context?.InStockOnly ?? true;
 
                 var limit = GetInt(fnArgs, "limit") ?? 8;
@@ -135,18 +136,49 @@ namespace SaoKim_ecommerce_BE.Services
             };
 
             using var resp2 = await _gemini.GenerateContentAsync(model, request2, ct);
-            var finalText = TryExtractText(resp2);
+            var finalText = (TryExtractText(resp2) ?? "").Trim();
+
+            // CHỐT THEO SỰ THẬT để không bị "nói không có nhưng vẫn show sản phẩm"
+            finalText = NormalizeFinalTextByProducts(finalText, products);
 
             return new ChatOrchestratorResult
             {
-                FinalText = string.IsNullOrWhiteSpace(finalText)
-                    ? (products.Count > 0
-                        ? "Mình đã tìm được một số sản phẩm phù hợp. Bạn xem danh sách gợi ý bên dưới nhé."
-                        : "Hiện tại mình chưa tìm được sản phẩm phù hợp trong hệ thống. Bạn cho mình biết thêm ngân sách và không gian sử dụng để mình tư vấn chính xác hơn nhé.")
-                    : finalText,
-                Products = products,
+                FinalText = finalText,
+                Products = products ?? new List<ChatProductCardDto>(),
                 QuickReplies = BuildQuickReplies(req)
             };
+        }
+
+        private static string NormalizeFinalTextByProducts(string finalText, List<ChatProductCardDto> products)
+        {
+            products ??= new List<ChatProductCardDto>();
+            var hasProducts = products.Count > 0;
+
+            if (string.IsNullOrWhiteSpace(finalText))
+            {
+                return hasProducts
+                    ? "Mình đã tìm được một số sản phẩm phù hợp. Bạn xem danh sách gợi ý bên dưới nhé."
+                    : "Hiện tại mình chưa tìm được sản phẩm phù hợp trong hệ thống. Bạn cho mình biết thêm ngân sách và không gian sử dụng để mình tư vấn chính xác hơn nhé.";
+            }
+
+            if (!hasProducts) return finalText;
+
+            // Nếu có products mà AI lại nói không có -> override
+            var lower = finalText.ToLowerInvariant();
+            var contradict =
+                lower.Contains("chưa tìm") ||
+                lower.Contains("không tìm") ||
+                lower.Contains("không có sản phẩm") ||
+                lower.Contains("không có sản phẩm nào") ||
+                lower.Contains("hiện tại không có") ||
+                lower.Contains("không có trong hệ thống");
+
+            if (contradict)
+            {
+                return "Mình đã tìm được một số sản phẩm phù hợp. Bạn xem danh sách gợi ý bên dưới nhé.";
+            }
+
+            return finalText;
         }
 
         private static object[] BuildFunctionDeclarations()
@@ -194,7 +226,10 @@ Yêu cầu:
 - Trò chuyện tự nhiên, lịch sự như nhân viên tư vấn.
 - Chỉ gợi ý sản phẩm có trong hệ thống, không bịa.
 - Khi cần danh sách sản phẩm, bắt buộc gọi công cụ (function) phù hợp.
-- Nếu không có sản phẩm phù hợp, hãy nói rõ và hỏi thêm 1-2 câu để làm rõ nhu cầu (ngân sách, không gian sử dụng, loại đèn).
+- BẮT BUỘC dựa vào kết quả functionResponse:
+  + Nếu result có phần tử: phải nói là đã tìm thấy sản phẩm và giới thiệu ngắn gọn.
+  + Nếu result rỗng: phải nói chưa tìm thấy sản phẩm phù hợp và hỏi thêm 1-2 câu để làm rõ nhu cầu.
+- Trả lời ngắn gọn, tối đa khoảng 4-6 câu.
 
 Ngữ cảnh:
 - Page: {ctx.Page}
