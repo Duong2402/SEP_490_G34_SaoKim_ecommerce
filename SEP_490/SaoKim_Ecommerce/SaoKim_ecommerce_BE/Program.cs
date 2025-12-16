@@ -12,7 +12,6 @@ using SaoKim_ecommerce_BE.Services.Realtime;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
-using SaoKim_ecommerce_BE.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

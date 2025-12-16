@@ -33,7 +33,7 @@ function makePaymentToken() {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const apiBase = "https://localhost:7278";
+  const apiBase = import.meta.env.VITE_API_BASE || "https://localhost:7278";
 
   const [cartItems, setCartItems] = useState(() => readCart());
   const [checkoutItems, setCheckoutItems] = useState(() =>
@@ -71,14 +71,7 @@ export default function Checkout() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [redirected, setRedirected] = useState(false);
 
-  // Payment token giữ ổn định theo phiên checkout
-  const [paymentToken, setPaymentToken] = useState(() => {
-    const cached = localStorage.getItem("checkout_payment_token");
-    if (cached) return cached;
-    const t = makePaymentToken();
-    localStorage.setItem("checkout_payment_token", t);
-    return t;
-  });
+  const [paymentToken, setPaymentToken] = useState(() => makePaymentToken());
 
   const shippingOptions = [
     { value: "standard", label: "Tiết kiệm", time: "Giao 3 - 5 ngày" },
@@ -219,31 +212,27 @@ export default function Checkout() {
   }, [paymentToken]);
 
   const checkPaid = async () => {
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    const url =
+      `${apiBase}/api/payments/check-vietqr?amount=${encodeURIComponent(qrAmount)}` +
+      `&paymentToken=${encodeURIComponent(paymentToken)}`;
 
-      const url = `${apiBase}/api/payments/check-vietqr?amount=${encodeURIComponent(
-        qrAmount
-      )}&paymentToken=${encodeURIComponent(paymentToken)}`;
+    const res = await fetch(url); // không gửi Authorization
 
-      const res = await fetch(url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) {
-        console.error("checkPaid backend error", await res.text());
-        return false;
-      }
-
-      const data = await res.json();
-      return !!data.matched;
-    } catch (e) {
-      console.error("Error verifying payment", e);
+    if (!res.ok) {
+      console.error("checkPaid backend error", await res.text());
       return false;
     }
-  };
+
+    const data = await res.json();
+    console.log("checkPaid response:", data);
+    return !!data.matched;
+  } catch (e) {
+    console.error("Error verifying payment", e);
+    return false;
+  }
+};
+
 
   useEffect(() => {
     let interval;
@@ -757,12 +746,16 @@ export default function Checkout() {
                           name="payment"
                           checked={paymentMethod === "COD"}
                           onChange={() => {
-                            setPaymentMethod("COD");
-                            setPaymentVerified(false);
-                            setAutoCheck(false);
-                            setShowQrModal(false);
-                            setRedirected(false);
-                          }}
+                          setPaymentMethod("QR");
+                          setPaymentVerified(false);
+                          setAutoCheck(true);
+                          setShowQrModal(true);
+                          setRedirected(false);
+
+                          const t = makePaymentToken();
+                          setPaymentToken(t);
+                        }}
+
                           className="mt-1 me-3"
                         />
                         <div>

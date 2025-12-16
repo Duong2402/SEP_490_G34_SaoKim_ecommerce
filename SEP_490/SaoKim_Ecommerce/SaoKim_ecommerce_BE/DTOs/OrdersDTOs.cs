@@ -29,8 +29,4 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? PaymentMethod { get; set; }
         public string? ShippingRecipientName { get; set; }
     }
-    public class VietQrCheckResultDto
-    {
-        public bool Matched { get; set; }
-    }
 }

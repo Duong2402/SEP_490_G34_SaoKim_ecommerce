@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Services;
+using System;
 using System.Threading.Tasks;
 
 [ApiController]
@@ -43,20 +44,26 @@ public class BannerController : ControllerBase
     }
 
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    // [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] Banner model)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+
+         model.StartDate = NormalizeToUtc(model.StartDate);
+         model.EndDate   = NormalizeToUtc(model.EndDate);
 
         var created = await _bannerService.CreateAsync(model);
         return Ok(created);
     }
 
     [HttpPut("{id:int}")]
-    //[Authorize(Roles = "Admin")]
+    // [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] Banner model)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        model.StartDate = NormalizeToUtc(model.StartDate);
+        model.EndDate   = NormalizeToUtc(model.EndDate);
 
         var updated = await _bannerService.UpdateAsync(id, model);
         if (updated == null) return NotFound();
@@ -65,7 +72,7 @@ public class BannerController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    //[Authorize(Roles = "Admin")]
+    // [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var ok = await _bannerService.DeleteAsync(id);
@@ -76,36 +83,13 @@ public class BannerController : ControllerBase
 
     [HttpGet("stats")]
     [AllowAnonymous]
-    public IActionResult GetStats()
+    public async Task<IActionResult> GetStats()
     {
-        var today = DateTime.UtcNow.Date;
-
-        var activeCount = _db.Banners
-            .Where(b => b.IsActive && (b.EndDate == null || b.EndDate >= today))
-            .Count();
-
-        var expiringSoon = _db.Banners
-            .Where(b => b.IsActive &&
-                        b.EndDate != null &&
-                        b.EndDate >= today &&
-                        b.EndDate <= today.AddDays(7))
-            .OrderBy(b => b.EndDate)
-            .Select(b => new
-            {
-                b.Id,
-                b.Title,
-                b.ImageUrl,
-                b.LinkUrl,
-                b.IsActive,
-                b.StartDate,
-                b.EndDate
-            })
-            .ToList();
-
+        var result = await _bannerService.GetStatsAsync(DateTime.UtcNow.Date);
         return Ok(new
         {
-            activeBanners = activeCount,
-            expiringSoon = expiringSoon
+            activeBanners = result.ActiveBanners,
+            expiringSoon = result.ExpiringSoon
         });
     }
 }

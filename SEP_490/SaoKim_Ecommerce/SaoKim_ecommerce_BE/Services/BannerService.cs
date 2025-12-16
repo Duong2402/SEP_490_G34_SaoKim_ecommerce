@@ -49,9 +49,8 @@ namespace SaoKim_ecommerce_BE.Services
             banner.ImageUrl = model.ImageUrl;
             banner.LinkUrl = model.LinkUrl;
             banner.IsActive = model.IsActive;
-
-            // nếu có UpdatedAt thì set thêm ở đây
-            // banner.UpdatedAt = DateTime.UtcNow;
+            banner.StartDate = model.StartDate;
+            banner.EndDate = model.EndDate;
 
             await _db.SaveChangesAsync();
             return banner;
@@ -66,6 +65,37 @@ namespace SaoKim_ecommerce_BE.Services
             _db.Banners.Remove(banner);
             await _db.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<BannerStatsDto> GetStatsAsync(DateTime utcToday)
+        {
+            var activeCount = await _db.Banners
+                .Where(b => b.IsActive && (b.EndDate == null || b.EndDate >= utcToday))
+                .CountAsync();
+
+            var expiringSoon = await _db.Banners
+                .Where(b => b.IsActive &&
+                            b.EndDate != null &&
+                            b.EndDate >= utcToday &&
+                            b.EndDate <= utcToday.AddDays(7))
+                .OrderBy(b => b.EndDate)
+                .Select(b => new BannerStatsItemDto
+                {
+                    Id = b.Id,
+                    Title = b.Title,
+                    ImageUrl = b.ImageUrl,
+                    LinkUrl = b.LinkUrl,
+                    IsActive = b.IsActive,
+                    StartDate = b.StartDate,
+                    EndDate = b.EndDate
+                })
+                .ToListAsync();
+
+            return new BannerStatsDto
+            {
+                ActiveBanners = activeCount,
+                ExpiringSoon = expiringSoon
+            };
         }
     }
 }

@@ -64,16 +64,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(new { message = "User updated" });
         }
 
-        public class UserUpdateDto
-        {
-            public string? Name { get; set; }
-            public string? Address { get; set; }
-            public string? PhoneNumber { get; set; }
-            public string? Status { get; set; }
-            public DateTime? Dob { get; set; }
-            public int? RoleId { get; set; }
-        }
-
+        // GET /api/users/roles
         [HttpGet("roles")]
         [AllowAnonymous]
         public async Task<IActionResult> GetRoles()
@@ -82,6 +73,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(roles);
         }
 
+        // GET /api/users/me
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe()
@@ -97,6 +89,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             return Ok(dto);
         }
 
+        // PUT /api/users/me
         [HttpPut("me")]
         [Authorize]
         public async Task<IActionResult> UpdateMe([FromForm] UpdateProfileDto dto)
