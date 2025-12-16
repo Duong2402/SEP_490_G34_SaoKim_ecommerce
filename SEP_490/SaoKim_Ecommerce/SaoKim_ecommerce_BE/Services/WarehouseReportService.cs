@@ -512,11 +512,11 @@ namespace SaoKim_ecommerce_BE.Services
         public async Task<InventoryThreshold> UpdateMinStockAsync(int productId, int minStock)
         {
             if (minStock < 0)
-                throw new ArgumentException("MinStock must be >= 0");
+                throw new ArgumentException("Giá trị tối thiểu phải lớn hơn 0");
 
             var productExists = await _db.Products.AnyAsync(p => p.ProductID == productId);
             if (!productExists)
-                throw new KeyNotFoundException("Product not found");
+                throw new KeyNotFoundException("Sản phẩm không tìm thấy");
 
             var threshold = await _db.InventoryThresholds
                 .FirstOrDefaultAsync(t => t.ProductId == productId);
