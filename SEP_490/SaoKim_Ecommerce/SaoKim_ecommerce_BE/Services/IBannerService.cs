@@ -25,11 +25,13 @@ namespace SaoKim_ecommerce_BE.Services
     public interface IBannerService
     {
         Task<IReadOnlyList<Banner>> GetAllAsync();
+
+        Task<IReadOnlyList<Banner>> GetActiveAsync(DateTime nowUtc);
+
         Task<Banner?> GetByIdAsync(int id);
         Task<Banner> CreateAsync(Banner model);
         Task<Banner?> UpdateAsync(int id, Banner model);
         Task<bool> DeleteAsync(int id);
-
-        Task<BannerStatsDto> GetStatsAsync(DateTime utcToday);
+        Task<BannerStatsDto> GetStatsAsync(DateTime nowUtc);
     }
 }

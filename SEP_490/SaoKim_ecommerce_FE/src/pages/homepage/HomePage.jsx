@@ -13,6 +13,7 @@ import "../../styles/home.css";
 import { Link, useNavigate } from "react-router-dom";
 import EcommerceFooter from "../../components/EcommerceFooter";
 import HomepageHeader from "../../components/HomepageHeader";
+import HomeBanner from "../../components/HomeBanner";
 import { ProductsAPI } from "../../api/products";
 import { readCart, writeCart } from "../../api/cartStorage";
 import ProductSkeleton from "../../components/common/ProductSkeleton";
@@ -30,7 +31,8 @@ const HomePage = () => {
     {
       id: 1,
       name: "Đèn chùm Luxury",
-      image: "https://anandecor.vn/wp-content/uploads/2022/06/58.png?auto=format&fit=crop&q=80&w=600",
+      image:
+        "https://anandecor.vn/wp-content/uploads/2022/06/58.png?auto=format&fit=crop&q=80&w=600",
       desc: "Sang trọng & đẳng cấp",
       badge: "Bán chạy",
     },
@@ -52,11 +54,13 @@ const HomePage = () => {
     {
       id: 4,
       name: "Đèn sân cao cấp",
-      image: "https://dentrangtrivirgo.com/wp-content/uploads/2022/09/10003.jpg?auto=format&fit=crop&q=80&w=600",
+      image:
+        "https://dentrangtrivirgo.com/wp-content/uploads/2022/09/10003.jpg?auto=format&fit=crop&q=80&w=600",
       desc: "Ánh sáng hoàn hảo",
     },
   ];
 
+  // Load products
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -64,23 +68,22 @@ const HomePage = () => {
         const data = await ProductsAPI.getHomeProducts();
 
         let items = [];
-        if (data?.newArrivals) {
-          items = data.newArrivals;
-        } else if (Array.isArray(data)) {
-          items = data;
-        } else if (data?.items) {
-          items = data.items;
-        }
+        if (data?.newArrivals) items = data.newArrivals;
+        else if (Array.isArray(data)) items = data;
+        else if (data?.items) items = data.items;
 
         const normalized = items
           .map((p) => ({
             id: p.id || p.productID,
             name: p.name || p.productName,
             price: p.price,
-            image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
+            image:
+              p.thumbnailUrl ||
+              p.image ||
+              "https://via.placeholder.com/600x450?text=No+Image",
             category: p.category || "Đèn trang trí",
           }))
-          .slice(0, 8); 
+          .slice(0, 8);
 
         setProducts(normalized);
       } catch (error) {
@@ -93,13 +96,12 @@ const HomePage = () => {
     fetchProducts();
   }, []);
 
+  // Fade-in observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-          }
+          if (entry.isIntersecting) entry.target.classList.add("is-visible");
         });
       },
       { threshold: 0.1 }
@@ -109,7 +111,7 @@ const HomePage = () => {
     sections.forEach((section) => observer.observe(section));
 
     return () => sections.forEach((section) => observer.unobserve(section));
-  }, [products]); 
+  }, [products]);
 
   const formatCurrency = (value) => {
     if (!value) return "Liên hệ";
@@ -148,6 +150,7 @@ const HomePage = () => {
 
       <section className="hero-section fade-in-section">
         <div className="hero-overlay"></div>
+
         <Container fluid className="hero-inner">
           <Row className="align-items-center g-4">
             <Col lg={6} className="hero-copy">
@@ -155,13 +158,14 @@ const HomePage = () => {
                 <FontAwesomeIcon icon={faStar} className="me-2 text-warning" />
                 Giải pháp ánh sáng chuyên sâu
               </span>
-              <h1 className="hero-title">
-                Giải pháp chiếu sáng cao cấp cho mọi không gian
-              </h1>
+
+              <h1 className="hero-title">Giải pháp chiếu sáng cao cấp cho mọi không gian</h1>
+
               <p className="hero-subtitle">
-                Sao Kim mang đến các dòng đèn hiện đại, tiết kiệm điện, phù hợp cho nhà ở,
-                văn phòng và showroom. Thiết kế tinh xảo, công nghệ mới nhất, tối ưu trải nghiệm ánh sáng.
+                Sao Kim mang đến các dòng đèn hiện đại, tiết kiệm điện, phù hợp cho nhà ở, văn phòng và showroom.
+                Thiết kế tinh xảo, công nghệ mới nhất, tối ưu trải nghiệm ánh sáng.
               </p>
+
               <div className="hero-actions d-flex flex-wrap align-items-center gap-3">
                 <Button className="hero-cta-primary" onClick={() => navigate("/products")}>
                   Xem sản phẩm
@@ -171,26 +175,41 @@ const HomePage = () => {
                 </Button>
               </div>
             </Col>
-            <Col lg={6} className="hero-visual">
-              <div className="hero-visual-card">
-                <div className="hero-visual-gradient"></div>
-                <img
-                  src="https://luxlightdesigns.com/images/slider/1.webp?auto=format&fit=crop&q=80&w=1600"
-                  alt="Modern lighting"
-                  className="hero-visual-img"
-                />
-                <div className="hero-visual-stats">
-                  <div>
-                    <strong>450+</strong>
-                    <span>Dự án showroom & văn phòng</span>
-                  </div>
-                  <div>
-                    <strong>24/7</strong>
-                    <span>Tư vấn & hỗ trợ kỹ thuật</span>
-                  </div>
+
+            <Col lg={6} className="hero-visual" style={{ position: "relative" }}>
+              <div
+                className="hero-banner-wrapper"
+                style={{
+                  width: "100%",
+                  height: 520,
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: 24,
+                }}
+              >
+                <HomeBanner height={520} />
+              </div>
+
+              <div
+                className="hero-visual-stats"
+                style={{
+                  position: "absolute",
+                  right: 24,
+                  bottom: 24,
+                  zIndex: 5,
+                }}
+              >
+                <div>
+                  <strong>450+</strong>
+                  <span>Dự án showroom & văn phòng</span>
+                </div>
+                <div>
+                  <strong>24/7</strong>
+                  <span>Tư vấn & hỗ trợ kỹ thuật</span>
                 </div>
               </div>
             </Col>
+
           </Row>
         </Container>
       </section>
@@ -253,10 +272,7 @@ const HomePage = () => {
               {categories.map((cat) => (
                 <Col xl={3} lg={4} md={6} sm={12} key={cat.id}>
                   <Link to={`/products?category=${cat.id}`} className="category-card">
-                    <div
-                      className="category-bg"
-                      style={{ backgroundImage: `url(${cat.image})` }}
-                    ></div>
+                    <div className="category-bg" style={{ backgroundImage: `url(${cat.image})` }}></div>
                     <div className="category-gradient"></div>
                     {cat.badge && <span className="category-badge">{cat.badge}</span>}
                     <div className="category-overlay">
@@ -275,6 +291,7 @@ const HomePage = () => {
           </Container>
         </Container>
       </section>
+
       <section className="featured-products section-padding fade-in-section">
         <Container>
           <div className="featured-products-header d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
@@ -331,8 +348,7 @@ const HomePage = () => {
                   <span className="cta-kicker">Tư vấn chiếu sáng</span>
                   <h2 className="cta-title">Bạn cần tư vấn giải pháp chiếu sáng?</h2>
                   <p className="cta-subtitle">
-                    Đội ngũ kỹ sư của Sao Kim sẵn sàng hỗ trợ bạn chọn đèn phù hợp với từng không gian
-                    và ngân sách.
+                    Đội ngũ kỹ sư của Sao Kim sẵn sàng hỗ trợ bạn chọn đèn phù hợp với từng không gian và ngân sách.
                   </p>
                   <div className="cta-actions d-flex flex-wrap justify-content-center justify-content-lg-start gap-3">
                     <Button className="cta-primary" onClick={() => navigate("/contact")}>
@@ -362,10 +378,10 @@ const HomePage = () => {
           </Container>
         </Container>
       </section>
+
       <EcommerceFooter />
       <ChatWidget />
     </div>
-
   );
 };
 

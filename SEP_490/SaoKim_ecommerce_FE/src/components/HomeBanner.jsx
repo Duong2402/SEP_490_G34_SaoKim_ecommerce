@@ -1,36 +1,54 @@
-function HomeBanner() {
+import { useEffect, useState } from "react";
+import http from "../api/http";
+
+const FALLBACK_IMAGE =
+  "https://luxlightdesigns.com/images/slider/1.webp?auto=format&fit=crop&q=80&w=1600";
+
+
+const API_BASE = import.meta.env.VITE_API_BASE || "";
+console.log("VITE_API_BASE =", API_BASE);
+
+function buildImageUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const path = url.startsWith("/") ? url : `/${url}`;
+
+  // Nếu có API_BASE thì prefix để tải ảnh từ BE
+  // Nếu không có (prod cùng domain) thì giữ nguyên path
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
+export default function HomeBanner({
+  height = 520,
+  fallbackImage = FALLBACK_IMAGE,
+  autoMs = 5000,
+}) {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [index, setIndex] = useState(0); // 0 = hero, 1..n = banner
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        const payload = await fetchJson(`${API_BASE}/api/banner`);
+        const payload = await http.get("/banner/active");
         if (cancelled) return;
 
-        let list = [];
-        if (Array.isArray(payload)) list = payload;
-        else if (payload?.items) list = payload.items;
+        const list = Array.isArray(payload) ? payload : payload?.items || [];
+        const normalized = (list || [])
+          .map((b) => ({
+            id: b.id,
+            title: b.title || "",
+            imageUrl: b.imageUrl || "",
+            linkUrl: b.linkUrl || "",
+          }))
+          .filter((x) => x.imageUrl);
 
-        const normalized = (list || []).map((b) => ({
-          id: b.id ?? b.Id,
-          title: b.title ?? b.Title ?? "",
-          imageUrl: b.imageUrl ?? b.ImageUrl ?? "",
-          linkUrl: b.linkUrl ?? b.LinkUrl ?? "",
-          isActive:
-            b.isActive !== undefined
-              ? b.isActive
-              : b.IsActive !== undefined
-              ? b.IsActive
-              : true,
-        }));
-
-        const active = normalized.filter((x) => x.isActive && x.imageUrl);
-        setBanners(active);
-      } catch {
+        setBanners(normalized);
+      } catch (e) {
+        console.error("Load banner failed", e);
         setBanners([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -38,108 +56,99 @@ function HomeBanner() {
     };
 
     load();
-
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // tổng số slide = 1 hero + số banner
-  const totalSlides = 1 + (banners?.length || 0);
+  const slides = banners.length
+    ? banners
+    : [{ id: "fallback", title: "", imageUrl: fallbackImage, linkUrl: "" }];
 
   useEffect(() => {
-    if (totalSlides <= 1) return; // chỉ hero hoặc chỉ 1 slide thì khỏi auto chạy
+    if (slides.length <= 1) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), autoMs);
+    return () => clearInterval(t);
+  }, [slides.length, autoMs]);
 
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % totalSlides);
-    }, 5000);
-
-    return () => clearInterval(timer);
-  }, [totalSlides]);
-
-  // slide hiện tại
-  const currentIsHero = index === 0;
-  const currentBanner = !currentIsHero && banners[index - 1];
+  const current = slides[index] || slides[0];
 
   return (
-    <section className="home-hero">
-      <div className="home-container" style={{ position: "relative" }}>
-        {currentIsHero || loading || !banners.length ? (
-          // hero slide
-          <HeroBlock />
-        ) : (
-          // banner slide
-          <div
-            className="home-banner__media"
-            style={{
-              width: "100%",
-              maxHeight: "420px",
-              overflow: "hidden",
-              position: "relative",
-              marginBottom: "24px",
-              borderRadius: "16px",
-            }}
-          >
-            <a href={currentBanner.linkUrl || "#"} style={{ display: "block" }}>
+    <div
+      style={{
+        width: "100%",
+        height,
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: 24,
+        background: "#f3f3f3",
+      }}
+    >
+      {!loading && (
+        <>
+          {current.linkUrl ? (
+            <a
+              href={current.linkUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "block", width: "100%", height: "100%" }}
+            >
               <img
-                src={buildImageUrl(currentBanner.imageUrl)}
-                alt={currentBanner.title || "Homepage banner"}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                src={buildImageUrl(current.imageUrl)}
+                alt={current.title || "Banner"}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
             </a>
+          ) : (
+            <img
+              src={buildImageUrl(current.imageUrl)}
+              alt={current.title || "Banner"}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          )}
 
-            {currentBanner.title && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "24px",
-                  bottom: "24px",
-                  background: "rgba(0,0,0,0.45)",
-                  color: "#fff",
-                  padding: "10px 16px",
-                  borderRadius: "8px",
-                  maxWidth: "60%",
-                  fontSize: "15px",
-                  lineHeight: 1.4,
-                }}
-              >
-                {currentBanner.title}
-              </div>
-            )}
-          </div>
-        )}
+          {!!current.title && (
+            <div
+              style={{
+                position: "absolute",
+                left: 18,
+                bottom: 18,
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff",
+                padding: "10px 14px",
+                borderRadius: 10,
+                maxWidth: "70%",
+                fontSize: 14,
+                lineHeight: 1.4,
+              }}
+            >
+              {current.title}
+            </div>
+          )}
 
-        {/* dots cho hero + banners */}
-        {totalSlides > 1 && (
-          <div
-            style={{
-              position: "absolute",
-              right: "18px",
-              bottom: "18px",
-              display: "flex",
-              gap: "6px",
-            }}
-          >
-            {Array.from({ length: totalSlides }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setIndex(i)}
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  background: i === index ? "#fff" : "rgba(255,255,255,0.5)",
-                }}
-                aria-label={i === 0 ? "Hero" : `Banner ${i}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
+          {slides.length > 1 && (
+            <div style={{ position: "absolute", right: 18, bottom: 18, display: "flex", gap: 6 }}>
+              {slides.map((_, i) => (
+                <button
+                  key={String(slides[i].id ?? i)}
+                  type="button"
+                  onClick={() => setIndex(i)}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    background: i === index ? "#fff" : "rgba(255,255,255,0.5)",
+                  }}
+                  aria-label={`Banner ${i}`}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

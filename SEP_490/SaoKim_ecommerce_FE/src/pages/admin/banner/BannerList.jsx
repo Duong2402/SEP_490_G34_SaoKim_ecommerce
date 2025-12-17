@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
 import "../../../styles/admin-banner.css";
+
+function buildBannerUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return url.startsWith("/") ? url : `/${url}`;
+}
 
 export default function BannerList() {
   const [banners, setBanners] = useState([]);
@@ -12,10 +18,10 @@ export default function BannerList() {
     try {
       setLoading(true);
       const data = await BannerAPI.getAll();
-      setBanners(data || []);
-    } catch (err) {
-      console.error(err);
-      alert("Không tải được danh sách banner");
+      setBanners(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      alert("Không tải được banner");
     } finally {
       setLoading(false);
     }
@@ -25,21 +31,21 @@ export default function BannerList() {
     fetchBanners();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Xóa banner này?")) return;
-    try {
-      await BannerAPI.delete(id);
-      await fetchBanners();
-    } catch (err) {
-      console.error(err);
-      alert("Xóa thất bại");
-    }
-  };
+  const rows = useMemo(
+    () =>
+      banners.map((b) => ({
+        ...b,
+        _img: buildBannerUrl(b.imageUrl),
+      })),
+    [banners]
+  );
 
-  if (loading) return <div>Đang tải banner...</div>;
+  if (loading) {
+    return <div className="admin-banner__loading">Đang tải banner...</div>;
+  }
 
   return (
-    <div>
+    <div className="admin-banner">
       <div className="admin-banner__header">
         <div>
           <h2 className="admin-banner__title">Quản lý Banner</h2>
@@ -48,71 +54,90 @@ export default function BannerList() {
           </p>
         </div>
 
-        <div className="admin-banner__actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate("/admin/banner/create")}
-          >
-            Thêm banner
-          </button>
-        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate("/admin/banner/create")}
+        >
+          Thêm banner
+        </button>
       </div>
 
-      <table
-        style={{ marginTop: "20px", width: "100%", borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Ảnh
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Tiêu đề
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Link
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Kích hoạt
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Hành động
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {banners.map((b) => (
-            <tr key={b.id}>
-              <td style={{ padding: "8px" }}>
-                <img
-                  src={b.imageUrl}
-                  alt={b.title}
-                  style={{ width: "140px", height: "70px", objectFit: "cover" }}
-                />
-              </td>
-              <td style={{ padding: "8px" }}>{b.title}</td>
-              <td style={{ padding: "8px" }}>{b.linkUrl}</td>
-              <td style={{ padding: "8px" }}>{b.isActive ? "Có" : "Không"}</td>
-              <td style={{ padding: "8px" }}>
-                <button
-                  onClick={() => navigate(`/admin/banner/edit/${b.id}`)}
-                  style={{ marginRight: "8px" }}
-                >
-                  Sửa
-                </button>
-                <button onClick={() => handleDelete(b.id)}>Xóa</button>
-              </td>
-            </tr>
-          ))}
-          {!banners.length && (
+      <div className="admin-banner__table-wrap">
+        <table className="admin-banner__table">
+          <thead>
             <tr>
-              <td colSpan={5} style={{ padding: "8px", textAlign: "center" }}>
-                Chưa có banner nào
-              </td>
+              <th>Ảnh</th>
+              <th>Tiêu đề</th>
+              <th>Link</th>
+              <th>Trạng thái</th>
+              <th style={{ width: 160 }}>Hành động</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {rows.map((b) => (
+              <tr key={b.id}>
+                <td>
+                  {b._img ? (
+                    <img
+                    src={b._img}
+                    alt={b.title}
+                    className="admin-banner__image"
+                  />
+                  ) : (
+                    "-"
+                  )}
+                </td>
+
+                <td>{b.title}</td>
+
+                <td>
+                  {b.linkUrl ? (
+                    <a href={b.linkUrl} target="_blank" rel="noreferrer">
+                      {b.linkUrl}
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+
+                <td>{b.isActive ? "Bật" : "Tắt"}</td>
+
+                <td>
+                  <div className="admin-banner__actions">
+                    <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() =>
+                        navigate(`/admin/banner/edit/${b.id}`)
+                      }
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={async () => {
+                        if (!window.confirm("Xóa banner này?")) return;
+                        await BannerAPI.delete(b.id);
+                        fetchBanners();
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {!rows.length && (
+              <tr>
+                <td colSpan={5} className="admin-banner__empty">
+                  Chưa có banner nào
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
