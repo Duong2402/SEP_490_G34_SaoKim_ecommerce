@@ -20,13 +20,16 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useInvoicesApi from "../api/useInvoices";
+import useProductsApi from "../api/useProducts";
 
 export default function InvoiceDetailStaff() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getInvoice, getPdfBlob } = useInvoicesApi();
+  const { fetchProduct } = useProductsApi();
 
   const [invoice, setInvoice] = useState(null);
+  const [unitMap, setUnitMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -67,6 +70,74 @@ export default function InvoiceDetailStaff() {
   const formatMoney = (v) =>
     Number(v || 0).toLocaleString("vi-VN") + " ₫";
 
+  const getItemProductId = (item) =>
+    item?.productId ??
+    item?.ProductId ??
+    item?.productID ??
+    item?.ProductID ??
+    item?.product?.id ??
+    item?.product?.Id ??
+    item?.product?.productId ??
+    item?.product?.ProductId ??
+    item?.product?.productID ??
+    item?.product?.ProductID;
+
+  const getItemUnitFromItem = (item) => {
+    const direct =
+      item?.unit ??
+      item?.Unit ??
+      item?.uom ??
+      item?.Uom ??
+      item?.unitName ??
+      item?.UnitName ??
+      item?.unitOfMeasure ??
+      item?.UnitOfMeasure ??
+      item?.unitOfMeasureName ??
+      item?.UnitOfMeasureName ??
+      item?.productUnit ??
+      item?.product?.unit ??
+      item?.product?.Unit ??
+      item?.product?.uom ??
+      item?.product?.Uom ??
+      item?.product?.unitName ??
+      item?.product?.UnitName ??
+      item?.product?.unitOfMeasure ??
+      item?.product?.UnitOfMeasure ??
+      item?.product?.unitOfMeasureName ??
+      item?.product?.UnitOfMeasureName;
+
+    if (!direct) return "";
+    if (typeof direct === "object") {
+      const name =
+        direct?.name ?? direct?.Name ?? direct?.label ?? direct?.value;
+      return name ? String(name) : "";
+    }
+    return String(direct);
+  };
+
+  const getItemUnit = (item) => {
+    const direct = getItemUnitFromItem(item);
+    if (direct) return direct;
+    const productId = getItemProductId(item);
+    if (productId != null && unitMap[productId]) {
+      return unitMap[productId];
+    }
+    return "-";
+  };
+
+  const getUnitFromProduct = (product) =>
+    product?.unit ??
+    product?.Unit ??
+    product?.uom ??
+    product?.Uom ??
+    product?.unitName ??
+    product?.UnitName ??
+    product?.unitOfMeasure ??
+    product?.UnitOfMeasure ??
+    product?.unitOfMeasureName ??
+    product?.UnitOfMeasureName ??
+    "";
+
   const renderStatus = (s) => {
     const v = String(s || "").toLowerCase();
     if (v === "paid") return <Badge bg="success">Đã thanh toán</Badge>;
@@ -103,6 +174,55 @@ export default function InvoiceDetailStaff() {
       alert("Tải PDF thất bại");
     }
   };
+
+  const invoiceItems = invoice?.items ?? invoice?.Items ?? [];
+
+  useEffect(() => {
+    if (!invoiceItems.length) return;
+    let active = true;
+    const missingIds = invoiceItems
+      .map((item) => ({
+        productId: getItemProductId(item),
+        unit: getItemUnitFromItem(item),
+      }))
+      .filter(
+        (entry) =>
+          entry.productId != null &&
+          !entry.unit &&
+          !unitMap[entry.productId]
+      )
+      .map((entry) => entry.productId);
+
+    const uniqueIds = Array.from(new Set(missingIds));
+    if (!uniqueIds.length) return;
+
+    Promise.all(
+      uniqueIds.map(async (productId) => {
+        try {
+          const res = await fetchProduct(productId);
+          const product = res?.product ?? res?.data ?? res ?? null;
+          const unit = getUnitFromProduct(product);
+          return { productId, unit };
+        } catch (err) {
+          console.error(err);
+          return { productId, unit: "" };
+        }
+      })
+    ).then((entries) => {
+      if (!active) return;
+      const next = {};
+      entries.forEach((entry) => {
+        if (entry.unit) next[entry.productId] = entry.unit;
+      });
+      if (Object.keys(next).length) {
+        setUnitMap((prev) => ({ ...prev, ...next }));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [invoiceItems, fetchProduct, unitMap]);
 
   if (loading) {
     return (
@@ -212,16 +332,18 @@ export default function InvoiceDetailStaff() {
                 <th>#</th>
                 <th>Sản phẩm</th>
                 <th className="text-end">SL</th>
+                <th>Đơn vị tính</th>
                 <th className="text-end">Đơn giá</th>
                 <th className="text-end">Thành tiền</th>
               </tr>
             </thead>
             <tbody>
-              {(invoice.items || []).map((it, idx) => (
+              {invoiceItems.map((it, idx) => (
                 <tr key={idx}>
                   <td>{idx + 1}</td>
                   <td>{it.productName}</td>
                   <td className="text-end">{it.qty ?? it.quantity}</td>
+                  <td>{getItemUnit(it)}</td>
                   <td className="text-end">{formatMoney(it.unitPrice)}</td>
                   <td className="text-end">{formatMoney(it.lineTotal)}</td>
                 </tr>
