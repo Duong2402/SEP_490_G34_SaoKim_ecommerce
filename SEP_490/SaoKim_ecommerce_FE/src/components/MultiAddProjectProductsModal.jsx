@@ -10,6 +10,29 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
     return Number(digits).toLocaleString("vi-VN");
   };
   const parseNumber = (value) => Number(String(value || "").replace(/\D/g, "") || 0);
+  const getProductUnit = (source) => {
+    const direct =
+      source?.unit ??
+      source?.uom ??
+      source?.Uom ??
+      source?.Unit ??
+      source?.unitName ??
+      source?.UnitName ??
+      source?.uomName ??
+      source?.UomName ??
+      source?.unitOfMeasure ??
+      source?.UnitOfMeasure ??
+      source?.unitOfMeasureName ??
+      source?.UnitOfMeasureName ??
+      source?.productUnit;
+
+    if (!direct) return "-";
+    if (typeof direct === "object") {
+      const name = direct?.name ?? direct?.Name ?? direct?.label ?? direct?.value;
+      return name ? String(name) : "-";
+    }
+    return String(direct);
+  };
 
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState([]);
@@ -218,6 +241,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
                         <tr>
                           <th style={{ width: 48 }}></th>
                           <th style={{ minWidth: 240 }}>Tên sản phẩm</th>
+                          <th style={{ width: 120 }}>Đơn vị tính</th>
                           <th style={{ width: 140 }}>Mã</th>
                           <th style={{ width: 140, textAlign: "right" }}>Giá</th>
                           <th style={{ width: 140, textAlign: "right" }}>Số lượng</th>
@@ -233,6 +257,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
                                 <input type="checkbox" checked={isChecked} onChange={() => toggleOne(p)} />
                               </td>
                               <td>{p.name}</td>
+                              <td>{getProductUnit(p)}</td>
                               <td>{p.sku}</td>
                               <td style={{ textAlign: "right" }}>
                                 {Number(p.price || 0).toLocaleString("vi-VN")}

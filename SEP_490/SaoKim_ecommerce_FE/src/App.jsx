@@ -14,6 +14,7 @@ import HomePage from "./pages/homepage/HomePage";
 import AccessDenied from "./pages/auth/AccessDenied";
 import ProtectedRoute from "./components/ProtectedRoute";
 import VerifyRegister from "./pages/auth/VerifyRegister";
+import About from "./pages/about/About";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
@@ -209,6 +210,7 @@ export default function App() {
           {/* Products (public) */}
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/about" element={<About />} />
 
           {/* cart, checkout */}
           <Route path="/cart" element={<Cart />} />
