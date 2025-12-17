@@ -121,7 +121,7 @@ export default function DispatchCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await apiFetch(`/api/products`);
+        const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
 
         const json = await res.json();
         console.log("Kết quả gọi GET /api/products:", json);
@@ -632,7 +632,7 @@ export default function DispatchCreate() {
                     <td>
                       <InputGroup>
                         <Form.Control
-                          type="number"
+                          type="text"
                           min={1}
                           max={MAX_QTY}
                           value={it.quantity}

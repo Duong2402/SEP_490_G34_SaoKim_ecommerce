@@ -15,11 +15,8 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure QuestPDF community license (required before using QuestPDF)
+// QuestPDF license (Community is fine for typical academic projects)
 QuestPDF.Settings.License = LicenseType.Community;
-
-// Register SignalR hubs (for real-time notifications)
-builder.Services.AddSignalR();
 
 // Add controllers and configure System.Text.Json options
 builder.Services.AddControllers()
@@ -35,43 +32,40 @@ builder.Services.AddControllers()
 
 // Swagger configuration with JWT Bearer authentication support
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddSwaggerGen(c =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "SaoKim_ecommerce_BE",
-        Version = "v1"
-    });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SaoKim API", Version = "v1" });
 
-    // Define HTTP Bearer scheme so Swagger UI can send JWT tokens
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    var jwtSecurityScheme = new OpenApiSecurityScheme
     {
-        Description = "JWT Bearer. Just paste the token (no need to prefix with 'Bearer').",
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT"
-    });
+        Description = "Put **_ONLY_** your JWT Bearer token on textbox below!",
 
-    // Apply the Bearer security requirement to all endpoints by default
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+        Reference = new OpenApiReference
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
+            Id = JwtBearerDefaults.AuthenticationScheme,
+            Type = ReferenceType.SecurityScheme
         }
+    };
+
+    c.AddSecurityDefinition(jwtSecurityScheme.Reference.Id, jwtSecurityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { jwtSecurityScheme, Array.Empty<string>() }
     });
 });
 
-// In-memory cache for application-level caching
+// SignalR
+builder.Services.AddSignalR();
+
+// Enable CORS
+builder.Services.AddCors();
+
+// In-memory caching
 builder.Services.AddMemoryCache();
 
 // Register HttpClient factory (used by services and controllers)
@@ -111,6 +105,13 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IDashboardAdminService, DashboardAdminService>();
 
+builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
+
+
+// Chatbot (Gemini)
+builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.Ai.IGeminiAiClient, SaoKim_ecommerce_BE.Services.Ai.GeminiAiClient>();
+builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.ChatbotTools.IChatbotToolService, SaoKim_ecommerce_BE.Services.ChatbotTools.ChatbotToolService>();
+builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.IChatbotService, SaoKim_ecommerce_BE.Services.ChatbotService>();
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
@@ -120,115 +121,70 @@ builder.Services.AddDbContext<SaoKimDBContext>(options =>
 // Read allowed CORS origins from configuration (fallback to localhost FE)
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
-    .Get<string[]>() ?? new[] { "http://localhost:5173", "https://localhost:5173" };
+    .Get<string[]>() ?? new[] { "http://localhost:5173" };
 
-// Configure CORS policy for frontend application
+// Build the CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFE", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials()
-              .SetPreflightMaxAge(TimeSpan.FromHours(1));
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .WithExposedHeaders("Content-Disposition");
     });
 });
 
-// Configure JWT Bearer authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+// JWT Authentication configuration
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false; // ok for local dev
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        var key = builder.Configuration["Jwt:Key"];
-        var issuer = builder.Configuration["Jwt:Issuer"];
-        var audience = builder.Configuration["Jwt:Audience"];
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
+        ClockSkew = TimeSpan.Zero,
+        NameClaimType = ClaimTypes.Name,
+        RoleClaimType = ClaimTypes.Role
+    };
 
-        if (string.IsNullOrWhiteSpace(key))
-            throw new InvalidOperationException("Missing configuration Jwt:Key");
-        if (string.IsNullOrWhiteSpace(issuer))
-            throw new InvalidOperationException("Missing configuration Jwt:Issuer");
-        if (string.IsNullOrWhiteSpace(audience))
-            throw new InvalidOperationException("Missing configuration Jwt:Audience");
-
-        // Token validation rules
-        options.TokenValidationParameters = new TokenValidationParameters
+    // Allow JWT in query string for SignalR connections if needed
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
-            ValidateIssuer = true,
-            ValidIssuer = issuer,
-            ValidateAudience = true,
-            ValidAudience = audience,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
-            NameClaimType = ClaimTypes.Name,
-            RoleClaimType = ClaimTypes.Role
-        };
-
-        // Custom JWT events
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
-                // Allow passing JWT token via query string for SignalR hubs
-                var accessToken = context.Request.Query["access_token"];
-                var path = context.HttpContext.Request.Path;
-
-                if (!StringValues.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-                {
-                    context.Token = accessToken.ToString();
-                    return Task.CompletedTask;
-                }
-
-                return Task.CompletedTask;
-            },
-
-            OnAuthenticationFailed = context =>
-            {
-                var logger = context.HttpContext.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("JwtBearer");
-
-                logger.LogError(context.Exception, "JWT authentication failed: {Message}", context.Exception.Message);
-                return Task.CompletedTask;
-            },
-
-            // Override default challenge response
-            OnChallenge = async ctx =>
-            {
-                ctx.HandleResponse();
-
-                if (ctx.Response.HasStarted) return;
-
-                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                ctx.Response.ContentType = "application/json; charset=utf-8";
-
-                if (builder.Environment.IsDevelopment())
-                {
-                    var msg = ctx.ErrorDescription;
-                    if (string.IsNullOrWhiteSpace(msg))
-                        msg = ctx.Error ?? "Unauthorized";
-
-                    await ctx.Response.WriteAsync("{\"message\":\"" + msg.Replace("\"", "'") + "\"}");
-                }
-                else
-                {
-                    await ctx.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
-                }
-            },
-
-            OnForbidden = ctx =>
-            {
-                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-                ctx.Response.ContentType = "application/json; charset=utf-8";
-                return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
+                context.Token = accessToken;
             }
-        };
-    });
+            return Task.CompletedTask;
+        }
+    };
+});
 
-// Authorization: by default require authenticated user for all endpoints
+// Authorization
 builder.Services.AddAuthorization(options =>
 {
+    // Fallback: require authentication by default
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
@@ -236,41 +192,34 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddHostedService<BannerExpireService>();
 var app = builder.Build();
 
-// Example path for font used by QuestPDF (ensure the font file exists)
-var fontPath = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts", "NotoSans-Regular.ttf");
-
-// Apply pending migrations and seed initial data on startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<SaoKimDBContext>();
-    await db.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(db);
-}
-
-// Enable Swagger UI in development; use HSTS in production
+// Enable Swagger in development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-else
+
+// Global exception handling (basic)
+app.UseExceptionHandler(errorApp =>
 {
-    app.UseHsts();
-}
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
 
-// Simple endpoint to inspect registered routes (for debugging)
-app.MapGet("/__routes", (EndpointDataSource eds) =>
-    Results.Json(eds.Endpoints.Select(e => e.DisplayName)));
+        await context.Response.WriteAsync("{\"success\":false,\"message\":\"Internal server error\"}");
+    });
+});
 
-// Serve static files from wwwroot
-app.UseStaticFiles();
-
-// Redirect HTTP to HTTPS
 app.UseHttpsRedirection();
 
+// Serve static files
+app.UseStaticFiles();
+
+// Use routing
 app.UseRouting();
 
-// Apply CORS policy for frontend client(s)
+// Use CORS
 app.UseCors("AllowFE");
 
 // Authentication and authorization middlewares

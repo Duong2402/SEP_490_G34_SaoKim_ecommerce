@@ -255,10 +255,14 @@ export default function WarehouseInventory() {
           </Form.Label>
           <InputGroup>
             <Form.Control
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={bulkMin}
-              onChange={(e) => setBulkMin(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "");
+                setBulkMin(v);
+              }}
               placeholder="Nhập số lượng tối thiểu…"
             />
           </InputGroup>
@@ -480,7 +484,7 @@ export default function WarehouseInventory() {
                     pid
                   );
                 return (
-                  <tr key={pid}>
+                  <tr key={`${pid}-${r.locationName || ""}-${idx}`}>
                     <td>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                     <td className="fw-semibold">
                       {r.productCode || "-"}
@@ -494,7 +498,7 @@ export default function WarehouseInventory() {
                         <div className="d-flex gap-2">
                           <Form.Control
                             size="sm"
-                            type="number"
+                            type="text"
                             min={0}
                             value={editingMin[pid]}
                             onChange={(e) =>
@@ -575,8 +579,8 @@ export default function WarehouseInventory() {
                 <button
                   key={p}
                   className={`btn ${p === page
-                      ? "btn-primary"
-                      : "btn-outline-secondary"
+                    ? "btn-primary"
+                    : "btn-outline-secondary"
                     }`}
                   onClick={() => setPage(p)}
                 >

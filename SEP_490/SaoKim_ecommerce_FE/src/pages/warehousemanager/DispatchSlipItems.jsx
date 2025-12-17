@@ -149,7 +149,7 @@ const DispatchSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await apiFetch(`/api/products`);
+      const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
       const json = await res.json();
 
       const payload = json.data ?? json;
@@ -571,7 +571,7 @@ const DispatchSlipItems = () => {
                 <Form.Label>Số lượng xuất</Form.Label>
                 <InputGroup>
                   <Form.Control
-                    type="number"
+                    type="text"
                     min={1}
                     max={MAX_QTY}
                     value={form.quantity}
@@ -596,7 +596,7 @@ const DispatchSlipItems = () => {
               <Form.Label>Đơn giá</Form.Label>
               <InputGroup>
                 <Form.Control
-                  type="number"
+                  type="text"
                   min={0}
                   max={MAX_UNIT_PRICE}
                   value={form.unitPrice}
