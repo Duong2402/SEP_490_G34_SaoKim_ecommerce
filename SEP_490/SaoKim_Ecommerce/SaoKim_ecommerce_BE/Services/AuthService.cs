@@ -133,7 +133,6 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<RegisterResponse> RegisterAsync(RegisterRequest req)
         {
-
             var email = NormalizeEmail(req.Email);
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Vui lòng nhập email");
@@ -149,6 +148,12 @@ namespace SaoKim_ecommerce_BE.Services
             if (role == null)
                 throw new ArgumentException("Role not found");
 
+            var phone = (req.PhoneNumber ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(phone))
+                throw new ArgumentException("Số điện thoại là bắt buộc.");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(phone, @"^0\d{8,10}$"))
+                throw new ArgumentException("Số điện thoại phải bắt đầu bằng 0 và có 9-11 chữ số.");
+
             EnforceCooldown(email);
 
             string? imagePath = await SaveImageIfAnyAsync(req);
@@ -162,7 +167,7 @@ namespace SaoKim_ecommerce_BE.Services
                 RoleId = role.RoleId,
                 RoleName = role.Name,
 
-                PhoneNumber = req.PhoneNumber,
+                PhoneNumber = phone,
                 DobUtc = req.DOB.HasValue ? DateTime.SpecifyKind(req.DOB.Value, DateTimeKind.Utc) : (DateTime?)null,
                 ImagePath = imagePath,
 

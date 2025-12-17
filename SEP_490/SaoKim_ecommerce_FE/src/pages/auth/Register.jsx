@@ -46,6 +46,13 @@ export default function Register() {
     if (errors[name]) setFieldError(name, "");
   };
 
+  const handlePhoneChange = (e) => {
+    const { name, value } = e.target;
+    const digitsOnly = value.replace(/\D/g, "");
+    setForm((prev) => ({ ...prev, [name]: digitsOnly }));
+    if (errors[name]) setFieldError(name, "");
+  };
+
   const handleBlur = (e) => {
     const { name } = e.target;
     setTouched((prev) => ({ ...prev, [name]: true }));
@@ -61,7 +68,9 @@ export default function Register() {
 
   const validateAll = () => {
     const v = {};
+
     if (!form.fullName.trim()) v.fullName = "Họ và tên là bắt buộc.";
+
     if (!form.email.trim()) v.email = "Email là bắt buộc.";
     else if (!/^\S+@\S+\.\S+$/.test(form.email))
       v.email = "Email không hợp lệ.";
@@ -77,10 +86,10 @@ export default function Register() {
     else if (form.password !== form.confirmPassword)
       v.confirmPassword = "Mật khẩu xác nhận không khớp.";
 
-    if (!form.phoneNumber.trim())
-      v.phoneNumber = "Số điện thoại là bắt buộc.";
-    else if (!/^\d{9,11}$/.test(form.phoneNumber))
-      v.phoneNumber = "Số điện thoại không hợp lệ.";
+    const phone = (form.phoneNumber || "").trim();
+    if (!phone) v.phoneNumber = "Số điện thoại là bắt buộc.";
+    else if (!/^0\d{8,10}$/.test(phone))
+      v.phoneNumber = "Số điện thoại phải bắt đầu bằng 0 và có 9-11 chữ số.";
 
     if (!form.dob.trim()) v.dob = "Ngày sinh là bắt buộc.";
     if (!form.image) v.image = "Ảnh đại diện là bắt buộc.";
@@ -88,7 +97,6 @@ export default function Register() {
     setErrors(v);
     return Object.keys(v).length === 0;
   };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,7 +123,7 @@ export default function Register() {
       formData.append("email", form.email.trim());
       formData.append("password", form.password);
       formData.append("role", "customer");
-      formData.append("phoneNumber", form.phoneNumber);
+      formData.append("phoneNumber", (form.phoneNumber || "").trim());
       formData.append("dob", form.dob);
       formData.append("image", form.image);
 
@@ -133,7 +141,6 @@ export default function Register() {
       }
 
       if (!res.ok) {
-        // Nếu là ValidationProblemDetails
         if (data?.errors) {
           const fieldErrors = {};
           Object.keys(data.errors).forEach((key) => {
@@ -167,7 +174,9 @@ export default function Register() {
 
       const email = form.email.trim();
       setTimeout(() => {
-        navigate(`/verify-register?email=${encodeURIComponent(email)}`, { replace: true });
+        navigate(`/verify-register?email=${encodeURIComponent(email)}`, {
+          replace: true,
+        });
       }, 600);
     } catch (err) {
       setGeneralError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
@@ -207,8 +216,10 @@ export default function Register() {
       <Form className="auth-form" onSubmit={handleSubmit} noValidate>
         <Form.Group>
           <Form.Label>Họ và tên</Form.Label>
-          <InputGroup >
-            <InputGroup.Text><FontAwesomeIcon icon={faUser} /></InputGroup.Text>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faUser} />
+            </InputGroup.Text>
             <Form.Control
               name="fullName"
               value={form.fullName}
@@ -225,8 +236,10 @@ export default function Register() {
 
         <Form.Group>
           <Form.Label>Email</Form.Label>
-          <InputGroup >
-            <InputGroup.Text><FontAwesomeIcon icon={faEnvelope} /></InputGroup.Text>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faEnvelope} />
+            </InputGroup.Text>
             <Form.Control
               name="email"
               type="email"
@@ -244,13 +257,18 @@ export default function Register() {
 
         <Form.Group>
           <Form.Label>Số điện thoại</Form.Label>
-          <InputGroup >
-            <InputGroup.Text><FontAwesomeIcon icon={faPhone} /></InputGroup.Text>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faPhone} />
+            </InputGroup.Text>
             <Form.Control
               name="phoneNumber"
               value={form.phoneNumber}
-              onChange={handleChange}
+              onChange={handlePhoneChange}
               onBlur={handleBlur}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={11}
               isInvalid={touched.phoneNumber && !!errors.phoneNumber}
               placeholder="0123456789"
             />
@@ -262,8 +280,10 @@ export default function Register() {
 
         <Form.Group>
           <Form.Label>Ngày sinh</Form.Label>
-          <InputGroup >
-            <InputGroup.Text><FontAwesomeIcon icon={faCalendar} /></InputGroup.Text>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faCalendar} />
+            </InputGroup.Text>
             <Form.Control
               name="dob"
               type="date"
@@ -280,8 +300,10 @@ export default function Register() {
 
         <Form.Group>
           <Form.Label>Ảnh đại diện</Form.Label>
-          <InputGroup >
-            <InputGroup.Text><FontAwesomeIcon icon={faImage} /></InputGroup.Text>
+          <InputGroup>
+            <InputGroup.Text>
+              <FontAwesomeIcon icon={faImage} />
+            </InputGroup.Text>
             <Form.Control
               type="file"
               accept="image/*"
@@ -292,6 +314,7 @@ export default function Register() {
               {errors.image}
             </Form.Control.Feedback>
           </InputGroup>
+
           {previewUrl && (
             <img
               src={previewUrl}
@@ -303,30 +326,57 @@ export default function Register() {
 
         <Form.Group>
           <Form.Label>Mật khẩu</Form.Label>
-          <InputGroup >
+          <InputGroup>
             <InputGroup.Text>
               <FontAwesomeIcon icon={faUnlockAlt} />
             </InputGroup.Text>
-            <Form.Control name="password" type={showPassword ? "text" : "password"} placeholder="Tối thiểu 8 ký tự" value={form.password}
-              onChange={handleChange} onBlur={handleBlur} isInvalid={touched.password && !!errors.password} />
-            <Button type="button" variant="link" onClick={() => setShowPassword((p) => !p)} >
+            <Form.Control
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Tối thiểu 8 ký tự"
+              value={form.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              isInvalid={touched.password && !!errors.password}
+            />
+            <Button
+              type="button"
+              variant="link"
+              onClick={() => setShowPassword((p) => !p)}
+            >
               <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
-            </Button> <Form.Control.Feedback type="invalid"> {errors.password} </Form.Control.Feedback>
+            </Button>
+            <Form.Control.Feedback type="invalid">
+              {errors.password}
+            </Form.Control.Feedback>
           </InputGroup>
         </Form.Group>
 
         <Form.Group>
           <Form.Label>Xác nhận mật khẩu</Form.Label>
-          <InputGroup >
+          <InputGroup>
             <InputGroup.Text>
               <FontAwesomeIcon icon={faUnlockAlt} />
             </InputGroup.Text>
-            <Form.Control name="confirmPassword" type={showConfirm ? "text" : "password"} placeholder="Nhập lại mật khẩu" value={form.confirmPassword}
-              onChange={handleChange} onBlur={handleBlur} isInvalid={touched.confirmPassword && !!errors.confirmPassword} />
-            <Button type="button" variant="link" onClick={() => setShowConfirm((p) => !p)} >
+            <Form.Control
+              name="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              placeholder="Nhập lại mật khẩu"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              isInvalid={touched.confirmPassword && !!errors.confirmPassword}
+            />
+            <Button
+              type="button"
+              variant="link"
+              onClick={() => setShowConfirm((p) => !p)}
+            >
               <FontAwesomeIcon icon={showConfirm ? faEyeSlash : faEye} />
             </Button>
-            <Form.Control.Feedback type="invalid"> {errors.confirmPassword} </Form.Control.Feedback>
+            <Form.Control.Feedback type="invalid">
+              {errors.confirmPassword}
+            </Form.Control.Feedback>
           </InputGroup>
         </Form.Group>
 

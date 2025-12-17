@@ -1,7 +1,9 @@
-
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import React from "react";
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import "./App.css";
 
+// Chat widget (chỉ hiện ở khu khách hàng)
+import ChatWidget from "./components/chat/ChatWidget";
 
 // Auth & commons
 import Login from "./pages/auth/Login";
@@ -92,7 +94,7 @@ import ManagerProjectDetail from "./pages/manager/projects/ManagerProjectDetail"
 import ManagerProjectEdit from "./pages/manager/projects/ManagerProjectEdit";
 import ManagerProjectReport from "./pages/manager/projects/ManagerProjectReport";
 
-// Promotions 
+// Promotions
 import ManagerPromotionList from "./pages/manager/promotions/ManagerPromotionList";
 import ManagerPromotionCreate from "./pages/manager/promotions/ManagerPromotionCreate";
 import ManagerPromotionEdit from "./pages/manager/promotions/ManagerPromotionEdit";
@@ -107,6 +109,27 @@ import ManagerEmployeeList from "./pages/manager/employees/ManagerEmployeeList";
 import ManagerEmployeeCreate from "./pages/manager/employees/ManagerEmployeeCreate";
 import ManagerEmployeeEdit from "./pages/manager/employees/ManagerEmployeeEdit";
 
+function CustomerChatGate() {
+  const { pathname } = useLocation();
+
+  // Ẩn chatbot khỏi các khu role/hệ thống
+  const hiddenPrefixes = ["/admin", "/manager", "/staff", "/warehouse-dashboard", "/projects"];
+
+  // Ẩn khỏi các trang auth
+  const hiddenExact = ["/login", "/register", "/forgot-password", "/verify-register", "/forbidden"];
+  const hiddenStartsWith = ["/reset-password"];
+
+  const shouldHide =
+    hiddenPrefixes.some((p) => pathname.startsWith(p)) ||
+    hiddenExact.includes(pathname) ||
+    hiddenStartsWith.some((p) => pathname.startsWith(p));
+
+  if (shouldHide) return null;
+
+  // Chỉ hiện ở khu khách (public + account + cart/checkout + products + homepage)
+  return <ChatWidget />;
+}
+
 export default function App() {
   return (
     <div className="page-wrapper">
@@ -119,11 +142,9 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/verify-register" element={<VerifyRegister />} />
-          <Route
-            path="/change-password"
-            element={<AccountPage initialTab="password" />}
-          />
+          <Route path="/change-password" element={<AccountPage initialTab="password" />} />
           <Route path="/forbidden" element={<AccessDenied />} />
+
           {/* Warehouse protected group */}
           <Route element={<ProtectedRoute allow={["warehouse_manager"]} />}>
             <Route path="/warehouse-dashboard" element={<Outlet />}>
@@ -139,11 +160,11 @@ export default function App() {
               <Route path="warehouse-report" element={<WarehouseReport />} />
               <Route path="warehouse-report/inbound-report" element={<InboundReport />} />
               <Route path="warehouse-report/outbound-report" element={<OutboundReport />} />
-              <Route path="warehouse-report/inventory-report" element={<InventoryReport />}
-              />
+              <Route path="warehouse-report/inventory-report" element={<InventoryReport />} />
             </Route>
           </Route>
 
+          {/* Admin protected group */}
           <Route element={<ProtectedRoute allow={["admin"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
@@ -174,15 +195,11 @@ export default function App() {
             <Route path="/staff/manager-invoices/:id" element={<InvoiceDetailStaff />} />
           </Route>
 
-          {/* Projects (ngoài khu Manager) */}
-          <Route path="/projects" element={<ProjectManagerLayout />}>\n            <Route index element={<ProjectList />} />\n            <Route path="overview" element={<ProjectOverview />} />\n            {/* create removed */}\n            <Route path=":id" element={<ProjectDetail />} />\n            <Route path=":id/edit" element={<ProjectEdit />} />\n            <Route path=":id/report" element={<ProjectReport />} />\n          </Route>
-
           {/* Projects protected group - Only project_manager */}
           <Route element={<ProtectedRoute allow={["project_manager"]} />}>
             <Route path="/projects" element={<ProjectManagerLayout />}>
               <Route index element={<ProjectList />} />
               <Route path="overview" element={<ProjectOverview />} />
-              {/* create removed for project_manager */}
               <Route path=":id" element={<ProjectDetail />} />
               <Route path=":id/edit" element={<ProjectEdit />} />
               <Route path=":id/report" element={<ProjectReport />} />
@@ -200,10 +217,7 @@ export default function App() {
 
           {/* Account */}
           <Route path="/account" element={<AccountPage />} />
-          <Route
-            path="/account/addresses"
-            element={<AccountPage initialTab="addresses" />}
-          />
+          <Route path="/account/addresses" element={<AccountPage initialTab="addresses" />} />
           <Route path="/account/orders" element={<CustomerOrder />} />
           <Route path="/account/orders/:orderId" element={<OrderDetailPage />} />
 
@@ -245,13 +259,11 @@ export default function App() {
           </Route>
 
           {/* 404 */}
-          <Route
-            path="*"
-            element={<div style={{ padding: 24 }}>Không tìm thấy trang.</div>}
-          />
+          <Route path="*" element={<div style={{ padding: 24 }}>Không tìm thấy trang.</div>} />
         </Routes>
+
+        <CustomerChatGate />
       </BrowserRouter>
     </div>
   );
 }
-
