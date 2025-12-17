@@ -137,13 +137,7 @@ const WarehouseLayout = ({ children }) => {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = getToken().trim();
       const headers = { ...authHeaders() };
-
-      // DEBUG: xác nhận FE có token và có set Authorization
-      console.log("[API] baseUrl =", baseUrl);
-      console.log("[API] token length =", token ? token.length : 0);
-      console.log("[API] has Authorization header =", !!headers.Authorization);
 
       const res = await fetch(`${baseUrl}/api/notifications/unread-count`, {
         method: "GET",
@@ -151,7 +145,6 @@ const WarehouseLayout = ({ children }) => {
       });
 
       if (res.status === 401) {
-        // Tạm thời KHÔNG logout để debug
         let body = "";
         try {
           body = await res.text();
@@ -165,7 +158,6 @@ const WarehouseLayout = ({ children }) => {
       const json = await res.json();
       setUnreadCount(json?.data?.count ?? json?.count ?? 0);
     } catch {
-      // ignore
     }
   };
 
@@ -192,7 +184,6 @@ const WarehouseLayout = ({ children }) => {
       const items = json?.data?.items ?? json?.items ?? [];
       setNotiItems(items);
     } catch {
-      // ignore
     } finally {
       setLoadingNoti(false);
     }
@@ -229,7 +220,6 @@ const WarehouseLayout = ({ children }) => {
         return;
       }
     } catch {
-      // ignore
     } finally {
       fetchUnreadCount();
       fetchNotifications();

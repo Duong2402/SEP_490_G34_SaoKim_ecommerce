@@ -103,6 +103,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
+builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
+
 
 // Chatbot (Gemini)
 builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.Ai.IGeminiAiClient, SaoKim_ecommerce_BE.Services.Ai.GeminiAiClient>();

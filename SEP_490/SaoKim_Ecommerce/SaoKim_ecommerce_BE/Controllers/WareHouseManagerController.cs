@@ -703,6 +703,12 @@ namespace SaoKim_ecommerce_BE.Controllers
             return File(pdf, "application/pdf", fileName);
         }
 
+        [HttpPost("snapshot/seed")]
+        public async Task<IActionResult> SeedSnapshot([FromServices] IInventorySnapshotSeeder seeder)
+        {
+            var rows = await seeder.SeedBaselineAsync();
+            return Ok(new { inserted = rows });
+        }
 
     }
 }

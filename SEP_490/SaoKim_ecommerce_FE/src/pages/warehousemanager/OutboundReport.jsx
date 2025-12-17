@@ -120,13 +120,13 @@ export default function OutboundReport() {
   const searchedData = useMemo(() => {
     if (!search) return rows;
     const s = search.toLowerCase();
-    return rows.filter((r) => (r.customer || "").toLowerCase().includes(s));
+    return rows.filter((r) => (r.customerName || "").toLowerCase().includes(s));
   }, [rows, search]);
 
   const customerSummary = useMemo(() => {
     const map = new Map();
     for (const r of searchedData) {
-      const key = r.customer || "Khác";
+      const key = r.customerName || "Khác";
       if (!map.has(key)) {
         map.set(key, {
           customer: key,
@@ -187,7 +187,7 @@ export default function OutboundReport() {
     );
     const totalCustomers = new Set(
       (viewMode === "slips" ? searchedData : customerSummary).map(
-        (r) => r.customer
+        (r) => r.customerName
       )
     ).size;
 
@@ -466,13 +466,13 @@ export default function OutboundReport() {
                 const heavy = isHeavyRecord(item);
                 return (
                   <tr
-                    key={`${item.customer}-${item.issueDate}-${index}`}
+                    key={`${item.customerName}-${item.issueDate}-${index}`}
                     className={heavy ? "table-warning" : ""}
                   >
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td className="fw-semibold">
-                      <span title={item.customer}>
-                        {truncate(item.customer, 40, "")}
+                      <span title={item.customerName}>
+                        {truncate(item.customerName, 40, "")}
                       </span>
                       {heavy && (
                         <Badge bg="danger" className="ms-2">
@@ -497,13 +497,13 @@ export default function OutboundReport() {
             ) : (
               pagedData.map((item, index) => (
                 <tr
-                  key={`${item.customer}-${index}`}
+                  key={`${item.customerName}-${index}`}
                   className={isHeavyRecord(item) ? "table-warning" : ""}
                 >
                   <td>{(page - 1) * pageSize + index + 1}</td>
                   <td className="fw-semibold">
-                    <span title={item.customer}>
-                      {truncate(item.customer, 40, "")}
+                    <span title={item.customerName}>
+                      {truncate(item.customerName, 40, "")}
                     </span>
                   </td>
                   <td>{item.slipsCount}</td>
