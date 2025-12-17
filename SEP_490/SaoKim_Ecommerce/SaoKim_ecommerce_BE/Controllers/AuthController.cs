@@ -2,10 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Model.Requests;
-using SaoKim_ecommerce_BE.Models.Requests;
 using SaoKim_ecommerce_BE.Services;
-using System;
-using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -23,30 +20,29 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromForm] RegisterRequest req)
     {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState
+                .Where(x => x.Value?.Errors?.Count > 0)
+                .ToDictionary(
+                    k => k.Key,
+                    v => v.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                );
+
+            return BadRequest(new { message = "Validation failed", errors });
+        }
+
         try
         {
-            if (!ModelState.IsValid)
-                return ValidationProblem(ModelState);
-
             var result = await _authService.RegisterAsync(req);
-
-            return Ok(new
-            {
-                message = result.Message,
-                email = result.Email,
-                role = result.Role,
-                image = result.Image
-            });
+            return Ok(new { message = result.Message, email = result.Email, role = result.Role, image = result.Image });
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Internal server error", detail = ex.Message });
-        }
     }
+
 
     [HttpPost("login")]
     [AllowAnonymous]

@@ -19,10 +19,10 @@ import {
   Button,
 } from "@themesberg/react-bootstrap";
 import { Modal, Spinner, Toast, ToastContainer } from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
 import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const toStatusCode = (v) => {
   if (v === 1 || v === "1") return 1;
@@ -44,15 +44,16 @@ const truncateText = (text, maxLength = 40) => {
 
 export default function ReceivingList() {
   const navigate = useNavigate();
+  const [sp, setSp] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => sp.get("search") || "");
   const [pageSize] = useState(10);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => Number(sp.get("page") || 1));
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const [sortBy, setSortBy] = useState("receiptDate");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortBy, setSortBy] = useState(() => sp.get("sortBy") || "receiptDate");
+  const [sortOrder, setSortOrder] = useState(() => sp.get("sortOrder") || "desc");
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -563,7 +564,8 @@ export default function ReceivingList() {
                         className="me-2"
                         onClick={() =>
                           navigate(
-                            `/warehouse-dashboard/receiving-slips/${r.id}/items`
+                            `/warehouse-dashboard/receiving-slips/${r.id}/items`,
+                            { state: { fromList: true } }
                           )
                         }
                       >

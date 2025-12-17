@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import {
   Breadcrumb,
@@ -22,7 +22,6 @@ import { apiFetch } from "../../api/lib/apiClient";
 import Select from "react-select";
 import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
-
 const MAX_QTY = 100_000_000;
 const MAX_UNIT_PRICE = 1_000_000_000;
 const MAX_LINE_TOTAL = 100_000_000_000;
@@ -36,7 +35,11 @@ const emptyItem = () => ({
 
 export default function DispatchCreate() {
   const navigate = useNavigate();
+  const location = useLocation();
   const realtimeRef = useRef(null);
+
+  // Giữ query của list (page/type/search/sort...) để quay lại không bị về trang 1
+  const backToListUrl = `/warehouse-dashboard/dispatch-slips${location.search || ""}`;
 
   const [type, setType] = useState("Sales");
   const [dispatchDate, setDispatchDate] = useState(() => {
@@ -75,48 +78,47 @@ export default function DispatchCreate() {
   };
 
   useEffect(() => {
-  let disposed = false;
+    let disposed = false;
 
-  const getAccessToken = async () => localStorage.getItem("token") || "";
+    const getAccessToken = async () => localStorage.getItem("token") || "";
 
-  ensureRealtimeStarted(getAccessToken)
-    .then(() => {
-      if (disposed) return;
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
 
-      const conn = getRealtimeConnection(getAccessToken);
-      realtimeRef.current = conn;
+        const conn = getRealtimeConnection(getAccessToken);
+        realtimeRef.current = conn;
 
-      conn.off("evt");
+        conn.off("evt");
 
-      conn.on("evt", (payload) => {
-        if (!payload?.type) return;
+        conn.on("evt", (payload) => {
+          if (!payload?.type) return;
 
-        switch (payload.type) {
-          case "dispatch.created":
-            setToast({ type: "success", message: "Có phiếu xuất kho mới được tạo" });
-            break;
-          case "dispatch.item.created":
-            setToast({ type: "success", message: "Có dòng hàng mới được thêm vào phiếu xuất" });
-            break;
-          case "dispatch.deleted":
-            setToast({ type: "warning", message: "Một phiếu xuất đã bị xóa" });
-            break;
-          default:
-            break;
-        }
+          switch (payload.type) {
+            case "dispatch.created":
+              setToast({ type: "success", message: "Có phiếu xuất kho mới được tạo" });
+              break;
+            case "dispatch.item.created":
+              setToast({ type: "success", message: "Có dòng hàng mới được thêm vào phiếu xuất" });
+              break;
+            case "dispatch.deleted":
+              setToast({ type: "warning", message: "Một phiếu xuất đã bị xóa" });
+              break;
+            default:
+              break;
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("SignalR connection error:", err);
       });
-    })
-    .catch((err) => {
-      console.error("SignalR connection error:", err);
-    });
 
-  return () => {
-    disposed = true;
-    const conn = realtimeRef.current;
-    if (conn) conn.off("evt");
-  };
-}, []);
-
+    return () => {
+      disposed = true;
+      const conn = realtimeRef.current;
+      if (conn) conn.off("evt");
+    };
+  }, []);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -158,8 +160,7 @@ export default function DispatchCreate() {
       try {
         if (type === "Sales") {
           const res = await apiFetch(`/api/warehousemanager/customers`);
-          if (!res.ok)
-            throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
+          if (!res.ok) throw new Error(`Lỗi tải khách hàng (HTTP ${res.status})`);
           const data = await res.json();
           setCustomers(
             (data || []).map((c) => ({
@@ -169,8 +170,7 @@ export default function DispatchCreate() {
           );
         } else {
           const res = await apiFetch(`/api/warehousemanager/projects`);
-          if (!res.ok)
-            throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
+          if (!res.ok) throw new Error(`Lỗi tải dự án (HTTP ${res.status})`);
           const data = await res.json();
           setProjects(
             (data || []).map((p) => ({
@@ -189,19 +189,16 @@ export default function DispatchCreate() {
         });
       }
     };
+
     loadForType();
     setSelectedCustomer(null);
     setSelectedProject(null);
   }, [type]);
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce(
-      (acc, it) => acc + Number(it.quantity || 0),
-      0
-    );
+    const totalQty = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
     const totalValue = items.reduce(
-      (acc, it) =>
-        acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
+      (acc, it) => acc + Number(it.quantity || 0) * Number(it.unitPrice || 0),
       0
     );
     return { totalQty, totalValue };
@@ -209,13 +206,9 @@ export default function DispatchCreate() {
 
   const addRow = () => setItems((prev) => [...prev, emptyItem()]);
   const removeRow = (idx) =>
-    setItems((prev) =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)
-    );
+    setItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
   const patchItem = (idx, patch) =>
-    setItems((prev) =>
-      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it))
-    );
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const findProductById = (val) => {
     const n = Number(val);
@@ -242,19 +235,13 @@ export default function DispatchCreate() {
 
       if (!it.productId) e.productId = "Chọn sản phẩm.";
       if (!(qty > 0)) e.quantity = "Số lượng phải > 0.";
-      else if (qty > MAX_QTY)
-        e.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
+      else if (qty > MAX_QTY) e.quantity = `Số lượng tối đa ${MAX_QTY.toLocaleString("vi-VN")}.`;
 
       if (price < 0) e.unitPrice = "Đơn giá phải ≥ 0.";
-      else if (price > MAX_UNIT_PRICE)
-        e.unitPrice = `Đơn giá tối đa ${formatMoney(
-          MAX_UNIT_PRICE
-        )} đ.`;
+      else if (price > MAX_UNIT_PRICE) e.unitPrice = `Đơn giá tối đa ${formatMoney(MAX_UNIT_PRICE)} đ.`;
 
       if (!e.unitPrice && lineTotal > MAX_LINE_TOTAL) {
-        e.unitPrice = `Thành tiền tối đa ${formatMoney(
-          MAX_LINE_TOTAL
-        )} đ.`;
+        e.unitPrice = `Thành tiền tối đa ${formatMoney(MAX_LINE_TOTAL)} đ.`;
       }
 
       if (Object.keys(e).length) iErrs[idx] = e;
@@ -262,10 +249,7 @@ export default function DispatchCreate() {
     setItemErrs(iErrs);
 
     if (items.length === 0) {
-      setToast({
-        type: "warning",
-        message: "Cần ít nhất 1 dòng hàng.",
-      });
+      setToast({ type: "warning", message: "Cần ít nhất 1 dòng hàng." });
     }
 
     return (
@@ -347,14 +331,12 @@ export default function DispatchCreate() {
 
       const created = await resSlip.json();
       const newId =
-        created?.id ??
-        created?.Id ??
-        created?.slip?.id ??
-        created?.Slip?.Id;
+        created?.id ?? created?.Id ?? created?.slip?.id ?? created?.Slip?.Id;
 
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
-      navigate(`/warehouse-dashboard/dispatch-slips/${newId}/items`);
+      // Mang theo query của list để khi quay lại vẫn đúng trang/filter
+      navigate(`/warehouse-dashboard/dispatch-slips/${newId}/items${location.search || ""}`);
     } catch (e) {
       console.error("[Tạo phiếu xuất] lỗi:", e);
       setToast({
@@ -375,16 +357,13 @@ export default function DispatchCreate() {
               <Breadcrumb.Item href="/warehouse-dashboard">
                 <FontAwesomeIcon icon={faHome} /> Bảng điều phối
               </Breadcrumb.Item>
-              <Breadcrumb.Item href="/warehouse-dashboard/dispatch-slips">
-                Phiếu xuất kho
-              </Breadcrumb.Item>
+              <Breadcrumb.Item href={backToListUrl}>Phiếu xuất kho</Breadcrumb.Item>
               <Breadcrumb.Item active>Tạo phiếu xuất</Breadcrumb.Item>
             </Breadcrumb>
           </div>
           <h1 className="wm-page-title">Tạo phiếu xuất kho</h1>
           <p className="wm-page-subtitle">
-            Chọn loại phiếu (Xuất bán / Xuất dự án), nhập thông tin chung và
-            thêm dòng hàng từ danh mục sản phẩm.
+            Chọn loại phiếu (Xuất bán / Xuất dự án), nhập thông tin chung và thêm dòng hàng từ danh mục sản phẩm.
           </p>
         </div>
 
@@ -392,9 +371,7 @@ export default function DispatchCreate() {
           <button
             type="button"
             className="wm-btn wm-btn--light"
-            onClick={() =>
-              navigate("/warehouse-dashboard/dispatch-slips")
-            }
+            onClick={() => navigate(backToListUrl)}
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
@@ -419,17 +396,13 @@ export default function DispatchCreate() {
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng giá trị</span>
-          <span className="wm-summary__value">
-            {formatMoney(totals.totalValue)} đ
-          </span>
+          <span className="wm-summary__value">{formatMoney(totals.totalValue)} đ</span>
           <span className="wm-subtle-text">Chưa gồm thuế</span>
         </div>
         <div className="wm-summary__card">
           <span className="wm-summary__label">Trạng thái</span>
           <span className="wm-summary__value">
-            <Badge bg="warning" text="dark">
-              Nháp
-            </Badge>
+            <Badge bg="warning" text="dark">Nháp</Badge>
           </span>
           <span className="wm-subtle-text">Sẽ là Nháp khi tạo</span>
         </div>
@@ -441,10 +414,7 @@ export default function DispatchCreate() {
             <Form.Label>
               Loại phiếu <span className="text-danger">*</span>
             </Form.Label>
-            <Form.Select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
+            <Form.Select value={type} onChange={(e) => setType(e.target.value)}>
               <option value="Sales">Xuất bán</option>
               <option value="Project">Xuất dự án</option>
             </Form.Select>
@@ -577,10 +547,9 @@ export default function DispatchCreate() {
                         value={
                           products.find((p) => p.id === it.productId)
                             ? {
-                              value: it.productId,
-                              label: `${it.productId} - ${findProductById(it.productId)?.name
-                                }`,
-                            }
+                                value: it.productId,
+                                label: `${it.productId} - ${findProductById(it.productId)?.name}`,
+                              }
                             : null
                         }
                         onChange={(option) => {
@@ -599,17 +568,13 @@ export default function DispatchCreate() {
                           control: (base) => ({
                             ...base,
                             minHeight: 45,
-                            borderColor: errs.productId
-                              ? "#dc3545"
-                              : base.borderColor,
+                            borderColor: errs.productId ? "#dc3545" : base.borderColor,
                             boxShadow: errs.productId
                               ? "0 0 0 0.2rem rgba(220,53,69,.25)"
                               : base.boxShadow,
                             "&:hover": {
                               ...base["&:hover"],
-                              borderColor: errs.productId
-                                ? "#dc3545"
-                                : base.borderColor,
+                              borderColor: errs.productId ? "#dc3545" : base.borderColor,
                             },
                           }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
@@ -642,10 +607,7 @@ export default function DispatchCreate() {
                               patchItem(idx, { quantity: "" });
                               return;
                             }
-                            const clamped = Math.min(
-                              Math.max(raw, 1),
-                              MAX_QTY
-                            );
+                            const clamped = Math.min(Math.max(raw, 1), MAX_QTY);
                             patchItem(idx, { quantity: clamped });
                           }}
                           isInvalid={!!errs.quantity}
@@ -662,10 +624,7 @@ export default function DispatchCreate() {
                         value={formatMoney(it.unitPrice)}
                         onChange={(e) => {
                           const parsed = parseMoneyInput(e.target.value);
-                          const clamped = Math.min(
-                            Math.max(parsed, 0),
-                            MAX_UNIT_PRICE
-                          );
+                          const clamped = Math.min(Math.max(parsed, 0), MAX_UNIT_PRICE);
                           patchItem(idx, { unitPrice: clamped });
                         }}
                         isInvalid={!!errs.unitPrice}
@@ -675,9 +634,7 @@ export default function DispatchCreate() {
                       </Form.Control.Feedback>
                     </td>
 
-                    <td className="fw-semibold">
-                      {formatMoney(lineTotal)} đ
-                    </td>
+                    <td className="fw-semibold">{formatMoney(lineTotal)} đ</td>
 
                     <td className="text-end">
                       <Button
@@ -685,11 +642,7 @@ export default function DispatchCreate() {
                         size="sm"
                         onClick={() => removeRow(idx)}
                         disabled={items.length === 1}
-                        title={
-                          items.length === 1
-                            ? "Cần ít nhất 1 dòng"
-                            : "Xóa dòng"
-                        }
+                        title={items.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng"}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </Button>
@@ -718,10 +671,10 @@ export default function DispatchCreate() {
               toast.type === "danger"
                 ? "danger"
                 : toast.type === "warning"
-                  ? "warning"
-                  : toast.type === "success"
-                    ? "success"
-                    : "light"
+                ? "warning"
+                : toast.type === "success"
+                ? "success"
+                : "light"
             }
             onClose={() => setToast(null)}
             show={!!toast}

@@ -134,7 +134,6 @@ export default function Checkout() {
     })();
   }, [apiBase]);
 
-
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
