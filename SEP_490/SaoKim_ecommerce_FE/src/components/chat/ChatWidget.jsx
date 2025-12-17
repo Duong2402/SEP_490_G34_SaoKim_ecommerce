@@ -139,7 +139,6 @@ const ChatWidget = () => {
 
     setInput("");
 
-    // Clear gợi ý cũ ngay khi gửi để tránh "lần trước còn, lần này đang chờ vẫn hiện"
     setSuggestedProducts([]);
     setQuickReplies([]);
 

@@ -11,7 +11,6 @@ function buildBannerUrl(url) {
   return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-// ISO/UTC -> input datetime-local (yyyy-MM-ddTHH:mm)
 function toLocalInputValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -40,7 +39,6 @@ export default function BannerForm() {
 
   const [loading, setLoading] = useState(!!id);
 
-  // File upload + preview
   const [imageFile, setImageFile] = useState(null);
   const [filePreview, setFilePreview] = useState("");
 
@@ -75,7 +73,6 @@ export default function BannerForm() {
     load();
   }, [id, navigate]);
 
-  // cleanup object url
   useEffect(() => {
     return () => {
       if (filePreview) URL.revokeObjectURL(filePreview);
@@ -92,7 +89,6 @@ export default function BannerForm() {
 
     setImageFile(f);
 
-    // tạo preview
     if (filePreview) URL.revokeObjectURL(filePreview);
     setFilePreview(f ? URL.createObjectURL(f) : "");
   };

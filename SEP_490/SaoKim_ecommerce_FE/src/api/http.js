@@ -23,14 +23,10 @@ http.interceptors.request.use(
   (cfg) => {
     const isFormData =
       typeof FormData !== "undefined" && cfg.data instanceof FormData;
-
-    // Chỉ set Content-Type JSON khi body không phải FormData
     if (cfg.data && !isFormData && !cfg.headers["Content-Type"]) {
       cfg.headers["Content-Type"] = "application/json";
     }
 
-    // Nếu là FormData thì tuyệt đối không set Content-Type,
-    // để browser tự gắn multipart/form-data + boundary
     if (isFormData && cfg.headers["Content-Type"]) {
       delete cfg.headers["Content-Type"];
     }

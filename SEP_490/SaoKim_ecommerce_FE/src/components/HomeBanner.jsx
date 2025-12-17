@@ -14,8 +14,6 @@ function buildImageUrl(url) {
 
   const path = url.startsWith("/") ? url : `/${url}`;
 
-  // Nếu có API_BASE thì prefix để tải ảnh từ BE
-  // Nếu không có (prod cùng domain) thì giữ nguyên path
   return API_BASE ? `${API_BASE}${path}` : path;
 }
 

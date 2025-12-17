@@ -84,8 +84,6 @@ export default function Login() {
         setError(msg);
         return;
       }
-
-      // Nhiều BE trả về theo dạng ApiResponse: { success, message, data: {...} }
       const payload = (data && typeof data === "object" && data.data) ? data.data : data;
 
       const token =

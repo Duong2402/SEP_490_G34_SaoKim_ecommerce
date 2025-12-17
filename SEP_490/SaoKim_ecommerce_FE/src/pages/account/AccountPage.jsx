@@ -59,6 +59,124 @@ function removeVietnameseAccents(str = "") {
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D");
 }
+function isValidEmail(email = "") {
+  const s = String(email).trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+}
+
+function normalizePhoneVN(phone = "") {
+  let p = String(phone).trim().replace(/[^\d+]/g, "");
+  if (p.startsWith("+84")) p = "0" + p.slice(3);
+  if (p.startsWith("84") && p.length > 9) p = "0" + p.slice(2);
+  return p;
+}
+
+function isValidPhoneVN(phone = "") {
+  const raw = String(phone).trim();
+  if (/[^\d+]/.test(raw)) return false; 
+  const p = normalizePhoneVN(raw);
+  return /^0\d{9,10}$/.test(p);
+}
+
+
+
+function isValidDobISO(yyyyMmDd = "") {
+  if (!yyyyMmDd) return true; 
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) return false;
+
+  const d = new Date(yyyyMmDd + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return false;
+
+  const now = new Date();
+  if (d > now) return false;
+  const tenYearsAgo = new Date(now);
+  tenYearsAgo.setFullYear(now.getFullYear() - 10);
+  if (d > tenYearsAgo) return false;
+
+  return true;
+}
+
+function validateProfileForm(form) {
+  const errs = {};
+
+  const name = String(form.name || "").trim();
+  if (!name) errs.name = "Vui lòng nhập họ tên.";
+  else if (name.length < 2) errs.name = "Họ tên quá ngắn.";
+  else if (name.length > 80) errs.name = "Họ tên quá dài (tối đa 80 ký tự).";
+
+  const email = String(form.email || "").trim();
+  if (email && !isValidEmail(email)) errs.email = "Email không hợp lệ.";
+
+  const phone = String(form.phoneNumber || "").trim();
+  if (phone && !isValidPhoneVN(phone)) errs.phoneNumber = "Số điện thoại không hợp lệ.";
+
+  const address = String(form.address || "").trim();
+  if (address && address.length > 255) errs.address = "Địa chỉ quá dài (tối đa 255 ký tự).";
+
+  const dob = String(form.dob || "").trim();
+  if (dob && !isValidDobISO(dob)) errs.dob = "Ngày sinh không hợp lệ.";
+
+  const img = form.image;
+  if (img) {
+    const max = 5 * 1024 * 1024;
+    if (img.size > max) errs.image = "Ảnh vượt quá 5MB.";
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(img.type)) {
+      errs.image = "Chỉ cho phép JPG, PNG, WEBP.";
+    }
+  }
+
+  return errs;
+}
+
+function validateAddressForm(form, { provinceCode, districtCode, wardCode }) {
+  const errs = {};
+
+  const recipientName = String(form.recipientName || "").trim();
+  if (!recipientName) errs.recipientName = "Vui lòng nhập tên người nhận.";
+  else if (recipientName.length < 2) errs.recipientName = "Tên người nhận quá ngắn.";
+  else if (recipientName.length > 80) errs.recipientName = "Tên người nhận quá dài (tối đa 80 ký tự).";
+
+  const phone = String(form.phoneNumber || "").trim();
+  if (!phone) errs.phoneNumber = "Vui lòng nhập số điện thoại.";
+  else if (!isValidPhoneVN(phone)) errs.phoneNumber = "Số điện thoại không hợp lệ.";
+
+  const line1 = String(form.line1 || "").trim();
+  if (!line1) errs.line1 = "Vui lòng nhập địa chỉ cụ thể.";
+  else if (line1.length < 5) errs.line1 = "Địa chỉ cụ thể quá ngắn.";
+  else if (line1.length > 200) errs.line1 = "Địa chỉ cụ thể quá dài (tối đa 200 ký tự).";
+
+  if (!provinceCode) errs.province = "Vui lòng chọn Tỉnh/Thành.";
+  if (!districtCode) errs.district = "Vui lòng chọn Quận/Huyện.";
+  if (!wardCode) errs.ward = "Vui lòng chọn Phường/Xã.";
+
+  return errs;
+}
+
+function validatePasswordForm(form) {
+  const errs = {};
+
+  const email = String(form.email || "").trim();
+  if (!email) errs.email = "Vui lòng nhập email.";
+  else if (!isValidEmail(email)) errs.email = "Email không hợp lệ.";
+
+  const currentPassword = String(form.currentPassword || "");
+  if (!currentPassword) errs.currentPassword = "Vui lòng nhập mật khẩu hiện tại.";
+
+  const newPassword = String(form.newPassword || "");
+  if (!newPassword) errs.newPassword = "Vui lòng nhập mật khẩu mới.";
+  else if (newPassword.length < 8) errs.newPassword = "Mật khẩu mới phải có ít nhất 8 ký tự.";
+  else if (newPassword.length > 72) errs.newPassword = "Mật khẩu mới quá dài.";
+
+  const confirm = String(form.confirmNewPassword || "");
+  if (!confirm) errs.confirmNewPassword = "Vui lòng xác nhận mật khẩu mới.";
+  else if (confirm !== newPassword) errs.confirmNewPassword = "Xác nhận mật khẩu không khớp.";
+
+  if (currentPassword && newPassword && currentPassword === newPassword) {
+    errs.newPassword = "Mật khẩu mới phải khác mật khẩu hiện tại.";
+  }
+
+  return errs;
+}
 
 
 function ProfileTab() {
@@ -68,6 +186,7 @@ function ProfileTab() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -76,6 +195,16 @@ function ProfileTab() {
     dob: "",
     image: null,
   });
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(previewUrl);
+        } catch {}
+      }
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -111,6 +240,8 @@ function ProfileTab() {
           image: null,
         });
         setPreviewUrl(buildImageUrl(data.image));
+        setFieldErrors({});
+        setError("");
       } catch (e) {
         setError(e.message || "Đã xảy ra lỗi");
       } finally {
@@ -123,19 +254,46 @@ function ProfileTab() {
 
   const onChange = (e) => {
     const { name, value } = e.target;
+
     setForm((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setError("");
+    setSuccess("");
   };
 
   const onFile = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setForm((prev) => ({ ...prev, image: file }));
-      setPreviewUrl(URL.createObjectURL(file));
+    if (!file) return;
+    const errs = validateProfileForm({ ...form, image: file });
+    setFieldErrors((prev) => ({ ...prev, image: errs.image }));
+
+    if (errs.image) {
+      setForm((prev) => ({ ...prev, image: null }));
+      e.target.value = "";
+      return;
     }
+
+    setPreviewUrl((prev) => {
+      if (prev && prev.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {}
+      }
+      return URL.createObjectURL(file);
+    });
+
+    setForm((prev) => ({ ...prev, image: file }));
+    setError("");
+    setSuccess("");
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
+
+    const errs = validateProfileForm(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setError("");
     setSuccess("");
     setSaving(true);
@@ -148,17 +306,15 @@ function ProfileTab() {
       }
 
       const fd = new FormData();
-      if (form.name) fd.append("name", form.name);
-      if (form.phoneNumber) fd.append("phoneNumber", form.phoneNumber);
-      if (form.address) fd.append("address", form.address);
+      if (form.name) fd.append("name", form.name.trim());
+      if (form.phoneNumber) fd.append("phoneNumber", normalizePhoneVN(form.phoneNumber));
+      if (form.address) fd.append("address", form.address.trim());
       if (form.dob) fd.append("dob", form.dob);
       if (form.image) fd.append("image", form.image);
 
       const res = await fetch(`${API_BASE}/api/users/me`, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
 
@@ -178,16 +334,17 @@ function ProfileTab() {
         localStorage.setItem("userName", data.name || "");
         window.dispatchEvent(new Event("localStorageChange"));
       }
-    } catch (e) {
-      setError(e.message || "Đã xảy ra lỗi");
+
+      setForm((prev) => ({ ...prev, image: null }));
+      setFieldErrors((prev) => ({ ...prev, image: undefined }));
+    } catch (e2) {
+      setError(e2.message || "Đã xảy ra lỗi");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return <div className="py-3 text-muted">Đang tải...</div>;
-  }
+  if (loading) return <div className="py-3 text-muted">Đang tải...</div>;
 
   return (
     <div className="account-tab">
@@ -220,10 +377,18 @@ function ProfileTab() {
                 <span style={{ color: "var(--account-muted)" }}>Chưa có ảnh</span>
               )}
             </div>
+
             <label className="account-upload">
               Chọn ảnh mới
               <input type="file" accept="image/*" onChange={onFile} />
             </label>
+
+            {fieldErrors.image && (
+              <div className="account-field-error" style={{ marginTop: 8 }}>
+                {fieldErrors.image}
+              </div>
+            )}
+
             <p style={{ color: "var(--account-muted)", fontSize: 13, margin: 0 }}>
               JPG, PNG dưới 5MB để hiển thị sắc nét.
             </p>
@@ -238,10 +403,13 @@ function ProfileTab() {
                 onChange={onChange}
                 placeholder="Nhập họ tên"
               />
+              {fieldErrors.name && <div className="account-field-error">{fieldErrors.name}</div>}
             </div>
+
             <div className="account-field">
               <label>Email (không thể thay đổi)</label>
               <input name="email" value={form.email} disabled />
+              {fieldErrors.email && <div className="account-field-error">{fieldErrors.email}</div>}
             </div>
 
             <div className="account-grid">
@@ -253,10 +421,15 @@ function ProfileTab() {
                   onChange={onChange}
                   placeholder="VD: 0987..."
                 />
+                {fieldErrors.phoneNumber && (
+                  <div className="account-field-error">{fieldErrors.phoneNumber}</div>
+                )}
               </div>
+
               <div className="account-field">
                 <label>Ngày sinh</label>
                 <input type="date" name="dob" value={form.dob} onChange={onChange} />
+                {fieldErrors.dob && <div className="account-field-error">{fieldErrors.dob}</div>}
               </div>
             </div>
 
@@ -268,6 +441,9 @@ function ProfileTab() {
                 onChange={onChange}
                 placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
               />
+              {fieldErrors.address && (
+                <div className="account-field-error">{fieldErrors.address}</div>
+              )}
             </div>
           </div>
         </div>
@@ -291,6 +467,8 @@ function AddressesTab() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
@@ -311,8 +489,7 @@ function AddressesTab() {
   const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   useEffect(() => {
     (async () => {
@@ -334,7 +511,7 @@ function AddressesTab() {
       });
       if (!res.ok) throw new Error("Không tải được danh sách địa chỉ");
       const data = await res.json();
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e.message || "Đã xảy ra lỗi");
     } finally {
@@ -366,6 +543,9 @@ function AddressesTab() {
       ward: "",
     }));
 
+    setFieldErrors((prev) => ({ ...prev, province: undefined, district: undefined, ward: undefined }));
+    setError("");
+
     if (codeStr) {
       try {
         const ds = await getDistrictsByProvinceId(codeStr);
@@ -389,6 +569,9 @@ function AddressesTab() {
       ward: "",
     }));
 
+    setFieldErrors((prev) => ({ ...prev, district: undefined, ward: undefined }));
+    setError("");
+
     if (codeStr) {
       try {
         const ws = await getCommunesByDistrictId(codeStr);
@@ -403,10 +586,14 @@ function AddressesTab() {
     const codeStr = String(code);
     setWardCode(codeStr);
     const w = wards.find((x) => String(x.idCommune) === codeStr);
+
     setForm((prev) => ({
       ...prev,
       ward: w ? w.name : "",
     }));
+
+    setFieldErrors((prev) => ({ ...prev, ward: undefined }));
+    setError("");
   };
 
   const resetForm = () => {
@@ -425,112 +612,70 @@ function AddressesTab() {
     setWardCode("");
     setDistricts([]);
     setWards([]);
+    setFieldErrors({});
+    setError("");
   };
 
   const submitForm = async (e) => {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
 
-    if (
-      !form.recipientName.trim() ||
-      !form.phoneNumber.trim() ||
-      !form.line1.trim()
-    ) {
-      setError("Vui lòng nhập đủ Người nhận, SDT và Địa chỉ dòng 1");
-      return;
-    }
-    if (!form.province || !form.district || !form.ward) {
-      setError("Vui lòng chọn đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã");
-      return;
-    }
+    const errs = validateAddressForm(form, { provinceCode, districtCode, wardCode });
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
-    const wardName = stripVNPrefix(form.ward);
-    const districtName = stripVNPrefix(form.district);
-    const provinceName = stripVNPrefix(form.province);
-
-    let lat = null;
-    let lng = null;
-
-    const queryNominatim = async (addr) => {
-      const plain = removeVietnameseAccents(addr);
-      console.log("Đang geocode với:", plain);
-
-      const url =
-        "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
-        encodeURIComponent(plain);
-
-      try {
-        const geoRes = await fetch(url, {
-          headers: {
-            Accept: "application/json",
-          },
-        });
-
-        if (!geoRes.ok) {
-          console.warn("Nominatim HTTP error:", geoRes.status);
-          return null;
-        }
-
-        const data = await geoRes.json();
-        console.log("Nominatim response cho", plain, ":", data);
-
-        if (Array.isArray(data) && data.length > 0) {
-          return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon),
-          };
-        }
-      } catch (err) {
-        console.error("Lỗi gọi Nominatim với", plain, err);
-      }
-
-      return null;
-    };
+    if (submitting) return;
+    setSubmitting(true);
 
     try {
-      // Lần 1: line1 + ward + district + province
-      let addr1 = `${form.line1}, ${wardName}, ${districtName}, ${provinceName}, Vietnam`;
-      let result = await queryNominatim(addr1);
+      const wardName = stripVNPrefix(form.ward);
+      const districtName = stripVNPrefix(form.district);
+      const provinceName = stripVNPrefix(form.province);
 
-      // Lần 2: ward + district + province
-      if (!result) {
-        let addr2 = `${wardName}, ${districtName}, ${provinceName}, Vietnam`;
-        result = await queryNominatim(addr2);
-      }
+      let lat = null;
+      let lng = null;
 
-      // Lần 3: district + province
-      if (!result) {
-        let addr3 = `${districtName}, ${provinceName}, Vietnam`;
-        result = await queryNominatim(addr3);
-      }
+      const queryNominatim = async (addr) => {
+        const plain = removeVietnameseAccents(addr);
+        const url =
+          "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+          encodeURIComponent(plain);
 
-      // Lần 4: province
-      if (!result) {
-        let addr4 = `${provinceName}, Vietnam`;
-        result = await queryNominatim(addr4);
-      }
+        try {
+          const geoRes = await fetch(url, { headers: { Accept: "application/json" } });
+          if (!geoRes.ok) return null;
+
+          const data = await geoRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+          }
+        } catch {
+          return null;
+        }
+        return null;
+      };
+
+      const result =
+        (await queryNominatim(`${form.line1}, ${wardName}, ${districtName}, ${provinceName}, Vietnam`)) ||
+        (await queryNominatim(`${wardName}, ${districtName}, ${provinceName}, Vietnam`)) ||
+        (await queryNominatim(`${districtName}, ${provinceName}, Vietnam`)) ||
+        (await queryNominatim(`${provinceName}, Vietnam`));
 
       if (result) {
         lat = result.lat;
         lng = result.lon;
       }
-    } catch (err) {
-      console.error("Lỗi lấy tọa độ từ Nominatim:", err);
-    }
 
-    const payload = {
-      ...form,
-      latitude: lat,
-      longitude: lng,
-    };
+      const payload = {
+        ...form,
+        phoneNumber: normalizePhoneVN(form.phoneNumber),
+        latitude: lat,
+        longitude: lng,
+      };
 
-    console.log("Payload gửi lên /api/addresses:", payload);
-
-    try {
       const method = editing ? "PUT" : "POST";
-      const url = editing
-        ? `${apiBase}/api/addresses/${editing}`
-        : `${apiBase}/api/addresses`;
+      const url = editing ? `${apiBase}/api/addresses/${editing}` : `${apiBase}/api/addresses`;
 
       const res = await fetch(url, {
         method,
@@ -541,8 +686,7 @@ function AddressesTab() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok)
-        throw new Error(editing ? "Cập nhật thất bại" : "Thêm mới thất bại");
+      if (!res.ok) throw new Error(editing ? "Cập nhật thất bại" : "Thêm mới thất bại");
 
       if (from) {
         navigate(from, { replace: true });
@@ -553,9 +697,10 @@ function AddressesTab() {
       resetForm();
     } catch (e2) {
       setError(e2.message || "Đã xảy ra lỗi");
+    } finally {
+      setSubmitting(false);
     }
   };
-
 
   const setDefault = async (id) => {
     try {
@@ -595,6 +740,8 @@ function AddressesTab() {
       province: a.province || "",
       isDefault: a.isDefault || false,
     });
+    setFieldErrors({});
+    setError("");
 
     try {
       if (a.province) {
@@ -606,11 +753,10 @@ function AddressesTab() {
           const ds = await getDistrictsByProvinceId(pCode);
           setDistricts(ds || []);
 
-          let dCode = "";
           if (a.district) {
             const d = (ds || []).find((x) => x.name === a.district);
             if (d) {
-              dCode = String(d.idDistrict);
+              const dCode = String(d.idDistrict);
               setDistrictCode(dCode);
 
               const ws = await getCommunesByDistrictId(dCode);
@@ -618,11 +764,7 @@ function AddressesTab() {
 
               if (a.ward) {
                 const w = (ws || []).find((x) => x.name === a.ward);
-                if (w) {
-                  setWardCode(String(w.idCommune));
-                } else {
-                  setWardCode("");
-                }
+                setWardCode(w ? String(w.idCommune) : "");
               } else {
                 setWardCode("");
               }
@@ -671,9 +813,7 @@ function AddressesTab() {
 
       <section className="address-panel" style={{ marginBottom: 20 }}>
         <div>
-          <h2 className="address-panel__title">
-            {editing ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}
-          </h2>
+          <h2 className="address-panel__title">{editing ? "Cập nhật địa chỉ" : "Thêm địa chỉ mới"}</h2>
           <p className="address-panel__subtitle">
             Nhập thông tin người nhận và khu vực giao hàng để đội vận hành xử lý đơn chính xác.
           </p>
@@ -685,47 +825,49 @@ function AddressesTab() {
               <label>Người nhận</label>
               <input
                 value={form.recipientName}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    recipientName: e.target.value,
-                  })
-                }
+                onChange={(e) => {
+                  setForm({ ...form, recipientName: e.target.value });
+                  setFieldErrors((prev) => ({ ...prev, recipientName: undefined }));
+                }}
                 required
               />
+              {fieldErrors.recipientName && (
+                <div className="account-field-error">{fieldErrors.recipientName}</div>
+              )}
             </div>
 
             <div className="account-field">
               <label>Số điện thoại</label>
               <input
                 value={form.phoneNumber}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    phoneNumber: e.target.value,
-                  })
-                }
+                onChange={(e) => {
+                  setForm({ ...form, phoneNumber: e.target.value });
+                  setFieldErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                }}
                 required
               />
+              {fieldErrors.phoneNumber && (
+                <div className="account-field-error">{fieldErrors.phoneNumber}</div>
+              )}
             </div>
 
             <div className="account-field account-field--full">
               <label>Địa chỉ cụ thể</label>
               <input
                 value={form.line1}
-                onChange={(e) => setForm({ ...form, line1: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, line1: e.target.value });
+                  setFieldErrors((prev) => ({ ...prev, line1: undefined }));
+                }}
                 placeholder="Nhập địa chỉ cụ thể"
                 required
               />
+              {fieldErrors.line1 && <div className="account-field-error">{fieldErrors.line1}</div>}
             </div>
 
             <div className="account-field">
               <label>Tỉnh/Thành</label>
-              <select
-                value={provinceCode}
-                onChange={(e) => onProvinceChange(String(e.target.value))}
-                required
-              >
+              <select value={provinceCode} onChange={(e) => onProvinceChange(String(e.target.value))} required>
                 <option value="">Chọn Tỉnh/Thành</option>
                 {provinces.map((p) => (
                   <option key={p.idProvince} value={String(p.idProvince)}>
@@ -733,6 +875,7 @@ function AddressesTab() {
                   </option>
                 ))}
               </select>
+              {fieldErrors.province && <div className="account-field-error">{fieldErrors.province}</div>}
             </div>
 
             <div className="account-field">
@@ -743,15 +886,14 @@ function AddressesTab() {
                 disabled={!provinceCode}
                 required
               >
-                <option value="">
-                  {provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}
-                </option>
+                <option value="">{provinceCode ? "Chọn Quận/Huyện" : "Chọn Tỉnh trước"}</option>
                 {districts.map((d) => (
                   <option key={d.idDistrict} value={String(d.idDistrict)}>
                     {d.name}
                   </option>
                 ))}
               </select>
+              {fieldErrors.district && <div className="account-field-error">{fieldErrors.district}</div>}
             </div>
 
             <div className="account-field">
@@ -762,27 +904,21 @@ function AddressesTab() {
                 disabled={!districtCode}
                 required
               >
-                <option value="">
-                  {districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}
-                </option>
+                <option value="">{districtCode ? "Chọn Phường/Xã" : "Chọn Quận trước"}</option>
                 {wards.map((w) => (
                   <option key={w.idCommune} value={String(w.idCommune)}>
                     {w.name}
                   </option>
                 ))}
               </select>
+              {fieldErrors.ward && <div className="account-field-error">{fieldErrors.ward}</div>}
             </div>
 
             <label className="address-checkbox">
               <input
                 type="checkbox"
                 checked={form.isDefault}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    isDefault: e.target.checked,
-                  })
-                }
+                onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
               />
               Đặt làm địa chỉ mặc định
             </label>
@@ -792,16 +928,12 @@ function AddressesTab() {
 
           <div className="account-actions justify-content-end">
             {editing && (
-              <button
-                type="button"
-                className="account-btn account-btn--ghost"
-                onClick={resetForm}
-              >
+              <button type="button" className="account-btn account-btn--ghost" onClick={resetForm}>
                 Hủy
               </button>
             )}
-            <button type="submit" className="account-btn account-btn--primary">
-              {editing ? "Lưu thay đổi" : "Thêm địa chỉ"}
+            <button type="submit" className="account-btn account-btn--primary" disabled={submitting}>
+              {submitting ? "Đang lưu..." : editing ? "Lưu thay đổi" : "Thêm địa chỉ"}
             </button>
           </div>
         </form>
@@ -818,9 +950,7 @@ function AddressesTab() {
         {loading ? (
           <div className="address-empty">Đang tải danh sách địa chỉ...</div>
         ) : items.length === 0 ? (
-          <div className="address-empty">
-            Chưa có địa chỉ nào. Hãy thêm địa chỉ đầu tiên của bạn.
-          </div>
+          <div className="address-empty">Chưa có địa chỉ nào. Hãy thêm địa chỉ đầu tiên của bạn.</div>
         ) : (
           <div className="address-list">
             {items.map((a) => (
@@ -833,32 +963,18 @@ function AddressesTab() {
                   {a.isDefault && <span className="address-chip">Mặc định</span>}
                 </div>
                 <div className="address-card__body">
-                  {[a.line1, a.ward, a.district, a.province]
-                    .filter(Boolean)
-                    .join(", ")}
+                  {[a.line1, a.ward, a.district, a.province].filter(Boolean).join(", ")}
                 </div>
                 <div className="address-actions">
                   {!a.isDefault && (
-                    <button
-                      type="button"
-                      className="account-btn account-btn--ghost"
-                      onClick={() => setDefault(a.addressId)}
-                    >
+                    <button type="button" className="account-btn account-btn--ghost" onClick={() => setDefault(a.addressId)}>
                       Đặt mặc định
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="account-btn account-btn--ghost"
-                    onClick={() => startEdit(a)}
-                  >
+                  <button type="button" className="account-btn account-btn--ghost" onClick={() => startEdit(a)}>
                     Chỉnh sửa
                   </button>
-                  <button
-                    type="button"
-                    className="account-btn account-btn--danger"
-                    onClick={() => remove(a.addressId)}
-                  >
+                  <button type="button" className="account-btn account-btn--danger" onClick={() => remove(a.addressId)}>
                     Xóa
                   </button>
                 </div>
@@ -880,27 +996,29 @@ function PasswordTab() {
     newPassword: "",
     confirmNewPassword: "",
   });
+
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setError("");
+    setSuccess("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setFieldErrors({});
 
-    if (form.newPassword.length < 8) {
-      setError("Mật khẩu mới phải có ít nhất 8 ký tự.");
-      return;
-    }
-    if (form.newPassword !== form.confirmNewPassword) {
-      setError("Xác nhận mật khẩu không khớp.");
-      return;
-    }
+    const errs = validatePasswordForm(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
     try {
@@ -912,7 +1030,7 @@ function PasswordTab() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          email: form.email,
+          email: form.email.trim(),
           currentPassword: form.currentPassword,
           newPassword: form.newPassword,
         }),
@@ -928,7 +1046,7 @@ function PasswordTab() {
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       setTimeout(() => navigate("/login"), 800);
-    } catch (err) {
+    } catch {
       setError("Máy chủ gặp sự cố, vui lòng thử lại.");
     } finally {
       setLoading(false);
@@ -959,7 +1077,9 @@ function PasswordTab() {
             value={form.email}
             onChange={handleChange}
           />
+          {fieldErrors.email && <div className="account-field-error">{fieldErrors.email}</div>}
         </div>
+
         <div className="account-field">
           <label>Mật khẩu hiện tại</label>
           <input
@@ -970,7 +1090,11 @@ function PasswordTab() {
             value={form.currentPassword}
             onChange={handleChange}
           />
+          {fieldErrors.currentPassword && (
+            <div className="account-field-error">{fieldErrors.currentPassword}</div>
+          )}
         </div>
+
         <div className="account-grid">
           <div className="account-field">
             <label>Mật khẩu mới</label>
@@ -982,7 +1106,11 @@ function PasswordTab() {
               value={form.newPassword}
               onChange={handleChange}
             />
+            {fieldErrors.newPassword && (
+              <div className="account-field-error">{fieldErrors.newPassword}</div>
+            )}
           </div>
+
           <div className="account-field">
             <label>Xác nhận mật khẩu mới</label>
             <input
@@ -993,6 +1121,9 @@ function PasswordTab() {
               value={form.confirmNewPassword}
               onChange={handleChange}
             />
+            {fieldErrors.confirmNewPassword && (
+              <div className="account-field-error">{fieldErrors.confirmNewPassword}</div>
+            )}
           </div>
         </div>
 
@@ -1005,6 +1136,7 @@ function PasswordTab() {
     </div>
   );
 }
+
 
 export default function AccountPage({ initialTab = "profile" }) {
   const location = useLocation();
