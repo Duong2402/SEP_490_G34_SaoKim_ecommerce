@@ -239,21 +239,30 @@ export default function ProductForm({
         </Form.Group>
 
         <Form.Group>
-          <Form.Label>Số lượng</Form.Label>
-          <Form.Control
-            type="number"
-            min={0}
-            {...register("stock", {
-              required: "Số lượng là bắt buộc",
-              valueAsNumber: true,
-            })}
-            isInvalid={!!errors.stock}
-            disabled={disabled}
-          />
-          <Form.Control.Feedback type="invalid">
-            {errors.stock?.message}
-          </Form.Control.Feedback>
-        </Form.Group>
+  <Form.Label>Số lượng</Form.Label>
+  <Form.Control
+    type="text"
+    inputMode="numeric"
+    placeholder="Nhập số lượng"
+    {...register("stock", {
+      required: "Số lượng là bắt buộc",
+      validate: (v) =>
+        String(v).replace(/[^\d]/g, "") !== ""
+          ? true
+          : "Số lượng không hợp lệ",
+    })}
+    isInvalid={!!errors.stock}
+    disabled={disabled}
+    onChange={(e) => {
+      const raw = e.target.value.replace(/[^\d]/g, "");
+      setValue("stock", raw, { shouldValidate: true });
+    }}
+  />
+  <Form.Control.Feedback type="invalid">
+    {errors.stock?.message}
+  </Form.Control.Feedback>
+</Form.Group>
+
 
         <Form.Group>
           <Form.Label>Đơn vị tính</Form.Label>
