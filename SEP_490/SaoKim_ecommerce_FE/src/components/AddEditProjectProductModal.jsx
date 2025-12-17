@@ -11,6 +11,42 @@ const formatVnd = (value) => {
 
 const parseNumber = (value) => Number(String(value || "").replace(/\D/g, "") || 0);
 
+const getProductUnitLabel = (source) => {
+  const direct =
+    source?.unit ??
+    source?.uom ??
+    source?.Uom ??
+    source?.Unit ??
+    source?.unitName ??
+    source?.UnitName ??
+    source?.uomName ??
+    source?.UomName ??
+    source?.unitOfMeasure ??
+    source?.UnitOfMeasure ??
+    source?.unitOfMeasureName ??
+    source?.UnitOfMeasureName ??
+    source?.productUnit ??
+    source?.product?.unit ??
+    source?.product?.Unit ??
+    source?.product?.uom ??
+    source?.product?.Uom ??
+    source?.product?.unitName ??
+    source?.product?.UnitName ??
+    source?.product?.uomName ??
+    source?.product?.UomName ??
+    source?.product?.unitOfMeasure ??
+    source?.product?.UnitOfMeasure ??
+    source?.product?.unitOfMeasureName ??
+    source?.product?.UnitOfMeasureName;
+
+  if (!direct) return "-";
+  if (typeof direct === "object") {
+    const name = direct?.name ?? direct?.Name ?? direct?.label ?? direct?.value;
+    return name ? String(name) : "-";
+  }
+  return String(direct);
+};
+
 function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
   const [form, setForm] = useState({
     productId: "",
@@ -34,6 +70,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
         name: product.productName,
         sku: "",
         price: product.unitPrice,
+        unit: getProductUnitLabel(product),
       });
     } else {
       setForm({ productId: "", quantity: "", unitPrice: "", note: "" });
@@ -98,6 +135,7 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
     }
   };
 
+  const unitLabel = getProductUnitLabel(pickedProduct || product);
   const title = product ? "Cập nhật sản phẩm" : "Thêm sản phẩm vào dự án";
   const submitLabel = saving ? "Đang lưu..." : product ? "Cập nhật" : "Thêm";
 
@@ -146,13 +184,26 @@ function AddEditProjectProductModal({ projectId, product, onClose, onSaved }) {
                     name="quantity"
                     className="input"
                     type="number"
-                    min="0"
-                    step="0.001"
+                    min="1"
+                    step="1"
                     value={form.quantity}
                     onChange={handleChange}
                     required
                   />
                   <span className="pm-field__hint">Nhập số lượng giao/thi công.</span>
+                </div>
+
+                <div className="pm-field">
+                  <label htmlFor="pp-unit" className="pm-field__label">
+                    Đơn vị tính
+                  </label>
+                  <input
+                    id="pp-unit"
+                    className="input"
+                    type="text"
+                    value={unitLabel}
+                    readOnly
+                  />
                 </div>
 
                 <div className="pm-field">
