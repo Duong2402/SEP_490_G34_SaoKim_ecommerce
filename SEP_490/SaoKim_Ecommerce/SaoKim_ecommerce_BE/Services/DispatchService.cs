@@ -114,7 +114,6 @@ namespace SaoKim_ecommerce_BE.Services
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
 
-            // Phần ORD- giữ nguyên logic bạn có
             if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
                 slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
             {
@@ -167,6 +166,7 @@ namespace SaoKim_ecommerce_BE.Services
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
             var sales = _db.Set<RetailDispatch>()
+                .Where(x => !x.IsDeleted)
                 .Select(x => new DispatchSlipListItemDto
                 {
                     Id = x.Id,
@@ -187,6 +187,7 @@ namespace SaoKim_ecommerce_BE.Services
                 });
 
             var projects = _db.Set<ProjectDispatch>()
+                .Where(x => !x.IsDeleted)
                 .Select(x => new DispatchSlipListItemDto
                 {
                     Id = x.Id,
@@ -286,7 +287,6 @@ namespace SaoKim_ecommerce_BE.Services
                 Items = items
             };
         }
-
 
         public async Task<List<CustomerLookupDto>> GetCustomersAsync(string? search)
         {
