@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Breadcrumb, Table, Button, Form, InputGroup } from "@themesberg/react-bootstrap";
 import { Modal, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -28,11 +28,15 @@ const initialForm = {
   quantity: 1,
   note: "",
   unitPrice: 0,
+  productCode: "",
 };
 
 const DispatchSlipItems = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const backToListUrl = `/warehouse-dashboard/dispatch-slips${location.search || ""}`;
 
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
@@ -40,7 +44,7 @@ const DispatchSlipItems = () => {
   const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
-  const [mode, setMode] = useState("create"); 
+  const [mode, setMode] = useState("create");
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState(initialForm);
@@ -60,77 +64,14 @@ const DispatchSlipItems = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  useEffect(() => {
-    load();
-    loadProducts();
-  }, [id, page]);
-
-  useEffect(() => {
-    if (!notification) return;
-    const t = setTimeout(() => setNotification(null), 4000);
-    return () => clearTimeout(t);
-  }, [notification]);
-
-  useEffect(() => {
-  let disposed = false;
-
-  const getAccessToken = async () => localStorage.getItem("token") || "";
-
-  ensureRealtimeStarted(getAccessToken)
-    .then(() => {
-      if (disposed) return;
-
-      const conn = getRealtimeConnection(getAccessToken);
-
-      conn.off("evt");
-
-      conn.on("evt", (payload) => {
-        const type = payload?.type;
-        if (!type) return;
-
-        if (
-          type === "dispatch.item.created" ||
-          type === "dispatch.item.updated" ||
-          type === "dispatch.item.deleted"
-        ) {
-          const dispatchId = payload?.data?.dispatchId ?? payload?.data?.DispatchId;
-          if (dispatchId != null && Number(dispatchId) !== Number(id)) return;
-
-          load();
-        }
-      });
-    })
-    .catch((err) => {
-      console.error("Lỗi kết nối realtime (DispatchSlipItems):", err);
-    });
-
-  return () => {
-    disposed = true;
-    const conn = getRealtimeConnection(getAccessToken);
-    conn.off("evt");
-  };
-}, [id, load]);
-
-
-  const totals = useMemo(
-    () => ({
-      totalQty,
-      totalItems: total,
-      totalAmount,
-    }),
-    [totalQty, total, totalAmount]
-  );
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.append("page", String(page));
       params.append("pageSize", String(pageSize));
 
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`);
       if (!res.ok) throw new Error(`Lỗi HTTP ${res.status}`);
 
       const data = await res.json();
@@ -145,9 +86,9 @@ const DispatchSlipItems = () => {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, page, pageSize]);
 
-  async function loadProducts() {
+  const loadProducts = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
       const json = await res.json();
@@ -177,7 +118,67 @@ const DispatchSlipItems = () => {
       console.error("Lỗi khi tải danh mục sản phẩm:", e);
       setNotification({ type: "danger", message: "Không thể tải danh mục sản phẩm." });
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    load();
+    loadProducts();
+  }, [load, loadProducts]);
+
+  useEffect(() => {
+    if (!notification) return;
+    const t = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(t);
+  }, [notification]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const token = localStorage.getItem("token") || "";
+    const getAccessToken = async () => token;
+
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
+
+        const conn = getRealtimeConnection(getAccessToken);
+
+        conn.off("evt");
+        conn.on("evt", (payload) => {
+          const type = payload?.type;
+          if (!type) return;
+
+          if (
+            type === "dispatch.item.created" ||
+            type === "dispatch.item.updated" ||
+            type === "dispatch.item.deleted"
+          ) {
+            const dispatchId = payload?.data?.dispatchId ?? payload?.data?.DispatchId;
+            if (dispatchId != null && Number(dispatchId) !== Number(id)) return;
+
+            load();
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("Lỗi kết nối realtime (DispatchSlipItems):", err);
+      });
+
+    return () => {
+      disposed = true;
+      const conn = getRealtimeConnection(getAccessToken);
+      conn.off("evt");
+    };
+  }, [id, load]);
+
+  const totals = useMemo(
+    () => ({
+      totalQty,
+      totalItems: total,
+      totalAmount,
+    }),
+    [totalQty, total, totalAmount]
+  );
 
   function findProductById(val) {
     const n = Number(val);
@@ -286,7 +287,6 @@ const DispatchSlipItems = () => {
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
 
       setItems((prev) => prev.filter((i) => i.id !== itemId));
-
       setNotification({ type: "success", message: "Đã xóa dòng hàng." });
     } catch (err) {
       setNotification({ type: "danger", message: "Không thể xóa: " + err.message });
@@ -328,9 +328,7 @@ const DispatchSlipItems = () => {
               <Breadcrumb.Item href="/warehouse-dashboard">
                 <FontAwesomeIcon icon={faHome} /> Bảng điều phối
               </Breadcrumb.Item>
-              <Breadcrumb.Item href="/warehouse-dashboard/dispatch-slips">
-                Phiếu xuất kho
-              </Breadcrumb.Item>
+              <Breadcrumb.Item href={backToListUrl}>Phiếu xuất kho</Breadcrumb.Item>
               <Breadcrumb.Item active>Chi tiết phiếu</Breadcrumb.Item>
             </Breadcrumb>
           </div>
@@ -345,7 +343,7 @@ const DispatchSlipItems = () => {
           <button
             type="button"
             className="wm-btn wm-btn--light"
-            onClick={() => navigate("/warehouse-dashboard/dispatch-slips")}
+            onClick={() => navigate(backToListUrl)}
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
@@ -408,33 +406,22 @@ const DispatchSlipItems = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
-                  Đang tải dữ liệu...
-                </td>
+                <td colSpan={9} className="wm-empty">Đang tải dữ liệu...</td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={9} className="wm-empty">
-                  Chưa có dòng hàng nào trong phiếu này.
-                </td>
+                <td colSpan={9} className="wm-empty">Chưa có dòng hàng nào trong phiếu này.</td>
               </tr>
             ) : (
               items.map((item, index) => (
                 <tr key={item.id}>
                   <td>{(page - 1) * pageSize + index + 1}</td>
-                  <td>
-                    <span className="fw-semibold">{item.productCode || "Chưa có mã"}</span>
-                  </td>
+                  <td><span className="fw-semibold">{item.productCode || "Chưa có mã"}</span></td>
                   <td>{item.productName}</td>
                   <td>{item.uom}</td>
                   <td>{item.quantity}</td>
                   <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ</td>
-                  <td>
-                    {(
-                      Number(item.unitPrice || 0) * Number(item.quantity || 0)
-                    ).toLocaleString("vi-VN")}{" "}
-                    VNĐ
-                  </td>
+                  <td>{(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString("vi-VN")} VNĐ</td>
                   <td>{item.note || "-"}</td>
                   <td className="text-end">
                     <Button

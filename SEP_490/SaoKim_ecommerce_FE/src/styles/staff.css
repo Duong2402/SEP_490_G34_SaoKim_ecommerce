@@ -490,6 +490,25 @@
   border-color: var(--staff-border);
 }
 
+.staff-modal .modal-body {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.modal-dialog.staff-modal {
+  max-width: 900px;
+}
+
+.staff-modal .staff-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.staff-modal .staff-form-grid .form-check.form-switch {
+  grid-column: 1 / -1;
+}
+
 .staff-modal__title {
   font-weight: 650;
   color: var(--staff-text);
@@ -574,6 +593,12 @@
 
   .staff-content {
     padding: 20px 18px 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .staff-modal .staff-form-grid {
+    grid-template-columns: 1fr;
   }
 }
 
