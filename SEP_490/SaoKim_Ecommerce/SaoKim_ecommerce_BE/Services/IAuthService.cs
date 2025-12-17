@@ -1,4 +1,5 @@
 ﻿using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Model.Requests;
 using SaoKim_ecommerce_BE.Models.Requests;
 using System.Threading.Tasks;
 
@@ -11,5 +12,7 @@ namespace SaoKim_ecommerce_BE.Services
         Task ForgotPasswordAsync(ForgotPasswordRequest req);
         Task ResetPasswordAsync(ResetPasswordRequest req);
         Task ChangePasswordAsync(string? emailFromToken, ChangePasswordRequest req);
+        Task VerifyRegisterAsync(VerifyRegisterRequest req, string clientIp);
+        Task ResendRegisterCodeAsync(ResendRegisterCodeRequest req, string clientIp);
     }
 }

@@ -112,7 +112,7 @@ export default function Register() {
     try {
       const formData = new FormData();
       formData.append("name", form.fullName);
-      formData.append("email", form.email);
+      formData.append("email", form.email.trim());
       formData.append("password", form.password);
       formData.append("role", "customer");
       formData.append("phoneNumber", form.phoneNumber);
@@ -124,21 +124,27 @@ export default function Register() {
         body: formData,
       });
 
-      const data = await res.json();
+      let data = null;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = null;
+      }
 
       if (!res.ok) {
+        // Nếu là ValidationProblemDetails
         if (data?.errors) {
           const fieldErrors = {};
-
           Object.keys(data.errors).forEach((key) => {
-            let fieldName = key.charAt(0).toLowerCase() + key.slice(1); 
+            let fieldName = key.charAt(0).toLowerCase() + key.slice(1);
             if (fieldName === "dOB") fieldName = "dob";
+            if (fieldName === "name") fieldName = "fullName";
             fieldErrors[fieldName] = data.errors[key][0];
           });
 
           setErrors(fieldErrors);
-          setTouched((prev) => ({
-            ...prev,
+          setTouched({
             fullName: true,
             email: true,
             password: true,
@@ -146,15 +152,23 @@ export default function Register() {
             phoneNumber: true,
             dob: true,
             image: true,
-          }));
+          });
         } else {
-          setGeneralError(data?.message || "Đăng ký thất bại.");
+          setGeneralError(data?.message || data?.Message || "Đăng ký thất bại.");
         }
         return;
       }
 
-      setSuccess("Đăng ký thành công! Đang chuyển hướng...");
-      setTimeout(() => navigate("/login"), 1500);
+      const msg =
+        (data && (data.message || data.Message)) ||
+        "Đã gửi mã OTP về email. Vui lòng xác thực để hoàn tất đăng ký.";
+
+      setSuccess(String(msg));
+
+      const email = form.email.trim();
+      setTimeout(() => {
+        navigate(`/verify-register?email=${encodeURIComponent(email)}`, { replace: true });
+      }, 600);
     } catch (err) {
       setGeneralError("Máy chủ gặp sự cố. Vui lòng thử lại sau.");
     } finally {

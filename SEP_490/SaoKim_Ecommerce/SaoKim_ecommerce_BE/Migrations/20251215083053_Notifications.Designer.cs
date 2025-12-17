@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SaoKim_ecommerce_BE.Data;
@@ -11,9 +12,11 @@ using SaoKim_ecommerce_BE.Data;
 namespace SaoKim_ecommerce_BE.Migrations
 {
     [DbContext(typeof(SaoKimDBContext))]
-    partial class SaoKimDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251215083053_Notifications")]
+    partial class Notifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -668,10 +671,20 @@ namespace SaoKim_ecommerce_BE.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("Group")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("group");
+
                     b.Property<string>("LinkUrl")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
                         .HasColumnName("link_url");
+
+                    b.Property<int?>("RefId")
+                        .HasColumnType("integer")
+                        .HasColumnName("ref_id");
 
                     b.Property<string>("Title")
                         .IsRequired()
