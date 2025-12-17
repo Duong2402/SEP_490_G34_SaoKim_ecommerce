@@ -60,7 +60,6 @@ public class BannerController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(imageUrl)) return;
 
-        // Nếu imageUrl là absolute, lấy path ra
         if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var abs))
             imageUrl = abs.AbsolutePath;
 
@@ -79,7 +78,6 @@ public class BannerController : ControllerBase
     {
         var data = await _bannerService.GetAllAsync();
 
-        // Optional: trả absolute luôn cho admin list nếu muốn đồng bộ
         foreach (var b in data)
             b.ImageUrl = ToAbsoluteUrl(b.ImageUrl);
 

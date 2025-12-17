@@ -71,7 +71,13 @@ export default function Checkout() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [redirected, setRedirected] = useState(false);
 
-  const [paymentToken, setPaymentToken] = useState(() => makePaymentToken());
+  const [paymentToken, setPaymentToken] = useState(() => {
+    const cached = localStorage.getItem("checkout_payment_token");
+    if (cached) return cached;
+    const t = makePaymentToken();
+    localStorage.setItem("checkout_payment_token", t);
+    return t;
+  });
 
   const shippingOptions = [
     { value: "standard", label: "Tiết kiệm", time: "Giao 3 - 5 ngày" },
@@ -138,8 +144,7 @@ export default function Checkout() {
         } else {
           setSelectedAddressId(null);
         }
-      } catch {
-      }
+      } catch {}
     })();
   }, [apiBase]);
 
@@ -159,8 +164,7 @@ export default function Checkout() {
         if (typeof data.fee === "number") {
           setBaseShippingFee(data.fee);
         }
-      } catch {
-      }
+      } catch {}
     })();
   }, [selectedAddressId, apiBase]);
 
@@ -186,8 +190,8 @@ export default function Checkout() {
     shippingMethod === "fast"
       ? fastFee
       : shippingMethod === "express"
-        ? expressFee
-        : standardFee;
+      ? expressFee
+      : standardFee;
 
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
@@ -212,32 +216,92 @@ export default function Checkout() {
   }, [paymentToken]);
 
   const checkPaid = async () => {
-  try {
-    const url =
-      `${apiBase}/api/payments/check-vietqr?amount=${encodeURIComponent(qrAmount)}` +
-      `&paymentToken=${encodeURIComponent(paymentToken)}`;
+    try {
+      const url =
+        `${apiBase}/api/payments/check-vietqr?amount=${encodeURIComponent(
+          qrAmount
+        )}` + `&paymentToken=${encodeURIComponent(paymentToken)}`;
 
-    const res = await fetch(url); // không gửi Authorization
+      const res = await fetch(url);
 
-    if (!res.ok) {
-      console.error("checkPaid backend error", await res.text());
+      if (!res.ok) {
+        console.error("checkPaid backend error", await res.text());
+        return false;
+      }
+
+      const data = await res.json();
+      return !!data.matched;
+    } catch (e) {
+      console.error("Error verifying payment", e);
       return false;
     }
+  };
 
-    const data = await res.json();
-    console.log("checkPaid response:", data);
-    return !!data.matched;
-  } catch (e) {
-    console.error("Error verifying payment", e);
-    return false;
-  }
-};
+  const finalizeQrOrder = async () => {
+    if (!selectedItems.length) return;
 
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
-  useEffect(() => {
-    let interval;
+    if (!selectedAddressId) {
+      navigate("/account/addresses", { state: { from: "/checkout" } });
+      return;
+    }
 
-    const goSuccess = () => {
+    if (submitting) return;
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        subtotal,
+        shippingFee,
+        addressId: selectedAddressId,
+        couponCode: selectedVoucher?.code || undefined,
+        status: "Paid",
+        paymentMethod: "QR",
+        shippingMethod,
+        note: form.note,
+        paymentToken,
+        items: selectedItems.map((it) => {
+          const productId = Number(
+            it.productId ?? it.productID ?? it.product_id ?? it.id
+          );
+          return {
+            productId,
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0,
+          };
+        }),
+      };
+
+      const res = await fetch(`${apiBase}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        console.error("Order error:", err);
+        return;
+      }
+
+      const createdOrder = await res.json();
+
+      const fullCart = readCart();
+      const remain = fullCart.filter((it) => !selectedIds.has(it.id));
+      writeCart(remain);
+
+      const { checkoutKey } = getCartKeys();
+      localStorage.removeItem(checkoutKey);
+      localStorage.removeItem("checkout_payment_token");
+
       navigate("/checkout/success", {
         replace: true,
         state: {
@@ -247,11 +311,18 @@ export default function Checkout() {
           shippingMethod,
           selectedVoucher,
           purchased: selectedItems,
+          order: createdOrder,
           paymentToken,
           autoVerified: true,
         },
       });
-    };
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    let interval = null;
 
     if (paymentMethod === "QR" && autoCheck && !paymentVerified && !redirected) {
       interval = setInterval(async () => {
@@ -260,7 +331,7 @@ export default function Checkout() {
           setRedirected(true);
           setPaymentVerified(true);
           setShowQrModal(false);
-          goSuccess();
+          await finalizeQrOrder();
         }
       }, 3000);
     }
@@ -275,12 +346,18 @@ export default function Checkout() {
     redirected,
     qrAmount,
     paymentToken,
-    navigate,
-    form,
+    selectedAddressId,
+    shippingFee,
+    subtotal,
     total,
     shippingMethod,
     selectedVoucher,
     selectedItems,
+    selectedIds,
+    form,
+    apiBase,
+    navigate,
+    submitting,
   ]);
 
   const handleApplyVoucher = async () => {
@@ -331,8 +408,7 @@ export default function Checkout() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errData.Message || errMsg;
-        } catch {
-        }
+        } catch {}
         setSelectedVoucher(null);
         setVoucherStatus({
           type: "error",
@@ -518,7 +594,8 @@ export default function Checkout() {
           <div className="d-flex flex-column gap-2 mb-4">
             <h1 className="checkout-title display-5 fw-bold mb-0">Thanh toán</h1>
             <p className="checkout-subtitle text-muted mb-0">
-              Xem lại thông tin giao hàng, vận chuyển và hoàn tất đơn hàng của bạn.
+              Xem lại thông tin giao hàng, vận chuyển và hoàn tất đơn hàng của
+              bạn.
             </p>
           </div>
 
@@ -746,16 +823,12 @@ export default function Checkout() {
                           name="payment"
                           checked={paymentMethod === "COD"}
                           onChange={() => {
-                          setPaymentMethod("QR");
-                          setPaymentVerified(false);
-                          setAutoCheck(true);
-                          setShowQrModal(true);
-                          setRedirected(false);
-
-                          const t = makePaymentToken();
-                          setPaymentToken(t);
-                        }}
-
+                            setPaymentMethod("COD");
+                            setPaymentVerified(false);
+                            setAutoCheck(false);
+                            setShowQrModal(false);
+                            setRedirected(false);
+                          }}
                           className="mt-1 me-3"
                         />
                         <div>
@@ -763,7 +836,8 @@ export default function Checkout() {
                             Thanh toán khi nhận hàng (COD)
                           </div>
                           <div className="text-muted small">
-                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao hàng.
+                            Thanh toán tiền mặt khi nhận hàng tại địa chỉ giao
+                            hàng.
                           </div>
                         </div>
                       </label>
@@ -784,12 +858,9 @@ export default function Checkout() {
                             setShowQrModal(true);
                             setRedirected(false);
 
-                            setPaymentToken((prev) => {
-                              if (prev) return prev;
-                              const t = makePaymentToken();
-                              localStorage.setItem("checkout_payment_token", t);
-                              return t;
-                            });
+                            const t = makePaymentToken();
+                            setPaymentToken(t);
+                            localStorage.setItem("checkout_payment_token", t);
                           }}
                           className="mt-1 me-3"
                         />
@@ -928,9 +999,7 @@ export default function Checkout() {
             />
 
             <div className="mt-3">
-              <div className="fw-semibold">
-                Số tiền: {formatCurrency(qrAmount)}
-              </div>
+              <div className="fw-semibold">Số tiền: {formatCurrency(qrAmount)}</div>
               <div className="text-muted small mt-1">
                 Nội dung: <span className="fw-semibold">{qrAddInfo}</span>
               </div>

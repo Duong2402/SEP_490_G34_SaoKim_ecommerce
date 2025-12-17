@@ -6,7 +6,7 @@ const LOGO_EXTENSIONS = ["png", "svg", "jpg", "jpeg", "webp"];
 export default function SaoKimLogo({
   size = "medium",
   showText = true,
-  title = "Sao Kim Manager",
+  title = "Sao Kim Lightning",
   tagline = "Không gian quản lý",
 }) {
   const [logoExists, setLogoExists] = useState(false);

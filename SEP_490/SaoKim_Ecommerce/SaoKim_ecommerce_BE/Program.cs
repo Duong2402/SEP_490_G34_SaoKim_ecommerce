@@ -109,6 +109,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
+builder.Services.AddScoped<IDashboardAdminService, DashboardAdminService>();
+
 
 // Configure EF Core DbContext (PostgreSQL via Npgsql)
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
