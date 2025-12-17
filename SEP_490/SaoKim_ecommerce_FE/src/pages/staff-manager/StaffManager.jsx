@@ -444,6 +444,7 @@ export default function ManageProduct() {
             show={!!editing}
             onHide={() => setEditing(null)}
             centered
+            size="lg"
             dialogClassName="staff-modal"
           >
             <Modal.Header closeButton>
