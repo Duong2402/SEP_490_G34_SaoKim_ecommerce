@@ -34,18 +34,12 @@ export function getRealtimeConnection(getAccessToken) {
       accessTokenFactory: async () => {
         const token = await resolveToken(getAccessToken);
 
-        // LOG để biết negotiate 401 do token rỗng hay do BE reject token
-        // Xong việc thì xoá log này
-        console.log("[SignalR] API_BASE =", API_BASE);
-        console.log("[SignalR] token exists? =", !!token);
-
         return token || "";
       },
     })
     .withAutomaticReconnect()
     .build();
 
-  // optional: log trạng thái reconnect
   conn.onreconnecting((err) => {
     console.warn("[SignalR] reconnecting", err);
   });

@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import HomePage from "./pages/homepage/HomePage";
 import AccessDenied from "./pages/auth/AccessDenied";
 import ProtectedRoute from "./components/ProtectedRoute";
+import VerifyRegister from "./pages/auth/VerifyRegister";
 
 // Warehouse
 import ReceivingList from "./pages/warehousemanager/ReceivingList";
@@ -117,6 +118,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/verify-register" element={<VerifyRegister />} />
           <Route
             path="/change-password"
             element={<AccountPage initialTab="password" />}

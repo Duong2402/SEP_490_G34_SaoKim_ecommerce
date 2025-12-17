@@ -156,7 +156,8 @@ const ReceivingSlipItems = () => {
 
   async function loadProducts() {
     try {
-      const res = await apiFetch(`/api/products`);
+      const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json();
@@ -684,7 +685,7 @@ const ReceivingSlipItems = () => {
                 />
               ) : (
                 <Form.Control
-                  type="number"
+                  type="text"
                   min={1}
                   placeholder="Nhập mã sản phẩm"
                   value={form.productId}
@@ -773,7 +774,7 @@ const ReceivingSlipItems = () => {
                 <Form.Label>Số lượng</Form.Label>
                 <InputGroup>
                   <Form.Control
-                    type="number"
+                    type="text"
                     min={1}
                     value={form.quantity}
                     onChange={(e) =>
@@ -792,7 +793,7 @@ const ReceivingSlipItems = () => {
               <Form.Label>Đơn giá</Form.Label>
               <InputGroup>
                 <Form.Control
-                  type="number"
+                  type="text"
                   min={0}
                   value={form.unitPrice}
                   onChange={(e) =>

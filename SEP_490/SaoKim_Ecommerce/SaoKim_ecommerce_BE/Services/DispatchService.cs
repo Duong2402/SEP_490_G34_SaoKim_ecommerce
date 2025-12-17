@@ -13,13 +13,12 @@ namespace SaoKim_ecommerce_BE.Services
     {
         private readonly SaoKimDBContext _db;
         private readonly IRealtimePublisher _rt;
-
+        
         public DispatchService(SaoKimDBContext db, IRealtimePublisher rt)
         {
             _db = db;
             _rt = rt;
         }
-
 
         public async Task<DispatchSlipConfirmResultDto> ConfirmDispatchSlipAsync(int id)
         {
@@ -47,11 +46,12 @@ namespace SaoKim_ecommerce_BE.Services
 
             var productIds = qtyByProduct.Keys.ToList();
 
-            var products = await _db.Products
+            var productsExist = await _db.Products
                 .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID);
+                .Select(p => p.ProductID)
+                .ToListAsync();
 
-            var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
+            var missing = productIds.Except(productsExist).ToList();
             if (missing.Count > 0)
                 throw new InvalidOperationException("Một vài ID sản phẩm không tìm thấy");
 
@@ -59,12 +59,13 @@ namespace SaoKim_ecommerce_BE.Services
                 .Where(d => productIds.Contains(d.ProductID))
                 .ToDictionaryAsync(d => d.ProductID);
 
+            // Check đủ tồn
             var insufficient = qtyByProduct
                 .Where(kv =>
                 {
-                    var productId = kv.Key;
+                    var pid = kv.Key;
                     var required = kv.Value;
-                    return !details.TryGetValue(productId, out var detail) || detail.Quantity < required;
+                    return !details.TryGetValue(pid, out var detail) || detail.Quantity < required;
                 })
                 .ToList();
 
@@ -73,22 +74,49 @@ namespace SaoKim_ecommerce_BE.Services
 
             var now = DateTime.UtcNow;
 
-            foreach (var kv in qtyByProduct)
+            var snapshotAtUtc = slip.DispatchDate.Kind switch
             {
-                var productId = kv.Key;
-                var deductedQty = kv.Value;
+                DateTimeKind.Utc => slip.DispatchDate,
+                DateTimeKind.Local => slip.DispatchDate.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(slip.DispatchDate, DateTimeKind.Utc)
+            };
 
+            // Load trước snapshot đã có để tránh AnyAsync trong loop
+            var existedSet = await _db.InventoryStockSnapshots.AsNoTracking()
+                .Where(x => x.RefType == "dispatch" && x.RefId == slip.Id && productIds.Contains(x.ProductId))
+                .Select(x => x.ProductId)
+                .ToListAsync();
+
+            var existedProductIds = existedSet.ToHashSet();
+
+            foreach (var (productId, deductedQty) in qtyByProduct)
+            {
                 var detail = details[productId];
 
                 detail.Quantity -= deductedQty;
                 detail.UpdateAt = now;
                 detail.UpdateBy = "warehouse-manager";
+
+                if (!existedProductIds.Contains(productId))
+                {
+                    _db.InventoryStockSnapshots.Add(new InventoryStockSnapshot
+                    {
+                        ProductId = productId,
+                        SnapshotAt = snapshotAtUtc,
+                        OnHand = (decimal)detail.Quantity,
+                        RefType = "dispatch",
+                        RefId = slip.Id,
+                        CreatedAt = now
+                    });
+                }
             }
 
             slip.Status = DispatchStatus.Confirmed;
             slip.ConfirmedAt = now;
+
+            // Phần ORD- giữ nguyên logic bạn có
             if (!string.IsNullOrEmpty(slip.ReferenceNo) &&
-    slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+                slip.ReferenceNo.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = slip.ReferenceNo.Substring("ORD-".Length);
                 if (int.TryParse(raw, out var orderId))
@@ -96,20 +124,14 @@ namespace SaoKim_ecommerce_BE.Services
                     var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
                     if (order != null)
                     {
-
                         if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-                        {
                             throw new InvalidOperationException("Đơn hàng đã bị hủy, không thể xác nhận phiếu xuất.");
-                        }
 
                         if (string.Equals(order.Status, "Paid", StringComparison.OrdinalIgnoreCase))
-                        {
                             order.Status = "Pending";
-                        }
                     }
                 }
             }
-
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
@@ -137,8 +159,8 @@ namespace SaoKim_ecommerce_BE.Services
             });
 
             return result;
-
         }
+
         public async Task<PagedResult<DispatchSlipListItemDto>> GetDispatchSlipsAsync(DispatchSlipListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;

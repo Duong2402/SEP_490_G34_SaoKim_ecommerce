@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Model.Requests;
 using SaoKim_ecommerce_BE.Models.Requests;
 using SaoKim_ecommerce_BE.Services;
 using System;
@@ -116,6 +117,38 @@ public class AuthController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("verify-register")]
+    public async Task<IActionResult> VerifyRegister([FromBody] VerifyRegisterRequest req)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            await _authService.VerifyRegisterAsync(req, ip);
+            return Ok(new { message = "Xác thực email thành công. Tài khoản đã được tạo." });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpPost("resend-register-code")]
+    public async Task<IActionResult> ResendRegisterCode([FromBody] ResendRegisterCodeRequest req)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            await _authService.ResendRegisterCodeAsync(req, ip);
+            return Ok(new { message = "Đã gửi lại mã OTP." });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 
