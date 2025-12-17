@@ -21,6 +21,7 @@ namespace SaoKim_ecommerce_BE.Services
         {
             var query = _db.ReceivingSlips
                 .Include(s => s.Items)
+                .Where(d => d.Status == ReceivingSlipStatus.Confirmed)
                 .Where(s => !s.IsDeleted)
                 .AsQueryable();
 
@@ -53,7 +54,7 @@ namespace SaoKim_ecommerce_BE.Services
             {
                 var toLocalExclusive = q.ToDate.Value.Date.AddDays(1);
                 var toUtcExclusive = DateTime.SpecifyKind(toLocalExclusive, DateTimeKind.Local)
-                                             .ToUniversalTime();
+                    .ToUniversalTime();
                 query = query.Where(s => s.ReceiptDate < toUtcExclusive);
             }
 
@@ -73,10 +74,13 @@ namespace SaoKim_ecommerce_BE.Services
 
             return result;
         }
+
         public async Task<List<OutboundReportDto>> GetOutboundReportAsync(OutboundReportQuery q)
         {
             var query = _db.Dispatches
                 .Include(d => d.Items)
+                .Where(d => d.Status == DispatchStatus.Confirmed)
+                .Where(s => !s.IsDeleted)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q.Destination))
@@ -88,20 +92,14 @@ namespace SaoKim_ecommerce_BE.Services
             if (q.FromDate.HasValue)
             {
                 var fromLocal = q.FromDate.Value.Date;
-                var fromUtc = DateTime
-                    .SpecifyKind(fromLocal, DateTimeKind.Local)
-                    .ToUniversalTime();
-
+                var fromUtc = DateTime.SpecifyKind(fromLocal, DateTimeKind.Local).ToUniversalTime();
                 query = query.Where(d => d.DispatchDate >= fromUtc);
             }
 
             if (q.ToDate.HasValue)
             {
                 var toLocalExclusive = q.ToDate.Value.Date.AddDays(1);
-                var toUtcExclusive = DateTime
-                    .SpecifyKind(toLocalExclusive, DateTimeKind.Local)
-                    .ToUniversalTime();
-
+                var toUtcExclusive = DateTime.SpecifyKind(toLocalExclusive, DateTimeKind.Local).ToUniversalTime();
                 query = query.Where(d => d.DispatchDate < toUtcExclusive);
             }
 
@@ -172,10 +170,10 @@ namespace SaoKim_ecommerce_BE.Services
                 LastWeek = lastWeekTotal
             };
         }
+
         public async Task<WeeklySummaryDto> GetWeeklyOutboundSummaryAsync()
         {
             var today = DateTime.UtcNow.Date;
-
             int isoDayOfWeek = ((int)today.DayOfWeek == 0) ? 7 : (int)today.DayOfWeek;
 
             var startOfThisWeek = today.AddDays(-(isoDayOfWeek - 1));
@@ -204,12 +202,30 @@ namespace SaoKim_ecommerce_BE.Services
 
         public async Task<TotalStockDto> GetTotalStockAsync()
         {
-            var total = await _db.ProductDetails.SumAsync(d => d.Quantity);
+            var latestSnapshots =
+                from ss in _db.InventoryStockSnapshots.AsNoTracking()
+                group ss by ss.ProductId into g
+                select new { ProductId = g.Key, SnapshotAt = g.Max(x => x.SnapshotAt) };
 
-            return new TotalStockDto
+            var latestOnHandQuery =
+                from ls in latestSnapshots
+                join ss in _db.InventoryStockSnapshots.AsNoTracking()
+                    on new { ls.ProductId, ls.SnapshotAt } equals new { ProductId = ss.ProductId, SnapshotAt = ss.SnapshotAt }
+                select ss.OnHand;
+
+            var hasAnySnapshot = await _db.InventoryStockSnapshots.AsNoTracking().AnyAsync();
+
+            decimal total;
+            if (hasAnySnapshot)
             {
-                TotalStock = total
-            };
+                total = await latestOnHandQuery.SumAsync();
+            }
+            else
+            {
+                total = await _db.ProductDetails.SumAsync(d => (decimal)d.Quantity);
+            }
+
+            return new TotalStockDto { TotalStock = total };
         }
 
         public async Task<List<UnitOfMeasureDto>> GetUnitOfMeasuresAsync()
@@ -226,7 +242,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             return list;
         }
-
         public async Task<PagedResult<InventoryListItemDto>> GetInventoryAsync(InventoryListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
@@ -242,34 +257,54 @@ namespace SaoKim_ecommerce_BE.Services
                     p.ProductName.ToLower().Contains(s));
             }
 
+            var latestDetailIds =
+                from d in _db.ProductDetails.AsNoTracking()
+                where d.Status == null || d.Status == "Active"
+                group d by d.ProductID into g
+                select new
+                {
+                    ProductID = g.Key,
+                    MaxId = g.Max(x => x.Id)
+                };
+
+            var latestDetails =
+                from d in _db.ProductDetails.AsNoTracking()
+                join mx in latestDetailIds
+                    on new { d.ProductID, d.Id } equals new { mx.ProductID, Id = mx.MaxId }
+                select new
+                {
+                    d.ProductID,
+                    d.Unit,
+                    d.Quantity
+                };
+
             var baseQuery =
                 from p in productQuery
-                join d in _db.ProductDetails.AsNoTracking()
+
+                join d in latestDetails
                     on p.ProductID equals d.ProductID into dg
                 from d in dg.DefaultIfEmpty()
+
                 join th in _db.InventoryThresholds.AsNoTracking()
                     on p.ProductID equals th.ProductId into thg
                 from th in thg.DefaultIfEmpty()
+
                 select new
                 {
                     p.ProductID,
                     p.ProductCode,
                     p.ProductName,
-                    Quantity = d != null ? d.Quantity : 0,
+                    Quantity = d != null ? (decimal)d.Quantity : 0m,
                     Unit = d != null ? d.Unit : null,
-                    MinStock = (int?)th.MinStock ?? 0,
-                    DetailStatus = d != null ? d.Status : null
+                    MinStock = (int?)th.MinStock ?? 0
                 };
-
-            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
 
             if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
             {
                 switch (q.Status)
                 {
                     case "critical":
-                        baseQuery = baseQuery.Where(x =>
-                            x.Quantity <= 0 || (x.MinStock > 0 && x.Quantity <= 0));
+                        baseQuery = baseQuery.Where(x => x.Quantity <= 0);
                         break;
 
                     case "alert":
@@ -312,16 +347,51 @@ namespace SaoKim_ecommerce_BE.Services
                 Items = pageItems
             };
         }
+
+        private static TimeZoneInfo GetAppTimeZone()
+        {
+            
+            try { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok"); }
+            catch { }
+
+            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        }
+
+        private static DateTime LocalDateStartToUtc(DateTime localDate, TimeZoneInfo tz)
+        {
+            var unspecified = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
+            return TimeZoneInfo.ConvertTimeToUtc(unspecified, tz);
+        }
+
         public async Task<PagedResult<InventoryReportItemDto>> GetInventoryReportAsync(InventoryListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
             if (q.PageSize <= 0 || q.PageSize > 200) q.PageSize = 10;
 
-            var fromDate = q.DateFrom?.Date;         
-            var toDate = q.DateTo?.Date;             
+            var tz = GetAppTimeZone();
 
-            var from = fromDate ?? DateTime.MinValue;
-            var toExclusive = (toDate?.AddDays(1)) ?? DateTime.MaxValue;
+            var fromLocalDate = q.DateFrom?.Date;
+            var toLocalDate = q.DateTo?.Date;
+
+            if (!fromLocalDate.HasValue && !toLocalDate.HasValue)
+            {
+                toLocalDate = DateTime.Now.Date;
+                fromLocalDate = toLocalDate.Value.AddDays(-6); 
+            }
+            else if (!fromLocalDate.HasValue && toLocalDate.HasValue)
+            {
+                fromLocalDate = toLocalDate.Value.AddDays(-6);
+            }
+            else if (fromLocalDate.HasValue && !toLocalDate.HasValue)
+            {
+                toLocalDate = fromLocalDate.Value; 
+            }
+
+            if (toLocalDate!.Value < fromLocalDate!.Value)
+                throw new ArgumentException("Ngày đến phải lớn hơn hoặc bằng ngày bắt đầu.");
+
+            var fromUtc = LocalDateStartToUtc(fromLocalDate.Value, tz);
+            var toExclusiveUtc = LocalDateStartToUtc(toLocalDate.Value.AddDays(1), tz);
 
             var productQuery = _db.Products.AsNoTracking();
 
@@ -341,56 +411,19 @@ namespace SaoKim_ecommerce_BE.Services
                 join th in _db.InventoryThresholds.AsNoTracking()
                     on p.ProductID equals th.ProductId into thg
                 from th in thg.DefaultIfEmpty()
+                where d == null || d.Status == "Active"
                 select new
                 {
                     p.ProductID,
                     p.ProductCode,
                     p.ProductName,
-                    Quantity = d != null ? d.Quantity : 0,
                     Unit = d != null ? d.Unit : null,
-                    MinStock = (int?)th.MinStock ?? 0,
-                    DetailStatus = d != null ? d.Status : null
+                    MinStock = (int?)th.MinStock ?? 0
                 };
 
-            baseQuery = baseQuery.Where(x => x.DetailStatus == null || x.DetailStatus == "Active");
+            var total = await baseQuery.CountAsync();
 
-            var queryWithStatus = baseQuery.Select(x => new
-            {
-                x.ProductID,
-                x.ProductCode,
-                x.ProductName,
-                x.Quantity,
-                x.Unit,
-                x.MinStock,
-                Status =
-                    x.MinStock <= 0
-                        ? "stock"
-                    : x.Quantity <= 0
-                        ? "critical"
-                    : x.Quantity < x.MinStock
-                        ? "alert"
-                        : "stock"
-            });
-
-            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
-            {
-                switch (q.Status)
-                {
-                    case "critical":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "critical");
-                        break;
-                    case "alert":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "alert");
-                        break;
-                    case "stock":
-                        queryWithStatus = queryWithStatus.Where(x => x.Status == "stock");
-                        break;
-                }
-            }
-
-            var total = await queryWithStatus.CountAsync();
-
-            var pageData = await queryWithStatus
+            var pageData = await baseQuery
                 .OrderBy(x => x.ProductName)
                 .ThenBy(x => x.ProductCode)
                 .Skip((q.Page - 1) * q.PageSize)
@@ -409,96 +442,91 @@ namespace SaoKim_ecommerce_BE.Services
                 };
             }
 
-            var inboundBase =
+            var inboundPeriodDict = await (
                 from item in _db.ReceivingSlipItems.AsNoTracking()
                 join slip in _db.ReceivingSlips.AsNoTracking()
                     on item.ReceivingSlipId equals slip.Id
                 where item.ProductId != null
                       && productIds.Contains(item.ProductId.Value)
                       && slip.Status == ReceivingSlipStatus.Confirmed
-                select new
-                {
-                    ProductId = item.ProductId!.Value,
-                    slip.ReceiptDate,
-                    item.Quantity
-                };
+                      && slip.ReceiptDate >= fromUtc
+                      && slip.ReceiptDate < toExclusiveUtc
+                group item by item.ProductId!.Value into g
+                select new { ProductId = g.Key, Qty = g.Sum(x => (decimal)x.Quantity) }
+            ).ToDictionaryAsync(x => x.ProductId, x => x.Qty);
 
-            var inboundBeforeList = await inboundBase
-                .Where(x => x.ReceiptDate < from)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var inboundPeriodList = await inboundBase
-                .Where(x => x.ReceiptDate >= from && x.ReceiptDate < toExclusive)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var inboundBeforeDict = inboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
-            var inboundPeriodDict = inboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
-
-            var outboundBase =
+            var outboundPeriodDict = await (
                 from item in _db.DispatchItems.AsNoTracking()
                 join slip in _db.Dispatches.AsNoTracking()
                     on item.DispatchId equals slip.Id
                 where item.ProductId != null
                       && productIds.Contains(item.ProductId.Value)
                       && slip.Status == DispatchStatus.Confirmed
-                select new
+                      && slip.DispatchDate >= fromUtc
+                      && slip.DispatchDate < toExclusiveUtc
+                group item by item.ProductId!.Value into g
+                select new { ProductId = g.Key, Qty = g.Sum(x => (decimal)x.Quantity) }
+            ).ToDictionaryAsync(x => x.ProductId, x => x.Qty);
+
+            var openingList = await _db.InventoryStockSnapshots.AsNoTracking()
+                .Where(s => productIds.Contains(s.ProductId) && s.SnapshotAt < fromUtc)
+                .OrderByDescending(s => s.SnapshotAt)
+                .ThenByDescending(s => s.Id)
+                .Select(s => new { s.ProductId, s.OnHand, s.SnapshotAt, s.Id })
+                .ToListAsync();
+
+            var closingList = await _db.InventoryStockSnapshots.AsNoTracking()
+                .Where(s => productIds.Contains(s.ProductId) && s.SnapshotAt < toExclusiveUtc)
+                .OrderByDescending(s => s.SnapshotAt)
+                .ThenByDescending(s => s.Id)
+                .Select(s => new { s.ProductId, s.OnHand, s.SnapshotAt, s.Id })
+                .ToListAsync();
+
+            var openingDict = openingList
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.First().OnHand);
+
+            var closingDict = closingList
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.First().OnHand);
+
+            var items = pageData.Select(x =>
+            {
+                var pid = x.ProductID;
+
+                var opening = openingDict.TryGetValue(pid, out var op) ? op : 0m;
+                var closing = closingDict.TryGetValue(pid, out var cl) ? cl : opening;
+
+                var inbound = inboundPeriodDict.TryGetValue(pid, out var ip) ? ip : 0m;
+                var outbound = outboundPeriodDict.TryGetValue(pid, out var ob) ? ob : 0m;
+
+                var status =
+                    x.MinStock <= 0 ? "stock"
+                    : closing <= 0 ? "critical"
+                    : closing < x.MinStock ? "alert"
+                    : "stock";
+
+                return new InventoryReportItemDto
                 {
-                    ProductId = item.ProductId!.Value,
-                    slip.DispatchDate,
-                    item.Quantity
+                    ProductId = pid,
+                    ProductCode = x.ProductCode,
+                    ProductName = x.ProductName,
+                    UomName = x.Unit,
+                    MinStock = x.MinStock,
+
+                    OpeningQty = opening,
+                    InboundQty = inbound,
+                    OutboundQty = outbound,
+                    ClosingQty = closing,
+
+                    OnHand = closing,
+                    Status = status,
+                    Note = null
                 };
+            }).ToList();
 
-            var outboundBeforeList = await outboundBase
-                .Where(x => x.DispatchDate < from)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var outboundPeriodList = await outboundBase
-                .Where(x => x.DispatchDate >= from && x.DispatchDate < toExclusive)
-                .GroupBy(x => x.ProductId)
-                .Select(g => new { ProductId = g.Key, Qty = g.Sum(i => i.Quantity) })
-                .ToListAsync();
-
-            var outboundBeforeDict = outboundBeforeList.ToDictionary(x => x.ProductId, x => x.Qty);
-            var outboundPeriodDict = outboundPeriodList.ToDictionary(x => x.ProductId, x => x.Qty);
-
-            var items = pageData
-                .Select(x =>
-                {
-                    var productId = x.ProductID;
-
-                    var inBefore = inboundBeforeDict.TryGetValue(productId, out var ib) ? ib : 0;
-                    var outBefore = outboundBeforeDict.TryGetValue(productId, out var ob) ? ob : 0;
-
-                    var inboundPeriod = inboundPeriodDict.TryGetValue(productId, out var ip) ? ip : 0;
-                    var outboundPeriod = outboundPeriodDict.TryGetValue(productId, out var op) ? op : 0;
-
-                    var opening = inBefore - outBefore;
-
-                    var closing = opening + inboundPeriod - outboundPeriod;
-
-                    return new InventoryReportItemDto
-                    {
-                        ProductId = x.ProductID,
-                        ProductCode = x.ProductCode,
-                        ProductName = x.ProductName,
-                        OnHand = x.Quantity,         
-                        UomName = x.Unit,
-                        MinStock = x.MinStock,
-                        Status = x.Status,
-                        Note = null,
-                        OpeningQty = opening,
-                        InboundQty = inboundPeriod,
-                        OutboundQty = outboundPeriod,
-                        ClosingQty = closing
-                    };
-                })
-                .ToList();
+            if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
+                items = items.Where(i => i.Status == q.Status).ToList();
 
             return new PagedResult<InventoryReportItemDto>
             {
@@ -508,6 +536,7 @@ namespace SaoKim_ecommerce_BE.Services
                 Items = items
             };
         }
+
 
         public async Task<InventoryThreshold> UpdateMinStockAsync(int productId, int minStock)
         {
@@ -538,6 +567,7 @@ namespace SaoKim_ecommerce_BE.Services
             }
 
             await _db.SaveChangesAsync();
+
             await _rt.PublishToWarehouseAsync("inventory.min_stock.updated", new
             {
                 productId,
@@ -547,6 +577,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             return threshold;
         }
+
         public async Task<List<TraceSearchResultDto>> SearchTraceAsync(TraceSearchQuery q)
         {
             IQueryable<TraceIdentity> query = _db.TraceIdentities.AsNoTracking();
@@ -613,8 +644,7 @@ namespace SaoKim_ecommerce_BE.Services
                 })
                 .FirstOrDefaultAsync();
 
-            if (productInfo == null)
-                return null;
+            if (productInfo == null) return null;
 
             var inboundQuery =
                 from item in _db.ReceivingSlipItems.AsNoTracking()
@@ -635,6 +665,7 @@ namespace SaoKim_ecommerce_BE.Services
                     Note = slip.Note,
                     SlipId = slip.Id
                 };
+
             var salesOutboundQuery =
                 from item in _db.DispatchItems.AsNoTracking()
                 join d in _db.Set<RetailDispatch>().AsNoTracking()
@@ -690,6 +721,5 @@ namespace SaoKim_ecommerce_BE.Services
                 Movements = movements
             };
         }
-
     }
 }

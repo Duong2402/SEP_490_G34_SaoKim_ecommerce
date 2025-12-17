@@ -14,13 +14,17 @@ namespace SaoKim_ecommerce_BE.Services
     {
         private readonly SaoKimDBContext _db;
         private readonly IRealtimePublisher _rt;
+        private readonly IInventorySnapshotService _snap;
 
         public ReceivingService(SaoKimDBContext db,
-            IRealtimePublisher rt)
+            IRealtimePublisher rt,
+            IInventorySnapshotService snap)
         {
             _db = db;
             _rt = rt;
+            _snap = snap;
         }
+
 
         private async Task<Product> EnsureProductAndDetailAsync(
            ReceivingSlipItemDto dto,
@@ -532,45 +536,71 @@ namespace SaoKim_ecommerce_BE.Services
 
             var productIds = qtyByProduct.Keys.ToList();
 
-            var products = await _db.Products
+            var productsExist = await _db.Products
                 .Where(p => productIds.Contains(p.ProductID))
-                .ToDictionaryAsync(p => p.ProductID);
+                .Select(p => p.ProductID)
+                .ToListAsync();
 
-            var missing = productIds.Where(pid => !products.ContainsKey(pid)).ToList();
+            var missing = productIds.Except(productsExist).ToList();
             if (missing.Count > 0)
                 throw new ArgumentException("Một vài ID sản phẩm không tìm thấy.");
 
+            // Lấy details theo productId để update nhanh
             var details = await _db.ProductDetails
                 .Where(d => productIds.Contains(d.ProductID))
-                .ToListAsync();
+                .ToDictionaryAsync(d => d.ProductID);
 
             var now = DateTime.UtcNow;
 
-            foreach (var kv in qtyByProduct)
+            // SnapshotAt bám theo ngày phiếu (ReceiptDate) và phải là UTC
+            var snapshotAtUtc = slip.ReceiptDate.Kind switch
             {
-                var productId = kv.Key;
-                var addedQty = kv.Value;
+                DateTimeKind.Utc => slip.ReceiptDate,
+                DateTimeKind.Local => slip.ReceiptDate.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(slip.ReceiptDate, DateTimeKind.Utc)
+            };
 
-                var detail = details.FirstOrDefault(d => d.ProductID == productId);
-                if (detail == null)
+            // Load trước danh sách snapshot đã tồn tại để tránh query AnyAsync trong loop
+            var existedSet = await _db.InventoryStockSnapshots.AsNoTracking()
+                .Where(x => x.RefType == "receiving" && x.RefId == slip.Id && productIds.Contains(x.ProductId))
+                .Select(x => x.ProductId)
+                .ToListAsync();
+
+            var existedProductIds = existedSet.ToHashSet();
+
+            foreach (var (productId, addedQtyInt) in qtyByProduct)
+            {
+                var addedQty = (decimal)addedQtyInt;
+
+                if (!details.TryGetValue(productId, out var detail))
                 {
                     detail = new ProductDetail
                     {
                         ProductID = productId,
-                        Quantity = addedQty,
+                        Quantity = 0,
                         Status = "Active",
                         CreateAt = now,
                         CreateBy = "warehouse-manager"
                     };
-
                     _db.ProductDetails.Add(detail);
-                    details.Add(detail);
+                    details[productId] = detail;
                 }
-                else
+
+                detail.Quantity += (int)addedQty; // nếu Quantity là int
+                detail.UpdateAt = now;
+                detail.UpdateBy = "warehouse-manager";
+
+                if (!existedProductIds.Contains(productId))
                 {
-                    detail.Quantity += addedQty;
-                    detail.UpdateAt = now;
-                    detail.UpdateBy = "warehouse-manager";
+                    _db.InventoryStockSnapshots.Add(new InventoryStockSnapshot
+                    {
+                        ProductId = productId,
+                        SnapshotAt = snapshotAtUtc,
+                        OnHand = (decimal)detail.Quantity,
+                        RefType = "receiving",
+                        RefId = slip.Id,
+                        CreatedAt = now
+                    });
                 }
             }
 
@@ -579,6 +609,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
             await _rt.PublishToWarehouseAsync("receiving.confirmed", new
             {
                 slip.Id,
@@ -597,19 +628,15 @@ namespace SaoKim_ecommerce_BE.Services
                 ReferenceNo = slip.ReferenceNo,
                 Status = slip.Status,
                 ConfirmedAt = slip.ConfirmedAt,
-
                 Supplier = slip.Supplier,
                 ReceiptDate = slip.ReceiptDate,
                 CreatedAt = slip.CreatedAt,
-
-                AffectedProducts = qtyByProduct
-        .Select(kv => new ReceivingSlipConfirmProductDto
-        {
-            ProductId = kv.Key,
-            AddedQty = kv.Value
-        }).ToList()
+                AffectedProducts = qtyByProduct.Select(kv => new ReceivingSlipConfirmProductDto
+                {
+                    ProductId = kv.Key,
+                    AddedQty = kv.Value
+                }).ToList()
             };
-
         }
 
         public async Task<ReceivingSlip> UpdateSupplierAsync(int id, SupplierUpdateDto dto)

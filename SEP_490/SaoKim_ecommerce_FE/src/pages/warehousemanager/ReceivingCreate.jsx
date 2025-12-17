@@ -57,7 +57,7 @@ export default function ReceivingCreate() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await apiFetch(`/api/products`);
+        const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
 
         if (!res.ok) {
           const text = await res.text();
@@ -495,7 +495,7 @@ export default function ReceivingCreate() {
                     <td>
                       <InputGroup>
                         <Form.Control
-                          type="number"
+                          type="text"
                           min={1}
                           value={it.quantity}
                           onChange={(e) => {
@@ -513,7 +513,7 @@ export default function ReceivingCreate() {
                     </td>
                     <td>
                       <Form.Control
-                        type="number"
+                        type="text"
                         min={0}
                         value={it.unitPrice}
                         onChange={(e) => {
