@@ -1,21 +1,19 @@
 
-import { faHome, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faHome } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   Badge,
   Breadcrumb,
   Button,
-  Card,
-  Col,
   Form,
   Pagination,
-  Row,
   Spinner,
-  Table,
 } from "@themesberg/react-bootstrap";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import StaffLayout from "../../../layouts/StaffLayout";
+import "../../../styles/manager.css";
+import "../../../styles/staff-customer-detail.css";
 import useCustomersApi from "../api/useCustomers";
 
 export default function CustomerDetail() {
@@ -162,102 +160,121 @@ export default function CustomerDetail() {
 
   return (
     <StaffLayout>
-      <div className="staff-page-header">
-        <div>
-          <Breadcrumb
-            className="d-none d-md-inline-block"
-            listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
-          >
-            <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
-              <FontAwesomeIcon icon={faHome} />
-            </Breadcrumb.Item>
-            <Breadcrumb.Item as={Link} to="/staff/manager-customers">
-              Khách hàng
-            </Breadcrumb.Item>
-            <Breadcrumb.Item active>Hồ sơ khách hàng</Breadcrumb.Item>
-          </Breadcrumb>
-          <h4 className="staff-page-title">
-            <FontAwesomeIcon icon={faUser} className="me-2" />
-            Hồ sơ khách hàng
-          </h4>
-          <Button variant="outline-secondary" className="mt-2" onClick={() => navigate("/staff/manager-customers")}>
-            Quay lại
-          </Button>
-        </div>
-      </div>
+      <div className="manager-section staff-customer-detail">
+        <section className="manager-panel staff-customer-detail__header">
+          <div className="manager-panel__header">
+            <div className="staff-customer-detail__header-left">
+              <Breadcrumb
+                className="staff-customer-detail__breadcrumb d-none d-md-inline-block"
+                listProps={{ className: "breadcrumb-dark breadcrumb-transparent" }}
+              >
+                <Breadcrumb.Item as={Link} to="/staff/manager-dashboard">
+                  <FontAwesomeIcon icon={faHome} />
+                </Breadcrumb.Item>
+                <Breadcrumb.Item as={Link} to="/staff/manager-customers">
+                  Khách hàng
+                </Breadcrumb.Item>
+                <Breadcrumb.Item active>Hồ sơ khách hàng</Breadcrumb.Item>
+              </Breadcrumb>
+              <h2 className="manager-panel__title">Hồ sơ khách hàng</h2>
+            </div>
+            <div className="manager-panel__actions">
+              <button
+                type="button"
+                className="manager-btn manager-btn--outline"
+                onClick={() => navigate("/staff/manager-customers")}
+              >
+                Quay lại
+              </button>
+            </div>
+          </div>
+        </section>
 
-      {loadingCustomer && (
-        <div className="d-flex justify-content-center py-5">
-          <Spinner animation="border" />
-        </div>
-      )}
+        {loadingCustomer && (
+          <div className="manager-panel manager-empty">
+            <Spinner animation="border" />
+          </div>
+        )}
 
-      {!loadingCustomer && customer && (
-        <>
-          <Row className="mb-4 g-3">
-            <Col xs={12} md={4}>
-              <Card className="staff-panel">
-                <Card.Body>
-                  <h5 className="mb-3">Thông tin</h5>
-
-                  <p className="mb-1">
-                    <strong>Tên: </strong> {customer.name}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Email: </strong> {customer.email}
-                  </p>
-                  <p className="mb-1">
-                    <strong>SĐT: </strong> {customer.phoneNumber ?? "-"}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Địa chỉ: </strong> {customer.address?.trim() ? customer.address : "-"}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Ngày tạo: </strong> {formatDate(customer.createAt)}
-                  </p>
-                </Card.Body>
-              </Card>
-            </Col>
-
-            <Col xs={12} md={8}>
-              <Card className="staff-panel mb-4">
-                <Card.Body>
-                  <h5 className="mb-3">Chỉ số</h5>
-                  <Row className="g-3">
-                    <Col xs={12} md={4}>
-                      <div className="small text-muted">Tổng đơn</div>
-                      <div className="fs-4">{customer.ordersCount}</div>
-                    </Col>
-                    <Col xs={12} md={4}>
-                      <div className="small text-muted">Tổng chi tiêu</div>
-                      <div className="fs-4">{customer.totalSpend.toLocaleString("vi-VN")} ₫</div>
-                    </Col>
-                    <Col xs={12} md={4}>
-                      <div className="small text-muted">Đơn gần nhất</div>
-                      <div className="fs-6">
-                        {customer.lastOrderAt ? formatDate(customer.lastOrderAt) : "-"}
-                      </div>
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-
-              <Card className="staff-panel mb-4">
-                <Card.Header>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span>Đơn hàng gần đây</span>
-                    <small className="text-muted">Tổng: {ordersTotal}</small>
+        {!loadingCustomer && customer && (
+          <>
+            <div className="staff-customer-detail__grid">
+            <section className="manager-panel">
+              <div className="manager-panel__header">
+                <div>
+                  <h3 className="manager-panel__title">Thông tin</h3>
+                </div>
+              </div>
+              <div className="manager-detail-grid">
+                <div className="manager-detail-row">
+                  <div className="manager-detail-label">Tên</div>
+                  <div className="manager-detail-value">{customer.name}</div>
+                </div>
+                <div className="manager-detail-row">
+                  <div className="manager-detail-label">Email</div>
+                  <div className="manager-detail-value">{customer.email}</div>
+                </div>
+                <div className="manager-detail-row">
+                  <div className="manager-detail-label">SĐT</div>
+                  <div className="manager-detail-value">{customer.phoneNumber ?? "-"}</div>
+                </div>
+                <div className="manager-detail-row">
+                  <div className="manager-detail-label">Địa chỉ</div>
+                  <div className="manager-detail-value">
+                    {customer.address?.trim() ? customer.address : "-"}
                   </div>
-                </Card.Header>
-                <Card.Body className="pt-0">
-                  {loadingOrders && (
-                    <div className="d-flex align-items-center gap-2 my-3">
-                      <Spinner animation="border" size="sm" />
-                      <span>Đang tải đơn hàng...</span>
-                    </div>
-                  )}
+                </div>
+                <div className="manager-detail-row">
+                  <div className="manager-detail-label">Ngày tạo</div>
+                  <div className="manager-detail-value">{formatDate(customer.createAt)}</div>
+                </div>
+              </div>
+            </section>
 
-                  <Table hover responsive className="mb-0">
+            <div className="staff-customer-detail__stack">
+              <section className="manager-panel staff-customer-detail__metrics">
+                <div className="manager-panel__header">
+                  <div>
+                    <h3 className="manager-panel__title">Chỉ số</h3>
+                  </div>
+                </div>
+                <div className="manager-summary-grid staff-customer-detail__metrics-grid">
+                  <div className="manager-card">
+                    <div className="manager-card__label">Tổng đơn</div>
+                    <div className="manager-card__value">{customer.ordersCount}</div>
+                  </div>
+                  <div className="manager-card">
+                    <div className="manager-card__label">Tổng chi tiêu</div>
+                    <div className="manager-card__value">
+                      {customer.totalSpend.toLocaleString("vi-VN")} ₫
+                    </div>
+                  </div>
+                  <div className="manager-card">
+                    <div className="manager-card__label">Đơn gần nhất</div>
+                    <div className="manager-card__value">
+                      {customer.lastOrderAt ? formatDate(customer.lastOrderAt) : "-"}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="manager-panel">
+                <div className="manager-panel__header">
+                  <div>
+                    <h3 className="manager-panel__title">Đơn hàng gần đây</h3>
+                    <p className="manager-panel__subtitle">Tổng: {ordersTotal}</p>
+                  </div>
+                </div>
+
+                {loadingOrders && (
+                  <div className="staff-customer-detail__loading">
+                    <Spinner animation="border" size="sm" />
+                    <span>Đang tải đơn hàng...</span>
+                  </div>
+                )}
+
+                <div className="manager-table__wrapper">
+                  <table className="manager-table">
                     <thead>
                       <tr>
                         <th>#</th>
@@ -280,143 +297,142 @@ export default function CustomerDetail() {
 
                       {!loadingOrders && orders.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="text-center text-muted py-3">
+                          <td colSpan={4} className="manager-table__empty">
                             Chưa có đơn hàng
                           </td>
                         </tr>
                       )}
                     </tbody>
-                  </Table>
+                  </table>
+                </div>
 
-                  {ordersTotalPages > 1 && (
-                    <div className="d-flex justify-content-between align-items-center mt-3">
-                      <div>
-                        Trang {ordersPage} / {ordersTotalPages}
-                      </div>
-                      <Pagination className="mb-0">
-                        <Pagination.First disabled={ordersPage <= 1} onClick={() => setOrdersPage(1)} />
-                        <Pagination.Prev
-                          disabled={ordersPage <= 1}
-                          onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
-                        />
-                        <Pagination.Next
-                          disabled={ordersPage >= ordersTotalPages}
-                          onClick={() => setOrdersPage((p) => Math.min(ordersTotalPages, p + 1))}
-                        />
-                        <Pagination.Last
-                          disabled={ordersPage >= ordersTotalPages}
-                          onClick={() => setOrdersPage(ordersTotalPages)}
-                        />
-                      </Pagination>
+                {ordersTotalPages > 1 && (
+                  <div className="staff-customer-detail__pagination">
+                    <div>
+                      Trang {ordersPage} / {ordersTotalPages}
                     </div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+                    <Pagination className="mb-0">
+                      <Pagination.First disabled={ordersPage <= 1} onClick={() => setOrdersPage(1)} />
+                      <Pagination.Prev
+                        disabled={ordersPage <= 1}
+                        onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                      />
+                      <Pagination.Next
+                        disabled={ordersPage >= ordersTotalPages}
+                        onClick={() => setOrdersPage((p) => Math.min(ordersTotalPages, p + 1))}
+                      />
+                      <Pagination.Last
+                        disabled={ordersPage >= ordersTotalPages}
+                        onClick={() => setOrdersPage(ordersTotalPages)}
+                      />
+                    </Pagination>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
 
-          <Row>
-            <Col md={12}>
-              <Card className="staff-panel">
-                <Card.Body>
-                  <h5 className="mb-3">Ghi chú nội bộ</h5>
+          <section className="manager-panel">
+            <div className="manager-panel__header">
+              <div>
+                <h3 className="manager-panel__title">Ghi chú nội bộ</h3>
+              </div>
+            </div>
 
-                  <Form onSubmit={handleAddNote} className="mb-3">
-                    <Row className="g-2">
-                      <Col xs={12} md={10}>
-                        <Form.Control
-                          as="textarea"
-                          rows={2}
-                          value={noteContent}
-                          onChange={(e) => setNoteContent(e.target.value)}
-                          placeholder="Chỉ nhân viên mới thấy ghi chú này"
-                        />
-                      </Col>
-                      <Col xs={12} md={2}>
-                        <Button type="submit" className="w-100" disabled={addingNote || !noteContent.trim()}>
-                          {addingNote ? "Đang lưu..." : "Thêm ghi chú"}
-                        </Button>
-                      </Col>
-                    </Row>
-                  </Form>
+            <Form onSubmit={handleAddNote} className="staff-customer-detail__note-form">
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                placeholder="Chỉ nhân viên mới thấy ghi chú này"
+              />
+              <Button
+                type="submit"
+                className="staff-customer-detail__note-button"
+                disabled={addingNote || !noteContent.trim()}
+              >
+                {addingNote ? "Đang lưu..." : "Thêm ghi chú"}
+              </Button>
+            </Form>
 
-                  {customer.notes && customer.notes.length > 0 ? (
-                    <Table hover responsive size="sm">
-                      <thead>
-                        <tr>
-                          <th>Nhân viên</th>
-                          <th>Nội dung</th>
-                          <th>Thời gian</th>
-                          <th className="text-end">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {customer.notes.map((n) => (
-                          <tr key={n.id}>
-                            <td>{n.staffName}</td>
-                            <td style={{ maxWidth: 500 }}>
-                              {editingNoteId === n.id ? (
-                                <Form.Control
-                                  as="textarea"
-                                  rows={2}
-                                  value={editingContent}
-                                  onChange={(e) => setEditingContent(e.target.value)}
-                                />
-                              ) : (
-                                n.content
-                              )}
-                            </td>
-                            <td>{formatDateTime(n.createdAt)}</td>
-                            <td className="text-end">
-                              {editingNoteId === n.id ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="success"
-                                    className="me-2"
-                                    disabled={savingEdit}
-                                    onClick={() => handleSaveEditNote(n.id)}
-                                  >
-                                    {savingEdit ? "Đang lưu..." : "Lưu"}
-                                  </Button>
-                                  <Button size="sm" variant="outline-secondary" onClick={handleCancelEditNote}>
-                                    Hủy
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline-primary"
-                                    className="me-2"
-                                    onClick={() => handleStartEditNote(n)}
-                                  >
-                                    Sửa
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline-danger"
-                                    disabled={deletingNoteId === n.id}
-                                    onClick={() => handleDeleteNote(n.id)}
-                                  >
-                                    {deletingNoteId === n.id ? "Đang xóa..." : "Xóa"}
-                                  </Button>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  ) : (
-                    <div className="text-muted">Chưa có ghi chú</div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+            {customer.notes && customer.notes.length > 0 ? (
+              <div className="manager-table__wrapper">
+                <table className="manager-table">
+                  <thead>
+                    <tr>
+                      <th>Nhân viên</th>
+                      <th>Nội dung</th>
+                      <th>Thời gian</th>
+                      <th className="text-end">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customer.notes.map((n) => (
+                      <tr key={n.id}>
+                        <td>{n.staffName}</td>
+                        <td style={{ maxWidth: 500 }}>
+                          {editingNoteId === n.id ? (
+                            <Form.Control
+                              as="textarea"
+                              rows={2}
+                              value={editingContent}
+                              onChange={(e) => setEditingContent(e.target.value)}
+                            />
+                          ) : (
+                            n.content
+                          )}
+                        </td>
+                        <td>{formatDateTime(n.createdAt)}</td>
+                        <td className="text-end">
+                          {editingNoteId === n.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="success"
+                                className="me-2"
+                                disabled={savingEdit}
+                                onClick={() => handleSaveEditNote(n.id)}
+                              >
+                                {savingEdit ? "Đang lưu..." : "Lưu"}
+                              </Button>
+                              <Button size="sm" variant="outline-secondary" onClick={handleCancelEditNote}>
+                                Hủy
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline-primary"
+                                className="me-2"
+                                onClick={() => handleStartEditNote(n)}
+                              >
+                                Sửa
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                disabled={deletingNoteId === n.id}
+                                onClick={() => handleDeleteNote(n.id)}
+                              >
+                                {deletingNoteId === n.id ? "Đang xóa..." : "Xóa"}
+                              </Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="manager-table__empty">Chưa có ghi chú</div>
+            )}
+          </section>
         </>
       )}
+      </div>
     </StaffLayout>
   );
 }

@@ -88,7 +88,6 @@ export default function ManagerProjectReport() {
     totalOtherExpenses,
     actualAllIn,
     variance,
-    profitApprox,
     taskCompleted,
     taskDelayed,
     taskActive,
@@ -180,16 +179,6 @@ export default function ManagerProjectReport() {
             <div className="manager-card__hint">
               {variance < 0 ? "Vượt giá trị dự án" : "Còn trong giá trị dự án"}
             </div>
-          </article>
-          <article className="manager-card">
-            <div className="manager-card__label">Lợi nhuận (ước tính)</div>
-            <div
-              className="manager-card__value"
-              style={{ color: profitApprox < 0 ? "#d94a4a" : "#12497f" }}
-            >
-              {formatCurrency(profitApprox)}
-            </div>
-            <div className="manager-card__hint">Doanh thu - Chi phí</div>
           </article>
         </div>
       </section>
