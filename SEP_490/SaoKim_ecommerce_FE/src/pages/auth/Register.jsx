@@ -132,10 +132,13 @@ export default function Register() {
         body: formData,
       });
 
+      const raw = await res.text();
+      console.log("REGISTER status:", res.status);
+      console.log("REGISTER body:", raw);
+
       let data = null;
       try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : null;
+        data = raw ? JSON.parse(raw) : null;
       } catch {
         data = null;
       }
