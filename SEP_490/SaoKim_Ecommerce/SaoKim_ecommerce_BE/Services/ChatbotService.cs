@@ -27,7 +27,7 @@ namespace SaoKim_ecommerce_BE.Services
             {
                 return new ChatOrchestratorResult
                 {
-                    FinalText = "Bạn hãy nhập nhu cầu của bạn, ví dụ: “Gợi ý đèn LED dưới 500k”, “Tìm đèn âm trần”, hoặc “Sản phẩm tương tự”.",
+                    FinalText = "Anh/chị vui lòng cho em biết nhu cầu, ví dụ: “Gợi ý đèn LED dưới 500k”, “Tìm đèn âm trần”, hoặc “Sản phẩm tương tự”.",
                     QuickReplies = BuildQuickReplies(req),
                     Products = new List<ChatProductCardDto>()
                 };
@@ -35,12 +35,13 @@ namespace SaoKim_ecommerce_BE.Services
 
             var functionDeclarations = BuildFunctionDeclarations();
 
-            // Request 1: user -> model (model có thể trả functionCall)
+            // ===== Request 1: user -> model (model có thể gọi function) =====
             var request1 = new
             {
                 contents = new object[]
                 {
-                    new {
+                    new
+                    {
                         role = "user",
                         parts = new object[] { new { text = BuildPrompt(req, message) } }
                     }
@@ -52,24 +53,24 @@ namespace SaoKim_ecommerce_BE.Services
             };
 
             using var resp1 = await _gemini.GenerateContentAsync(model, request1, ct);
-
             var (fnName, fnArgs) = TryExtractFunctionCall(resp1);
 
-            // Nếu model không gọi tool: lấy text trả về luôn
+            // ===== Không gọi tool =====
             if (string.IsNullOrWhiteSpace(fnName))
             {
                 var t = TryExtractText(resp1);
+
                 return new ChatOrchestratorResult
                 {
                     FinalText = string.IsNullOrWhiteSpace(t)
-                        ? "Mình chưa hiểu rõ. Bạn muốn tìm theo tên, theo mã hay theo khoảng giá?"
+                        ? "Em chưa hiểu rõ nhu cầu của anh/chị. Anh/chị muốn tìm theo tên, theo mã hay theo khoảng giá ạ?"
                         : t,
                     QuickReplies = BuildQuickReplies(req),
                     Products = new List<ChatProductCardDto>()
                 };
             }
 
-            // Execute tool
+            // ===== Execute tool =====
             List<ChatProductCardDto> products;
 
             if (fnName == "get_similar_products")
@@ -77,14 +78,9 @@ namespace SaoKim_ecommerce_BE.Services
                 var pid = GetInt(fnArgs, "productId") ?? req.Context?.ProductId;
                 var limit = GetInt(fnArgs, "limit") ?? 8;
 
-                if (!pid.HasValue)
-                {
-                    products = new List<ChatProductCardDto>();
-                }
-                else
-                {
-                    products = await _tools.GetSimilarProductsAsync(baseUrl, pid.Value, limit);
-                }
+                products = pid.HasValue
+                    ? await _tools.GetSimilarProductsAsync(baseUrl, pid.Value, limit)
+                    : new List<ChatProductCardDto>();
             }
             else
             {
@@ -92,36 +88,39 @@ namespace SaoKim_ecommerce_BE.Services
                 var categoryId = GetInt(fnArgs, "categoryId") ?? req.Context?.CategoryId;
                 var priceMin = GetDecimal(fnArgs, "priceMin") ?? req.Context?.PriceMin;
                 var priceMax = GetDecimal(fnArgs, "priceMax") ?? req.Context?.PriceMax;
-
-                // InStockOnly: ưu tiên args, fallback context, cuối cùng default true
                 var inStockOnly = GetBool(fnArgs, "inStockOnly") ?? req.Context?.InStockOnly ?? true;
-
                 var limit = GetInt(fnArgs, "limit") ?? 8;
 
-                products = await _tools.SearchProductsAsync(baseUrl, keyword, categoryId, priceMin, priceMax, inStockOnly, limit);
+                products = await _tools.SearchProductsAsync(
+                    baseUrl,
+                    keyword,
+                    categoryId,
+                    priceMin,
+                    priceMax,
+                    inStockOnly,
+                    limit);
             }
 
-            // Request 2: phải đúng thứ tự user -> model(functionCall) -> user(functionResponse)
+            // ===== Request 2: user -> model(functionCall) -> user(functionResponse) =====
             var request2 = new
             {
                 contents = new object[]
                 {
-                    // user turn ban đầu (bắt buộc phải có)
-                    new {
+                    new
+                    {
                         role = "user",
                         parts = new object[] { new { text = BuildPrompt(req, message) } }
                     },
-
-                    // model turn có functionCall (lấy từ resp1)
                     GetCandidateContent(resp1),
-
-                    // functionResponse phải ngay sau functionCall
-                    new {
+                    new
+                    {
                         role = "user",
                         parts = new object[]
                         {
-                            new {
-                                functionResponse = new {
+                            new
+                            {
+                                functionResponse = new
+                                {
                                     name = fnName,
                                     response = new { result = products }
                                 }
@@ -138,7 +137,6 @@ namespace SaoKim_ecommerce_BE.Services
             using var resp2 = await _gemini.GenerateContentAsync(model, request2, ct);
             var finalText = (TryExtractText(resp2) ?? "").Trim();
 
-            // CHỐT THEO SỰ THẬT để không bị "nói không có nhưng vẫn show sản phẩm"
             finalText = NormalizeFinalTextByProducts(finalText, products);
 
             return new ChatOrchestratorResult
@@ -149,64 +147,38 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
-        private static string NormalizeFinalTextByProducts(string finalText, List<ChatProductCardDto> products)
-        {
-            products ??= new List<ChatProductCardDto>();
-            var hasProducts = products.Count > 0;
-
-            if (string.IsNullOrWhiteSpace(finalText))
-            {
-                return hasProducts
-                    ? "Mình đã tìm được một số sản phẩm phù hợp. Bạn xem danh sách gợi ý bên dưới nhé."
-                    : "Hiện tại mình chưa tìm được sản phẩm phù hợp trong hệ thống. Bạn cho mình biết thêm ngân sách và không gian sử dụng để mình tư vấn chính xác hơn nhé.";
-            }
-
-            if (!hasProducts) return finalText;
-
-            // Nếu có products mà AI lại nói không có -> override
-            var lower = finalText.ToLowerInvariant();
-            var contradict =
-                lower.Contains("chưa tìm") ||
-                lower.Contains("không tìm") ||
-                lower.Contains("không có sản phẩm") ||
-                lower.Contains("không có sản phẩm nào") ||
-                lower.Contains("hiện tại không có") ||
-                lower.Contains("không có trong hệ thống");
-
-            if (contradict)
-            {
-                return "Mình đã tìm được một số sản phẩm phù hợp. Bạn xem danh sách gợi ý bên dưới nhé.";
-            }
-
-            return finalText;
-        }
-
+        // ===== Function declarations for Gemini tool-calling =====
         private static object[] BuildFunctionDeclarations()
         {
             return new object[]
             {
-                new {
+                new
+                {
                     name = "search_products",
                     description = "Tìm sản phẩm trong database theo keyword, category, khoảng giá và điều kiện còn hàng.",
-                    parameters = new {
+                    parameters = new
+                    {
                         type = "object",
-                        properties = new {
-                            keyword = new { type = "string", description = "Từ khóa: tên/mã/mô tả/nhà cung cấp." },
+                        properties = new
+                        {
+                            keyword = new { type = "string", description = "Từ khóa: tên/mã/mô tả/nhà cung cấp. Có thể để trống." },
                             categoryId = new { type = "integer", description = "ID danh mục (nếu có)." },
                             priceMin = new { type = "number", description = "Giá tối thiểu (nếu có)." },
                             priceMax = new { type = "number", description = "Giá tối đa (nếu có)." },
                             inStockOnly = new { type = "boolean", description = "Chỉ lấy sản phẩm còn hàng." },
                             limit = new { type = "integer", description = "Số lượng sản phẩm trả về (1-12)." }
-                        },
-                        required = new string[] { }
+                        }
                     }
                 },
-                new {
+                new
+                {
                     name = "get_similar_products",
                     description = "Lấy sản phẩm tương tự dựa trên category của sản phẩm hiện tại.",
-                    parameters = new {
+                    parameters = new
+                    {
                         type = "object",
-                        properties = new {
+                        properties = new
+                        {
                             productId = new { type = "integer", description = "ID sản phẩm gốc." },
                             limit = new { type = "integer", description = "Số lượng sản phẩm trả về (1-12)." }
                         },
@@ -216,22 +188,59 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
+        // ===== Chốt câu trả lời theo dữ liệu thật =====
+        private static string NormalizeFinalTextByProducts(string finalText, List<ChatProductCardDto> products)
+        {
+            products ??= new List<ChatProductCardDto>();
+            var hasProducts = products.Count > 0;
+
+            if (string.IsNullOrWhiteSpace(finalText))
+            {
+                return hasProducts
+                    ? "Em đã tìm được một số sản phẩm phù hợp, anh/chị xem danh sách bên dưới giúp em nhé."
+                    : "Hiện tại hệ thống chưa có sản phẩm phù hợp. Anh/chị cho em biết thêm ngân sách hoặc nhu cầu cụ thể để em tư vấn chính xác hơn ạ.";
+            }
+
+            if (!hasProducts) return finalText;
+
+            var lower = finalText.ToLowerInvariant();
+            var contradict =
+                lower.Contains("chưa tìm") ||
+                lower.Contains("không tìm") ||
+                lower.Contains("không có sản phẩm") ||
+                lower.Contains("hiện tại không có");
+
+            if (contradict)
+            {
+                return "Em đã tìm được một số sản phẩm phù hợp, anh/chị xem danh sách gợi ý bên dưới giúp em nhé.";
+            }
+
+            return finalText;
+        }
+
+        // ===== Prompt =====
         private static string BuildPrompt(ChatRequestDto req, string message)
         {
             var ctx = req.Context ?? new ChatContextDto();
 
             return
-$@"Bạn là trợ lý tư vấn mua sắm của hệ thống Sao Kim.
-Yêu cầu:
-- Trò chuyện tự nhiên, lịch sự như nhân viên tư vấn.
-- Chỉ gợi ý sản phẩm có trong hệ thống, không bịa.
-- Khi cần danh sách sản phẩm, bắt buộc gọi công cụ (function) phù hợp.
-- BẮT BUỘC dựa vào kết quả functionResponse:
-  + Nếu result có phần tử: phải nói là đã tìm thấy sản phẩm và giới thiệu ngắn gọn.
-  + Nếu result rỗng: phải nói chưa tìm thấy sản phẩm phù hợp và hỏi thêm 1-2 câu để làm rõ nhu cầu.
-- Trả lời ngắn gọn, tối đa khoảng 4-6 câu.
+$@"Bạn là chatbot tư vấn bán hàng của hệ thống Sao Kim.
 
-Ngữ cảnh:
+QUY TẮC XƯNG HÔ (BẮT BUỘC):
+- Bạn xưng là “em”
+- Gọi khách hàng là “anh/chị”
+- Không dùng “mình”, không dùng “bạn”
+
+YÊU CẦU:
+- Trò chuyện tự nhiên, lịch sự như nhân viên tư vấn thật.
+- Chỉ gợi ý sản phẩm có trong hệ thống, không bịa.
+- Khi cần danh sách sản phẩm, bắt buộc gọi công cụ (function).
+- BẮT BUỘC dựa vào kết quả functionResponse:
+  + Có sản phẩm: nói rõ là đã tìm thấy và giới thiệu ngắn gọn.
+  + Không có sản phẩm: nói chưa tìm thấy và hỏi thêm 1–2 câu để làm rõ nhu cầu.
+- Trả lời ngắn gọn, tối đa 4–6 câu.
+
+NGỮ CẢNH:
 - Page: {ctx.Page}
 - ProductId: {ctx.ProductId}
 - CategoryId: {ctx.CategoryId}
@@ -239,11 +248,11 @@ Ngữ cảnh:
 - PriceMax: {ctx.PriceMax}
 - InStockOnly: {ctx.InStockOnly}
 
-Người dùng: {message}
+KHÁCH HÀNG: {message}
 
-Gợi ý công cụ:
-- Nếu người dùng hỏi tương tự/liên quan và có ProductId, gọi get_similar_products(productId, limit=8)
-- Nếu người dùng muốn tìm/gợi ý theo tên/mã/khoảng giá/còn hàng, gọi search_products(keyword, categoryId, priceMin, priceMax, inStockOnly=true, limit=8)";
+GỢI Ý:
+- Hỏi theo giá / tồn kho / danh mục: gọi search_products (keyword có thể để trống)
+- Nếu có ProductId và hỏi liên quan: gọi get_similar_products";
         }
 
         private static List<string> BuildQuickReplies(ChatRequestDto req)
@@ -251,7 +260,7 @@ Gợi ý công cụ:
             var list = new List<string>
             {
                 "Gợi ý đèn dưới 500k",
-                "Tìm sản phẩm còn hàng",
+                "Sản phẩm còn hàng",
                 "Sản phẩm tương tự"
             };
 
@@ -261,12 +270,12 @@ Gợi ý công cụ:
             return list;
         }
 
+        // ===== Helper: parse function call from Gemini response =====
         private static (string? name, Dictionary<string, object?> args) TryExtractFunctionCall(JsonDocument doc)
         {
             try
             {
                 var root = doc.RootElement;
-
                 if (!root.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
                     return (null, new Dictionary<string, object?>());
 
@@ -318,6 +327,7 @@ Gợi ý công cụ:
                 }
             }
             catch { }
+
             return null;
         }
 
