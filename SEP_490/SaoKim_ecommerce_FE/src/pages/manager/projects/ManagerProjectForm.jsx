@@ -21,6 +21,31 @@ const formatBudgetInput = (raw) => {
 const normalizeBudgetValue = (formatted) =>
   formatted ? Number(String(formatted).replace(/[^\d]/g, "")) : null;
 
+const parseDateInput = (value) => {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("/").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+};
+
+const getDateError = (startValue, endValue) => {
+  const startDate = parseDateInput(startValue);
+  const endDate = parseDateInput(endValue);
+  if (!startDate || !endDate) return "";
+  if (endDate.getTime() < startDate.getTime()) {
+    return "Ngày kết thúc không được trước Ngày bắt đầu.";
+  }
+  return "";
+};
+
 export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
   const [values, setValues] = useState({
     name: "",
@@ -37,6 +62,7 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
   const [pmOptions, setPmOptions] = useState([]);
   const [pmLoading, setPmLoading] = useState(false);
   const [pmError, setPmError] = useState("");
+  const [dateError, setDateError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -85,6 +111,10 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
     }
   }, [initialValues]);
 
+  useEffect(() => {
+    setDateError(getDateError(values.startDate, values.endDate));
+  }, [values.startDate, values.endDate]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     if (name === "budget") {
@@ -96,6 +126,11 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextDateError = getDateError(values.startDate, values.endDate);
+    if (nextDateError) {
+      setDateError(nextDateError);
+      return;
+    }
     const normalizedBudget = normalizeBudgetValue(values.budget);
 
     const payload = {
@@ -199,6 +234,14 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
           onChange={handleChange}
           className="manager-form__control"
         />
+        {dateError && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {dateError}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field">
@@ -223,7 +266,11 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
       </div>
 
       <div className="manager-form__actions">
-        <button type="submit" className="manager-btn manager-btn--primary" disabled={submitting}>
+        <button
+          type="submit"
+          className="manager-btn manager-btn--primary"
+          disabled={submitting || Boolean(dateError)}
+        >
           {submitting ? "Đang lưu..." : "Lưu dự án"}
         </button>
       </div>

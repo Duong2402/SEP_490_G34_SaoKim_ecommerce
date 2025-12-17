@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getManagerOverview, getRevenueByDay } from "../../api/manager-reports";
+import Revenue7DaysChart from "../../components/Revenue7DaysChart";
 
 const formatCurrency = (value) => {
   if (value == null || Number.isNaN(value)) return "0 ₫";
@@ -56,6 +57,22 @@ export default function ManagerDashboard() {
   const revenue = overview?.revenue ?? {};
   const warehouse = overview?.warehouse ?? {};
   const projects = overview?.projects ?? {};
+  const chartData = revenueByDay.map((item) => {
+    const parsedDate = new Date(item?.date);
+    const formattedDate = Number.isNaN(parsedDate.getTime())
+      ? String(item?.date ?? "")
+      : parsedDate.toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+    return {
+      date: formattedDate,
+      revenue: Number(item?.revenue) || 0,
+    };
+  });
+  const isEmptyRevenue =
+    !chartData.length || chartData.every((item) => (Number(item.revenue) || 0) === 0);
 
   return (
     <div className="manager-section">
@@ -179,36 +196,13 @@ export default function ManagerDashboard() {
                 <p className="manager-panel__subtitle">
                   Phân bổ doanh thu từng ngày giúp phát hiện xu hướng tăng giảm.
                 </p>
+                {isEmptyRevenue && (
+                  <p className="manager-panel__subtitle">Chưa có doanh thu</p>
+                )}
               </div>
             </div>
             <div className="manager-table__wrapper">
-              {revenueByDay.length === 0 ? (
-                <div className="manager-table__empty">Chưa có dữ liệu doanh thu gần đây.</div>
-              ) : (
-                <table className="manager-table">
-                  <thead>
-                    <tr>
-                      <th>Ngày</th>
-                      <th>Doanh thu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {revenueByDay.map((item, index) => {
-                      const formattedDate = new Date(item.date).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      });
-                      return (
-                        <tr key={`${item.date}-${index}`}>
-                          <td>{formattedDate}</td>
-                          <td>{formatCurrency(item.revenue)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+              <Revenue7DaysChart data={chartData} />
             </div>
           </section>
         </>
