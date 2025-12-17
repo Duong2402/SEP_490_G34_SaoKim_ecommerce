@@ -18,7 +18,7 @@ import {
 } from "@themesberg/react-bootstrap";
 import { Toast, ToastContainer } from "react-bootstrap";
 import Dropdown from "react-bootstrap/Dropdown";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
 import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
@@ -60,17 +60,20 @@ const truncate = (value, maxLength = 30, fallback = "-") => {
 
 const DispatchList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [sp, setSp] = useSearchParams();
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("dispatchDate");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const pageSize = 10;
 
-  const [pageSize] = useState(10);
-  const [page, setPage] = useState(1);
+  const page = Math.max(1, Number(sp.get("page") || 1));
+  const typeFilter = sp.get("type") || "All";
+  const search = sp.get("search") || "";
+  const sortBy = sp.get("sortBy") || "dispatchDate";
+  const sortOrder = sp.get("sortOrder") || "desc";
+
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -79,6 +82,27 @@ const DispatchList = () => {
 
   const formatDate = (value) =>
     value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+
+  const setQuery = (patch, opts = { resetPage: false }) => {
+    setSp((prev) => {
+      const p = new URLSearchParams(prev);
+
+      Object.entries(patch).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === "") p.delete(k);
+        else p.set(k, String(v));
+      });
+
+      if (opts.resetPage) p.set("page", "1");
+      if (!p.get("page")) p.set("page", "1");
+
+      return p;
+    }, { replace: true });
+  };
+
+  const setPage = (nextPage) => {
+    const n = Math.max(1, Number(nextPage) || 1);
+    setQuery({ page: n });
+  };
 
   const getTypeFilterLabel = (val) => {
     switch (val) {
@@ -100,32 +124,23 @@ const DispatchList = () => {
       params.append("page", String(page));
       params.append("pageSize", String(pageSize));
 
-      if (typeFilter !== "All") {
-        params.append("type", typeFilter);
-      }
-      if (search) {
-        params.append("search", search);
-      }
-      if (sortBy) {
-        params.append("sortBy", sortBy);
-      }
-      if (sortOrder) {
-        params.append("sortOrder", sortOrder);
-      }
+      if (typeFilter !== "All") params.append("type", typeFilter);
+      if (search) params.append("search", search);
+      if (sortBy) params.append("sortBy", sortBy);
+      if (sortOrder) params.append("sortOrder", sortOrder);
 
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips?${params.toString()}`
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips?${params.toString()}`);
       const data = await res.json();
 
-      setRows(data.items || []);
+      const items = data.items || [];
+      setRows(items);
       setTotal(data.totalItems || data.total || 0);
 
       setSelectedIds((prev) => {
         const next = new Set();
-        const currentIds = new Set((data.items || []).map((r) => r.id));
+        const currentIds = new Set(items.map((r) => String(r.id)));
         prev.forEach((id) => {
-          if (currentIds.has(id)) next.add(id);
+          if (currentIds.has(String(id))) next.add(String(id));
         });
         return next;
       });
@@ -145,49 +160,50 @@ const DispatchList = () => {
   }, [loadData]);
 
   useEffect(() => {
-  let disposed = false;
+    let disposed = false;
 
-  const getAccessToken = async () => localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token") || "";
+    const getAccessToken = async () => token;
 
-  ensureRealtimeStarted(getAccessToken)
-    .then(() => {
-      if (disposed) return;
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
 
-      const conn = getRealtimeConnection(getAccessToken);
+        const conn = getRealtimeConnection(getAccessToken);
 
-      conn.off("evt");
+        conn.off("evt");
+        conn.on("evt", (payload) => {
+          const type = payload?.type;
+          if (!type) return;
 
-      conn.on("evt", (payload) => {
-        const type = payload?.type;
-        if (!type) return;
-
-        if (
-          type === "dispatch.created" ||
-          type === "dispatch.updated" ||
-          type === "dispatch.deleted" ||
-          type === "dispatch.confirmed" ||
-          type === "dispatch.imported"
-        ) {
-          loadData();
-        }
+          if (
+            type === "dispatch.created" ||
+            type === "dispatch.updated" ||
+            type === "dispatch.deleted" ||
+            type === "dispatch.confirmed" ||
+            type === "dispatch.imported"
+          ) {
+            loadData();
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("Lỗi kết nối realtime (DispatchList):", err);
       });
-    })
-    .catch((err) => {
-      console.error("Lỗi kết nối realtime (DispatchList):", err);
-    });
 
-  return () => {
-    disposed = true;
-    const conn = getRealtimeConnection(getAccessToken);
-    conn.off("evt");
-  };
-}, [loadData]);
+    return () => {
+      disposed = true;
+      const conn = getRealtimeConnection(getAccessToken);
+      conn.off("evt");
+    };
+  }, [loadData]);
 
   const toggleRow = (id) => {
+    const sid = String(id);
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
       return next;
     });
   };
@@ -195,43 +211,31 @@ const DispatchList = () => {
   const clearSelection = () => setSelectedIds(new Set());
 
   const selectAllCurrentPage = () => {
-    setSelectedIds(new Set(rows.map((r) => r.id)));
+    setSelectedIds(new Set(rows.map((r) => String(r.id))));
   };
 
   async function exportByIds(ids, includeItems) {
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/export-selected`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids, includeItems }),
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/export-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, includeItems }),
+      });
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dispatch-slips-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
+      a.download = `dispatch-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      setNotification({
-        type: "success",
-        message: "Xuất file thành công.",
-      });
+      setNotification({ type: "success", message: "Xuất file thành công." });
     } catch (e) {
       console.error(e);
-      setNotification({
-        type: "danger",
-        message: e.message || "Xuất file thất bại.",
-      });
+      setNotification({ type: "danger", message: e.message || "Xuất file thất bại." });
     }
   }
 
@@ -249,38 +253,26 @@ const DispatchList = () => {
       const query = new URLSearchParams();
       query.append("includeItems", includeItems ? "true" : "false");
 
-      const res = await apiFetch(
-        `/api/warehousemanager/dispatch-slips/export-by-filter?${query.toString()}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/export-by-filter?${query.toString()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dispatch-slips-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
+      a.download = `dispatch-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      setNotification({
-        type: "success",
-        message: "Xuất file thành công.",
-      });
+      setNotification({ type: "success", message: "Xuất file thành công." });
     } catch (e) {
       console.error(e);
-      setNotification({
-        type: "danger",
-        message: e.message || "Xuất file thất bại.",
-      });
+      setNotification({ type: "danger", message: e.message || "Xuất file thất bại." });
     }
   }
 
@@ -302,21 +294,16 @@ const DispatchList = () => {
 
   const handleSort = (field) => {
     if (sortBy === field) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      setQuery({ sortOrder: sortOrder === "asc" ? "desc" : "asc" }, { resetPage: true });
     } else {
-      setSortBy(field);
-      setSortOrder("asc");
+      setQuery({ sortBy: field, sortOrder: "asc" }, { resetPage: true });
     }
-    setPage(1);
   };
 
   const handleConfirm = async (id) => {
     const slipId = id ?? null;
     if (!slipId) {
-      setNotification({
-        type: "warning",
-        message: "Không tìm thấy ID phiếu để xác nhận.",
-      });
+      setNotification({ type: "warning", message: "Không tìm thấy ID phiếu để xác nhận." });
       return;
     }
 
@@ -331,25 +318,16 @@ const DispatchList = () => {
 
       await loadData();
 
-      setNotification({
-        type: "success",
-        message: "Đã xác nhận phiếu xuất kho.",
-      });
+      setNotification({ type: "success", message: "Đã xác nhận phiếu xuất kho." });
     } catch (error) {
       console.error("Lỗi khi xác nhận phiếu:", error);
-      setNotification({
-        type: "danger",
-        message: error.message || "Không thể xác nhận phiếu.",
-      });
+      setNotification({ type: "danger", message: error.message || "Không thể xác nhận phiếu." });
     }
   };
 
   const handleDelete = async (id) => {
     if (!id) {
-      setNotification({
-        type: "warning",
-        message: "Không tìm thấy ID phiếu để xóa.",
-      });
+      setNotification({ type: "warning", message: "Không tìm thấy ID phiếu để xóa." });
       return;
     }
 
@@ -357,31 +335,25 @@ const DispatchList = () => {
     if (!window.confirm("Bạn có chắc muốn xóa phiếu xuất kho này?")) return;
 
     try {
-      await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/api/warehousemanager/dispatch-slips/${targetId}`, { method: "DELETE" });
 
-      setRows((prev) =>
-        prev.filter((r) => String(getSlipId(r)) !== String(targetId))
-      );
+      setRows((prev) => prev.filter((r) => String(getSlipId(r)) !== String(targetId)));
 
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(targetId);
+        next.delete(String(targetId));
         return next;
       });
 
-      setNotification({
-        type: "success",
-        message: "Đã xóa phiếu xuất kho.",
-      });
+      setNotification({ type: "success", message: "Đã xóa phiếu xuất kho." });
     } catch (error) {
       console.error("Lỗi khi xóa phiếu:", error);
-      setNotification({
-        type: "danger",
-        message: "Không thể xóa phiếu.",
-      });
+      setNotification({ type: "danger", message: "Không thể xóa phiếu." });
     }
+  };
+
+  const openDetail = (slipId) => {
+    navigate(`/warehouse-dashboard/dispatch-slips/${slipId}/items${location.search}`);
   };
 
   return (
@@ -397,9 +369,7 @@ const DispatchList = () => {
             </Breadcrumb>
           </div>
           <h1 className="wm-page-title">Quản lý phiếu xuất kho</h1>
-          <p className="wm-page-subtitle">
-            Theo dõi đơn xuất theo khách hàng, dự án và trạng thái xử lý.
-          </p>
+          <p className="wm-page-subtitle">Theo dõi đơn xuất theo khách hàng, dự án và trạng thái xử lý.</p>
         </div>
 
         <div className="wm-page-actions">
@@ -411,19 +381,11 @@ const DispatchList = () => {
           >
             Chọn tất cả kết quả
           </button>
-          <button
-            type="button"
-            className="wm-btn wm-btn--light"
-            onClick={clearSelection}
-          >
+          <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
             Bỏ chọn
           </button>
 
-          <button
-            type="button"
-            className="wm-btn wm-btn--light"
-            onClick={() => handleExportSelected(true)}
-          >
+          <button type="button" className="wm-btn wm-btn--light" onClick={() => handleExportSelected(true)}>
             <FontAwesomeIcon icon={faFileExport} /> Xuất báo cáo
           </button>
 
@@ -448,8 +410,7 @@ const DispatchList = () => {
               placeholder="Tìm theo khách hàng, mã phiếu, dự án..."
               value={search}
               onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
+                setQuery({ search: event.target.value }, { resetPage: true });
               }}
             />
           </InputGroup>
@@ -458,17 +419,25 @@ const DispatchList = () => {
         <div className="wm-toolbar__actions">
           <Dropdown className="me-2">
             <Dropdown.Toggle variant="link" className="wm-btn wm-btn--light">
-              {getTypeFilterLabel(typeFilter)}
+              {(() => {
+                switch (typeFilter) {
+                  case "All":
+                    return "Tất cả loại phiếu";
+                  case "Sales":
+                    return "Phiếu bán lẻ";
+                  case "Project":
+                    return "Phiếu xuất dự án";
+                  default:
+                    return "Tất cả loại phiếu";
+                }
+              })()}
             </Dropdown.Toggle>
             <Dropdown.Menu align="end">
               {TYPE_FILTERS.map((type) => (
                 <Dropdown.Item
                   key={type}
                   active={typeFilter === type}
-                  onClick={() => {
-                    setTypeFilter(type);
-                    setPage(1);
-                  }}
+                  onClick={() => setQuery({ type }, { resetPage: true })}
                 >
                   {getTypeFilterLabel(type)}
                 </Dropdown.Item>
@@ -485,58 +454,40 @@ const DispatchList = () => {
               <th>
                 <Form.Check
                   type="checkbox"
-                  checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
+                  checked={rows.length > 0 && rows.every((r) => selectedIds.has(String(r.id)))}
                   onChange={() => {
-                    const pageIds = rows.map((r) => r.id);
+                    const pageIds = rows.map((r) => String(r.id));
                     const allSelected = pageIds.every((id) => selectedIds.has(id));
                     setSelectedIds((prev) => {
                       const next = new Set(prev);
-                      if (allSelected) {
-                        pageIds.forEach((id) => next.delete(id));
-                      } else {
-                        pageIds.forEach((id) => next.add(id));
-                      }
+                      if (allSelected) pageIds.forEach((id) => next.delete(id));
+                      else pageIds.forEach((id) => next.add(id));
                       return next;
                     });
                   }}
                 />
               </th>
               <th>#</th>
-              <th role="button" onClick={() => handleSort("type")}>
-                Loại phiếu
-              </th>
-              <th role="button" onClick={() => handleSort("referenceNo")}>
-                Mã
-              </th>
+              <th role="button" onClick={() => handleSort("type")}>Loại phiếu</th>
+              <th role="button" onClick={() => handleSort("referenceNo")}>Mã</th>
               <th>Khách hàng / Dự án</th>
-              <th role="button" onClick={() => handleSort("dispatchDate")}>
-                Ngày xuất
-              </th>
-              <th role="button" onClick={() => handleSort("createdAt")}>
-                Ngày tạo
-              </th>
-              <th role="button" onClick={() => handleSort("confirmedAt")}>
-                Ngày xác nhận
-              </th>
-              <th role="button" onClick={() => handleSort("status")}>
-                Trạng thái
-              </th>
+              <th role="button" onClick={() => handleSort("dispatchDate")}>Ngày xuất</th>
+              <th role="button" onClick={() => handleSort("createdAt")}>Ngày tạo</th>
+              <th role="button" onClick={() => handleSort("confirmedAt")}>Ngày xác nhận</th>
+              <th role="button" onClick={() => handleSort("status")}>Trạng thái</th>
               <th>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={11} className="wm-empty">
-                  Đang tải dữ liệu...
-                </td>
+                <td colSpan={11} className="wm-empty">Đang tải dữ liệu...</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={11} className="wm-empty">
-                  Không có phiếu phù hợp với bộ lọc hiện tại.
-                </td>
+                <td colSpan={11} className="wm-empty">Không có phiếu phù hợp với bộ lọc hiện tại.</td>
               </tr>
             ) : (
               rows.map((r, index) => {
@@ -546,22 +497,15 @@ const DispatchList = () => {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
                 const slipId = getSlipId(r);
-                const checked = selectedIds.has(r.id);
+                const checked = selectedIds.has(String(r.id));
 
-                const codeValue = isSales
-                  ? r.salesOrderNo || r.referenceNo
-                  : r.requestNo || r.referenceNo;
-
+                const codeValue = isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo;
                 const nameValue = isSales ? r.customerName || "-" : r.projectName || "-";
 
                 return (
                   <tr key={r.id}>
                     <td>
-                      <Form.Check
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleRow(r.id)}
-                      />
+                      <Form.Check type="checkbox" checked={checked} onChange={() => toggleRow(r.id)} />
                     </td>
                     <td>{(page - 1) * pageSize + index + 1}</td>
                     <td>
@@ -576,9 +520,7 @@ const DispatchList = () => {
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
                       ) : (
-                        <Badge bg="warning" text="dark">
-                          Nháp
-                        </Badge>
+                        <Badge bg="warning" text="dark">Nháp</Badge>
                       )}
                     </td>
                     <td title={r.note || ""}>{truncate(r.note, 40, "-")}</td>
@@ -587,9 +529,7 @@ const DispatchList = () => {
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
-                        onClick={() =>
-                          navigate(`/warehouse-dashboard/dispatch-slips/${slipId}/items`)
-                        }
+                        onClick={() => openDetail(slipId)}
                         disabled={!slipId}
                       >
                         <FontAwesomeIcon icon={faEye} />
@@ -634,7 +574,7 @@ const DispatchList = () => {
           <button
             className="btn btn-outline-secondary"
             disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage(page - 1)}
           >
             Trước
           </button>
@@ -666,7 +606,7 @@ const DispatchList = () => {
           <button
             className="btn btn-outline-secondary"
             disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setPage(page + 1)}
           >
             Sau
           </button>

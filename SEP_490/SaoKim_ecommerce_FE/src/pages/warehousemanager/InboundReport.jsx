@@ -88,8 +88,6 @@ export default function InboundReport() {
           const type = payload?.type;
           if (!type) return;
 
-          // Bạn map theo backend: receiving.* / inbound.* tùy bạn đang publish
-          // Tạm thời: chỉ cần có event liên quan receiving/ inbound là reload report
           if (
             type.startsWith("receiving.") ||
             type.startsWith("inbound.") ||

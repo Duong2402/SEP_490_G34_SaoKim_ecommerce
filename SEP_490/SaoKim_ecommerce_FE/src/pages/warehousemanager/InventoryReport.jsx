@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import {
   Breadcrumb,
   Badge,
@@ -61,32 +62,59 @@ const statusLabel = (s) => {
 };
 
 export default function InventoryReport() {
+  const location = useLocation();
+  const [sp, setSp] = useSearchParams();
+
+  const qPage = Math.max(1, Number(sp.get("page") || 1));
+  const qPageSize = Math.max(1, Number(sp.get("pageSize") || 10));
+  const qSearch = sp.get("search") || "";
+  const qStatus = sp.get("status") || "all";
+  const qView = sp.get("view") || "detail";
+  const qFrom = sp.get("from") || "";
+  const qTo = sp.get("to") || "";
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(qSearch);
   const [searchDebounced, setSearchDebounced] = useState("");
 
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("detail");
+  const [statusFilter, setStatusFilter] = useState(qStatus);
+  const [viewMode, setViewMode] = useState(qView);
 
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(qFrom);
+  const [toDate, setToDate] = useState(qTo);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(qPage);
+  const [pageSize, setPageSize] = useState(qPageSize);
 
-  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search), 400);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset page khi đổi bộ lọc / view
   useEffect(() => {
-    setPage(1);
-  }, [searchDebounced, statusFilter, fromDate, toDate, viewMode, pageSize]);
+    const next = new URLSearchParams(location.search);
+
+    next.set("page", String(page));
+    next.set("pageSize", String(pageSize));
+    next.set("view", viewMode);
+
+    if (searchDebounced) next.set("search", searchDebounced);
+    else next.delete("search");
+    if (statusFilter && statusFilter !== "all") next.set("status", statusFilter);
+    else next.delete("status");
+
+    if (fromDate) next.set("from", fromDate);
+    else next.delete("from");
+
+    if (toDate) next.set("to", toDate);
+    else next.delete("to");
+
+    setSp(next, { replace: true });
+  }, [page, pageSize, viewMode, searchDebounced, statusFilter, fromDate, toDate, location.search, setSp]);
+
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -147,7 +175,6 @@ export default function InventoryReport() {
     loadData();
   }, [loadData]);
 
-  // Realtime
   useEffect(() => {
     let disposed = false;
     const tokenProvider = () => localStorage.getItem("token") || "";

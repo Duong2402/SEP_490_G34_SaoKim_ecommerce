@@ -18,11 +18,12 @@ namespace SaoKim_ecommerce_BE.Services
         public ShippingService(SaoKimDBContext db, IConfiguration config)
         {
             _db = db;
-            _storeLat = config.GetValue<double>("Shipping:StoreLat");
-            _storeLng = config.GetValue<double>("Shipping:StoreLng");
-            _baseFee = config.GetValue<decimal>("Shipping:BaseFee");
-            _freeDistanceKm = config.GetValue<double>("Shipping:FreeDistanceKm");
-            _extraFeePerKm = config.GetValue<decimal>("Shipping:ExtraFeePerKm");
+
+            _storeLat = config.GetValue<double>("ShippingFee:StoreLat");
+            _storeLng = config.GetValue<double>("ShippingFee:StoreLng");
+            _baseFee = config.GetValue<decimal>("ShippingFee:BaseFee");
+            _freeDistanceKm = config.GetValue<double>("ShippingFee:FreeDistanceKm");
+            _extraFeePerKm = config.GetValue<decimal>("ShippingFee:ExtraFeePerKm");
         }
 
         public async Task<ShippingFeeResultDto?> GetFeeAsync(int addressId, string method)
