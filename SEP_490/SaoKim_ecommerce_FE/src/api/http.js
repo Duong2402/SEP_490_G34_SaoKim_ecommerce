@@ -5,7 +5,7 @@ const isProd = import.meta.env.PROD;
 
 // Dev: gọi tới "/api" đi qua proxy; Prod: dùng VITE_API_BASE_URL
 const http = axios.create({
-  baseURL: isProd ? import.meta.env.VITE_API_BASE_URL || "/" : "/api",
+  baseURL: "/api",
   headers: {
     "Accept-Language": "vi",
   },
