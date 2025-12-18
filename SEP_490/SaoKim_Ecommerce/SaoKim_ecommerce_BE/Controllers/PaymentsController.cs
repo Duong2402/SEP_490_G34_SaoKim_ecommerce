@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using SaoKim_ecommerce_BE.DTOs;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SaoKim_ecommerce_BE.Services;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -11,34 +11,31 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly IPaymentService _paymentService;
         private readonly ILogger<PaymentsController> _logger;
 
-        public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
+        public PaymentsController(
+            IPaymentService paymentService,
+            ILogger<PaymentsController> logger)
         {
             _paymentService = paymentService;
             _logger = logger;
         }
 
+        [AllowAnonymous]
         [HttpGet("check-vietqr")]
-        [ProducesResponseType(typeof(VietQrCheckResultDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> CheckVietQr([FromQuery] int amount, CancellationToken cancellationToken)
+        public async Task<IActionResult> CheckVietQr(
+            [FromQuery] int amount,
+            [FromQuery] string? paymentToken = null,
+            CancellationToken cancellationToken = default)
         {
-            if (amount <= 0)
-                return BadRequest(new { message = "Số tiền phải lớn hơn 0" });
-
             try
             {
-                var result = await _paymentService.CheckVietQrAsync(amount, cancellationToken);
+                var result = await _paymentService.CheckVietQrAsync(amount, paymentToken, cancellationToken);
                 return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // lỗi do cấu hình hoặc gọi script thất bại
-                _logger.LogError(ex, "Lỗi khi kiểm tra VietQR");
-                return StatusCode(502, new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi không xác định khi kiểm tra VietQR");
-                return StatusCode(500, new { message = "Lỗi server khi kiểm tra VietQR", detail = ex.Message });
+                _logger.LogError(ex, "Lỗi khi check VietQR");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "Đã xảy ra lỗi khi kiểm tra VietQR." });
             }
         }
     }

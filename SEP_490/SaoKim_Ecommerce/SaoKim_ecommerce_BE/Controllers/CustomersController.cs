@@ -13,7 +13,7 @@ using static SaoKim_ecommerce_BE.Entities.CustomerNote;
 namespace SaoKim_ecommerce_BE.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "staff")]
+    [Authorize(Roles = "staff,manager,admin")]
     [Route("api/[controller]")]
     public class CustomersController : ControllerBase
     {
@@ -181,6 +181,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // DELETE /api/customers/{id} (Soft delete)
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "staff,admin")]
         public async Task<IActionResult> SoftDelete(int id)
         {
             var staffIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -195,6 +196,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
         // GET /api/customers/export
         [HttpGet("export")]
+        [Authorize(Roles = "staff,admin")]
         public async Task<IActionResult> ExportExcel(
             [FromQuery] string? q = null,
             [FromQuery] DateTime? createdFrom = null,
