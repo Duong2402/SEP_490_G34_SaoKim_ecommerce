@@ -13,8 +13,15 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using SaoKim_ecommerce_BE.Services.Ai;
+using SaoKim_ecommerce_BE.Services.ChatbotTools;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
 
 // =====================
 // QUEST PDF
@@ -118,6 +125,7 @@ builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
 builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddScoped<IGeminiAiClient, GeminiAiClient>();
+builder.Services.AddScoped<IChatbotToolService, ChatbotToolService>();
 
 // =====================
 // DB CONTEXT
