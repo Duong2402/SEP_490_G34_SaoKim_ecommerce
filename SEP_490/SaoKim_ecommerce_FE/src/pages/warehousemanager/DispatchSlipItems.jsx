@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Breadcrumb, Table, Button, Form, InputGroup } from "@themesberg/react-bootstrap";
 import { Modal, Toast, ToastContainer } from "react-bootstrap";
@@ -31,10 +31,17 @@ const initialForm = {
   productCode: "",
 };
 
+const na = (v, fallback = "N/A") => {
+  if (v === null || v === undefined) return fallback;
+  const s = String(v).trim();
+  return s ? s : fallback;
+};
+
 const DispatchSlipItems = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const realtimeRef = useRef(null);
 
   const backToListUrl = `/warehouse-dashboard/dispatch-slips${location.search || ""}`;
 
@@ -55,7 +62,6 @@ const DispatchSlipItems = () => {
   const [pageSize] = useState(10);
 
   const [notification, setNotification] = useState(null);
-
   const [exporting, setExporting] = useState(false);
 
   const [total, setTotal] = useState(0);
@@ -71,7 +77,9 @@ const DispatchSlipItems = () => {
       params.append("page", String(page));
       params.append("pageSize", String(pageSize));
 
-      const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`);
+      const res = await apiFetch(
+        `/api/warehousemanager/dispatch-slips/${id}/items?${params.toString()}`
+      );
       if (!res.ok) throw new Error(`Lỗi HTTP ${res.status}`);
 
       const data = await res.json();
@@ -120,10 +128,15 @@ const DispatchSlipItems = () => {
     }
   }, []);
 
+  // chạy 1 lần: load products
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  // chạy theo id/page/pageSize
   useEffect(() => {
     load();
-    loadProducts();
-  }, [load, loadProducts]);
+  }, [load]);
 
   useEffect(() => {
     if (!notification) return;
@@ -137,28 +150,31 @@ const DispatchSlipItems = () => {
     const token = localStorage.getItem("token") || "";
     const getAccessToken = async () => token;
 
+    const onEvt = (payload) => {
+      const type = payload?.type;
+      if (!type) return;
+
+      if (
+        type === "dispatch.item.created" ||
+        type === "dispatch.item.updated" ||
+        type === "dispatch.item.deleted"
+      ) {
+        const dispatchId = payload?.data?.dispatchId ?? payload?.data?.DispatchId;
+        if (dispatchId != null && Number(dispatchId) !== Number(id)) return;
+
+        load();
+      }
+    };
+
     ensureRealtimeStarted(getAccessToken)
       .then(() => {
         if (disposed) return;
 
         const conn = getRealtimeConnection(getAccessToken);
+        realtimeRef.current = conn;
 
         conn.off("evt");
-        conn.on("evt", (payload) => {
-          const type = payload?.type;
-          if (!type) return;
-
-          if (
-            type === "dispatch.item.created" ||
-            type === "dispatch.item.updated" ||
-            type === "dispatch.item.deleted"
-          ) {
-            const dispatchId = payload?.data?.dispatchId ?? payload?.data?.DispatchId;
-            if (dispatchId != null && Number(dispatchId) !== Number(id)) return;
-
-            load();
-          }
-        });
+        conn.on("evt", onEvt);
       })
       .catch((err) => {
         console.error("Lỗi kết nối realtime (DispatchSlipItems):", err);
@@ -166,8 +182,8 @@ const DispatchSlipItems = () => {
 
     return () => {
       disposed = true;
-      const conn = getRealtimeConnection(getAccessToken);
-      conn.off("evt");
+      const conn = realtimeRef.current;
+      if (conn) conn.off("evt", onEvt);
     };
   }, [id, load]);
 
@@ -286,7 +302,7 @@ const DispatchSlipItems = () => {
       });
       if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
 
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
+      await load();
       setNotification({ type: "success", message: "Đã xóa dòng hàng." });
     } catch (err) {
       setNotification({ type: "danger", message: "Không thể xóa: " + err.message });
@@ -297,6 +313,7 @@ const DispatchSlipItems = () => {
     try {
       setExporting(true);
       const res = await apiFetch(`/api/warehousemanager/dispatch-slips/${id}/print`);
+      if (!res.ok) throw new Error(`Xuất PDF thất bại (${res.status})`);
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -340,11 +357,7 @@ const DispatchSlipItems = () => {
         </div>
 
         <div className="wm-page-actions">
-          <button
-            type="button"
-            className="wm-btn wm-btn--light"
-            onClick={() => navigate(backToListUrl)}
-          >
+          <button type="button" className="wm-btn wm-btn--light" onClick={() => navigate(backToListUrl)}>
             <FontAwesomeIcon icon={faArrowLeft} />
             Quay lại danh sách
           </button>
@@ -413,35 +426,32 @@ const DispatchSlipItems = () => {
                 <td colSpan={9} className="wm-empty">Chưa có dòng hàng nào trong phiếu này.</td>
               </tr>
             ) : (
-              items.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{(page - 1) * pageSize + index + 1}</td>
-                  <td><span className="fw-semibold">{item.productCode || "Chưa có mã"}</span></td>
-                  <td>{item.productName}</td>
-                  <td>{item.uom}</td>
-                  <td>{item.quantity}</td>
-                  <td>{Number(item.unitPrice || 0).toLocaleString("vi-VN")} VNĐ</td>
-                  <td>{(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString("vi-VN")} VNĐ</td>
-                  <td>{item.note || "-"}</td>
-                  <td className="text-end">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => openEdit(item)}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </Button>
-                  </td>
-                </tr>
-              ))
+              items.map((item, index) => {
+                const qty = Number(item.quantity || 0);
+                const price = Number(item.unitPrice || 0);
+                const lineTotal = qty * price;
+
+                return (
+                  <tr key={item.id ?? `${id}-${index}`}>
+                    <td>{(page - 1) * pageSize + index + 1}</td>
+                    <td><span className="fw-semibold">{na(item.productCode, "N/A")}</span></td>
+                    <td>{na(item.productName)}</td>
+                    <td>{na(item.uom)}</td>
+                    <td>{qty || 0}</td>
+                    <td>{price.toLocaleString("vi-VN")} VNĐ</td>
+                    <td>{lineTotal.toLocaleString("vi-VN")} VNĐ</td>
+                    <td>{na(item.note)}</td>
+                    <td className="text-end">
+                      <Button variant="outline-primary" size="sm" className="me-2" onClick={() => openEdit(item)}>
+                        <FontAwesomeIcon icon={faEdit} />
+                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>
+                        <FontAwesomeIcon icon={faTrash} />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>

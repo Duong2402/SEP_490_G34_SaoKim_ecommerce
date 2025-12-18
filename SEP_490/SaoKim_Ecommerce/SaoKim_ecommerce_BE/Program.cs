@@ -15,63 +15,74 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// QuestPDF license (Community is fine for typical academic projects)
+// =====================
+// QUEST PDF
+// =====================
 QuestPDF.Settings.License = LicenseType.Community;
 
-// Add controllers and configure System.Text.Json options
+// =====================
+// CONTROLLERS + JSON
+// =====================
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
-        // Use camelCase for JSON properties
         o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        // Serialize enums as strings instead of numeric values
-        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        // Allow case-insensitive matching for JSON property names
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// Swagger configuration with JWT Bearer authentication support
+// =====================
+// SWAGGER + JWT
+// =====================
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SaoKim API", Version = "v1" });
-
-    var jwtSecurityScheme = new OpenApiSecurityScheme
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
+        Title = "SaoKim API",
+        Version = "v1"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Bearer token",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
-        Description = "Put **_ONLY_** your JWT Bearer token on textbox below!",
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
 
-        Reference = new OpenApiReference
-        {
-            Id = JwtBearerDefaults.AuthenticationScheme,
-            Type = ReferenceType.SecurityScheme
-        }
-    };
-
-    c.AddSecurityDefinition(jwtSecurityScheme.Reference.Id, jwtSecurityScheme);
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { jwtSecurityScheme, Array.Empty<string>() }
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
-// SignalR
+// =====================
+// SIGNALR
+// =====================
 builder.Services.AddSignalR();
 
-// Enable CORS
-builder.Services.AddCors();
-
-// In-memory caching
+// =====================
+// CACHE + HTTP
+// =====================
 builder.Services.AddMemoryCache();
-
-// Register HttpClient factory (used by services and controllers)
 builder.Services.AddHttpClient();
 
-// Dependency Injection registrations for application services
+// =====================
+// DEPENDENCY INJECTION
+// =====================
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -105,84 +116,104 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
 
-
-// Chatbot (Gemini)
-builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.Ai.IGeminiAiClient, SaoKim_ecommerce_BE.Services.Ai.GeminiAiClient>();
-builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.ChatbotTools.IChatbotToolService, SaoKim_ecommerce_BE.Services.ChatbotTools.ChatbotToolService>();
-builder.Services.AddScoped<SaoKim_ecommerce_BE.Services.IChatbotService, SaoKim_ecommerce_BE.Services.ChatbotService>();
-
-// Configure EF Core DbContext (PostgreSQL via Npgsql)
+// =====================
+// DB CONTEXT
+// =====================
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-// Read allowed CORS origins from configuration (fallback to localhost FE)
+// =====================
+// CORS
+// =====================
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? new[] { "http://localhost:5173" };
 
-// Build the CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFE", policy =>
     {
-        policy
-            .WithOrigins(allowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()
-            .WithExposedHeaders("Content-Disposition");
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials()
+              .WithExposedHeaders("Content-Disposition");
     });
 });
 
-// JWT Authentication configuration
-var jwtKey = builder.Configuration["Jwt:Key"];
-var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-var jwtAudience = builder.Configuration["Jwt:Audience"];
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false; // ok for local dev
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+// =====================
+// JWT AUTHENTICATION
+// =====================
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!)),
-        ClockSkew = TimeSpan.Zero,
-        NameClaimType = ClaimTypes.Name,
-        RoleClaimType = ClaimTypes.Role
-    };
+        var key = builder.Configuration["Jwt:Key"];
+        var issuer = builder.Configuration["Jwt:Issuer"];
+        var audience = builder.Configuration["Jwt:Audience"];
 
-    // Allow JWT in query string for SignalR connections if needed
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
-    };
-});
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key!)),
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
+        };
 
-// Authorization
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!StringValues.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Jwt");
+
+                logger.LogError(context.Exception, "JWT authentication failed");
+                return Task.CompletedTask;
+            },
+            OnChallenge = async ctx =>
+            {
+                ctx.HandleResponse();
+                if (!ctx.Response.HasStarted)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    ctx.Response.ContentType = "application/json";
+                    await ctx.Response.WriteAsync("{\"message\":\"Unauthorized\"}");
+                }
+            },
+            OnForbidden = ctx =>
+            {
+                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                ctx.Response.ContentType = "application/json";
+                return ctx.Response.WriteAsync("{\"message\":\"Forbidden\"}");
+            }
+        };
+    });
+
+// =====================
+// AUTHORIZATION
+// =====================
 builder.Services.AddAuthorization(options =>
 {
-    // Fallback: require authentication by default
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
@@ -190,45 +221,50 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// Enable Swagger in development
+// =====================
+// AUTO MIGRATE + SEED
+// =====================
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SaoKimDBContext>();
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(db);
+}
+
+// =====================
+// SWAGGER
+// =====================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHsts();
+}
 
-// Global exception handling (basic)
+// =====================
+// GLOBAL ERROR HANDLER
+// =====================
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "application/json";
-
         await context.Response.WriteAsync("{\"success\":false,\"message\":\"Internal server error\"}");
     });
 });
 
 app.UseHttpsRedirection();
-
-// Serve static files
 app.UseStaticFiles();
-
-// Use routing
 app.UseRouting();
-
-// Use CORS
 app.UseCors("AllowFE");
-
-// Authentication and authorization middlewares
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map API controllers
 app.MapControllers();
-
-// Map SignalR hubs
 app.MapHub<RealtimeHub>("/hubs/realtime");
 
-// Start the application
 app.Run();
