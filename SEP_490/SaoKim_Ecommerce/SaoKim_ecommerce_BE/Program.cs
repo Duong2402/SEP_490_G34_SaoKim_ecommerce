@@ -119,8 +119,6 @@ builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
 builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddScoped<IGeminiAiClient, GeminiAiClient>();
-builder.Services.AddScoped<IChatbotService, ChatbotService>();
-builder.Services.AddScoped<IGeminiAiClient, GeminiAiClient>();
 builder.Services.AddScoped<IChatbotToolService, ChatbotToolService>();
 
 // =====================
