@@ -122,6 +122,43 @@ const t = (key, params) => {
   return key;
 };
 
+const getProjectProductUnit = (item) => {
+  const direct =
+    item?.uom ??
+    item?.Uom ??
+    item?.unit ??
+    item?.Unit ??
+    item?.unitName ??
+    item?.UnitName ??
+    item?.uomName ??
+    item?.UomName ??
+    item?.unitOfMeasure ??
+    item?.UnitOfMeasure ??
+    item?.unitOfMeasureName ??
+    item?.UnitOfMeasureName ??
+    item?.productUnit ??
+    item?.product?.unit ??
+    item?.product?.Unit ??
+    item?.product?.uom ??
+    item?.product?.Uom ??
+    item?.product?.unitName ??
+    item?.product?.UnitName ??
+    item?.product?.uomName ??
+    item?.product?.UomName ??
+    item?.product?.unitOfMeasure ??
+    item?.product?.UnitOfMeasure ??
+    item?.product?.unitOfMeasureName ??
+    item?.product?.UnitOfMeasureName;
+
+  if (!direct) return "-";
+  if (typeof direct === "object") {
+    const name =
+      direct?.name ?? direct?.Name ?? direct?.label ?? direct?.value;
+    return name ? String(name) : "-";
+  }
+  return String(direct);
+};
+
 const normalizeTaskFromAPI = (raw) => ({
   ...raw,
   days: Array.isArray(raw?.days)
@@ -1210,7 +1247,7 @@ function ProjectDetail() {
                 <thead>
                   <tr>
                     <th>Tên sản phẩm</th>
-                    <th>Đơn vị</th>
+                    <th>Đơn vị tính</th>
                     <th>Số lượng</th>
                     <th>Đơn giá (VND)</th>
                     <th>Thành tiền</th>
@@ -1222,7 +1259,7 @@ function ProjectDetail() {
                   {products.map((item) => (
                     <tr key={item.id}>
                       <td>{item.productName}</td>
-                      <td>{item.uom}</td>
+                      <td>{getProjectProductUnit(item)}</td>
                       <td>{formatNumber(item.quantity)}</td>
                       <td>{formatNumber(item.unitPrice)}</td>
                       <td>

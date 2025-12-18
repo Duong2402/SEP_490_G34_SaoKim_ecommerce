@@ -8,6 +8,7 @@ import "../../styles/cart.css";
 export default function Cart() {
   const [items, setItems] = useState(() => readCart());
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [qtyInputs, setQtyInputs] = useState({});
   const navigate = useNavigate();
   const clickLockRef = useRef(new Set());
   const lastClickAtRef = useRef(new Map());
@@ -43,6 +44,18 @@ export default function Cart() {
     });
   }, [items]);
 
+  useEffect(() => {
+    setQtyInputs((prev) => {
+      const next = {};
+      items.forEach((it) => {
+        const normalized = String(Number(it.quantity) || 1);
+        next[it.id] =
+          prev[it.id] != null && prev[it.id] === normalized ? prev[it.id] : normalized;
+      });
+      return next;
+    });
+  }, [items]);
+
   const total = useMemo(() => {
     return items
       .filter((it) => selectedIds.has(it.id))
@@ -65,6 +78,35 @@ export default function Cart() {
       writeCart(next);
       return next;
     });
+  };
+
+  const normalizeInputQty = (value) => {
+    if (value == null || value === "") return null;
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed)) return null;
+    if (parsed < 1) return null;
+    return Math.min(999, parsed);
+  };
+
+  const commitQtyInput = (productId) => {
+    const currentItem = items.find((it) => it.id === productId);
+    if (!currentItem) return;
+    const currentQty = Number(currentItem.quantity) || 1;
+    const nextQty = normalizeInputQty(qtyInputs[productId]);
+    if (!nextQty) {
+      setQtyInputs((prev) => ({ ...prev, [productId]: String(currentQty) }));
+      return;
+    }
+    if (nextQty !== currentQty) {
+      updateQty(productId, nextQty - currentQty);
+    }
+    setQtyInputs((prev) => ({ ...prev, [productId]: String(nextQty) }));
+  };
+
+  const handleQtyInputChange = (productId, value) => {
+    if (value === "" || /^\d+$/.test(value)) {
+      setQtyInputs((prev) => ({ ...prev, [productId]: value }));
+    }
   };
 
   const throttledUpdate = (productId, delta) => {
@@ -201,7 +243,21 @@ export default function Cart() {
                           >
                             -
                           </button>
-                          <span className="qty-value">{Number(it.quantity) || 1}</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="qty-input"
+                            value={qtyInputs[it.id] ?? String(Number(it.quantity) || 1)}
+                            onChange={(e) => handleQtyInputChange(it.id, e.target.value)}
+                            onBlur={() => commitQtyInput(it.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitQtyInput(it.id);
+                              }
+                            }}
+                          />
                           <button type="button" className="qty-btn" onClick={() => throttledUpdate(it.id, +1)}>
                             +
                           </button>

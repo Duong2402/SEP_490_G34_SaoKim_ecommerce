@@ -344,13 +344,6 @@ export default function ProductDetail() {
         value: product.category || product.categoryName || "Đang cập nhật",
       },
       {
-        label: "Tồn kho",
-        value:
-          typeof product.quantity === "number"
-            ? `${product.quantity} sản phẩm`
-            : product.stockStatus || "Liên hệ",
-      },
-      {
         label: "Bảo hành",
         value: product.warranty || "12 tháng",
       },
@@ -750,4 +743,3 @@ export default function ProductDetail() {
     </div>
   );
 }
-
