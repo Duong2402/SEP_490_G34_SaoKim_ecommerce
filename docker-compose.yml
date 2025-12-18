@@ -36,7 +36,7 @@
     build:
       context: .
       dockerfile: SEP_490/SaoKim_ecommerce_FE/Dockerfile
-    image: ${DOCKER_USERNAME}/frontend:${TAG:-latest}
+    image: ${DOCKER_USERNAME}frontend:${TAG:-latest}
     ports:
       - "3000:3000"
     depends_on:
