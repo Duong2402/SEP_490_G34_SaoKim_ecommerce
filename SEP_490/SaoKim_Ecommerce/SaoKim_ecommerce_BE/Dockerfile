@@ -7,7 +7,7 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["SaoKim_ecommerce_BE.csproj", "SaoKim_ecommerce_BE/"]
+COPY ["SaoKim_ecommerce_BE/SaoKim_ecommerce_BE.csproj", "SaoKim_ecommerce_BE/"]
 RUN dotnet restore "SaoKim_ecommerce_BE/SaoKim_ecommerce_BE.csproj"
 COPY . .
 WORKDIR "/src/SaoKim_ecommerce_BE"
