@@ -48,7 +48,7 @@ export default function OrderDetailPage() {
   const apiBase =
     (typeof import.meta !== "undefined" &&
       import.meta.env?.VITE_API_BASE_URL) ||
-    "https://datdovan.id.vn";
+    "https://localhost:7278";
   const apiBaseNormalized = (apiBase || "").replace(/\/+$/, "");
 
   useEffect(() => {

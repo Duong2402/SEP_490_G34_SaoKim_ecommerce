@@ -1,4 +1,4 @@
-export const API_BASE = "https://datdovan.id.vn";
+export const API_BASE = "https://localhost:7278";
 
 const TOKEN_KEY = "token";
 
