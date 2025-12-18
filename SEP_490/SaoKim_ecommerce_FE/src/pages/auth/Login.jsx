@@ -60,7 +60,7 @@ export default function Login() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("https://localhost:7278/api/auth/login", {
+      const res = await fetch("https://datdovan.id.vn/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: form.email.trim(), password: form.password }),

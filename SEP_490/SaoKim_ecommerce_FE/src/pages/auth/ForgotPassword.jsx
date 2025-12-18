@@ -42,7 +42,7 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://localhost:7278/api/auth/forgot-password", {
+      const res = await fetch("https://datdovan.id.vn/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

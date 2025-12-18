@@ -30,7 +30,7 @@ export default function CustomerOrder() {
 
   const apiBase =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-    "https://localhost:7278";
+    "https://datdovan.id.vn";
 
   useEffect(() => {
     const token = localStorage.getItem("token");

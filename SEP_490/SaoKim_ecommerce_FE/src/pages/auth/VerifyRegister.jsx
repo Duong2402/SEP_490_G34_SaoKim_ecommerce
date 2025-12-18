@@ -7,7 +7,7 @@ import AuthLayout from "../../components/AuthLayout";
 import BgImage from "../../assets/signin.svg";
 import "../../assets/css/Auth.css";
 
-const API_BASE = "https://localhost:7278";
+const API_BASE = "https://datdovan.id.vn";
 const COOLDOWN_SECONDS = 120;
 
 function cooldownKey(email) {
