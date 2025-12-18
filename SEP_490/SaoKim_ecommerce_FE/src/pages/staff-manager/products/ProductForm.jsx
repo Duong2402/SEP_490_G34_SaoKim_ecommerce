@@ -66,22 +66,24 @@ export default function ProductForm({
 
   const categoryId = watch("categoryId");
   const price = watch("price");
-  const unitWatch = watch("unit");
-
-  useEffect(() => {
-    console.log("defaults.unit =", defaults.unit);
-    console.log("watch(unit) =", unitWatch);
-  }, [defaults.unit, unitWatch]);
 
   const updateAt = defaults.updateAt;
+
+  // FIX 1: reset lại form mỗi khi defaultValues thay đổi
+  // Lý do: react-hook-form chỉ ăn defaultValues lúc mount. Khi mở edit sản phẩm khác,
+  // nếu component không unmount thì field (đặc biệt select unit) sẽ không tự cập nhật.
+  useEffect(() => {
+    const next = normalizeDefaults(defaultValues);
+    reset(next, {
+      keepDirty: false,
+      keepTouched: false,
+    });
+  }, [defaultValues, reset]);
 
   useEffect(() => {
     (async () => {
       try {
-        const [catList, uomList] = await Promise.all([
-          getCategories(),
-          getUoms(),
-        ]);
+        const [catList, uomList] = await Promise.all([getCategories(), getUoms()]);
         setCategories(catList || []);
         setUoms(uomList || []);
       } catch {
@@ -89,23 +91,21 @@ export default function ProductForm({
         setUoms([]);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // FIX 2: khi uoms load xong, set lại unit để Select hiển thị đúng option
+  // Lý do: options của select có thể render sau khi form đã reset.
   useEffect(() => {
     if (!uoms || uoms.length === 0) return;
 
-    const current = String(getValues("unit") ?? "").trim();
-    const desired = String(defaults.unit ?? "").trim();
-    const target = current || desired;
+    const desired = String(normalizeDefaults(defaultValues).unit ?? "").trim();
+    if (!desired) return;
 
-    if (!target) return;
- 
-    const ok = uoms.some((u) => String(u.name ?? u.Name ?? "").trim() === target);
+    const ok = uoms.some((u) => String(u.name ?? u.Name ?? "").trim() === desired);
     if (!ok) return;
 
-    setValue("unit", target, { shouldValidate: true, shouldDirty: false });
-  }, [uoms, defaults.unit, getValues, setValue]);
-
+    setValue("unit", desired, { shouldValidate: true, shouldDirty: false });
+  }, [uoms, defaultValues, setValue]);
 
   const handleCategorySelect = (e) => {
     const v = e.target.value;
@@ -140,6 +140,7 @@ export default function ProductForm({
         typeof values.price === "number"
           ? values.price
           : Number(String(values.price).replace(/[^\d]/g, "")) || 0,
+      // unit đã là string name (theo option value), giữ nguyên
     });
   };
 
@@ -221,11 +222,7 @@ export default function ProductForm({
                 onChange={(e) => setNewCategory(e.target.value)}
                 disabled={disabled}
               />
-              <Button
-                variant="primary"
-                onClick={handleAddCategory}
-                disabled={disabled}
-              >
+              <Button variant="primary" onClick={handleAddCategory} disabled={disabled}>
                 Lưu
               </Button>
               <Button
@@ -264,30 +261,27 @@ export default function ProductForm({
         </Form.Group>
 
         <Form.Group>
-  <Form.Label>Số lượng</Form.Label>
-  <Form.Control
-    type="text"
-    inputMode="numeric"
-    placeholder="Nhập số lượng"
-    {...register("stock", {
-      required: "Số lượng là bắt buộc",
-      validate: (v) =>
-        String(v).replace(/[^\d]/g, "") !== ""
-          ? true
-          : "Số lượng không hợp lệ",
-    })}
-    isInvalid={!!errors.stock}
-    disabled={disabled}
-    onChange={(e) => {
-      const raw = e.target.value.replace(/[^\d]/g, "");
-      setValue("stock", raw, { shouldValidate: true });
-    }}
-  />
-  <Form.Control.Feedback type="invalid">
-    {errors.stock?.message}
-  </Form.Control.Feedback>
-</Form.Group>
-
+          <Form.Label>Số lượng</Form.Label>
+          <Form.Control
+            type="text"
+            inputMode="numeric"
+            placeholder="Nhập số lượng"
+            {...register("stock", {
+              required: "Số lượng là bắt buộc",
+              validate: (v) =>
+                String(v).replace(/[^\d]/g, "") !== "" ? true : "Số lượng không hợp lệ",
+            })}
+            isInvalid={!!errors.stock}
+            disabled={disabled}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^\d]/g, "");
+              setValue("stock", raw, { shouldValidate: true });
+            }}
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.stock?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
 
         <Form.Group>
           <Form.Label>Đơn vị tính</Form.Label>
@@ -375,11 +369,7 @@ export default function ProductForm({
 
       <div className="d-flex gap-2 justify-content-end mt-3">
         {onCancel && (
-          <Button
-            variant="outline-secondary"
-            onClick={onCancel}
-            disabled={disabled}
-          >
+          <Button variant="outline-secondary" onClick={onCancel} disabled={disabled}>
             Hủy
           </Button>
         )}
