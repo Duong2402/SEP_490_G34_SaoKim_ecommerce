@@ -10,7 +10,7 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string Name { get; set; } = string.Empty;
         public string? Slug { get; set; }
         public string? Category { get; set; }
-
+        public string? Unit { get; set; }
         public decimal Price { get; set; }
         public int Quantity { get; set; }
         public int Stock { get; set; }

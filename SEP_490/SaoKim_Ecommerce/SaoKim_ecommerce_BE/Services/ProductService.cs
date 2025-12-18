@@ -39,6 +39,7 @@ namespace SaoKim_ecommerce_BE.Services
                     Name = x.Product.ProductName,
                     Slug = null,
                     Price = x.Detail!.Price,
+                    Unit = x.Detail!.Unit,
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
                     Stock = x.Detail.Quantity
@@ -57,6 +58,7 @@ namespace SaoKim_ecommerce_BE.Services
                     Name = x.Product.ProductName,
                     Slug = null,
                     Price = x.Detail!.Price,
+                    Unit = x.Detail!.Unit,
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
                     Stock = x.Detail.Quantity
@@ -123,6 +125,7 @@ namespace SaoKim_ecommerce_BE.Services
                     Name = x.Product.ProductName,
                     Slug = null,
                     Price = x.Detail!.Price,
+                    Unit = x.Detail!.Unit,
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
                     Stock = x.Detail.Quantity

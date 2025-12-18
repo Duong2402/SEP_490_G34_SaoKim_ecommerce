@@ -171,6 +171,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                         ? x.Detail.Category.Name
                         : null,
                     price = x.Detail != null ? x.Detail.Price : 0,
+                    unit = x.Detail != null ? (x.Detail.Unit ?? "") : "",
                     stock = x.Detail != null ? x.Detail.Quantity : 0,
                     status = x.Detail != null ? x.Detail.Status : null,
                     created = x.Detail != null ? x.Detail.CreateAt : null,
