@@ -115,6 +115,7 @@ builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
 
 // =====================
 // DB CONTEXT
