@@ -132,6 +132,8 @@ builder.Services.AddScoped<IChatbotToolService, ChatbotToolService>();
 // =====================
 builder.Services.AddDbContext<SaoKimDBContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+    .EnableSensitiveDataLogging()
+
 );
 
 // =====================
