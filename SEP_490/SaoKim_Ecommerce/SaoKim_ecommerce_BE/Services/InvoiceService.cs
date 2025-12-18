@@ -193,6 +193,7 @@ namespace SaoKim_ecommerce_BE.Services
                 items.Add(new InvoiceItem
                 {
                     ProductName = "",
+                    Uom = "",
                     Quantity = 0,
                     UnitPrice = 0,
                     LineTotal = 0
@@ -271,16 +272,27 @@ namespace SaoKim_ecommerce_BE.Services
                                 TH("ĐƠN GIÁ");
                                 TH("THÀNH TIỀN");
 
+                                static string QtyUom(decimal qty, string? uom)
+                                {
+                                    if (qty == 0) return "";
+                                    var u = (uom ?? "").Trim();
+                                    return string.IsNullOrWhiteSpace(u) ? $"{qty:0.##}" : $"{qty:0.##} {u}";
+                                }
+
                                 int idx = 1;
                                 foreach (var it in items)
                                 {
                                     t.Cell().Border(0.5f).Padding(6).AlignCenter()
                                         .Text((it.ProductName?.Length > 0) ? (idx++).ToString() : "");
+
                                     t.Cell().Border(0.5f).Padding(6).Text(it.ProductName ?? "");
+
                                     t.Cell().Border(0.5f).Padding(6).AlignCenter()
-                                        .Text(it.Quantity == 0 ? "" : $"{it.Quantity:0.##}");
+                                        .Text(string.IsNullOrWhiteSpace(it.ProductName) ? "" : QtyUom(it.Quantity, it.Uom));
+
                                     t.Cell().Border(0.5f).Padding(6).AlignRight()
                                         .Text(it.UnitPrice == 0 ? "" : Money(it.UnitPrice));
+
                                     t.Cell().Border(0.5f).Padding(6).AlignRight()
                                         .Text(it.LineTotal == 0 ? "" : Money(it.LineTotal));
                                 }
@@ -350,6 +362,7 @@ namespace SaoKim_ecommerce_BE.Services
                 throw new InvalidOperationException("Lỗi layout khi tạo PDF: " + ex.Message, ex);
             }
         }
+
 
         public async Task<string?> GetPdfPathAsync(int id, string folder)
         {

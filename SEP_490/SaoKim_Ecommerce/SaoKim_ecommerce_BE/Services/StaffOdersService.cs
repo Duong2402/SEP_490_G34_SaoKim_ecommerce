@@ -334,6 +334,31 @@ namespace SaoKim_ecommerce_BE.Services
 
                 var total = subtotal - discount + tax + shippingFee;
 
+                var productIds = items
+                    .Select(x => x.ProductId)
+                    .Distinct()
+                    .ToList();
+
+                var unitMap = productIds.Count == 0
+                    ? new Dictionary<int, string?>()
+                    : await _db.ProductDetails
+                        .AsNoTracking()
+                        .Where(pd => productIds.Contains(pd.ProductID))
+                        .GroupBy(pd => pd.ProductID)
+                        .Select(g => new
+                        {
+                            ProductID = g.Key,
+                            Unit = g.OrderByDescending(x => x.Id).Select(x => x.Unit).FirstOrDefault()
+                        })
+                        .ToDictionaryAsync(x => x.ProductID, x => x.Unit);
+
+                string ResolveUom(int productId)
+                {
+                    if (unitMap.TryGetValue(productId, out var unit) && !string.IsNullOrWhiteSpace(unit))
+                        return unit.Trim();
+                    return "pcs";
+                }
+
                 var invoice = new Invoice
                 {
                     Code = $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{order.OrderId}",
@@ -356,7 +381,9 @@ namespace SaoKim_ecommerce_BE.Services
                     {
                         ProductId = oi.ProductId,
                         ProductName = oi.Product?.ProductName ?? "",
-                        Uom = "pcs",
+
+                        Uom = ResolveUom(oi.ProductId),
+
                         Quantity = oi.Quantity,
                         UnitPrice = oi.UnitPrice,
                         LineTotal = oi.UnitPrice * oi.Quantity,
@@ -366,6 +393,7 @@ namespace SaoKim_ecommerce_BE.Services
 
                 _db.Set<Invoice>().Add(invoice);
             }
+
 
             await _db.SaveChangesAsync();
             await _rt.PublishAsync("order.status.updated", new
