@@ -76,7 +76,7 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             return Ok(ApiResponse<object>.Ok(new { items, total, page, pageSize }));
         }
-
+        
         [HttpPost("{userNotificationId:int}/read")]
         public async Task<IActionResult> MarkRead([FromRoute] int userNotificationId)
         {

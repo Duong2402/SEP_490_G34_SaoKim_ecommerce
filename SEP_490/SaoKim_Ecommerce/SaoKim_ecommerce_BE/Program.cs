@@ -8,6 +8,7 @@ using QuestPDF.Infrastructure;
 using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
+using SaoKim_ecommerce_BE.Services.Ai;
 using SaoKim_ecommerce_BE.Services.Realtime;
 using System.Security.Claims;
 using System.Text;
@@ -115,6 +116,8 @@ builder.Services.AddScoped<IManagerReportsService, ManagerReportsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRealtimePublisher, RealtimePublisher>();
 builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>();
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
+builder.Services.AddScoped<IGeminiAiClient, GeminiAiClient>();
 
 // =====================
 // DB CONTEXT
