@@ -61,6 +61,28 @@ function removeVietnameseAccents(str = "") {
 }
 
 
+const VN_PHONE_REGEX = /^0\d{9}$/;
+
+function normalizeVietnamPhoneNumberInput(value = "") {
+  const digits = String(value).replace(/\D/g, "");
+
+  // Support users pasting +84XXXXXXXXX by converting to 0XXXXXXXXX
+  if (digits.startsWith("84")) {
+    if (digits.length === 11) return `0${digits.slice(2)}`;
+    if (digits.length === 12 && digits[2] === "0") return digits.slice(2);
+  }
+
+  return digits;
+}
+
+function getVietnamPhoneValidationError(value = "", { required = false } = {}) {
+  const phone = String(value || "").trim();
+  if (!phone) return required ? "Vui lòng nhập số điện thoại." : "";
+  if (!VN_PHONE_REGEX.test(phone))
+    return "Số điện thoại phải bắt đầu bằng 0 và gồm đúng 10 chữ số (VD: 0123456789).";
+  return "";
+}
+
 function ProfileTab() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -68,6 +90,7 @@ function ProfileTab() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -76,6 +99,11 @@ function ProfileTab() {
     dob: "",
     image: null,
   });
+
+  const phoneNumberError = useMemo(
+    () => getVietnamPhoneValidationError(form.phoneNumber),
+    [form.phoneNumber]
+  );
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -126,6 +154,11 @@ function ProfileTab() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const onPhoneChange = (e) => {
+    const next = normalizeVietnamPhoneNumberInput(e.target.value);
+    setForm((prev) => ({ ...prev, phoneNumber: next }));
+  };
+
   const onFile = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -138,6 +171,10 @@ function ProfileTab() {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    setPhoneTouched(true);
+    if (phoneNumberError) return;
+
     setSaving(true);
 
     try {
@@ -149,7 +186,7 @@ function ProfileTab() {
 
       const fd = new FormData();
       if (form.name) fd.append("name", form.name);
-      if (form.phoneNumber) fd.append("phoneNumber", form.phoneNumber);
+      if (form.phoneNumber) fd.append("phoneNumber", form.phoneNumber.trim());
       if (form.address) fd.append("address", form.address);
       if (form.dob) fd.append("dob", form.dob);
       if (form.image) fd.append("image", form.image);
@@ -250,9 +287,23 @@ function ProfileTab() {
                 <input
                   name="phoneNumber"
                   value={form.phoneNumber}
-                  onChange={onChange}
-                  placeholder="VD: 0987..."
+                  onChange={onPhoneChange}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="VD: 0123456789"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={12}
+                  autoComplete="tel"
+                  aria-invalid={phoneTouched && !!phoneNumberError}
+                  className={
+                    phoneTouched && phoneNumberError
+                      ? "account-input--error"
+                      : undefined
+                  }
                 />
+                {phoneTouched && phoneNumberError && (
+                  <p className="account-field__error">{phoneNumberError}</p>
+                )}
               </div>
               <div className="account-field">
                 <label>Ngày sinh</label>
@@ -439,6 +490,14 @@ function AddressesTab() {
       setError("Vui lòng nhập đủ Người nhận, SDT và Địa chỉ dòng 1");
       return;
     }
+    const phoneValidationError = getVietnamPhoneValidationError(form.phoneNumber, {
+      required: true,
+    });
+    if (phoneValidationError) {
+      setError(phoneValidationError);
+      return;
+    }
+
     if (!form.province || !form.district || !form.ward) {
       setError("Vui lòng chọn đủ Tỉnh/Thành, Quận/Huyện, Phường/Xã");
       return;
@@ -691,7 +750,6 @@ function AddressesTab() {
                     recipientName: e.target.value,
                   })
                 }
-                required
               />
             </div>
 
@@ -702,7 +760,7 @@ function AddressesTab() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    phoneNumber: e.target.value,
+                    phoneNumber: normalizeVietnamPhoneNumberInput(e.target.value),
                   })
                 }
                 required

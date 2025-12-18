@@ -626,6 +626,25 @@
   flex-wrap: wrap;
 }
 
+.pm-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.pm-pagination .pagination-info {
+  color: var(--pm-muted);
+  font-weight: 600;
+}
+
+.pm-pagination .pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .pm-shell .badge {
   background: rgba(148, 163, 184, 0.16);
   color: var(--pm-text);
