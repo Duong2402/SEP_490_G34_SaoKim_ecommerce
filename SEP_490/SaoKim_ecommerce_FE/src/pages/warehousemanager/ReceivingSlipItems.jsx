@@ -1,29 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Breadcrumb,
-  Badge,
-  Table,
-  Button,
-  Form,
-  InputGroup,
-} from "@themesberg/react-bootstrap";
+import { Breadcrumb, Badge, Table, Button, Form, InputGroup } from "@themesberg/react-bootstrap";
 import { Modal, Toast, ToastContainer } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faHome,
-  faArrowLeft,
-  faPlus,
-  faSave,
-  faTrash,
-  faEdit,
-} from "@fortawesome/free-solid-svg-icons";
+import { faHome, faArrowLeft, faPlus, faSave, faTrash, faEdit } from "@fortawesome/free-solid-svg-icons";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import Select from "react-select";
 import { apiFetch } from "../../api/lib/apiClient";
 import { ensureRealtimeStarted, getRealtimeConnection } from "../../signalr/realtimeHub";
 
 const PAGE_SIZE = 10;
+const MIN_UNIT_PRICE = 1000;
 
 const initialForm = {
   productId: "",
@@ -44,20 +31,29 @@ const toStatusCode = (v) => {
   return 0;
 };
 
-const truncateText = (text, maxLength = 60) => {
-  if (!text) return "";
-  const s = String(text);
+const truncateText = (text, maxLength = 60, fallback = "N/A") => {
+  if (text === null || text === undefined) return fallback;
+  const s = String(text).trim();
+  if (!s) return fallback;
   if (s.length <= maxLength) return s;
   return s.slice(0, maxLength) + "...";
+};
+
+const safeNumber = (v, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 };
 
 const ReceivingSlipItems = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const realtimeRef = useRef(null);
+
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
+  const [uoms, setUoms] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [supplier, setSupplier] = useState("");
   const [isEditingSupplier, setIsEditingSupplier] = useState(false);
@@ -68,30 +64,22 @@ const ReceivingSlipItems = () => {
   const [showModal, setShowModal] = useState(false);
   const [mode, setMode] = useState("create");
   const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [formErrs, setFormErrs] = useState({});
   const [status, setStatus] = useState(0);
-  const [uoms, setUoms] = useState([]);
 
   const [page, setPage] = useState(1);
   const [notify, setNotify] = useState(null);
 
   const totals = useMemo(() => {
-    const totalQty = items.reduce(
-      (acc, item) => acc + Number(item.quantity || 0),
-      0
-    );
+    const totalQty = items.reduce((acc, item) => acc + safeNumber(item.quantity, 0), 0);
     const totalValue = items.reduce(
-      (acc, item) =>
-        acc + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      (acc, item) => acc + safeNumber(item.quantity, 0) * safeNumber(item.unitPrice, 0),
       0
     );
-    return {
-      totalQty,
-      totalValue,
-      totalItems: items.length,
-    };
+    return { totalQty, totalValue, totalItems: items.length };
   }, [items]);
 
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
@@ -111,60 +99,58 @@ const ReceivingSlipItems = () => {
     return () => clearTimeout(t);
   }, [notify]);
 
-  async function load() {
+  const findProductById = useCallback(
+    (val) => {
+      const n = Number(val);
+      if (Number.isNaN(n)) return null;
+      return products.find((p) => Number(p.id) === n) || null;
+    },
+    [products]
+  );
+
+  const load = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/${id}/items`
-      );
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/items`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       const list = Array.isArray(data) ? data : data.items || [];
       setItems(list);
 
-      const sup =
-        (Array.isArray(data)
-          ? ""
-          : data?.supplier ?? data?.Supplier ?? "") || "";
+      const sup = (Array.isArray(data) ? "" : data?.supplier ?? data?.Supplier ?? "") || "";
       setSupplier(String(sup));
 
-      const rawStatus =
-        (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
+      const rawStatus = (Array.isArray(data) ? undefined : data?.status ?? data?.Status) ?? 0;
       setStatus(toStatusCode(rawStatus));
     } catch (e) {
-      const msg = e.message || "Không thể tải danh sách hàng hóa.";
-      setError(msg);
+      const msg = e?.message || "Không thể tải danh sách hàng hóa.";
       setNotify(msg);
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
-  async function loadUOMs() {
+  const loadUOMs = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/warehousemanager/unit-of-measures`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setUoms(data);
+      setUoms(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Không thể tải đơn vị tính:", e);
       setNotify("Không thể tải danh sách đơn vị tính.");
+      setUoms([]);
     }
-  }
+  }, []);
 
-  async function loadProducts() {
+  const loadProducts = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/products?page=1&pageSize=1000`);
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const json = await res.json();
-      console.log("GET /api/products:", json);
 
       const payload = json.data ?? json;
-
       const raw = Array.isArray(payload) ? payload : payload.items || [];
 
       const normalized = raw
@@ -184,80 +170,71 @@ const ReceivingSlipItems = () => {
         }))
         .filter((p) => p.id != null && p.name);
 
-      console.log("Products normalized:", normalized);
       setProducts(normalized);
     } catch (e) {
       console.error("Tải danh sách sản phẩm lỗi:", e);
       setNotify("Không thể tải danh sách sản phẩm.");
+      setProducts([]);
     }
-  }
-
-  function findProductById(val) {
-    const n = Number(val);
-    if (Number.isNaN(n)) return null;
-    return products.find((p) => Number(p.id) === n) || null;
-  }
+  }, []);
 
   useEffect(() => {
     load();
     loadProducts();
     loadUOMs();
-  }, [id]);
+  }, [load, loadProducts, loadUOMs]);
 
   useEffect(() => {
-  const conn = getRealtimeConnection();
+    let disposed = false;
 
-  conn.off("evt");
+    const token = localStorage.getItem("token") || "";
+    const getAccessToken = async () => token;
 
-  conn.on("evt", (payload) => {
-    const type = payload?.type;
-    if (!type) return;
+    const onEvt = (payload) => {
+      const type = payload?.type;
+      if (!type) return;
 
-    if (
-      type !== "receiving.item.created" &&
-      type !== "receiving.item.updated" &&
-      type !== "receiving.item.deleted"
-    ) return;
+      if (
+        type !== "receiving.item.created" &&
+        type !== "receiving.item.updated" &&
+        type !== "receiving.item.deleted"
+      ) {
+        return;
+      }
 
-    const data = payload?.data ?? payload;
+      const data = payload?.data ?? payload;
+      const slipId = data?.slipId ?? data?.SlipId ?? data?.receivingSlipId ?? data?.ReceivingSlipId;
+      if (slipId != null && Number(slipId) !== Number(id)) return;
 
-    if (Number(data?.slipId) !== Number(id)) return;
+      load();
+    };
 
-    load();
-  });
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
+        const conn = getRealtimeConnection(getAccessToken);
+        realtimeRef.current = conn;
 
-  ensureRealtimeStarted().catch(() => {
-    setNotify("Không thể kết nối realtime tới máy chủ.");
-  });
+        conn.off("evt");
+        conn.on("evt", onEvt);
+      })
+      .catch(() => {
+        setNotify("Không thể kết nối realtime tới máy chủ.");
+      });
 
-  return () => {
-    conn.off("evt");
-  };
-}, [id]);
-
-
-  const handleDelete = async (itemId) => {
-    if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
-    try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-items/${itemId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
-      await load();
-      setNotify("Đã xóa sản phẩm khỏi phiếu.");
-    } catch (err) {
-      setNotify("Không thể xóa: " + err.message);
-    }
-  };
+    return () => {
+      disposed = true;
+      const conn = realtimeRef.current;
+      if (conn) conn.off("evt", onEvt);
+    };
+  }, [id, load]);
 
   const openCreate = () => {
     setMode("create");
     setEditId(null);
     setFormErrs({});
     setForm(initialForm);
+    setProductInputMode("select");
     setShowModal(true);
   };
 
@@ -266,34 +243,27 @@ const ReceivingSlipItems = () => {
     setEditId(item.id);
     setFormErrs({});
     setForm({
-      productId: item.productId ?? "",
+      productId: item.productId != null ? String(item.productId) : "",
       productName: item.productName ?? "",
       uom: item.uom ?? "",
       quantity: item.quantity ?? 1,
       unitPrice: item.unitPrice ?? 0,
     });
+    setProductInputMode("select");
     setShowModal(true);
   };
 
   const validate = () => {
     const errs = {};
-    if (!form.productId && !form.productName) {
-      errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
-    }
-    if (!form.productName) {
-      errs.productName = "Tên sản phẩm không được để trống.";
-    }
-    if (!form.uom) {
-      errs.uom = "Đơn vị tính không được để trống.";
-    }
-    if (!form.quantity || Number(form.quantity) <= 0) {
-      errs.quantity = "Số lượng phải lớn hơn 0.";
-    }
+    const qty = safeNumber(form.quantity, 0);
+    const price = safeNumber(form.unitPrice, 0);
 
-    const price = Number(form.unitPrice);
-    if (!form.unitPrice || isNaN(price) || price < 1000) {
-      errs.unitPrice = "Đơn giá phải lớn hơn 1.000.";
-    }
+    if (!form.productId && !form.productName) errs.productId = "Vui lòng chọn hoặc nhập sản phẩm.";
+    if (!String(form.productName || "").trim()) errs.productName = "Tên sản phẩm không được để trống.";
+    if (!String(form.uom || "").trim()) errs.uom = "Đơn vị tính không được để trống.";
+
+    if (!(qty > 0)) errs.quantity = "Số lượng phải lớn hơn 0.";
+    if (!Number.isFinite(price) || price < MIN_UNIT_PRICE) errs.unitPrice = "Đơn giá phải lớn hơn 1.000.";
 
     setFormErrs(errs);
     return Object.keys(errs).length === 0;
@@ -301,32 +271,49 @@ const ReceivingSlipItems = () => {
 
   const handleSave = async () => {
     if (!validate()) return;
+
     setSaving(true);
     const payload = {
-      productId: form.productId || null,
-      productName: form.productName,
-      uom: form.uom,
-      quantity: Number(form.quantity),
-      unitPrice: Number(form.unitPrice),
+      productId: form.productId ? Number(form.productId) : null,
+      productName: String(form.productName || "").trim(),
+      uom: String(form.uom || "").trim(),
+      quantity: safeNumber(form.quantity, 0),
+      unitPrice: safeNumber(form.unitPrice, 0),
     };
+
     try {
       const endpoint =
         mode === "create"
           ? `/api/warehousemanager/receiving-slips/${id}/items`
           : `/api/warehousemanager/receiving-items/${editId}`;
+
       const res = await apiFetch(endpoint, {
         method: mode === "create" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       if (!res.ok) throw new Error(`Lưu thất bại (${res.status})`);
+
       await load();
       setShowModal(false);
-      setNotify("Lưu dòng hàng thành công.");
+      setNotify(mode === "create" ? "Đã thêm dòng hàng." : "Đã cập nhật dòng hàng.");
     } catch (err) {
-      setNotify("Không thể lưu: " + err.message);
+      setNotify("Không thể lưu: " + (err?.message || ""));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (itemId) => {
+    if (!window.confirm("Xóa sản phẩm này khỏi phiếu nhập?")) return;
+    try {
+      const res = await apiFetch(`/api/warehousemanager/receiving-items/${itemId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Xóa thất bại (${res.status})`);
+      await load();
+      setNotify("Đã xóa sản phẩm khỏi phiếu.");
+    } catch (err) {
+      setNotify("Không thể xóa: " + (err?.message || ""));
     }
   };
 
@@ -336,29 +323,41 @@ const ReceivingSlipItems = () => {
       setSupplierErr("Nhà cung cấp không được để trống.");
       return;
     }
+
     setSupplierErr("");
     setSavingSupplier(true);
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/${id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ supplier: sup }),
-        }
-      );
-      if (!res.ok)
-        throw new Error(`Lưu nhà cung cấp thất bại (${res.status})`);
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplier: sup }),
+      });
+
+      if (!res.ok) throw new Error(`Lưu nhà cung cấp thất bại (${res.status})`);
+
       setIsEditingSupplier(false);
       setNotify("Đã cập nhật nhà cung cấp.");
     } catch (e) {
-      setNotify("Không thể lưu nhà cung cấp: " + e.message);
+      setNotify("Không thể lưu nhà cung cấp: " + (e?.message || ""));
     } finally {
       setSavingSupplier(false);
     }
   };
 
   const isConfirmed = status === 1;
+
+  const productOptions = products.map((p) => ({
+    value: String(p.id),
+    label: `${p.id} - ${p.name}`,
+  }));
+
+  const uomOptions = uoms
+    .map((u) => u?.name)
+    .filter((x) => x != null && String(x).trim())
+    .map((name) => ({ value: String(name), label: String(name) }));
+
+  const productLocked =
+    productInputMode === "select" && !!findProductById(form.productId); // có trong danh mục thì khóa sửa tay name/uom
 
   return (
     <WarehouseLayout>
@@ -369,37 +368,25 @@ const ReceivingSlipItems = () => {
               <Breadcrumb.Item href="/warehouse-dashboard">
                 <FontAwesomeIcon icon={faHome} /> Bảng điều phối
               </Breadcrumb.Item>
-              <Breadcrumb.Item href="/warehouse-dashboard/receiving-slips">
-                Phiếu nhập kho
-              </Breadcrumb.Item>
+              <Breadcrumb.Item href="/warehouse-dashboard/receiving-slips">Phiếu nhập kho</Breadcrumb.Item>
               <Breadcrumb.Item active>Chi tiết phiếu</Breadcrumb.Item>
             </Breadcrumb>
           </div>
+
           <h1 className="wm-page-title">Chi tiết phiếu nhập RC{id}</h1>
           <p className="wm-page-subtitle">
-            Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp
-            nhận thực tế.
+            Theo dõi danh sách hàng hóa trong phiếu và cập nhật số liệu tiếp nhận thực tế.
           </p>
         </div>
 
         <div className="wm-page-actions">
-          <button
-            type="button"
-            className="wm-btn wm-btn--light"
-            onClick={() => navigate("/warehouse-dashboard/receiving-slips")}
-          >
-            <FontAwesomeIcon icon={faArrowLeft} />
-            Quay lại danh sách
+          <button type="button" className="wm-btn wm-btn--light" onClick={() => navigate("/warehouse-dashboard/receiving-slips")}>
+            <FontAwesomeIcon icon={faArrowLeft} /> Quay lại danh sách
           </button>
 
           {!isConfirmed && (
-            <button
-              type="button"
-              className="wm-btn wm-btn--primary"
-              onClick={openCreate}
-            >
-              <FontAwesomeIcon icon={faPlus} />
-              Tạo mới
+            <button type="button" className="wm-btn wm-btn--primary" onClick={openCreate}>
+              <FontAwesomeIcon icon={faPlus} /> Tạo mới
             </button>
           )}
         </div>
@@ -408,6 +395,7 @@ const ReceivingSlipItems = () => {
       <div className="wm-surface mb-3">
         <div className="d-flex align-items-center justify-content-between mb-1">
           <Form.Label className="mb-0">Nhà cung cấp</Form.Label>
+
           {!isConfirmed &&
             (!isEditingSupplier ? (
               <FontAwesomeIcon
@@ -420,14 +408,10 @@ const ReceivingSlipItems = () => {
               />
             ) : (
               <div className="d-flex gap-2">
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={saveSupplier}
-                  disabled={savingSupplier}
-                >
+                <Button variant="success" size="sm" onClick={saveSupplier} disabled={savingSupplier}>
                   <FontAwesomeIcon icon={faSave} />
                 </Button>
+
                 <Button
                   variant="outline-secondary"
                   size="sm"
@@ -443,6 +427,7 @@ const ReceivingSlipItems = () => {
               </div>
             ))}
         </div>
+
         <Form.Control
           type="text"
           value={supplier}
@@ -451,9 +436,8 @@ const ReceivingSlipItems = () => {
           isInvalid={!!supplierErr}
           placeholder="Nhập nhà cung cấp"
         />
-        {supplierErr && (
-          <div className="text-danger small mt-1">{supplierErr}</div>
-        )}
+
+        {supplierErr && <div className="text-danger small mt-1">{supplierErr}</div>}
       </div>
 
       <div className="wm-summary">
@@ -462,16 +446,16 @@ const ReceivingSlipItems = () => {
           <span className="wm-summary__value">{totals.totalItems}</span>
           <span className="wm-subtle-text">Sản phẩm trong phiếu nhập</span>
         </div>
+
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng số lượng</span>
           <span className="wm-summary__value">{totals.totalQty}</span>
           <span className="wm-subtle-text">Không theo đơn vị cụ thể</span>
         </div>
+
         <div className="wm-summary__card">
           <span className="wm-summary__label">Tổng giá trị đơn hàng</span>
-          <span className="wm-summary__value">
-            {totals.totalValue.toLocaleString("vi-VN")} đ
-          </span>
+          <span className="wm-summary__value">{safeNumber(totals.totalValue, 0).toLocaleString("vi-VN")} đ</span>
           <span className="wm-subtle-text">Chưa bao gồm thuế</span>
         </div>
       </div>
@@ -490,6 +474,7 @@ const ReceivingSlipItems = () => {
               {!isConfirmed && <th className="text-end">Thao tác</th>}
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
@@ -504,53 +489,42 @@ const ReceivingSlipItems = () => {
                 </td>
               </tr>
             ) : (
-              pagedItems.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{(page - 1) * PAGE_SIZE + index + 1}</td>
-                  <td>
-                    <span className="fw-semibold">
-                      {item.productCode || "Chưa có mã"}
-                    </span>
-                  </td>
-                  <td>
-                    <span title={item.productName || ""}>
-                      {truncateText(item.productName || "", 60) || "-"}
-                    </span>
-                  </td>
-                  <td>{item.uom}</td>
-                  <td>{item.quantity}</td>
-                  <td>
-                    {Number(item.unitPrice || 0).toLocaleString("vi-VN")} đ
-                  </td>
-                  <td>
-                    {(
-                      Number(item.unitPrice || 0) *
-                      Number(item.quantity || 0)
-                    ).toLocaleString("vi-VN")}{" "}
-                    đ
-                  </td>
+              pagedItems.map((item, index) => {
+                const qty = safeNumber(item.quantity, 0);
+                const price = safeNumber(item.unitPrice, 0);
+                const lineTotal = qty * price;
 
-                  {!isConfirmed && (
-                    <td className="text-end">
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => openEdit(item)}
-                        className="me-2"
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </Button>
+                return (
+                  <tr key={item.id}>
+                    <td>{(page - 1) * PAGE_SIZE + index + 1}</td>
+
+                    <td>
+                      <span className="fw-semibold">{truncateText(item.productCode, 40, "N/A")}</span>
                     </td>
-                  )}
-                </tr>
-              ))
+
+                    <td title={item.productName || "N/A"}>{truncateText(item.productName, 60, "N/A")}</td>
+
+                    <td>{truncateText(item.uom, 20, "N/A")}</td>
+
+                    <td>{qty}</td>
+
+                    <td>{price.toLocaleString("vi-VN")} đ</td>
+
+                    <td>{lineTotal.toLocaleString("vi-VN")} đ</td>
+
+                    {!isConfirmed && (
+                      <td className="text-end">
+                        <Button variant="outline-primary" size="sm" onClick={() => openEdit(item)} className="me-2">
+                          <FontAwesomeIcon icon={faEdit} />
+                        </Button>
+                        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>
@@ -562,19 +536,12 @@ const ReceivingSlipItems = () => {
         </div>
 
         <div className="btn-group">
-          <button
-            className="btn btn-outline-secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
+          <button className="btn btn-outline-secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
             Trước
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(
-              (p) =>
-                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-            )
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -582,19 +549,13 @@ const ReceivingSlipItems = () => {
             }, [])
             .map((p, i) =>
               p === "..." ? (
-                <button
-                  key={`gap-${i}`}
-                  className="btn btn-outline-light"
-                  disabled
-                >
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
                   ...
                 </button>
               ) : (
                 <button
                   key={p}
-                  className={`btn ${
-                    p === page ? "btn-primary" : "btn-outline-secondary"
-                  }`}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setPage(p)}
                 >
                   {p}
@@ -616,13 +577,13 @@ const ReceivingSlipItems = () => {
         <Modal.Header closeButton>
           <Modal.Title>{mode === "create" ? "Tạo" : "Chỉnh sửa"}</Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <span className="wm-subtle-text">
-              {mode === "create"
-                ? "Điền thông tin sản phẩm sẽ nhập kho."
-                : "Chỉnh sửa thông tin đã chọn."}
+              {mode === "create" ? "Điền thông tin sản phẩm sẽ nhập kho." : "Chỉnh sửa thông tin đã chọn."}
             </span>
+
             <div className="d-flex gap-2">
               <Badge
                 bg={productInputMode === "select" ? "primary" : "light"}
@@ -632,6 +593,7 @@ const ReceivingSlipItems = () => {
               >
                 Chọn từ danh sách
               </Badge>
+
               <Badge
                 bg={productInputMode === "input" ? "primary" : "light"}
                 text={productInputMode === "input" ? undefined : "dark"}
@@ -645,75 +607,57 @@ const ReceivingSlipItems = () => {
 
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Mã sản phẩm</Form.Label>
+              <Form.Label>Sản phẩm</Form.Label>
+
               {productInputMode === "select" ? (
-                <Select
-                  options={products.map((p) => ({
-                    value: p.id,
-                    label: `${p.id} - ${p.name}`,
-                  }))}
-                  value={
-                    form.productId
-                      ? {
-                          value: form.productId,
-                          label: `${form.productId} - ${form.productName}`,
-                        }
-                      : null
-                  }
-                  onChange={(option) => {
-                    if (!option) {
+                <>
+                  <Select
+                    options={productOptions}
+                    value={
+                      form.productId
+                        ? productOptions.find((x) => x.value === String(form.productId)) || null
+                        : null
+                    }
+                    onChange={(option) => {
+                      if (!option) {
+                        setForm({ ...form, productId: "", productName: "", uom: "" });
+                        return;
+                      }
+                      const selected = findProductById(option.value);
                       setForm({
                         ...form,
-                        productId: "",
-                        productName: "",
-                        uom: "",
+                        productId: option.value,
+                        productName: selected?.name || "",
+                        uom: selected?.uom || "",
                       });
-                      return;
-                    }
-                    const selected = findProductById(option.value);
-                    setForm({
-                      ...form,
-                      productId: option.value,
-                      productName: selected?.name || "",
-                      uom: selected?.uom || "",
-                    });
-                  }}
-                  placeholder="Chọn sản phẩm"
-                  isClearable
-                  styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
-                  menuPortalTarget={document.body}
-                />
+                    }}
+                    placeholder="Chọn sản phẩm"
+                    isClearable
+                    styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
+                    menuPortalTarget={document.body}
+                  />
+                  {formErrs.productId && <div className="text-danger small mt-1">{formErrs.productId}</div>}
+                </>
               ) : (
-                <Form.Control
-                  type="text"
-                  min={1}
-                  placeholder="Nhập mã sản phẩm"
-                  value={form.productId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const found = findProductById(val);
-                    if (found) {
-                      setForm({
-                        ...form,
-                        productId: val,
-                        productName: found.name,
-                        uom: found.uom || "",
-                      });
-                    } else {
-                      setForm({
-                        ...form,
-                        productId: val,
-                        productName: "",
-                        uom: "",
-                      });
-                    }
-                  }}
-                  isInvalid={!!formErrs.productId}
-                />
+                <>
+                  <Form.Control
+                    type="text"
+                    placeholder="Nhập mã sản phẩm"
+                    value={form.productId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const found = findProductById(val);
+                      if (found) {
+                        setForm({ ...form, productId: val, productName: found.name, uom: found.uom || "" });
+                      } else {
+                        setForm({ ...form, productId: val, productName: "", uom: "" });
+                      }
+                    }}
+                    isInvalid={!!formErrs.productId}
+                  />
+                  <Form.Control.Feedback type="invalid">{formErrs.productId}</Form.Control.Feedback>
+                </>
               )}
-              <Form.Control.Feedback type="invalid">
-                {formErrs.productId}
-              </Form.Control.Feedback>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -721,70 +665,50 @@ const ReceivingSlipItems = () => {
               <Form.Control
                 type="text"
                 value={form.productName}
-                placeholder={
-                  productInputMode === "input"
-                    ? "Nhập tên sản phẩm"
-                    : "Tên sẽ tự điền theo mã sản phẩm"
-                }
-                onChange={(e) =>
-                  setForm({ ...form, productName: e.target.value })
-                }
-                disabled={
-                  productInputMode === "select" &&
-                  !!findProductById(form.productId)
-                }
+                placeholder={productInputMode === "input" ? "Nhập tên sản phẩm" : "Tên sẽ tự điền theo sản phẩm"}
+                onChange={(e) => setForm({ ...form, productName: e.target.value })}
+                disabled={productLocked}
                 isInvalid={!!formErrs.productName}
               />
-              <Form.Control.Feedback type="invalid">
-                {formErrs.productName}
-              </Form.Control.Feedback>
+              <Form.Control.Feedback type="invalid">{formErrs.productName}</Form.Control.Feedback>
             </Form.Group>
 
             <div className="row">
               <div className="col-md-6 mb-3">
-                <Form.Group className="mb-3">
-                  <Form.Label>Đơn vị tính</Form.Label>
+                <Form.Label>Đơn vị tính</Form.Label>
+                <>
                   <Select
-                    options={uoms.map((u) => ({
-                      value: u.name,
-                      label: u.name,
-                    }))}
-                    value={
-                      form.uom ? { value: form.uom, label: form.uom } : null
-                    }
-                    onChange={(option) =>
-                      setForm({ ...form, uom: option?.value || "" })
-                    }
-                    placeholder="Chọn đơn vị tính "
+                    options={uomOptions}
+                    value={form.uom ? { value: form.uom, label: form.uom } : null}
+                    onChange={(option) => setForm({ ...form, uom: option?.value || "" })}
+                    placeholder="Chọn đơn vị tính"
                     isClearable
-                    styles={{
-                      menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-                    }}
+                    styles={{ menuPortal: (base) => ({ ...base, zIndex: 9999 }) }}
                     menuPortalTarget={document.body}
                     isDisabled={!!form.uom}
                   />
-                  {formErrs.uom && (
-                    <div className="text-danger small mt-1">
-                      {formErrs.uom}
-                    </div>
-                  )}
-                </Form.Group>
+                  {formErrs.uom && <div className="text-danger small mt-1">{formErrs.uom}</div>}
+                </>
               </div>
+
               <div className="col-md-6 mb-3">
                 <Form.Label>Số lượng</Form.Label>
                 <InputGroup>
                   <Form.Control
                     type="text"
-                    min={1}
                     value={form.quantity}
-                    onChange={(e) =>
-                      setForm({ ...form, quantity: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        setForm({ ...form, quantity: "" });
+                        return;
+                      }
+                      const n = Number(raw);
+                      setForm({ ...form, quantity: Number.isFinite(n) ? n : form.quantity });
+                    }}
                     isInvalid={!!formErrs.quantity}
                   />
-                  <Form.Control.Feedback type="invalid">
-                    {formErrs.quantity}
-                  </Form.Control.Feedback>
+                  <Form.Control.Feedback type="invalid">{formErrs.quantity}</Form.Control.Feedback>
                 </InputGroup>
               </div>
             </div>
@@ -794,31 +718,27 @@ const ReceivingSlipItems = () => {
               <InputGroup>
                 <Form.Control
                   type="text"
-                  min={0}
                   value={form.unitPrice}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      unitPrice:
-                        e.target.value === "" ? "" : Number(e.target.value),
-                    })
-                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setForm({ ...form, unitPrice: "" });
+                      return;
+                    }
+                    const n = Number(raw);
+                    setForm({ ...form, unitPrice: Number.isFinite(n) ? n : form.unitPrice });
+                  }}
                   isInvalid={!!formErrs.unitPrice}
                 />
                 <InputGroup.Text>VNĐ</InputGroup.Text>
-                <Form.Control.Feedback type="invalid">
-                  {formErrs.unitPrice}
-                </Form.Control.Feedback>
+                <Form.Control.Feedback type="invalid">{formErrs.unitPrice}</Form.Control.Feedback>
               </InputGroup>
             </Form.Group>
           </Form>
         </Modal.Body>
+
         <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            onClick={() => setShowModal(false)}
-            disabled={saving}
-          >
+          <Button variant="outline-secondary" onClick={() => setShowModal(false)} disabled={saving}>
             Hủy
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -838,13 +758,7 @@ const ReceivingSlipItems = () => {
             zIndex: 9999,
           }}
         >
-          <Toast
-            onClose={() => setNotify(null)}
-            show={!!notify}
-            delay={3500}
-            autohide
-            bg="danger"
-          >
+          <Toast onClose={() => setNotify(null)} show={!!notify} delay={3500} autohide bg="danger">
             <Toast.Header closeButton>
               <strong className="me-auto">Thông báo</strong>
             </Toast.Header>
