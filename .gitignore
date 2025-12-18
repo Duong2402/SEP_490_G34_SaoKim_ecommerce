@@ -55,3 +55,6 @@ nunit-*.xml
 
 #Visual Studio profiler
 .vs/
+/SEP_490/SaoKim_Ecommerce/.idea
+/.idea
+.env

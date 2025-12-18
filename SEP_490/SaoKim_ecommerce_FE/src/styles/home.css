@@ -54,7 +54,7 @@ h6 {
   min-height: clamp(60vh, 70vh, 80vh);
   padding: clamp(56px, 7vw, 96px) 0;
   color: #ffffff;
-  background: url('/images/hero-banner.png') center/cover no-repeat;
+  background: url('/assets/images/hero-banner.png') center/cover no-repeat;
   overflow: hidden;
 }
 
