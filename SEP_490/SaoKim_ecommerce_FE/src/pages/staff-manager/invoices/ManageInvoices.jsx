@@ -18,7 +18,6 @@ import {
   ButtonGroup,
   Card,
   Col,
-  Dropdown,
   Form,
   InputGroup,
   Pagination,
@@ -26,6 +25,7 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
+import { Dropdown } from "react-bootstrap";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../../layouts/StaffLayout";

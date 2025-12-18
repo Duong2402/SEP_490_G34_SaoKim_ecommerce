@@ -12,7 +12,7 @@ const normalizeDefaults = (d = {}) => ({
   price: d.price ?? 0,
   stock: d.stock ?? d.quantity ?? 0,
   active: d.active ?? (d.status ? d.status === "Active" : true),
-  unit: d.unit ?? "",
+  unit: String(d.unit ?? "").trim(),
   description: d.description ?? "",
   supplier: d.supplier ?? "",
   note: d.note ?? "",
@@ -44,6 +44,8 @@ export default function ProductForm({
     handleSubmit,
     watch,
     setValue,
+    reset,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: defaults,
@@ -64,6 +66,13 @@ export default function ProductForm({
 
   const categoryId = watch("categoryId");
   const price = watch("price");
+  const unitWatch = watch("unit");
+
+  useEffect(() => {
+    console.log("defaults.unit =", defaults.unit);
+    console.log("watch(unit) =", unitWatch);
+  }, [defaults.unit, unitWatch]);
+
   const updateAt = defaults.updateAt;
 
   useEffect(() => {
@@ -81,6 +90,22 @@ export default function ProductForm({
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!uoms || uoms.length === 0) return;
+
+    const current = String(getValues("unit") ?? "").trim();
+    const desired = String(defaults.unit ?? "").trim();
+    const target = current || desired;
+
+    if (!target) return;
+ 
+    const ok = uoms.some((u) => String(u.name ?? u.Name ?? "").trim() === target);
+    if (!ok) return;
+
+    setValue("unit", target, { shouldValidate: true, shouldDirty: false });
+  }, [uoms, defaults.unit, getValues, setValue]);
+
 
   const handleCategorySelect = (e) => {
     const v = e.target.value;
@@ -274,11 +299,14 @@ export default function ProductForm({
             disabled={disabled || uoms.length === 0}
           >
             <option value="">-- Chọn đơn vị tính --</option>
-            {uoms.map((u) => (
-              <option key={u.id ?? u.Id} value={u.name ?? u.Name}>
-                {u.name ?? u.Name}
-              </option>
-            ))}
+            {uoms.map((u) => {
+              const name = String(u.name ?? u.Name ?? "").trim();
+              return (
+                <option key={u.id ?? u.Id ?? name} value={name}>
+                  {name}
+                </option>
+              );
+            })}
           </Form.Select>
           <Form.Control.Feedback type="invalid">
             {errors.unit?.message}

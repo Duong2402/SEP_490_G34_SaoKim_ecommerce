@@ -12,7 +12,6 @@ import {
   ButtonGroup,
   Card,
   Col,
-  Dropdown,
   Form,
   InputGroup,
   Pagination,
@@ -20,7 +19,8 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-import { useEffect, useState } from "react";
+import { Dropdown } from "react-bootstrap";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import StaffLayout from "../../../layouts/StaffLayout";
@@ -33,8 +33,10 @@ export default function ManageCustomers() {
   const [search, setSearch] = useState("");
   const [createdFrom, setCreatedFrom] = useState(null);
   const [createdTo, setCreatedTo] = useState(null);
+
   const [minSpend, setMinSpend] = useState("");
   const [minOrders, setMinOrders] = useState("");
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortBy, setSortBy] = useState("created");
@@ -48,6 +50,18 @@ export default function ManageCustomers() {
 
   const debouncedSearch = useDebounce(search, 400);
 
+  const parsedMinOrders = useMemo(() => {
+    if (minOrders === "") return undefined;
+    const n = Number(minOrders);
+    return Number.isFinite(n) ? n : undefined;
+  }, [minOrders]);
+
+  const parsedMinSpend = useMemo(() => {
+    if (minSpend === "") return undefined;
+    const n = Number(minSpend);
+    return Number.isFinite(n) ? n : undefined;
+  }, [minSpend]);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -55,8 +69,8 @@ export default function ManageCustomers() {
         q: debouncedSearch,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
-        minSpend: minSpend || undefined,
-        minOrders: minOrders || undefined,
+        minSpend: parsedMinSpend,
+        minOrders: parsedMinOrders,
         sortBy,
         sortDir,
         page,
@@ -65,7 +79,7 @@ export default function ManageCustomers() {
 
       setRows(res.items ?? []);
       setTotal(res.total ?? 0);
-      setTotalPages(Math.max(1, Math.ceil(res.total / res.pageSize)));
+      setTotalPages(Math.max(1, Math.ceil((res.total ?? 0) / (res.pageSize ?? pageSize))));
     } catch (error) {
       console.error(error);
       alert("Không tải được danh sách khách hàng");
@@ -76,8 +90,17 @@ export default function ManageCustomers() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, createdFrom, createdTo, minSpend, minOrders, page, pageSize, sortBy, sortDir]);
+  }, [
+    debouncedSearch,
+    createdFrom,
+    createdTo,
+    parsedMinSpend,
+    parsedMinOrders,
+    page,
+    pageSize,
+    sortBy,
+    sortDir,
+  ]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -86,6 +109,10 @@ export default function ManageCustomers() {
         q: debouncedSearch,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
+        minSpend: parsedMinSpend,
+        minOrders: parsedMinOrders,
+        sortBy,
+        sortDir,
       });
 
       const url = window.URL.createObjectURL(blob);
@@ -123,7 +150,12 @@ export default function ManageCustomers() {
           <h4 className="staff-page-title">Quản lý khách hàng</h4>
         </div>
 
-        <Button variant="outline-primary" size="sm" onClick={handleExport} disabled={exporting}>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting}
+        >
           <FontAwesomeIcon icon={faDownload} className="me-2" />
           {exporting ? "Đang xuất..." : "Xuất Excel"}
         </Button>
@@ -183,11 +215,18 @@ export default function ManageCustomers() {
             <Col xs={12} md={2}>
               <Form.Label>Chi tiêu tối thiểu</Form.Label>
               <Form.Control
-                type="number"
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
                 value={minSpend}
                 onChange={(e) => {
-                  setMinSpend(e.target.value);
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setMinSpend(v);
                   setPage(1);
+                }}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData("text");
+                  if (text && !/^\d+$/.test(text)) e.preventDefault();
                 }}
               />
             </Col>
@@ -195,18 +234,30 @@ export default function ManageCustomers() {
             <Col xs={12} md={2}>
               <Form.Label>Đơn hàng tối thiểu</Form.Label>
               <Form.Control
-                type="number"
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
                 value={minOrders}
                 onChange={(e) => {
-                  setMinOrders(e.target.value);
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setMinOrders(v);
                   setPage(1);
+                }}
+                onPaste={(e) => {
+                  const text = e.clipboardData.getData("text");
+                  if (text && !/^\d+$/.test(text)) e.preventDefault();
                 }}
               />
             </Col>
 
             <Col xs={12} md="auto" className="ms-md-auto">
               <Dropdown as={ButtonGroup}>
-                <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
+                <Dropdown.Toggle
+                  split
+                  as={Button}
+                  variant="link"
+                  className="text-dark m-0 p-0"
+                >
                   <FontAwesomeIcon icon={faCog} />
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
@@ -221,7 +272,9 @@ export default function ManageCustomers() {
                       }}
                     >
                       {n} dòng
-                      {pageSize === n && <FontAwesomeIcon icon={faCheck} className="ms-2" />}
+                      {pageSize === n && (
+                        <FontAwesomeIcon icon={faCheck} className="ms-2" />
+                      )}
                     </Dropdown.Item>
                   ))}
 
@@ -302,20 +355,28 @@ export default function ManageCustomers() {
                   <tr key={c.id}>
                     <td>{(page - 1) * pageSize + idx + 1}</td>
                     <td>
-                      <Button variant="link" className="p-0" onClick={() => navigate(`/staff-view-customers/${c.id}`)}>
+                      <Button
+                        variant="link"
+                        className="p-0"
+                        onClick={() => navigate(`/staff-view-customers/${c.id}`)}
+                      >
                         {c.name}
                       </Button>
                     </td>
                     <td>{c.email}</td>
                     <td>{c.phoneNumber}</td>
                     <td className="text-end">{c.ordersCount}</td>
-                    <td className="text-end">{(c.totalSpend ?? 0).toLocaleString("vi-VN")} ₫</td>
+                    <td className="text-end">
+                      {(c.totalSpend ?? 0).toLocaleString("vi-VN")} ₫
+                    </td>
                     <td>{formatDate(c.createAt)}</td>
                     <td className="text-end">
                       <Button
                         size="sm"
                         variant="outline-primary"
-                        onClick={() => navigate(`/staff/manager-orders?customerId=${c.id}`)}
+                        onClick={() =>
+                          navigate(`/staff/manager-orders?customerId=${c.id}`)
+                        }
                       >
                         Xem đơn
                       </Button>
@@ -339,13 +400,25 @@ export default function ManageCustomers() {
               Trang {page} / {totalPages}
             </div>
             <Pagination>
-              <Pagination.First disabled={page <= 1} onClick={() => setPage(1)} />
-              <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
+              <Pagination.First
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              />
+              <Pagination.Prev
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
 
               {renderPageItems(page, totalPages, setPage)}
 
-              <Pagination.Next disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} />
-              <Pagination.Last disabled={page >= totalPages} onClick={() => setPage(totalPages)} />
+              <Pagination.Next
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
+              <Pagination.Last
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              />
             </Pagination>
           </div>
         </Card.Body>
@@ -385,19 +458,25 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2)
+      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
+      <Pagination.Item
+        key={p}
+        active={p === current}
+        onClick={() => onClick(p)}
+      >
         {p}
       </Pagination.Item>
     );
   }
 
   if (end < total) {
-    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1)
+      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

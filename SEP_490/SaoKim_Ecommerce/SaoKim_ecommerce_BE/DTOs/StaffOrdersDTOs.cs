@@ -75,7 +75,6 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? ShippingProvince { get; set; }
         public string? CustomerMessage { get; set; }
 
-
         public List<StaffOrderItemDto> Items { get; set; } = new();
     }
 }
