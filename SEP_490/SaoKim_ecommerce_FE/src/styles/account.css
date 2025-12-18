@@ -190,6 +190,18 @@
   color: var(--account-muted);
 }
 
+.account-field input.account-input--error {
+  border-color: rgba(220, 38, 38, 0.65);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.account-field__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--account-error);
+}
+
 .account-field select,
 .account-field textarea {
   border-radius: 12px;

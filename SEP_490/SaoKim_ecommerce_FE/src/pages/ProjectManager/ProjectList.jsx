@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProjectAPI } from "../../api/ProjectManager/projects";
 import {
@@ -15,6 +15,8 @@ export default function ProjectList() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const statusOptions = useMemo(
     () => [{ value: "all", label: "Tất cả trạng thái" }, ...PROJECT_STATUSES],
@@ -58,6 +60,10 @@ export default function ProjectList() {
     });
   }, [projects, search, statusFilter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const metrics = useMemo(() => {
     const total = projects.length;
     const active = projects.filter((p) => p.status === "InProgress" || p.status === "Active").length;
@@ -68,6 +74,13 @@ export default function ProjectList() {
     );
     return { total, active, completed, budget };
   }, [projects]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="pm-page">
@@ -145,7 +158,7 @@ export default function ProjectList() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProjects.map((project) => (
+                {paginatedProjects.map((project) => (
                   <tr key={project.id}>
                     <td className="table-code">
                       {project.id ? (
@@ -181,7 +194,9 @@ export default function ProjectList() {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => alert("Không được phép xóa dự án từ tài khoản Project Manager")}
+                        onClick={() =>
+                          alert("Không được phép xóa dự án từ tài khoản Project Manager")
+                        }
                       >
                         Xóa
                       </button>
@@ -190,13 +205,51 @@ export default function ProjectList() {
                 ))}
               </tbody>
             </table>
+
+            <div className="pm-pagination">
+              <div className="pagination-info">
+                Trang {currentPage} / {totalPages}
+              </div>
+              <div className="pagination-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage(1)}
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Trước
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Sau
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage(totalPages)}
+                >
+                  »
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-state-title">Chưa có dự án</div>
-            <div className="empty-state-subtitle">
-              Hiện chưa có dự án nào được gán cho bạn.
-            </div>
+            <div className="empty-state-subtitle">Hiện chưa có dự án nào được gán cho bạn.</div>
           </div>
         )}
       </div>

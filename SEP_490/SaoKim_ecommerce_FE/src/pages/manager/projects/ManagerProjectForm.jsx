@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { UserAPI } from "../../../api/users";
+import { CustomerAPI } from "../../../api/customers";
 
 const STATUS_OPTIONS = [
   { value: "Draft", label: "Nháp" },
@@ -46,6 +47,38 @@ const getDateError = (startValue, endValue) => {
   return "";
 };
 
+const VN_PHONE_REGEX = /^0\d{9}$/;
+const GMAIL_REGEX = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
+const PHONE_LIKE_REGEX = /^[\d\s+().-]+$/;
+
+const normalizeVietnamPhoneForValidation = (value = "") => {
+  const digits = String(value).replace(/\D/g, "");
+  if (digits.startsWith("84")) {
+    if (digits.length === 11) return `0${digits.slice(2)}`;
+    if (digits.length === 12 && digits[2] === "0") return digits.slice(2);
+  }
+  return digits;
+};
+
+const getCustomerContactError = (raw) => {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+
+  if (value.includes("@")) {
+    if (GMAIL_REGEX.test(value)) return "";
+    return "Liên hệ khách hàng phải là Gmail hợp lệ (VD: example@gmail.com) hoặc số điện thoại (0xxxxxxxxx).";
+  }
+
+  if (!PHONE_LIKE_REGEX.test(value)) {
+    return "Liên hệ khách hàng phải là số điện thoại (0xxxxxxxxx) hoặc Gmail hợp lệ (VD: example@gmail.com).";
+  }
+
+  const phone = normalizeVietnamPhoneForValidation(value);
+  if (VN_PHONE_REGEX.test(phone)) return "";
+
+  return "Số điện thoại phải bắt đầu bằng 0 và gồm đúng 10 chữ số (VD: 0359793323).";
+};
+
 export default function ManagerProjectForm({ initialValues, onSubmit, submitting }) {
   const [values, setValues] = useState({
     name: "",
@@ -63,6 +96,10 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
   const [pmLoading, setPmLoading] = useState(false);
   const [pmError, setPmError] = useState("");
   const [dateError, setDateError] = useState("");
+  const [contactTouched, setContactTouched] = useState(false);
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerLoadError, setCustomerLoadError] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -94,6 +131,55 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    const q = String(values.customerName || "").trim();
+    const handle = setTimeout(async () => {
+      try {
+        setCustomerLoading(true);
+        setCustomerLoadError("");
+
+        const res = await CustomerAPI.getAll({ q, page: 1, pageSize: 12 });
+        const body = res?.data?.data ?? res?.data ?? res ?? {};
+        const list = Array.isArray(body)
+          ? body
+          : body.items ?? body.data?.items ?? body.data ?? [];
+
+        const normalized = (Array.isArray(list) ? list : [])
+          .map((c) => ({
+            id: c.id ?? c.customerId ?? c.userId ?? c.email ?? c.name,
+            name: c.name ?? "",
+            email: c.email,
+            phoneNumber: c.phoneNumber,
+          }))
+          .filter((c) => String(c.name || "").trim());
+
+        const uniqueByName = new Map();
+        normalized.forEach((c) => {
+          const key = String(c.name).trim().toLowerCase();
+          if (!uniqueByName.has(key)) uniqueByName.set(key, c);
+        });
+
+        if (mounted) {
+          setCustomerSuggestions(Array.from(uniqueByName.values()));
+        }
+      } catch (err) {
+        console.error(err);
+        if (mounted) {
+          setCustomerSuggestions([]);
+          setCustomerLoadError("Không tải được danh sách khách hàng.");
+        }
+      } finally {
+        if (mounted) setCustomerLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      mounted = false;
+      clearTimeout(handle);
+    };
+  }, [values.customerName]);
+
+  useEffect(() => {
     if (initialValues) {
       setValues((prev) => ({
         ...prev,
@@ -108,12 +194,15 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
         projectManagerId:
           initialValues.projectManagerId != null ? String(initialValues.projectManagerId) : "",
       }));
+      setContactTouched(false);
     }
   }, [initialValues]);
 
   useEffect(() => {
     setDateError(getDateError(values.startDate, values.endDate));
   }, [values.startDate, values.endDate]);
+
+  const contactError = getCustomerContactError(values.customerContact);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -131,10 +220,22 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
       setDateError(nextDateError);
       return;
     }
+
+    const nextContactError = getCustomerContactError(values.customerContact);
+    if (nextContactError) {
+      setContactTouched(true);
+      return;
+    }
     const normalizedBudget = normalizeBudgetValue(values.budget);
+    const normalizedCustomerContact = values.customerContact
+      ? values.customerContact.includes("@")
+        ? values.customerContact.trim()
+        : normalizeVietnamPhoneForValidation(values.customerContact)
+      : "";
 
     const payload = {
       ...values,
+      customerContact: normalizedCustomerContact,
       budget: normalizedBudget,
       projectManagerId: values.projectManagerId ? Number(values.projectManagerId) : null,
     };
@@ -200,8 +301,36 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
           name="customerName"
           value={values.customerName}
           onChange={handleChange}
+          list="customer-name-suggestions"
+          placeholder="Chọn hoặc nhập tên khách hàng"
+          autoComplete="off"
           className="manager-form__control"
         />
+        <datalist id="customer-name-suggestions">
+          {customerSuggestions.map((c, idx) => (
+            <option
+              key={c.id ?? `${c.name}-${idx}`}
+              value={c.name}
+              label={[c.phoneNumber, c.email].filter(Boolean).join(" | ")}
+            />
+          ))}
+        </datalist>
+        {customerLoading && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#5c6c82", fontSize: 12, marginTop: 4 }}
+          >
+            Đang tải danh sách khách hàng...
+          </div>
+        )}
+        {!customerLoading && customerLoadError && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {customerLoadError}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field">
@@ -210,8 +339,21 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
           name="customerContact"
           value={values.customerContact}
           onChange={handleChange}
-          className="manager-form__control"
+          onBlur={() => setContactTouched(true)}
+          placeholder="SDT (0xxxxxxxxx) hoặc Gmail (example@gmail.com)"
+          aria-invalid={contactTouched && !!contactError}
+          className={`manager-form__control${
+            contactTouched && contactError ? " manager-form__control--error" : ""
+          }`}
         />
+        {contactTouched && contactError && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {contactError}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field">
