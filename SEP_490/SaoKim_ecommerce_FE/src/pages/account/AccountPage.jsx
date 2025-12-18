@@ -13,7 +13,7 @@ import "../../styles/account.css";
 
 let API_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "https://localhost:7278";
+  "https://datdovan.id.vn";
 if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildImageUrl(image) {

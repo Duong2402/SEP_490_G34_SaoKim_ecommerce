@@ -127,7 +127,7 @@ export default function Register() {
       formData.append("dob", form.dob);
       formData.append("image", form.image);
 
-      const res = await fetch("https://localhost:7278/api/auth/register", {
+      const res = await fetch("https://datdovan.id.vn/api/auth/register", {
         method: "POST",
         body: formData,
       });

@@ -13,7 +13,7 @@ export async function createReceivingSlip() {
   };
 
   try {
-    const res = await fetch("https://localhost:7278/api/warehousemanager/receiving-slips", {
+    const res = await fetch("https://datdovan.id.vn/api/warehousemanager/receiving-slips", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
