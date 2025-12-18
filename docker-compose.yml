@@ -17,8 +17,8 @@
   backend:
     image: ${DOCKER_USERNAME}backend:${TAG:-latest}
     build:
-      context: .
-      dockerfile: SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE/Dockerfile
+      context: ./SEP_490/SaoKim_Ecommerce/SaoKim_ecommerce_BE
+      dockerfile: Dockerfile
     ports:
       - "5000:5000"
     environment:
@@ -34,8 +34,8 @@
     user: "0:0" # chạy với quyền root
   frontend:
     build:
-      context: .
-      dockerfile: SEP_490/SaoKim_ecommerce_FE/Dockerfile
+      context: ./SEP_490/SaoKim_ecommerce_FE
+      dockerfile: Dockerfile
     image: ${DOCKER_USERNAME}frontend:${TAG:-latest}
     ports:
       - "3000:3000"
