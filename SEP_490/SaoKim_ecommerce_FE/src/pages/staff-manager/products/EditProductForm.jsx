@@ -10,7 +10,7 @@ function EditProductForm({ id, initial, onSuccess, onCancel }) {
     const payload = {
       name: values.name,
       categoryId: values.categoryId ? Number(values.categoryId) : null,
-      unit: values.unit || initial?.unit,
+      unit: (values.unit || initial?.unit || "").trim(),
       price: values.price,
       quantity: values.stock,
       stock: values.stock,

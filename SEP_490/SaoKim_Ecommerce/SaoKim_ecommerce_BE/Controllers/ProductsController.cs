@@ -174,7 +174,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                     stock = x.Detail != null ? x.Detail.Quantity : 0,
                     status = x.Detail != null ? x.Detail.Status : null,
                     created = x.Detail != null ? x.Detail.CreateAt : null,
-                    unit = x.Detail != null ? x.Detail.Unit : null,
+                    categoryId = x.Detail != null ? x.Detail.CategoryId : (int?)null,
                     quantity = x.Detail != null ? x.Detail.Quantity : 0,
                     description = x.Detail != null ? x.Detail.Description : null,
                     supplier = x.Detail != null ? x.Detail.Supplier : null,
@@ -346,7 +346,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 name = product.ProductName
             });
         }
-
 
         // PUT: /api/products/{id}
         [HttpPut("{id:int}")]

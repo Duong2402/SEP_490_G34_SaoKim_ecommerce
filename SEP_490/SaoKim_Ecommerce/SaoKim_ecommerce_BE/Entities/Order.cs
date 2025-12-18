@@ -84,6 +84,10 @@ public class Order
     [MaxLength(100)]
     public string? ShippingProvince { get; set; }
 
+    [Column("customer_message")]
+    [MaxLength(1000)]
+    public string? CustomerMessage { get; set; }
+
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 
     public Invoice? Invoice { get; set; }

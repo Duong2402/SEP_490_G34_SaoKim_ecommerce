@@ -155,7 +155,7 @@ namespace SaoKim_ecommerce_BE.Services
                 throw new ArgumentException("Số điện thoại phải bắt đầu bằng 0 và có 9-11 chữ số.");
 
             EnforceCooldown(email);
-
+            
             string? imagePath = await SaveImageIfAnyAsync(req);
 
             var pending = new PendingRegister

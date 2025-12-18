@@ -1,4 +1,3 @@
-
 import {
   faCheck,
   faCog,
@@ -17,7 +16,6 @@ import {
   ButtonGroup,
   Card,
   Col,
-  Dropdown,
   Form,
   InputGroup,
   Pagination,
@@ -25,7 +23,8 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-import { useEffect, useState } from "react";
+import { Dropdown } from "react-bootstrap";
+import { useEffect, useState, useMemo } from "react";
 import { Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../layouts/StaffLayout";
@@ -141,6 +140,23 @@ export default function ManageProduct() {
       setEditing(row);
     }
   };
+
+  const editInitial = useMemo(() => {
+    if (!editing) return null;
+    return {
+      sku: editing.sku,
+      name: editing.name,
+      categoryId: editing.categoryId,
+      unit: editing.unit,
+      price: editing.price,
+      stock: editing.stock ?? editing.quantity ?? 0,
+      active: editing.status === "Active" || editing.active === true,
+      description: editing.description,
+      supplier: editing.supplier,
+      note: editing.note,
+      updateAt: editing.updateAt,
+    };
+  }, [editing]);
 
   return (
     <StaffLayout>
@@ -456,20 +472,7 @@ export default function ManageProduct() {
               {editing && (
                 <EditProductForm
                   id={editing.id}
-                  initial={{
-                    sku: editing.sku,
-                    name: editing.name,
-                    categoryId: editing.categoryId,
-                    unit: editing.unit,
-                    price: editing.price,
-                    stock: editing.stock ?? editing.quantity ?? 0,
-                    active:
-                      editing.status === "Active" || editing.active === true,
-                    description: editing.description,
-                    supplier: editing.supplier,
-                    note: editing.note,
-                    updateAt: editing.updateAt,
-                  }}
+                  initial={editInitial}
                   onCancel={() => setEditing(null)}
                   onSuccess={() => {
                     setEditing(null);
