@@ -70,7 +70,7 @@ const WarehouseLayout = ({ children }) => {
 
   const baseUrl = useMemo(() => {
     const normalized = normalizeBase(RAW_API_BASE);
-    return normalized || "https://localhost:7278";
+    return normalized || "https://datdovan.id.vn";
   }, []);
 
   const hardLogout = () => {

@@ -4,7 +4,7 @@ import { API_BASE as RAW_API_BASE } from "../api/lib/apiClient";
 const normalizeBase = (u) => (u ? String(u).replace(/\/+$/, "") : "");
 
 // fallback nếu apiClient export rỗng
-const API_BASE = normalizeBase(RAW_API_BASE) || "https://localhost:7278";
+const API_BASE = normalizeBase(RAW_API_BASE) || "https://datdovan.id.vn";
 
 let conn = null;
 let starting = null;

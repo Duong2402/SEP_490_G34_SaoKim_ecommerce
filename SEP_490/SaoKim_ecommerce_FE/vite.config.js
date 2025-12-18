@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, cwd(), "");
-  const API_TARGET = env.VITE_API_TARGET || "https://localhost:7278";
+  const API_TARGET = env.VITE_API_TARGET || "https://datdovan.id.vn";
 
   return {
     plugins: [react()],

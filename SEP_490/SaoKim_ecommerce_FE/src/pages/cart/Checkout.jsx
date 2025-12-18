@@ -28,7 +28,7 @@ function readCheckoutItemsForOwner() {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const apiBase = "https://localhost:7278";
+  const apiBase = "https://datdovan.id.vn";
 
   const [cartItems, setCartItems] = useState(() => readCart());
   const [checkoutItems, setCheckoutItems] = useState(() => readCheckoutItemsForOwner());
