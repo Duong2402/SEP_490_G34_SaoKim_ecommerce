@@ -16,12 +16,12 @@ jobs:
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v0.1.10
       env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
         TAG: ${{ github.sha }}
-        ASPNETCORE_ENVIRONMENT: ${{ secrets.ASPNETCORE_ENVIRONMENT }}
-        DB_USERNAME: ${{ secrets.DB_USERNAME }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        DB_NAME: ${{ secrets.DB_NAME }}
+        ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
+        DB_USERNAME: ${{ vars.DB_USERNAME }}
+        DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+        DB_NAME: ${{ vars.DB_NAME }}
         GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         GEMINI__APIKEY: ${{ secrets.GEMINI__APIKEY }}
       with:
