@@ -2,11 +2,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Model.Requests;
 using SaoKim_ecommerce_BE.Models.Requests;
 using SaoKim_ecommerce_BE.Services;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -40,7 +42,7 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
         #region Register
 
         [Fact]
-        public async Task Register_ReturnsValidationProblem_WhenModelInvalid()
+        public async Task Register_ReturnsBadRequest_WithErrors_WhenModelInvalid()
         {
             var auth = new Mock<IAuthService>(MockBehavior.Strict);
             var controller = CreateController(auth);
@@ -57,11 +59,19 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
 
             var result = await controller.Register(req);
 
-            var obj = Assert.IsType<ObjectResult>(result);
-            var problem = Assert.IsType<ValidationProblemDetails>(obj.Value);
+            var bad = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(400, bad.StatusCode);
 
-            Assert.True(problem.Errors.ContainsKey("Name"));
-            Assert.Equal("Required", problem.Errors["Name"][0]);
+            var json = JsonSerializer.Serialize(bad.Value);
+            using var doc = JsonDocument.Parse(json);
+
+            Assert.True(doc.RootElement.TryGetProperty("message", out var msg));
+            Assert.Equal("Validation failed", msg.GetString());
+
+            var errors = doc.RootElement.GetProperty("errors");
+            Assert.True(errors.TryGetProperty("Name", out var nameErrors));
+            Assert.Equal(JsonValueKind.Array, nameErrors.ValueKind);
+            Assert.Equal("Required", nameErrors[0].GetString());
 
             auth.VerifyNoOtherCalls();
         }
@@ -353,5 +363,298 @@ namespace SaoKim_ecommerce_BE.Tests.Controllers
         }
 
         #endregion
+
+        #region VerifyRegister
+
+        [Fact]
+        public async Task VerifyRegister_ReturnsOk_WhenServiceSucceeds()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.VerifyRegisterAsync(It.IsAny<VerifyRegisterRequest>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("127.0.0.1");
+
+            var result = await controller.VerifyRegister(new VerifyRegisterRequest
+            {
+                Email = "a@a.com",
+                Code = "123456"
+            });
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+
+            Assert.Equal("Xác thực email thành công. Tài khoản đã được tạo.", msg);
+
+            auth.Verify(s => s.VerifyRegisterAsync(
+                It.Is<VerifyRegisterRequest>(r => r.Email == "a@a.com" && r.Code == "123456"),
+                It.Is<string>(ip => ip == "127.0.0.1")), Times.Once);
+
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task VerifyRegister_UsesUnknownIp_WhenRemoteIpNull()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.VerifyRegisterAsync(It.IsAny<VerifyRegisterRequest>(), "unknown"))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = null;
+
+            var result = await controller.VerifyRegister(new VerifyRegisterRequest
+            {
+                Email = "a@a.com",
+                Code = "123456"
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+
+            auth.Verify(s => s.VerifyRegisterAsync(It.IsAny<VerifyRegisterRequest>(), "unknown"), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task VerifyRegister_ReturnsBadRequest_WhenServiceThrowsArgumentException()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.VerifyRegisterAsync(It.IsAny<VerifyRegisterRequest>(), It.IsAny<string>()))
+                .ThrowsAsync(new ArgumentException("Mã OTP không đúng."));
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.2");
+
+            var result = await controller.VerifyRegister(new VerifyRegisterRequest { Email = "a@a.com", Code = "000000" });
+
+            var br = Assert.IsType<BadRequestObjectResult>(result);
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+
+            Assert.Equal("Mã OTP không đúng.", msg);
+
+            auth.Verify(s => s.VerifyRegisterAsync(It.IsAny<VerifyRegisterRequest>(), "10.0.0.2"), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region ResendRegisterCode
+
+        [Fact]
+        public async Task ResendRegisterCode_ReturnsOk_WhenServiceSucceeds()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ResendRegisterCodeAsync(It.IsAny<ResendRegisterCodeRequest>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("127.0.0.1");
+
+            var result = await controller.ResendRegisterCode(new ResendRegisterCodeRequest
+            {
+                Email = "a@a.com"
+            });
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+
+            Assert.Equal("Đã gửi lại mã OTP.", msg);
+
+            auth.Verify(s => s.ResendRegisterCodeAsync(
+                It.Is<ResendRegisterCodeRequest>(r => r.Email == "a@a.com"),
+                It.Is<string>(ip => ip == "127.0.0.1")), Times.Once);
+
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task ResendRegisterCode_UsesUnknownIp_WhenRemoteIpNull()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ResendRegisterCodeAsync(It.IsAny<ResendRegisterCodeRequest>(), "unknown"))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = null;
+
+            var result = await controller.ResendRegisterCode(new ResendRegisterCodeRequest { Email = "a@a.com" });
+
+            Assert.IsType<OkObjectResult>(result);
+
+            auth.Verify(s => s.ResendRegisterCodeAsync(It.IsAny<ResendRegisterCodeRequest>(), "unknown"), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task ResendRegisterCode_ReturnsBadRequest_WhenServiceThrowsArgumentException()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ResendRegisterCodeAsync(It.IsAny<ResendRegisterCodeRequest>(), It.IsAny<string>()))
+                .ThrowsAsync(new ArgumentException("1 email chỉ được gửi lại OTP sau 120 giây."));
+
+            var controller = CreateController(auth);
+            controller.ControllerContext.HttpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.3");
+
+            var result = await controller.ResendRegisterCode(new ResendRegisterCodeRequest { Email = "a@a.com" });
+
+            var br = Assert.IsType<BadRequestObjectResult>(result);
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+
+            Assert.Equal("1 email chỉ được gửi lại OTP sau 120 giây.", msg);
+
+            auth.Verify(s => s.ResendRegisterCodeAsync(It.IsAny<ResendRegisterCodeRequest>(), "10.0.0.3"), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region ForgotPassword additional
+
+        [Fact]
+        public async Task ForgotPassword_ReturnsBadRequest_WhenServiceThrowsArgumentException()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ForgotPasswordAsync(It.IsAny<ForgotPasswordRequest>()))
+                .ThrowsAsync(new ArgumentException("Không tìm thấy Email"));
+
+            var controller = CreateController(auth);
+
+            var result = await controller.ForgotPassword(new ForgotPasswordRequest { Email = "missing@a.com" });
+
+            var br = Assert.IsType<BadRequestObjectResult>(result);
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+
+            Assert.Equal("Không tìm thấy Email", msg);
+
+            auth.Verify(s => s.ForgotPasswordAsync(It.Is<ForgotPasswordRequest>(r => r.Email == "missing@a.com")), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region ResetPassword additional
+
+        [Fact]
+        public async Task ResetPassword_ReturnsBadRequest_WhenServiceThrowsArgumentException()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ResetPasswordAsync(It.IsAny<ResetPasswordRequest>()))
+                .ThrowsAsync(new ArgumentException("Mật khẩu mới phải có ít nhất 8 kí tự"));
+
+            var controller = CreateController(auth);
+
+            var result = await controller.ResetPassword(new ResetPasswordRequest());
+
+            var br = Assert.IsType<BadRequestObjectResult>(result);
+            var msg = br.Value?.GetType().GetProperty("message")?.GetValue(br.Value)?.ToString();
+
+            Assert.Equal("Mật khẩu mới phải có ít nhất 8 kí tự", msg);
+
+            auth.Verify(s => s.ResetPasswordAsync(It.IsAny<ResetPasswordRequest>()), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region ChangePassword additional
+
+        [Fact]
+        public async Task ChangePassword_UsesTokenEmail_WhenBothTokenAndBodyEmailProvided()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ChangePasswordAsync("token@example.com", It.IsAny<ChangePasswordRequest>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth, emailInToken: "token@example.com");
+
+            var result = await controller.ChangePassword(new ChangePasswordRequest
+            {
+                Email = "body@example.com",
+                CurrentPassword = "Old12345",
+                NewPassword = "New12345"
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+
+            auth.Verify(s => s.ChangePasswordAsync("token@example.com", It.IsAny<ChangePasswordRequest>()), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task ChangePassword_UsesBodyEmail_WhenNoTokenEmail()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ChangePasswordAsync(null, It.IsAny<ChangePasswordRequest>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth, emailInToken: null);
+
+            var result = await controller.ChangePassword(new ChangePasswordRequest
+            {
+                Email = null,
+                CurrentPassword = "Old12345",
+                NewPassword = "New12345"
+            });
+
+            Assert.IsType<OkObjectResult>(result);
+
+            auth.Verify(s => s.ChangePasswordAsync(null, It.IsAny<ChangePasswordRequest>()), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task ChangePassword_ReturnsOk_WithSuccessMessage()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+
+            auth.Setup(s => s.ChangePasswordAsync("cp@example.com", It.IsAny<ChangePasswordRequest>()))
+                .Returns(Task.CompletedTask);
+
+            var controller = CreateController(auth, emailInToken: "cp@example.com");
+
+            var result = await controller.ChangePassword(new ChangePasswordRequest
+            {
+                CurrentPassword = "Old12345",
+                NewPassword = "New12345"
+            });
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var msg = ok.Value?.GetType().GetProperty("message")?.GetValue(ok.Value)?.ToString();
+
+            Assert.Equal("Thay đổi mật khẩu thành công", msg);
+
+            auth.Verify(s => s.ChangePasswordAsync("cp@example.com", It.IsAny<ChangePasswordRequest>()), Times.Once);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
+        #region Logout additional
+
+        [Fact]
+        public void Logout_DoesNotCallService()
+        {
+            var auth = new Mock<IAuthService>(MockBehavior.Strict);
+            var controller = CreateController(auth);
+
+            var result = controller.Logout();
+
+            Assert.IsType<OkObjectResult>(result);
+            auth.VerifyNoOtherCalls();
+        }
+
+        #endregion
+
     }
 }

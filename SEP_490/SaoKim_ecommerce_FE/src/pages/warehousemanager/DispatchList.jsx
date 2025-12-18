@@ -51,12 +51,14 @@ const getSlipId = (row) =>
   row?.slipId ??
   row?.slipID;
 
-const truncate = (value, maxLength = 30, fallback = "-") => {
+const truncate = (value, maxLength = 30, fallback = "N/A") => {
   if (value === null || value === undefined || value === "") return fallback;
-  const str = String(value);
+  const str = String(value).trim();
+  if (!str) return fallback;
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength) + "...";
 };
+
 
 const DispatchList = () => {
   const navigate = useNavigate();
@@ -81,7 +83,7 @@ const DispatchList = () => {
   const [notification, setNotification] = useState(null);
 
   const formatDate = (value) =>
-    value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+    value ? new Date(value).toLocaleDateString("vi-VN") : "N/A";
 
   const setQuery = (patch, opts = { resetPage: false }) => {
     setSp((prev) => {
@@ -499,8 +501,13 @@ const DispatchList = () => {
                 const slipId = getSlipId(r);
                 const checked = selectedIds.has(String(r.id));
 
-                const codeValue = isSales ? r.salesOrderNo || r.referenceNo : r.requestNo || r.referenceNo;
-                const nameValue = isSales ? r.customerName || "-" : r.projectName || "-";
+                const codeValue = isSales
+                  ? r.salesOrderNo || r.referenceNo
+                  : r.requestNo || r.referenceNo;
+
+                const nameValue = isSales
+                  ? r.customerName || "N/A"
+                  : r.projectName || "N/A";
 
                 return (
                   <tr key={r.id}>
@@ -508,14 +515,23 @@ const DispatchList = () => {
                       <Form.Check type="checkbox" checked={checked} onChange={() => toggleRow(r.id)} />
                     </td>
                     <td>{(page - 1) * pageSize + index + 1}</td>
+
                     <td>
                       <Badge bg={isSales ? "info" : "secondary"}>{typeLabel}</Badge>
                     </td>
-                    <td title={codeValue || ""}>{truncate(codeValue, 25, "-")}</td>
-                    <td title={nameValue || ""}>{truncate(nameValue, 35, "-")}</td>
+
+                    <td title={codeValue || "N/A"}>
+                      {truncate(codeValue, 25)}
+                    </td>
+
+                    <td title={nameValue}>
+                      {truncate(nameValue, 35)}
+                    </td>
+
                     <td>{formatDate(r.dispatchDate ?? r.slipDate)}</td>
                     <td>{formatDate(r.createdAt)}</td>
                     <td>{formatDate(r.confirmedAt)}</td>
+
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
@@ -523,7 +539,11 @@ const DispatchList = () => {
                         <Badge bg="warning" text="dark">Nháp</Badge>
                       )}
                     </td>
-                    <td title={r.note || ""}>{truncate(r.note, 40, "-")}</td>
+
+                    <td title={r.note || "N/A"}>
+                      {truncate(r.note, 40)}
+                    </td>
+
                     <td className="text-end">
                       <Button
                         variant="outline-primary"
@@ -628,10 +648,10 @@ const DispatchList = () => {
               notification.type === "danger"
                 ? "danger"
                 : notification.type === "warning"
-                ? "warning"
-                : notification.type === "success"
-                ? "success"
-                : "light"
+                  ? "warning"
+                  : notification.type === "success"
+                    ? "success"
+                    : "light"
             }
             onClose={() => setNotification(null)}
             show={!!notification}

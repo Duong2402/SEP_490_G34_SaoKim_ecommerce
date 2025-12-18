@@ -21,9 +21,9 @@ import Select from "react-select";
 import { Toast, ToastContainer } from "react-bootstrap";
 import { apiFetch } from "../../api/lib/apiClient";
 
-const MAX_QTY = 100_000_000; 
-const MAX_UNIT_PRICE = 1_000_000_000; 
-const MAX_LINE_TOTAL = 100_000_000_000; 
+const MAX_QTY = 100_000_000;
+const MAX_UNIT_PRICE = 1_000_000_000;
+const MAX_LINE_TOTAL = 100_000_000_000;
 
 const emptyItem = () => ({
   productId: "",
@@ -376,8 +376,7 @@ export default function ReceivingCreate() {
           <thead>
             <tr>
               <th>#</th>
-              <th style={{ minWidth: 140 }}>Mã SP</th>
-              <th style={{ minWidth: 240 }}>Tên sản phẩm</th>
+              <th style={{ minWidth: 320 }}>Sản phẩm</th>
               <th style={{ minWidth: 120 }}>ĐVT</th>
               <th style={{ minWidth: 120 }}>Số lượng</th>
               <th style={{ minWidth: 140 }}>Đơn giá</th>
@@ -387,12 +386,11 @@ export default function ReceivingCreate() {
               </th>
             </tr>
           </thead>
+
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="wm-empty">
-                  Chưa có dòng hàng.
-                </td>
+                <td colSpan={7} className="wm-empty">Chưa có dòng hàng.</td>
               </tr>
             ) : (
               items.map((it, idx) => {
@@ -400,25 +398,25 @@ export default function ReceivingCreate() {
                 const priceNum = Number(it.unitPrice || 0);
                 const lineTotal = qtyNum * priceNum;
                 const errs = itemErrs[idx] || {};
+
+                const productOptions = products.map((p) => ({
+                  value: String(p.id),
+                  label: `${p.id} - ${p.name}`,
+                }));
+
+                const currentProduct =
+                  it.productId
+                    ? productOptions.find((x) => x.value === String(it.productId)) || null
+                    : null;
+
                 return (
                   <tr key={idx}>
                     <td>{idx + 1}</td>
+
                     <td>
                       <Select
-                        options={products.map((p) => ({
-                          value: p.id,
-                          label: `${p.id} - ${p.name}`,
-                        }))}
-                        value={
-                          products.find((p) => p.id === it.productId)
-                            ? {
-                                value: it.productId,
-                                label: `${it.productId} - ${
-                                  findProductById(it.productId)?.name
-                                }`,
-                              }
-                            : null
-                        }
+                        options={productOptions}
+                        value={currentProduct}
                         onChange={(option) => {
                           if (!option) {
                             patchItem(idx, {
@@ -429,6 +427,7 @@ export default function ReceivingCreate() {
                             });
                             return;
                           }
+
                           const p = findProductById(option.value);
                           patchItem(idx, {
                             productId: option.value,
@@ -436,7 +435,7 @@ export default function ReceivingCreate() {
                             uom: p?.uom || "",
                           });
                         }}
-                        placeholder="Chọn"
+                        placeholder="Chọn sản phẩm"
                         styles={{
                           control: (base) => ({ ...base, minHeight: 45 }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
@@ -445,39 +444,21 @@ export default function ReceivingCreate() {
                         menuPortalTarget={document.body}
                         menuPlacement="auto"
                       />
-                      <Form.Control.Feedback type="invalid">
-                        {errs.productName}
-                      </Form.Control.Feedback>
+
+                      {(errs.productName || errs.productId) && (
+                        <div className="invalid-feedback d-block">
+                          {errs.productName || errs.productId}
+                        </div>
+                      )}
                     </td>
-                    <td>
-                      <Form.Control
-                        value={it.productName}
-                        onChange={(e) =>
-                          patchItem(idx, { productName: e.target.value })
-                        }
-                        isInvalid={!!errs.productName}
-                        placeholder={
-                          it.productId
-                            ? "Tên tự điền từ sản phẩm"
-                            : "Nhập tên sản phẩm"
-                        }
-                        disabled={!!it.productId}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {errs.productName}
-                      </Form.Control.Feedback>
-                    </td>
+
                     <td>
                       <Select
                         options={uoms.map((u) => ({ value: u, label: u }))}
-                        value={
-                          it.uom ? { value: it.uom, label: it.uom } : null
-                        }
-                        onChange={(option) =>
-                          patchItem(idx, { uom: option?.value || "" })
-                        }
+                        value={it.uom ? { value: it.uom, label: it.uom } : null}
+                        onChange={(option) => patchItem(idx, { uom: option?.value || "" })}
                         placeholder="Chọn ĐVT"
-                        isDisabled={!!it.uom}
+                        isDisabled={true}
                         styles={{
                           control: (base) => ({ ...base, minHeight: 40 }),
                           menu: (base) => ({ ...base, fontSize: 14 }),
@@ -487,11 +468,10 @@ export default function ReceivingCreate() {
                         menuPlacement="auto"
                       />
                       {errs.uom && (
-                        <div className="invalid-feedback d-block">
-                          {errs.uom}
-                        </div>
+                        <div className="invalid-feedback d-block">{errs.uom}</div>
                       )}
                     </td>
+
                     <td>
                       <InputGroup>
                         <Form.Control
@@ -511,6 +491,7 @@ export default function ReceivingCreate() {
                         </Form.Control.Feedback>
                       </InputGroup>
                     </td>
+
                     <td>
                       <Form.Control
                         type="text"
@@ -528,20 +509,18 @@ export default function ReceivingCreate() {
                         {errs.unitPrice}
                       </Form.Control.Feedback>
                     </td>
+
                     <td className="fw-semibold">
                       {lineTotal.toLocaleString("vi-VN")} VNĐ
                     </td>
+
                     <td className="text-end">
                       <Button
                         variant="outline-danger"
                         size="sm"
                         onClick={() => removeRow(idx)}
                         disabled={items.length === 1}
-                        title={
-                          items.length === 1
-                            ? "Cần ít nhất 1 dòng"
-                            : "Xóa dòng"
-                        }
+                        title={items.length === 1 ? "Cần ít nhất 1 dòng" : "Xóa dòng"}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </Button>
@@ -551,6 +530,7 @@ export default function ReceivingCreate() {
               })
             )}
           </tbody>
+
         </Table>
       </div>
 

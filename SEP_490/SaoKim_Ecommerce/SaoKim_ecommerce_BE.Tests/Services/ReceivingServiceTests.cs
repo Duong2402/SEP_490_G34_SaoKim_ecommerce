@@ -7,6 +7,7 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
+using SaoKim_ecommerce_BE.Services.Realtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,28 +29,32 @@ namespace SaoKim_ecommerce_BE.Tests.Services
             return new SaoKimDBContext(options);
         }
 
+        private sealed class NoopRealtimePublisher : IRealtimePublisher
+        {
+            public Task PublishToWarehouseAsync(string type, object data) => Task.CompletedTask;
+            public Task PublishAsync(string type, object data) => Task.CompletedTask;
+            public Task PublishToUserAsync(int userId, string type, object data) => Task.CompletedTask;
+            public Task PublishToRoleAsync(string role, string type, object data) => Task.CompletedTask;
+        }
+
+        private sealed class NoopInventorySnapshotService : IInventorySnapshotService
+        {
+            public Task AddIfNotExistsAsync(
+                int productId,
+                DateTime snapshotAtUtc,
+                decimal onHand,
+                string refType,
+                long refId)
+                => Task.CompletedTask;
+        }
+
         private ReceivingService CreateService(SaoKimDBContext db)
         {
-            var hubClients = new Mock<IHubClients>();
-            var clientProxy = new Mock<IClientProxy>();
-
-            clientProxy
-                .Setup(c => c.SendCoreAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<object?[]>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
-
-            hubClients
-                .Setup(c => c.All)
-                .Returns(clientProxy.Object);
-
-            var hubContext = new Mock<IHubContext<ReceivingHub>>();
-            hubContext
-                .Setup(h => h.Clients)
-                .Returns(hubClients.Object);
-
-            return new ReceivingService(db, hubContext.Object);
+            return new ReceivingService(
+                db,
+                new NoopRealtimePublisher(),
+                new NoopInventorySnapshotService()
+            );
         }
 
         private void SeedBasicMasterData(SaoKimDBContext db)

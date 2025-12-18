@@ -1,0 +1,57 @@
+﻿services:
+  postgres:
+    image: postgres:16.9
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  backend:
+    image: ${DOCKER_USERNAME}backend:${TAG:-latest}
+    build:
+      context: ./SEP_490/SaoKim_Ecommerce
+      dockerfile: SaoKim_ecommerce_BE/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_HTTP_PORTS=5000
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME};Username=${DB_USERNAME};Password=${DB_PASSWORD}
+      - GEMINI__APIKEY=${GEMINI__APIKEY}
+    volumes:
+      - web_uploads:/app/wwwroot/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    user: "0:0" # chạy với quyền root
+  frontend:
+    build:
+      context: ./SEP_490/SaoKim_ecommerce_FE
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}frontend:${TAG:-latest}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"    
+      - "443:443" 
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro                # Certbot certificates
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro         # Config của bạn
+    depends_on:
+      - frontend
+      - backend
+volumes:
+  pgdata:
+  web_uploads:

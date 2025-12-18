@@ -23,10 +23,24 @@ namespace SaoKim_ecommerce_BE.Data
             await db.SaveChangesAsync();
 
             // ----- Seed Categories -----
-            var catNames = new[] { "Đèn LED" };
-            foreach (var name in catNames)
+            var categorySeeds = new List<string>
             {
-                if (!await db.Categories.AnyAsync(c => c.Name.ToLower() == name.ToLower()))
+                "Đèn LED",
+                "Đèn Trang Trí",
+                "Đèn Âm Trần",
+                "Đèn Thả",
+                "Đèn Chùm",
+                "Đèn Tường",
+                "Đèn Bàn",
+                "Đèn Ngoài Trời",
+                "Phụ Kiện Đèn",
+                "Thiết Bị Chiếu Sáng"
+            };
+
+            foreach (var name in categorySeeds)
+            {
+                var exists = await db.Categories.AnyAsync(c => c.Name.ToLower() == name.ToLower());
+                if (!exists)
                 {
                     db.Categories.Add(new Category
                     {
@@ -36,10 +50,10 @@ namespace SaoKim_ecommerce_BE.Data
                     });
                 }
             }
+
             await db.SaveChangesAsync();
 
             var catDenLed = await db.Categories.Where(c => c.Name == "Đèn LED").Select(c => c.Id).FirstAsync();
-
 
             if (!await db.Users.AnyAsync())
             {
@@ -104,6 +118,54 @@ namespace SaoKim_ecommerce_BE.Data
                         Status = "Active",
                         Address = "Hà Nội, Việt Nam",
                         CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 6,
+                        Name = "Customer 2",
+                        Email = "customer2@gmail.com",
+                        Password = HashPassword("123456789"),
+                        RoleId = 4,
+                        PhoneNumber = "0900000102",
+                        Status = "Active",
+                        Address = "Đà Nẵng, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 7,
+                        Name = "Customer 3",
+                        Email = "customer3@gmail.com",
+                        Password = HashPassword("123456789"),
+                        RoleId = 4,
+                        PhoneNumber = "0900000103",
+                        Status = "Active",
+                        Address = "TP. Hồ Chí Minh, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 8,
+                        Name = "Customer 4",
+                        Email = "customer4@gmail.com",
+                        Password = HashPassword("123456789"),
+                        RoleId = 4,
+                        PhoneNumber = "0900000104",
+                        Status = "Active",
+                        Address = "Hà Nội, Việt Nam",
+                        CreateBy = "Seeder"
+                    },
+                    new User
+                    {
+                        UserID = 9,
+                        Name = "Customer 5",
+                        Email = "customer5@gmail.com",
+                        Password = HashPassword("123456789"),
+                        RoleId = 4,
+                        PhoneNumber = "0900000105",
+                        Status = "Active",
+                        Address = "Đà Nẵng, Việt Nam",
+                        CreateBy = "Seeder"
                     }
                 };
 
@@ -123,6 +185,7 @@ namespace SaoKim_ecommerce_BE.Data
             foreach (var u in uomSeeds)
                 if (!await db.UnitOfMeasures.AnyAsync(x => x.Name == u.Name)) db.UnitOfMeasures.Add(u);
             await db.SaveChangesAsync();
+
         }
 
         private static string Slugify(string input)

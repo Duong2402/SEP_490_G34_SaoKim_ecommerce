@@ -38,7 +38,6 @@ export default function DispatchCreate() {
   const location = useLocation();
   const realtimeRef = useRef(null);
 
-  // Giữ query của list (page/type/search/sort...) để quay lại không bị về trang 1
   const backToListUrl = `/warehouse-dashboard/dispatch-slips${location.search || ""}`;
 
   const [type, setType] = useState("Sales");
@@ -335,7 +334,6 @@ export default function DispatchCreate() {
 
       if (!newId) throw new Error("Không lấy được ID phiếu xuất.");
 
-      // Mang theo query của list để khi quay lại vẫn đúng trang/filter
       navigate(`/warehouse-dashboard/dispatch-slips/${newId}/items${location.search || ""}`);
     } catch (e) {
       console.error("[Tạo phiếu xuất] lỗi:", e);

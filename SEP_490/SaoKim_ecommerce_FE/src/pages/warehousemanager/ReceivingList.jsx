@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHome,
@@ -11,13 +11,7 @@ import {
   faDownload,
   faFileExport,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  Breadcrumb,
-  Form,
-  InputGroup,
-  Badge,
-  Button,
-} from "@themesberg/react-bootstrap";
+import { Breadcrumb, Form, InputGroup, Badge, Button } from "@themesberg/react-bootstrap";
 import { Modal, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import WarehouseLayout from "../../layouts/WarehouseLayout";
 import { apiFetch } from "../../api/lib/apiClient";
@@ -35,123 +29,164 @@ const toStatusCode = (v) => {
   return 0;
 };
 
-const truncateText = (text, maxLength = 40) => {
-  if (!text) return "";
-  const str = String(text);
+const truncateText = (text, maxLength = 40, fallback = "N/A") => {
+  if (text === null || text === undefined) return fallback;
+  const str = String(text).trim();
+  if (!str) return fallback;
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength) + "...";
 };
 
+const formatDate = (v) => (v ? new Date(v).toLocaleDateString("vi-VN") : "N/A");
+
 export default function ReceivingList() {
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
+  const realtimeRef = useRef(null);
+
+  const pageSize = 10;
+
+  const page = Math.max(1, Number(sp.get("page") || 1));
+  const search = sp.get("search") || "";
+  const sortBy = sp.get("sortBy") || "receiptDate";
+  const sortOrder = sp.get("sortOrder") || "desc";
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState(() => sp.get("search") || "");
-  const [pageSize] = useState(10);
-  const [page, setPage] = useState(() => Number(sp.get("page") || 1));
+
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const [sortBy, setSortBy] = useState(() => sp.get("sortBy") || "receiptDate");
-  const [sortOrder, setSortOrder] = useState(() => sp.get("sortOrder") || "desc");
+
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [notify, setNotify] = useState(null);
 
-  const loadData = useCallback(
-    async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.append("page", page);
-        params.append("pageSize", pageSize);
-        if (search) params.append("search", search);
-        if (sortBy) params.append("sortBy", sortBy);
-        if (sortOrder) params.append("sortOrder", sortOrder);
+  const setQuery = (patch, opts = { resetPage: false }) => {
+    setSp(
+      (prev) => {
+        const p = new URLSearchParams(prev);
 
-        const res = await apiFetch(
-          `/api/warehousemanager/receiving-slips?${params.toString()}`
-        );
-        const data = await res.json();
+        Object.entries(patch).forEach(([k, v]) => {
+          if (v === null || v === undefined || v === "") p.delete(k);
+          else p.set(k, String(v));
+        });
 
-        setRows(data.items || []);
-        setTotal(data.totalItems || data.total || 0);
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách phiếu nhập:", error);
-        setNotify("Lỗi khi tải danh sách phiếu nhập.");
-      } finally {
-        setLoading(false);
+        if (opts.resetPage) p.set("page", "1");
+        if (!p.get("page")) p.set("page", "1");
+
+        return p;
+      },
+      { replace: true }
+    );
+  };
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append("page", String(page));
+      params.append("pageSize", String(pageSize));
+
+      if (search) params.append("search", search);
+      if (sortBy) params.append("sortBy", sortBy);
+      if (sortOrder) params.append("sortOrder", sortOrder);
+
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips?${params.toString()}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Lỗi tải dữ liệu (${res.status})`);
       }
-    },
-    [page, pageSize, search, sortBy, sortOrder]
-  );
+
+      const data = await res.json();
+      const items = data.items || [];
+
+      setRows(items);
+      setTotal(data.totalItems || data.total || 0);
+
+      // giữ selection chỉ cho những id còn tồn tại trên trang hiện tại
+      setSelectedIds((prev) => {
+        const next = new Set();
+        const currentIds = new Set(items.map((r) => String(r.id)));
+        prev.forEach((id) => {
+          if (currentIds.has(String(id))) next.add(String(id));
+        });
+        return next;
+      });
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách phiếu nhập:", error);
+      setNotify(error.message || "Lỗi khi tải danh sách phiếu nhập.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, search, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    const conn = getRealtimeConnection();
+    if (!notify) return;
+    const t = setTimeout(() => setNotify(null), 4000);
+    return () => clearTimeout(t);
+  }, [notify]);
 
-    conn.off("evt");
+  useEffect(() => {
+    let disposed = false;
 
-    conn.on("evt", (payload) => {
+    const token = localStorage.getItem("token") || "";
+    const getAccessToken = async () => token;
+
+    const onEvt = (payload) => {
       const type = payload?.type;
       if (!type) return;
 
-      switch (type) {
-        case "receiving.created":
-        case "receiving.deleted":
-        case "receiving.updated":
-        case "receiving.confirmed":
-        case "receiving.imported":
-          loadData();
-          break;
-        default:
-          break;
+      if (
+        type === "receiving.created" ||
+        type === "receiving.deleted" ||
+        type === "receiving.updated" ||
+        type === "receiving.confirmed" ||
+        type === "receiving.imported"
+      ) {
+        loadData();
       }
-    });
+    };
 
-    ensureRealtimeStarted().catch(() => {
-      setNotify("Không thể kết nối realtime tới máy chủ.");
-    });
+    ensureRealtimeStarted(getAccessToken)
+      .then(() => {
+        if (disposed) return;
+
+        const conn = getRealtimeConnection(getAccessToken);
+        realtimeRef.current = conn;
+
+        conn.off("evt");
+        conn.on("evt", onEvt);
+      })
+      .catch(() => {
+        setNotify("Không thể kết nối realtime tới máy chủ.");
+      });
 
     return () => {
-      conn.off("evt");
+      disposed = true;
+      const conn = realtimeRef.current;
+      if (conn) conn.off("evt", onEvt);
     };
   }, [loadData]);
 
-  useEffect(() => {
-    if (notify) {
-      const t = setTimeout(() => setNotify(null), 4000);
-      return () => clearTimeout(t);
-    }
-  }, [notify]);
-
   const handleConfirm = async (id) => {
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/${id}/confirm`,
-        {
-          method: "POST",
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}/confirm`, {
+        method: "POST",
+      });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Xác nhận thất bại");
       }
 
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === id
-            ? { ...r, status: 1, confirmedAt: new Date().toISOString() }
-            : r
-        )
-      );
-
+      await loadData();
       setNotify("Xác nhận thành công.");
     } catch (error) {
       console.error("Xác nhận thất bại:", error);
@@ -160,60 +195,44 @@ export default function ReceivingList() {
   };
 
   const toggleRow = (id) => {
+    const sid = String(id);
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(sid)) next.delete(sid);
+      else next.add(sid);
       return next;
     });
   };
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  async function handleExportSelected(includeItems = true) {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) {
-      const confirmAll = window.confirm(
-        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu đang hiển thị theo bộ lọc hiện tại?"
-      );
-      if (!confirmAll) return;
-      const allIds = rows.map((r) => r.id);
-      if (allIds.length === 0) {
-        setNotify("Không có dữ liệu để xuất.");
-        return;
-      }
-      await exportByIds(allIds, includeItems);
-      return;
-    }
-    await exportByIds(ids, includeItems);
-  }
+  const selectAllCurrentPage = () => {
+    setSelectedIds(new Set(rows.map((r) => String(r.id))));
+  };
 
   async function exportByIds(ids, includeItems) {
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/export-selected`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids, includeItems }),
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/export-selected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, includeItems }),
+      });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || "Xuất file thất bại");
       }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `receiving-slips-${new Date()
-        .toISOString()
-        .slice(0, 19)
-        .replace(/[:T]/g, "")}.xlsx`;
+      a.download = `receiving-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+
       setNotify("Xuất file thành công.");
     } catch (e) {
       console.error(e);
@@ -221,24 +240,82 @@ export default function ReceivingList() {
     }
   }
 
+  async function exportAllByFilter(includeItems = true) {
+    // Cách đúng: gọi API export theo filter (giống DispatchList)
+    // Nếu BE chưa có endpoint này, bạn báo mình, mình sẽ bẻ sang cách fetch all rồi export-selected.
+    try {
+      const body = {
+        page: 1,
+        pageSize: 1000000,
+        search: search || null,
+        sortBy,
+        sortOrder,
+      };
+
+      const query = new URLSearchParams();
+      query.append("includeItems", includeItems ? "true" : "false");
+
+      const res = await apiFetch(
+        `/api/warehousemanager/receiving-slips/export-by-filter?${query.toString()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Xuất file thất bại");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receiving-slips-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setNotify("Xuất file thành công.");
+    } catch (e) {
+      console.error(e);
+      setNotify(e.message || "Xuất file thất bại.");
+    }
+  }
+
+  async function handleExportSelected(includeItems = true) {
+    const ids = Array.from(selectedIds);
+
+    if (ids.length === 0) {
+      const confirmAll = window.confirm(
+        "Bạn chưa chọn phiếu nào. Bạn có muốn xuất TẤT CẢ phiếu theo bộ lọc hiện tại không?"
+      );
+      if (!confirmAll) return;
+
+      await exportAllByFilter(includeItems);
+      return;
+    }
+
+    await exportByIds(ids, includeItems);
+  }
+
   const handleDeleteToTrash = async (id) => {
     if (!window.confirm("Bạn có chắc muốn đưa phiếu này vào thùng rác?")) return;
 
     try {
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/${id}`, {
+        method: "DELETE",
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Xóa thất bại");
       }
 
-      setRows((prev) => prev.filter((r) => r.id !== id));
-
+      await loadData();
       setNotify("Phiếu đã bị xóa.");
     } catch (error) {
       console.error(error);
@@ -257,19 +334,19 @@ export default function ReceivingList() {
       const formData = new FormData();
       formData.append("file", importFile);
 
-      const res = await apiFetch(
-        `/api/warehousemanager/receiving-slips/import`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const res = await apiFetch(`/api/warehousemanager/receiving-slips/import`, {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `Import thất bại (${res.status})`);
+
       setNotify(data.message || "Tải phiếu thành công.");
       setShowImportModal(false);
       setImportFile(null);
-      loadData();
+
+      await loadData();
     } catch (e) {
       console.error(e);
       setNotify(e.message || "Tải phiếu thất bại.");
@@ -280,20 +357,11 @@ export default function ReceivingList() {
 
   const handleSort = (field) => {
     if (sortBy === field) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      setQuery({ sortOrder: sortOrder === "asc" ? "desc" : "asc" }, { resetPage: true });
     } else {
-      setSortBy(field);
-      setSortOrder("asc");
+      setQuery({ sortBy: field, sortOrder: "asc" }, { resetPage: true });
     }
-    setPage(1);
   };
-
-  const selectAllCurrentPage = () => {
-    setSelectedIds(new Set(rows.map((r) => r.id)));
-  };
-
-  const formatDate = (v) =>
-    v ? new Date(v).toLocaleDateString("vi-VN") : "-";
 
   return (
     <WarehouseLayout>
@@ -307,10 +375,10 @@ export default function ReceivingList() {
               <Breadcrumb.Item active>Phiếu nhập kho</Breadcrumb.Item>
             </Breadcrumb>
           </div>
+
           <h1 className="wm-page-title">Quản lý phiếu nhập kho</h1>
           <p className="wm-page-subtitle">
-            Kiểm soát luồng hàng vào kho, xác nhận phiếu và theo dõi tiến độ
-            tiếp nhận.
+            Kiểm soát luồng hàng vào kho, xác nhận phiếu và theo dõi tiến độ tiếp nhận.
           </p>
         </div>
 
@@ -318,21 +386,12 @@ export default function ReceivingList() {
           <button
             type="button"
             className="wm-btn wm-btn--light"
-            onClick={() => {
-              window.open(
-                `/api/warehousemanager/download-template`,
-                "_blank"
-              );
-            }}
+            onClick={() => window.open(`/api/warehousemanager/download-template`, "_blank")}
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
           </button>
 
-          <button
-            type="button"
-            className="wm-btn"
-            onClick={() => setShowImportModal(true)}
-          >
+          <button type="button" className="wm-btn" onClick={() => setShowImportModal(true)}>
             <FontAwesomeIcon icon={faFileImport} /> Nhập từ phiếu
           </button>
 
@@ -340,42 +399,30 @@ export default function ReceivingList() {
             type="button"
             className="wm-btn wm-btn--light"
             onClick={selectAllCurrentPage}
+            disabled={rows.length === 0}
           >
             Chọn tất cả kết quả
           </button>
-          <button
-            type="button"
-            className="wm-btn wm-btn--light"
-            onClick={clearSelection}
-          >
+
+          <button type="button" className="wm-btn wm-btn--light" onClick={clearSelection}>
             Bỏ chọn
           </button>
 
-          <button
-            type="button"
-            className="wm-btn"
-            onClick={() => handleExportSelected(true)}
-          >
+          <button type="button" className="wm-btn" onClick={() => handleExportSelected(true)}>
             <FontAwesomeIcon icon={faFileExport} /> Xuất phiếu
           </button>
 
           <button
             type="button"
             className="wm-btn wm-btn--primary"
-            onClick={() =>
-              navigate("/warehouse-dashboard/receiving-slips/create")
-            }
+            onClick={() => navigate("/warehouse-dashboard/receiving-slips/create")}
           >
             <FontAwesomeIcon icon={faPlus} /> Tạo phiếu mới
           </button>
         </div>
       </div>
 
-      <Modal
-        show={showImportModal}
-        onHide={() => setShowImportModal(false)}
-        centered
-      >
+      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Nhập phiếu từ file Excel</Modal.Title>
         </Modal.Header>
@@ -383,12 +430,7 @@ export default function ReceivingList() {
           <Button
             variant="link"
             className="mb-3 p-0"
-            onClick={() =>
-              window.open(
-                `/api/warehousemanager/download-template`,
-                "_blank"
-              )
-            }
+            onClick={() => window.open(`/api/warehousemanager/download-template`, "_blank")}
           >
             <FontAwesomeIcon icon={faDownload} /> Tải mẫu phiếu nhập
           </Button>
@@ -397,25 +439,18 @@ export default function ReceivingList() {
             type="file"
             accept=".xlsx,.xls"
             className="form-control"
-            onChange={(e) => setImportFile(e.target.files[0])}
+            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
           />
+
           <small className="text-muted d-block mt-2">
-            File cần gồm: Supplier, ReceiptDate, Note, ProductName, Uom,
-            Quantity, UnitPrice
+            File cần gồm: Supplier, ReceiptDate, Note, ProductName, Uom, Quantity, UnitPrice
           </small>
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowImportModal(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowImportModal(false)}>
             Hủy
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleImport}
-            disabled={importLoading}
-          >
+          <Button variant="primary" onClick={handleImport} disabled={importLoading}>
             {importLoading ? (
               <>
                 <Spinner animation="border" size="sm" /> Đang nhập...
@@ -437,10 +472,7 @@ export default function ReceivingList() {
               type="text"
               placeholder="Tìm theo mã phiếu hoặc nhà cung cấp..."
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
+              onChange={(event) => setQuery({ search: event.target.value }, { resetPage: true })}
             />
           </InputGroup>
         </div>
@@ -453,124 +485,92 @@ export default function ReceivingList() {
               <th>
                 <Form.Check
                   type="checkbox"
-                  checked={
-                    rows.length > 0 &&
-                    rows.every((r) => selectedIds.has(r.id))
-                  }
+                  checked={rows.length > 0 && rows.every((r) => selectedIds.has(String(r.id)))}
                   onChange={() => {
-                    const pageIds = rows.map((r) => r.id);
-                    const allSelected = pageIds.every((id) =>
-                      selectedIds.has(id)
-                    );
+                    const pageIds = rows.map((r) => String(r.id));
+                    const allSelected = pageIds.every((id) => selectedIds.has(id));
                     setSelectedIds((prev) => {
                       const next = new Set(prev);
-                      if (allSelected) {
-                        pageIds.forEach((id) => next.delete(id));
-                      } else {
-                        pageIds.forEach((id) => next.add(id));
-                      }
+                      if (allSelected) pageIds.forEach((id) => next.delete(id));
+                      else pageIds.forEach((id) => next.add(id));
                       return next;
                     });
                   }}
                 />
               </th>
               <th>#</th>
-              <th role="button" onClick={() => handleSort("referenceNo")}>
-                Mã phiếu
-              </th>
-              <th role="button" onClick={() => handleSort("supplier")}>
-                Nhà cung cấp
-              </th>
-              <th role="button" onClick={() => handleSort("receiptDate")}>
-                Ngày nhận
-              </th>
-              <th role="button" onClick={() => handleSort("status")}>
-                Trạng thái
-              </th>
-              <th role="button" onClick={() => handleSort("createdAt")}>
-                Ngày tạo
-              </th>
-              <th role="button" onClick={() => handleSort("confirmedAt")}>
-                Ngày xác nhận
-              </th>
-              <th role="button" onClick={() => handleSort("note")}>
-                Ghi chú
-              </th>
+              <th role="button" onClick={() => handleSort("referenceNo")}>Mã phiếu</th>
+              <th role="button" onClick={() => handleSort("supplier")}>Nhà cung cấp</th>
+              <th role="button" onClick={() => handleSort("receiptDate")}>Ngày nhận</th>
+              <th role="button" onClick={() => handleSort("status")}>Trạng thái</th>
+              <th role="button" onClick={() => handleSort("createdAt")}>Ngày tạo</th>
+              <th role="button" onClick={() => handleSort("confirmedAt")}>Ngày xác nhận</th>
+              <th role="button" onClick={() => handleSort("note")}>Ghi chú</th>
               <th className="text-end">Thao tác</th>
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={10} className="wm-empty">
-                  Đang tải dữ liệu...
-                </td>
+                <td colSpan={10} className="wm-empty">Đang tải dữ liệu...</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="wm-empty">
-                  Không tìm thấy phiếu phù hợp.
-                </td>
+                <td colSpan={10} className="wm-empty">Không tìm thấy phiếu phù hợp.</td>
               </tr>
             ) : (
               rows.map((r, idx) => {
                 const code = toStatusCode(r.status);
                 const isConfirmed = code === 1;
-                const checked = selectedIds.has(r.id);
-                const supplierText = r.supplier || "";
-                const noteText = r.note || "Không có ghi chú";
+                const checked = selectedIds.has(String(r.id));
+
+                const referenceNo = truncateText(r.referenceNo, 25);
+                const supplierText = truncateText(r.supplier, 40);
+                const noteText = truncateText(r.note, 60);
 
                 return (
                   <tr key={r.id}>
                     <td>
-                      <Form.Check
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleRow(r.id)}
-                      />
+                      <Form.Check type="checkbox" checked={checked} onChange={() => toggleRow(r.id)} />
                     </td>
+
                     <td>{(page - 1) * pageSize + idx + 1}</td>
-                    <td>{r.referenceNo}</td>
-                    <td>
-                      <span title={supplierText}>
-                        {truncateText(supplierText, 40) || "-"}
-                      </span>
-                    </td>
+
+                    <td title={r.referenceNo || "N/A"}>{referenceNo}</td>
+
+                    <td title={r.supplier || "N/A"}>{supplierText}</td>
+
                     <td>{formatDate(r.receiptDate)}</td>
+
                     <td>
                       {isConfirmed ? (
                         <Badge bg="success">Đã xác nhận</Badge>
                       ) : (
-                        <Badge bg="warning" text="dark">
-                          Nháp
-                        </Badge>
+                        <Badge bg="warning" text="dark">Nháp</Badge>
                       )}
                     </td>
+
                     <td>{formatDate(r.createdAt)}</td>
-                    <td>
-                      {r.confirmedAt
-                        ? formatDate(r.confirmedAt)
-                        : "Chưa xác nhận"}
-                    </td>
-                    <td>
-                      <span title={noteText}>
-                        {truncateText(noteText, 60)}
-                      </span>
-                    </td>
+
+                    <td>{r.confirmedAt ? formatDate(r.confirmedAt) : "N/A"}</td>
+
+                    <td title={r.note || "N/A"}>{noteText}</td>
+
                     <td className="text-end">
                       <Button
                         variant="outline-primary"
                         size="sm"
                         className="me-2"
                         onClick={() =>
-                          navigate(
-                            `/warehouse-dashboard/receiving-slips/${r.id}/items`,
-                            { state: { fromList: true } }
-                          )
+                          navigate(`/warehouse-dashboard/receiving-slips/${r.id}/items`, {
+                            state: { fromList: true },
+                          })
                         }
                       >
                         <FontAwesomeIcon icon={faEye} />
                       </Button>
+
                       {!isConfirmed && (
                         <>
                           <Button
@@ -608,16 +608,13 @@ export default function ReceivingList() {
           <button
             className="btn btn-outline-secondary"
             disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setQuery({ page: page - 1 })}
           >
             Trước
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(
-              (p) =>
-                Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-            )
+            .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages)
             .reduce((acc, p, idx, arr) => {
               if (idx && p - arr[idx - 1] > 1) acc.push("...");
               acc.push(p);
@@ -625,19 +622,14 @@ export default function ReceivingList() {
             }, [])
             .map((p, i) =>
               p === "..." ? (
-                <button
-                  key={`gap-${i}`}
-                  className="btn btn-outline-light"
-                  disabled
-                >
+                <button key={`gap-${i}`} className="btn btn-outline-light" disabled>
                   ...
                 </button>
               ) : (
                 <button
                   key={p}
-                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"
-                    }`}
-                  onClick={() => setPage(p)}
+                  className={`btn ${p === page ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setQuery({ page: p })}
                   disabled={loading}
                 >
                   {p}
@@ -648,37 +640,31 @@ export default function ReceivingList() {
           <button
             className="btn btn-outline-secondary"
             disabled={page >= totalPages || loading}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setQuery({ page: page + 1 })}
           >
             Sau
           </button>
         </div>
       </div>
 
-      {notify && (
-        <ToastContainer
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 9999,
-          }}
-        >
-          <Toast
-            onClose={() => setNotify(null)}
-            show={!!notify}
-            delay={3500}
-            autohide
-            bg="warning"
-          >
+      <ToastContainer
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 9999,
+        }}
+      >
+        {notify && (
+          <Toast onClose={() => setNotify(null)} show={!!notify} delay={3500} autohide bg="warning">
             <Toast.Header closeButton>
               <strong className="me-auto">Thông báo</strong>
             </Toast.Header>
             <Toast.Body>{notify}</Toast.Body>
           </Toast>
-        </ToastContainer>
-      )}
+        )}
+      </ToastContainer>
     </WarehouseLayout>
   );
 }

@@ -165,7 +165,7 @@ const WarehouseLayout = ({ children }) => {
     setLoadingNoti(true);
     try {
       const res = await fetch(
-        `${baseUrl}/api/notifications?onlyUnread=false&page=1&pageSize=10`,
+        `${baseUrl}/api/notifications?onlyUnread=false&page=1&pageSize=10000`,
         { method: "GET", headers: { ...authHeaders() } }
       );
 

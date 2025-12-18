@@ -16,6 +16,7 @@ const HomepageHeader = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [userName, setUserName] = useState(null);
+  const [role, setRole] = useState(null);
   const [query, setQuery] = useState("");
   const fetchingNameRef = useRef(false);
 
@@ -46,8 +47,22 @@ const HomepageHeader = () => {
   };
 
   const deriveNameFromEmail = (email) => formatDisplayName(email?.split("@")[0] || "");
-
   const authToken = () => localStorage.getItem("token") || "";
+
+  const isCustomerRole = (r) => String(r || "").trim().toLowerCase() === "customer";
+
+  const getHomePathByRole = (r) => {
+    const roleNorm = String(r || "").trim().toLowerCase();
+
+    if (roleNorm === "warehouse_manager") return "/warehouse-dashboard";
+    if (roleNorm === "admin" || roleNorm === "administrator") return "/admin";
+    if (roleNorm === "customer") return "/";
+    if (roleNorm === "manager") return "/manager";
+    if (roleNorm === "project_manager") return "/projects";
+    if (roleNorm === "staff") return "/staff/manager-dashboard";
+
+    return "/";
+  };
 
   const fetchUnreadCount = async () => {
     const token = authToken();
@@ -164,9 +179,12 @@ const HomepageHeader = () => {
       const token = localStorage.getItem("token");
       const name = localStorage.getItem("userName") || "";
       const email = localStorage.getItem("userEmail") || "";
+      const savedRole = localStorage.getItem("role") || "";
+
       const displayName = formatDisplayName(name) || deriveNameFromEmail(email) || email;
 
       setUserName(token && displayName ? displayName : null);
+      setRole(token ? savedRole : null);
 
       const cart = readCart();
       const count = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
@@ -248,7 +266,7 @@ const HomepageHeader = () => {
       <Container fluid className="header-shell">
         <Navbar.Brand as={Link} to="/" className="brand-area">
           <div className="logo-wrapper">
-            <img src="/images/saokim-logo.png" alt="Sao Kim Lighting" />
+            <img src="/assets/images/saokim-logo.png" alt="Sao Kim Lighting" />
           </div>
           <div>
             <span className="brand-name d-block">Sao Kim Lighting</span>
@@ -304,9 +322,7 @@ const HomepageHeader = () => {
               >
                 <FontAwesomeIcon icon={faBell} />
                 {notificationCount > 0 && (
-                  <span className="header-noti__badge">
-                    {notificationCount > 99 ? "99+" : notificationCount}
-                  </span>
+                  <span className="header-noti__badge">{notificationCount > 99 ? "99+" : notificationCount}</span>
                 )}
               </button>
 
@@ -346,16 +362,10 @@ const HomepageHeader = () => {
                           className={"header-noti__item " + (!x.isRead ? "is-unread" : "")}
                           onClick={() => handleOpenNotiItem(x)}
                         >
-                          <div className="header-noti__itemTitle">
-                            {x.notification?.title || "Thông báo"}
-                          </div>
-                          {x.notification?.body && (
-                            <div className="header-noti__itemBody">{x.notification.body}</div>
-                          )}
+                          <div className="header-noti__itemTitle">{x.notification?.title || "Thông báo"}</div>
+                          {x.notification?.body && <div className="header-noti__itemBody">{x.notification.body}</div>}
                           <div className="header-noti__time">
-                            {x.notification?.createdAt
-                              ? new Date(x.notification.createdAt).toLocaleString()
-                              : ""}
+                            {x.notification?.createdAt ? new Date(x.notification.createdAt).toLocaleString() : ""}
                           </div>
                           {!x.isRead && <span className="header-noti__dot" />}
                         </button>
@@ -377,9 +387,17 @@ const HomepageHeader = () => {
                     <div className="user-meta__label">Xin chào</div>
                     <div className="user-meta__name">{userName}</div>
                   </div>
-                  <Dropdown.Item as={Link} to="/account/orders">
-                    Đơn hàng của tôi
-                  </Dropdown.Item>
+
+                  {isCustomerRole(role) ? (
+                    <Dropdown.Item as={Link} to="/account/orders">
+                      Đơn hàng của tôi
+                    </Dropdown.Item>
+                  ) : (
+                    <Dropdown.Item onClick={() => navigate(getHomePathByRole(role))}>
+                      Dashboard
+                    </Dropdown.Item>
+                  )}
+
                   <Dropdown.Item as={Link} to="/account">
                     Hồ sơ cá nhân
                   </Dropdown.Item>

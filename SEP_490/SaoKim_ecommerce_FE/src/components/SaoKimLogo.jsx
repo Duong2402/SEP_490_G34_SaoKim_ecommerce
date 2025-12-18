@@ -19,7 +19,7 @@ export default function SaoKimLogo({
         if (!cancelled) setLogoExists(true);
       };
       img.onerror = () => {};
-      img.src = `/images/saokim-logo.${ext}`;
+      img.src = `/assets/images/saokim-logo.${ext}`;
     });
     return () => {
       cancelled = true;
@@ -46,7 +46,7 @@ export default function SaoKimLogo({
       <div className={`saokim-logo ${sizeClass}`}>
         <div className="logo-container">
           <img
-            src="/images/saokim-logo.png"
+            src="/assets/images/saokim-logo.png"
             alt="Sao Kim logo"
             className="logo-image"
             onError={(event) => {
