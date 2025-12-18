@@ -17,7 +17,7 @@ const EcommerceFooter = () => {
   const renderLogo = () =>
     !logoFailed ? (
       <img
-        src="/images/saokim-logo.jpg"
+        src="/assets/images/saokim-logo.jpg"
         alt="Sao Kim Lighting"
         className="footer-logo-img"
         onError={() => setLogoFailed(true)}
