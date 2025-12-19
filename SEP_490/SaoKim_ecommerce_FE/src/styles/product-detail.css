@@ -357,6 +357,7 @@
   .product-gallery__main img {
     height: 320px;
   }
+
   .product-specs__row {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -367,11 +368,102 @@
   .product-detail-main {
     padding: 30px 0 60px;
   }
+
   .product-gallery__thumb img {
     width: 60px;
     height: 60px;
   }
+
   .product-info__facts {
     grid-template-columns: 1fr;
   }
+}
+
+/* =============================================
+   Sale Badge & Price Promo Styles
+============================================= */
+.product-card {
+  position: relative;
+}
+
+/* Sale Badge */
+.product-card__sale-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 8px 20px rgba(255, 68, 68, 0.35);
+  animation: pulse-sale 2s infinite;
+}
+
+.product-card__sale-badge i {
+  margin-right: 4px;
+}
+
+@keyframes pulse-sale {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Giá khuyến mãi (màu đỏ nổi bật) */
+.product-card__price--promo {
+  color: #e53935 !important;
+  font-weight: 900 !important;
+}
+
+/* Giá gốc gạch ngang */
+.product-card__price--original {
+  display: inline-block;
+  margin-left: 8px;
+  color: #999;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: line-through;
+}
+
+/* Giá trong trang chi tiết sản phẩm */
+.product-info__price--promo {
+  color: #e53935;
+}
+
+.product-info__price--original {
+  display: inline-block;
+  margin-left: 10px;
+  color: #999;
+  font-size: 1.2rem;
+  font-weight: 500;
+  text-decoration: line-through;
+}
+
+/* Sale badge trên trang chi tiết */
+.product-detail-sale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(255, 68, 68, 0.35);
+  margin-bottom: 12px;
+  animation: pulse-sale 2s infinite;
 }

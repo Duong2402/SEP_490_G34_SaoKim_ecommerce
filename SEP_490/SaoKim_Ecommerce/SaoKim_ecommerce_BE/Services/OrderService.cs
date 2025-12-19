@@ -102,6 +102,11 @@ namespace SaoKim_ecommerce_BE.Services
 
             var productDict = products.ToDictionary(p => p.ProductID, p => p.ProductName);
 
+            // =========================
+            // APPLY PROMOTION PRICE HERE
+            // =========================
+            var effectivePriceDict = await GetEffectivePricesAsync(productIds, detailDict);
+
             decimal subtotal = 0m;
             var orderItems = new List<OrderItem>();
 
@@ -110,7 +115,11 @@ namespace SaoKim_ecommerce_BE.Services
                 if (!detailDict.TryGetValue(i.ProductId, out var detail))
                     throw new InvalidOperationException($"Không tìm thấy sản phẩm {i.ProductId}");
 
-                var unitPrice = detail.Price;
+                if (!effectivePriceDict.TryGetValue(i.ProductId, out var unitPrice))
+                {
+                    unitPrice = detail.Price;
+                }
+
                 var lineTotal = unitPrice * i.Quantity;
                 subtotal += lineTotal;
 
@@ -308,6 +317,65 @@ namespace SaoKim_ecommerce_BE.Services
                 _logger.LogError(ex, "Lỗi tạo đơn hàng trong OrdersService");
                 throw;
             }
+        }
+
+        private async Task<Dictionary<int, decimal>> GetEffectivePricesAsync(
+            List<int> productIds,
+            Dictionary<int, ProductDetail> detailDict)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var promoRows = await (from pp in _db.PromotionProducts.AsNoTracking()
+                                   join pr in _db.Promotions.AsNoTracking() on pp.PromotionId equals pr.Id
+                                   where productIds.Contains(pp.ProductId)
+                                         && (pr.Status == PromotionStatus.Active || pr.Status == PromotionStatus.Scheduled)
+                                         && pr.StartDate <= now
+                                         && now <= pr.EndDate
+                                   select new
+                                   {
+                                       pp.ProductId,
+                                       pr.DiscountType,
+                                       pr.DiscountValue
+                                   })
+                                   .ToListAsync();
+
+            static decimal CalcFinal(decimal basePrice, DiscountType type, decimal value)
+            {
+                decimal final = basePrice;
+
+                if (type == DiscountType.Percentage)
+                {
+                    final = basePrice * (1m - (value / 100m));
+                }
+                else if (type == DiscountType.FixedAmount)
+                {
+                    final = basePrice - value;
+                }
+
+                if (final < 0) final = 0;
+                return Math.Round(final, 2, MidpointRounding.AwayFromZero);
+            }
+
+            var map = new Dictionary<int, decimal>();
+
+            foreach (var id in productIds)
+            {
+                if (!detailDict.TryGetValue(id, out var detail))
+                    continue;
+
+                var basePrice = detail.Price;
+                var best = basePrice;
+
+                foreach (var pr in promoRows.Where(x => x.ProductId == id))
+                {
+                    var candidate = CalcFinal(basePrice, pr.DiscountType, pr.DiscountValue);
+                    if (candidate < best) best = candidate;
+                }
+
+                map[id] = best;
+            }
+
+            return map;
         }
 
         private async Task<Address?> ResolveShippingAddressAsync(CreateOrderRequest request, User user)

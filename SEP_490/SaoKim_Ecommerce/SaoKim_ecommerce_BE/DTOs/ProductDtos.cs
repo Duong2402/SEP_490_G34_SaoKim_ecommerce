@@ -11,13 +11,28 @@ namespace SaoKim_ecommerce_BE.DTOs
         public string? Slug { get; set; }
         public string? Category { get; set; }
         public string? Unit { get; set; }
+
+        // Price sẽ là "giá cuối" (đã áp khuyến mãi nếu có)
         public decimal Price { get; set; }
+
+        // Giá gốc để FE gạch (nullable để không phá UI cũ)
+        public decimal? OriginalPrice { get; set; }
+
+        // Thông tin khuyến mãi đang áp dụng (nullable)
+        public int? AppliedPromotionId { get; set; }
+        public string? AppliedPromotionName { get; set; }
+        public string? AppliedDiscountType { get; set; }   // "Percentage" | "FixedAmount"
+        public decimal? AppliedDiscountValue { get; set; }
+
         public int Quantity { get; set; }
         public int Stock { get; set; }
         public bool InStock => Stock > 0;
 
         public string? ThumbnailUrl { get; set; }
         public string? Status { get; set; }
+
+        // Dùng cho homepage (trước controller có trả)
+        public string? Description { get; set; }
 
         public DateTime? CreatedAt { get; set; }
     }

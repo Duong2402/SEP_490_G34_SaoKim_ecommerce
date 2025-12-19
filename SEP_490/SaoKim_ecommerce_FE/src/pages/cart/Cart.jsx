@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import HomepageHeader from "../../components/HomepageHeader";
 import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
+import { ProductsAPI } from "../../api/products";
 import "../../styles/cart.css";
 
 export default function Cart() {
@@ -12,6 +13,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const clickLockRef = useRef(new Set());
   const lastClickAtRef = useRef(new Map());
+  const priceUpdateRef = useRef(false); // Tránh gọi API liên tục
 
   useEffect(() => {
     const sync = () => {
@@ -32,6 +34,51 @@ export default function Cart() {
       window.removeEventListener("auth:changed", sync);
     };
   }, []);
+
+  // Cập nhật giá khuyến mãi realtime từ API
+  useEffect(() => {
+    if (items.length === 0 || priceUpdateRef.current) return;
+
+    const productIds = items.map((it) => Number(it.id)).filter(Boolean);
+    if (productIds.length === 0) return;
+
+    priceUpdateRef.current = true;
+
+    ProductsAPI.getPrices(productIds)
+      .then((res) => {
+        const prices = res?.data ?? res ?? [];
+        if (!Array.isArray(prices) || prices.length === 0) return;
+
+        const priceMap = new Map(prices.map((p) => [p.productId, p.price]));
+
+        setItems((prev) => {
+          let hasChanges = false;
+          const updated = prev.map((it) => {
+            const newPrice = priceMap.get(Number(it.id));
+            if (newPrice !== undefined && newPrice !== it.price) {
+              hasChanges = true;
+              return { ...it, price: newPrice };
+            }
+            return it;
+          });
+
+          if (hasChanges) {
+            writeCart(updated);
+            return updated;
+          }
+          return prev;
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to update promo prices:", err);
+      })
+      .finally(() => {
+        // Cho phép cập nhật lại sau 5 giây
+        setTimeout(() => {
+          priceUpdateRef.current = false;
+        }, 5000);
+      });
+  }, [items.length]); // Chỉ chạy khi số lượng items thay đổi
 
   useEffect(() => {
     setSelectedIds((prev) => {
@@ -164,7 +211,7 @@ export default function Cart() {
     const { checkoutKey } = getCartKeys();
     localStorage.setItem(checkoutKey, JSON.stringify(selectedItems));
 
-    navigate("/checkout");   
+    navigate("/checkout");
   };
 
   return (

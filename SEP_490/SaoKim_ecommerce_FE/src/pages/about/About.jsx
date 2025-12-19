@@ -67,7 +67,7 @@ export default function About() {
                 <div>
                   <span className="about-contact-label">Email</span>
                   <p className="about-contact-value">
-                    <a href="mailto:contact@saokim.vn">contact@saokim.vn</a>
+                    <a href="mailto:info@ske.com.vn">info@ske.com.vn</a>
                   </p>
                 </div>
                 <div className="about-contact-full">

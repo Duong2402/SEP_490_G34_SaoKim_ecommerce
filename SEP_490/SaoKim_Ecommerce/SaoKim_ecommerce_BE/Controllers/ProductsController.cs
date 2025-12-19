@@ -6,6 +6,7 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services;
 using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Controllers
@@ -18,12 +19,14 @@ namespace SaoKim_ecommerce_BE.Controllers
         private readonly SaoKimDBContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly IRealtimePublisher _rt;
+        private readonly IProductService _productService;
 
-        public ProductsController(SaoKimDBContext db, IWebHostEnvironment env, IRealtimePublisher rt)
+        public ProductsController(SaoKimDBContext db, IWebHostEnvironment env, IRealtimePublisher rt, IProductService productService)
         {
             _db = db;
             _env = env;
             _rt = rt;
+            _productService = productService;
         }
 
         // GET: /api/products
@@ -35,113 +38,65 @@ namespace SaoKim_ecommerce_BE.Controllers
             [FromQuery] string? q,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
-            [FromQuery] string? sortBy = "id",
-            [FromQuery] string? sortDir = "asc")
+            [FromQuery] string? sortBy = "new",
+            [FromQuery] string? sortDir = "desc",
+            [FromQuery] string? category = null)
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            IQueryable<Product> productQuery = _db.Products.AsNoTracking().Where(p => p.ProductDetails.Any(d => d.Status == "Active"));
-
-            if (!string.IsNullOrWhiteSpace(q))
+            // Chuyển category name sang categoryId nếu có
+            int? categoryId = null;
+            if (!string.IsNullOrWhiteSpace(category))
             {
-                var term = $"%{q.Trim()}%";
-
-                productQuery = productQuery.Where(p =>
-                    EF.Functions.ILike(p.ProductName, term) ||
-                    EF.Functions.ILike(p.ProductCode, term) ||
-                    p.ProductDetails.Any(d => d.Category != null &&
-                                              EF.Functions.ILike(d.Category.Name, term))
-                );
+                var cat = category.Trim().ToLowerInvariant();
+                categoryId = await _db.Categories
+                    .AsNoTracking()
+                    .Where(c => c.Name != null && c.Name.ToLower() == cat)
+                    .Select(c => (int?)c.Id)
+                    .FirstOrDefaultAsync();
             }
 
-            var total = await productQuery.CountAsync();
+            var query = new ProductQueryParams
+            {
+                Page = page,
+                PageSize = pageSize,
+                SortBy = sortBy ?? "new",
+                Keyword = string.IsNullOrWhiteSpace(q) ? null : q.Trim(),
+                CategoryId = categoryId
+            };
+
+            // Dùng ProductService - đã apply promotion
+            var result = await _productService.GetPagedAsync(query);
 
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-            var query =
-                productQuery
-                    .Select(p => new
-                    {
-                        Product = p,
-                        Detail = p.ProductDetails
-                            .OrderByDescending(d => d.Id)
-                            .FirstOrDefault(),
-                        HasProjects = p.ProjectProducts.Any()
-                    });
-
-            var sortKey = (sortBy ?? "id").ToLowerInvariant();
-            var desc = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-
-            var ordered = sortKey switch
+            // Map sang format cũ để không break FE
+            var items = result.Items.Select(x => new
             {
-                "name" => desc
-                    ? query.OrderByDescending(x => x.Product.ProductName)
-                    : query.OrderBy(x => x.Product.ProductName),
-
-                "sku" => desc
-                    ? query.OrderByDescending(x => x.Product.ProductCode)
-                    : query.OrderBy(x => x.Product.ProductCode),
-
-                "category" => desc
-                    ? query.OrderByDescending(x => x.Detail != null && x.Detail.Category != null
-                        ? x.Detail.Category.Name
-                        : null)
-                    : query.OrderBy(x => x.Detail != null && x.Detail.Category != null
-                        ? x.Detail.Category.Name
-                        : null),
-
-                "price" => desc
-                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Price : 0)
-                    : query.OrderBy(x => x.Detail != null ? x.Detail.Price : 0),
-
-                "stock" => desc
-                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Quantity : 0)
-                    : query.OrderBy(x => x.Detail != null ? x.Detail.Quantity : 0),
-
-                "status" => desc
-                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.Status : null)
-                    : query.OrderBy(x => x.Detail != null ? x.Detail.Status : null),
-
-                "created" => desc
-                    ? query.OrderByDescending(x => x.Detail != null ? x.Detail.CreateAt : null)
-                    : query.OrderBy(x => x.Detail != null ? x.Detail.CreateAt : null),
-
-                _ => desc
-                    ? query.OrderByDescending(x => x.Product.ProductID)
-                    : query.OrderBy(x => x.Product.ProductID),
-            };
-
-            var items = await ordered
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(x => new
-                {
-                    id = x.Product.ProductID,
-                    sku = x.Product.ProductCode,
-                    name = x.Product.ProductName,
-                    category = x.Detail != null && x.Detail.Category != null
-                        ? x.Detail.Category.Name
-                        : null,
-                    price = x.Detail != null ? x.Detail.Price : 0,
-                    unit = x.Detail != null ? x.Detail.Unit : null,
-                    stock = x.Detail != null ? x.Detail.Quantity : 0,
-                    status = x.Detail != null ? x.Detail.Status : null,
-                    created = x.Detail != null ? x.Detail.CreateAt : null,
-                    image = x.Detail != null && x.Detail.Image != null
-                        ? $"{baseUrl}/images/{x.Detail.Image}"
-                        : null,
-                    inProject = x.HasProjects
-                })
-                .ToListAsync();
+                id = x.Id,
+                sku = x.Sku,
+                name = x.Name,
+                category = (string?)null, // Category name không có trong DTO, để null
+                price = x.Price,
+                originalPrice = x.OriginalPrice,
+                unit = x.Unit,
+                stock = x.Quantity,
+                status = x.Status,
+                created = x.CreatedAt,
+                image = !string.IsNullOrEmpty(x.ThumbnailUrl)
+                    ? (x.ThumbnailUrl.StartsWith("http") ? x.ThumbnailUrl : $"{baseUrl}/images/{x.ThumbnailUrl}")
+                    : null,
+                inProject = false // Không có info này trong DTO
+            }).ToList();
 
             var payload = new
             {
                 items,
-                page,
-                pageSize,
-                total,
-                totalPages = (int)Math.Ceiling(total / (double)pageSize)
+                page = result.Page,
+                pageSize = result.PageSize,
+                total = result.TotalItems,
+                totalPages = (int)Math.Ceiling(result.TotalItems / (double)result.PageSize)
             };
 
             return Ok(ApiResponse<object>.Ok(payload));
@@ -154,7 +109,7 @@ namespace SaoKim_ecommerce_BE.Controllers
         {
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-            var product = await _db.Products
+            var rawProduct = await _db.Products
                 .AsNoTracking()
                 .Where(p => p.ProductID == id)
                 .Select(p => new
@@ -165,34 +120,93 @@ namespace SaoKim_ecommerce_BE.Controllers
                         .FirstOrDefault(),
                     HasProjects = p.ProjectProducts.Any()
                 })
-                .Select(x => new
-                {
-                    id = x.Product.ProductID,
-                    sku = x.Product.ProductCode,
-                    name = x.Product.ProductName,
-                    category = x.Detail != null && x.Detail.Category != null
-                        ? x.Detail.Category.Name
-                        : null,
-                    price = x.Detail != null ? x.Detail.Price : 0,
-                    unit = x.Detail != null ? (x.Detail.Unit ?? "") : "",
-                    stock = x.Detail != null ? x.Detail.Quantity : 0,
-                    status = x.Detail != null ? x.Detail.Status : null,
-                    created = x.Detail != null ? x.Detail.CreateAt : null,
-                    categoryId = x.Detail != null ? x.Detail.CategoryId : (int?)null,
-                    quantity = x.Detail != null ? x.Detail.Quantity : 0,
-                    description = x.Detail != null ? x.Detail.Description : null,
-                    supplier = x.Detail != null ? x.Detail.Supplier : null,
-                    image = x.Detail != null && x.Detail.Image != null
-                        ? $"{baseUrl}/images/{x.Detail.Image}"
-                        : null,
-                    note = x.Detail != null ? x.Detail.Note : null,
-                    inProject = x.HasProjects,
-                    updateAt = x.Detail != null ? x.Detail.UpdateAt : null
-                })
                 .FirstOrDefaultAsync();
 
-            if (product == null)
+            if (rawProduct == null || rawProduct.Detail == null)
                 return NotFound(new { message = "Product not found" });
+
+            // Lấy thông tin khuyến mãi cho sản phẩm này
+            var now = DateTimeOffset.UtcNow;
+            var basePrice = rawProduct.Detail.Price;
+            decimal? originalPrice = null;
+            decimal finalPrice = basePrice;
+            int? appliedPromotionId = null;
+            string? appliedPromotionName = null;
+            string? appliedDiscountType = null;
+            decimal? appliedDiscountValue = null;
+
+            var promoRows = await (from pp in _db.PromotionProducts.AsNoTracking()
+                                   join pr in _db.Promotions.AsNoTracking() on pp.PromotionId equals pr.Id
+                                   where pp.ProductId == id
+                                         && (pr.Status == PromotionStatus.Active || pr.Status == PromotionStatus.Scheduled)
+                                         && pr.StartDate <= now
+                                         && now <= pr.EndDate
+                                   orderby pr.StartDate descending
+                                   select new
+                                   {
+                                       pr.Id,
+                                       pr.Name,
+                                       pr.DiscountType,
+                                       pr.DiscountValue,
+                                       pr.StartDate
+                                   })
+                                   .ToListAsync();
+
+            // Tìm khuyến mãi tốt nhất (giá thấp nhất)
+            foreach (var promo in promoRows)
+            {
+                decimal candidate;
+                if (promo.DiscountType == DiscountType.Percentage)
+                {
+                    candidate = basePrice * (1m - (promo.DiscountValue / 100m));
+                }
+                else // FixedAmount
+                {
+                    candidate = basePrice - promo.DiscountValue;
+                }
+                if (candidate < 0) candidate = 0;
+                candidate = Math.Round(candidate, 2, MidpointRounding.AwayFromZero);
+
+                if (candidate < finalPrice)
+                {
+                    finalPrice = candidate;
+                    originalPrice = basePrice;
+                    appliedPromotionId = promo.Id;
+                    appliedPromotionName = promo.Name;
+                    appliedDiscountType = promo.DiscountType.ToString();
+                    appliedDiscountValue = promo.DiscountValue;
+                }
+            }
+
+            var product = new
+            {
+                id = rawProduct.Product.ProductID,
+                sku = rawProduct.Product.ProductCode,
+                name = rawProduct.Product.ProductName,
+                category = rawProduct.Detail.Category != null
+                    ? rawProduct.Detail.Category.Name
+                    : null,
+                price = finalPrice,
+                originalPrice = originalPrice,
+                promotionId = appliedPromotionId,
+                promotionName = appliedPromotionName,
+                discountType = appliedDiscountType,
+                discountValue = appliedDiscountValue,
+                unit = rawProduct.Detail.Unit ?? "",
+                stock = rawProduct.Detail.Quantity,
+                status = rawProduct.Detail.Status,
+                created = rawProduct.Detail.CreateAt,
+                categoryId = rawProduct.Detail.CategoryId,
+                quantity = rawProduct.Detail.Quantity,
+                description = rawProduct.Detail.Description,
+                supplier = rawProduct.Detail.Supplier,
+                image = rawProduct.Detail.Image != null
+                    ? $"{baseUrl}/images/{rawProduct.Detail.Image}"
+                    : null,
+                note = rawProduct.Detail.Note,
+                inProject = rawProduct.HasProjects,
+                updateAt = rawProduct.Detail.UpdateAt
+            };
 
             var relatedQuery = _db.Products
                 .AsNoTracking()
@@ -300,7 +314,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             var product = new Product
             {
                 ProductName = model.Name,
-                ProductCode = "" 
+                ProductCode = ""
             };
 
             _db.Products.Add(product);
@@ -491,7 +505,6 @@ namespace SaoKim_ecommerce_BE.Controllers
                 id
             });
 
-
             return Ok(new { message = "Product deleted successfully" });
         }
 
@@ -510,132 +523,110 @@ namespace SaoKim_ecommerce_BE.Controllers
             Page = Math.Max(1, Page);
             PageSize = Math.Clamp(PageSize, 1, 100);
 
-            var cutoff = DateTime.UtcNow.AddDays(-NewWithinDays);
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-            var productWithDetail = _db.Products
-                .AsNoTracking()
-                .Select(p => new
-                {
-                    Product = p,
-                    Detail = p.ProductDetails
-                        .OrderByDescending(d => d.Id)
-                        .FirstOrDefault()
-                });
-
-            var featuredQuery = productWithDetail
-                .Where(x =>
-                    x.Detail != null &&
-                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
-                    x.Detail.Quantity > 0);
-
-            var featured = await featuredQuery
-                .OrderByDescending(x => x.Detail!.CreateAt)
-                .Take(8)
-                .Select(x => new
-                {
-                    id = x.Product.ProductID,
-                    name = x.Product.ProductName,
-                    price = x.Detail!.Price,
-                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
-                    description = x.Detail.Description,
-                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
-                    createAt = x.Detail.CreateAt,
-                    quantity = x.Detail.Quantity
-                })
-                .ToListAsync();
-
-            var newArrivalsQuery = productWithDetail
-                .Where(x =>
-                    x.Detail != null &&
-                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
-                    x.Detail.CreateAt >= cutoff);
-
-            var newArrivals = await newArrivalsQuery
-                .OrderByDescending(x => x.Detail!.CreateAt)
-                .Take(12)
-                .Select(x => new
-                {
-                    id = x.Product.ProductID,
-                    name = x.Product.ProductName,
-                    price = x.Detail!.Price,
-                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
-                    description = x.Detail.Description,
-                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
-                    createAt = x.Detail.CreateAt,
-                    quantity = x.Detail.Quantity
-                })
-                .ToListAsync();
-
-            var q = productWithDetail
-                .Where(x =>
-                    x.Detail != null &&
-                    (x.Detail.Status == "Active" || x.Detail.Status == null));
-
-            if (!string.IsNullOrWhiteSpace(Keyword))
-            {
-                var kw = Keyword.Trim();
-                q = q.Where(x => x.Product.ProductName.Contains(kw));
-            }
-
+            int? categoryId = null;
             if (!string.IsNullOrWhiteSpace(Category))
             {
-                var catLower = Category.Trim().ToLower();
-                q = q.Where(x =>
-                    x.Detail!.Category != null &&
-                    x.Detail.Category.Name.ToLower() == catLower);
+                var catName = Category.Trim();
+                categoryId = await _db.Categories
+                    .AsNoTracking()
+                    .Where(c => c.Name != null && c.Name.ToLower() == catName.ToLower())
+                    .Select(c => (int?)c.Id)
+                    .FirstOrDefaultAsync();
             }
 
-            var sortKey = (SortBy ?? "new").ToLowerInvariant();
-            var sorted = q;
-
-            if (sortKey == "price_asc")
+            var query = new ProductQueryParams
             {
-                sorted = sorted
-                    .OrderBy(x => x.Detail!.Price)
-                    .ThenByDescending(x => x.Detail!.CreateAt);
-            }
-            else if (sortKey == "price_desc")
-            {
-                sorted = sorted
-                    .OrderByDescending(x => x.Detail!.Price)
-                    .ThenByDescending(x => x.Detail!.CreateAt);
-            }
-            else
-            {
-                sorted = sorted
-                    .OrderByDescending(x => x.Detail!.CreateAt);
-            }
+                Page = Page,
+                PageSize = PageSize,
+                SortBy = SortBy,
+                Keyword = Keyword,
+                CategoryId = categoryId,
+                NewWithinDays = NewWithinDays
+            };
 
-            var totalItems = await sorted.CountAsync();
+            var home = await _productService.GetHomeAsync(query);
 
-            var items = await sorted
-                .Skip((Page - 1) * PageSize)
-                .Take(PageSize)
-                .Select(x => new
+            // Normalize ảnh: service trả file name, controller trả full URL như trước
+            void NormalizeThumb(IEnumerable<ProductListItemDto> items)
+            {
+                foreach (var x in items)
                 {
-                    id = x.Product.ProductID,
-                    name = x.Product.ProductName,
-                    price = x.Detail!.Price,
-                    image = x.Detail.Image != null ? $"{baseUrl}/images/{x.Detail.Image}" : null,
-                    description = x.Detail.Description,
-                    category = x.Detail.Category != null ? x.Detail.Category.Name : null,
-                    createAt = x.Detail.CreateAt,
-                    quantity = x.Detail.Quantity
-                })
-                .ToListAsync();
+                    if (string.IsNullOrWhiteSpace(x.ThumbnailUrl)) continue;
+                    if (Uri.TryCreate(x.ThumbnailUrl, UriKind.Absolute, out _)) continue;
 
+                    x.ThumbnailUrl = $"{baseUrl}/images/{x.ThumbnailUrl}";
+                }
+            }
+
+            NormalizeThumb(home.Featured);
+            NormalizeThumb(home.NewArrivals);
+            NormalizeThumb(home.All.Items);
+
+            // Giữ nguyên shape response cũ (featured/newArrivals/all.page...)
             return Ok(new
             {
-                featured,
-                newArrivals,
+                featured = home.Featured.Select(x => new
+                {
+                    id = x.Id,
+                    name = x.Name,
+                    price = x.Price,
+                    originalPrice = x.OriginalPrice,
+
+                    promotionId = x.AppliedPromotionId,
+                    promotionName = x.AppliedPromotionName,
+                    discountType = x.AppliedDiscountType,
+                    discountValue = x.AppliedDiscountValue,
+
+                    image = x.ThumbnailUrl,
+                    description = x.Description,
+                    category = x.Category,
+                    createAt = x.CreatedAt,
+                    quantity = x.Stock
+                }),
+                newArrivals = home.NewArrivals.Select(x => new
+                {
+                    id = x.Id,
+                    name = x.Name,
+                    price = x.Price,
+                    originalPrice = x.OriginalPrice,
+
+                    promotionId = x.AppliedPromotionId,
+                    promotionName = x.AppliedPromotionName,
+                    discountType = x.AppliedDiscountType,
+                    discountValue = x.AppliedDiscountValue,
+
+                    image = x.ThumbnailUrl,
+                    description = x.Description,
+                    category = x.Category,
+                    createAt = x.CreatedAt,
+                    quantity = x.Stock
+                }),
                 all = new
                 {
-                    page = Page,
-                    pageSize = PageSize,
-                    totalItems,
-                    totalPages = (int)Math.Ceiling((double)totalItems / PageSize),
-                    items
+                    page = home.All.Page,
+                    pageSize = home.All.PageSize,
+                    totalItems = home.All.TotalItems,
+                    totalPages = (int)Math.Ceiling((double)home.All.TotalItems / home.All.PageSize),
+                    items = home.All.Items.Select(x => new
+                    {
+                        id = x.Id,
+                        name = x.Name,
+                        price = x.Price,
+                        originalPrice = x.OriginalPrice,
+
+                        promotionId = x.AppliedPromotionId,
+                        promotionName = x.AppliedPromotionName,
+                        discountType = x.AppliedDiscountType,
+                        discountValue = x.AppliedDiscountValue,
+
+                        image = x.ThumbnailUrl,
+                        description = x.Description,
+                        category = x.Category,
+                        createAt = x.CreatedAt,
+                        quantity = x.Stock
+                    })
                 }
             });
         }

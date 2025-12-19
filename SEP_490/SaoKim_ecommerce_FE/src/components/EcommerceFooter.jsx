@@ -121,7 +121,7 @@ const EcommerceFooter = () => {
                 </li>
                 <li>
                   <FontAwesomeIcon icon={faEnvelope} className="contact-icon" />
-                  <a href="mailto:contact@saokim.vn">Email: contact@saokim.vn</a>
+                  <a href="mailto:info@ske.com.vn">Email: info@ske.com.vn</a>
                 </li>
               </ul>
               <div className="footer-social">

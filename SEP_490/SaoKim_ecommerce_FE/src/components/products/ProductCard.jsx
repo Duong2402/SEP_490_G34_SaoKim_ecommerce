@@ -1,8 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { Card, Button } from "react-bootstrap";
+import { Card, Button, Badge } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faShoppingCart, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { faShoppingCart, faArrowRight, faTag } from "@fortawesome/free-solid-svg-icons";
 
 const defaultFormatPrice = (value) =>
   value || value === 0
@@ -18,11 +18,23 @@ const ProductCard = ({ product, badgeText, onView, onAddToCart, formatPrice }) =
     if (onAddToCart) onAddToCart(product);
   };
 
-  const priceLabel = (formatPrice || defaultFormatPrice)(product.price);
+  const fmt = formatPrice || defaultFormatPrice;
+  const priceLabel = fmt(product.price);
+
+  // Kiểm tra có khuyến mãi không
+  const hasPromo = product.originalPrice && product.originalPrice > product.price;
 
   return (
     <Card className="luxury-card home-product-card h-100">
-      {badgeText && <div className="home-product-badge">{badgeText}</div>}
+      {/* Badge Sale nếu có khuyến mãi */}
+      {hasPromo && (
+        <div className="home-product-badge sale-badge">
+          <FontAwesomeIcon icon={faTag} className="me-1" />
+          Sale
+        </div>
+      )}
+      {/* Badge text thường (Mới, Hot...) */}
+      {!hasPromo && badgeText && <div className="home-product-badge">{badgeText}</div>}
 
       <div className="home-product-media">
         <Card.Img
@@ -39,7 +51,15 @@ const ProductCard = ({ product, badgeText, onView, onAddToCart, formatPrice }) =
         <Card.Title className="home-product-title cursor-pointer" onClick={handleView}>
           {product.name}
         </Card.Title>
-        <div className="home-product-price">{priceLabel}</div>
+
+        {/* Hiển thị giá với giá gốc gạch ngang nếu có khuyến mãi */}
+        <div className="home-product-price">
+          <span className={hasPromo ? "promo-price" : ""}>{priceLabel}</span>
+          {hasPromo && (
+            <span className="original-price">{fmt(product.originalPrice)}</span>
+          )}
+        </div>
+
         <div className="home-product-actions">
           <Button className="home-product-btn primary" onClick={handleView}>
             Xem chi tiết
@@ -60,6 +80,7 @@ ProductCard.propTypes = {
     id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
     name: PropTypes.string.isRequired,
     price: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    originalPrice: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     image: PropTypes.string,
     category: PropTypes.string,
   }).isRequired,

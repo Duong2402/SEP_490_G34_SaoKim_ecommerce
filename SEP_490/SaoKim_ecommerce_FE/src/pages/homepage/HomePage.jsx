@@ -77,10 +77,11 @@ const HomePage = () => {
             id: p.id || p.productID,
             name: p.name || p.productName,
             price: p.price,
+            originalPrice: p.originalPrice || null,
             image: p.thumbnailUrl || p.image || "https://via.placeholder.com/600x450?text=No+Image",
             category: p.category || "Đèn trang trí",
           }))
-          .slice(0, 8); 
+          .slice(0, 8);
 
         setProducts(normalized);
       } catch (error) {
@@ -109,7 +110,7 @@ const HomePage = () => {
     sections.forEach((section) => observer.observe(section));
 
     return () => sections.forEach((section) => observer.unobserve(section));
-  }, [products]); 
+  }, [products]);
 
   const formatCurrency = (value) => {
     if (!value) return "Liên hệ";
@@ -301,17 +302,21 @@ const HomePage = () => {
           ) : (
             <Row className="g-4">
               {products.length > 0 ? (
-                products.map((product) => (
-                  <Col xl={3} lg={3} md={6} sm={6} key={product.id}>
-                    <ProductCard
-                      product={product}
-                      badgeText="Mới"
-                      onView={() => navigate(`/products/${product.id}`)}
-                      onAddToCart={handleAddToCart}
-                      formatPrice={formatCurrency}
-                    />
-                  </Col>
-                ))
+                products.map((product) => {
+                  // Kiểm tra có khuyến mãi không
+                  const hasPromo = product.originalPrice && product.originalPrice > product.price;
+                  return (
+                    <Col xl={3} lg={3} md={6} sm={6} key={product.id}>
+                      <ProductCard
+                        product={product}
+                        badgeText={hasPromo ? null : "Mới"}
+                        onView={() => navigate(`/products/${product.id}`)}
+                        onAddToCart={handleAddToCart}
+                        formatPrice={formatCurrency}
+                      />
+                    </Col>
+                  );
+                })
               ) : (
                 <Col className="text-center">
                   <p>Chưa có sản phẩm nào.</p>

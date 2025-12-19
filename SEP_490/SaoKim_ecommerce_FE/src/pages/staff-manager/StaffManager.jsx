@@ -180,11 +180,11 @@ export default function ManageProduct() {
         return () => c.off("evt", handler);
       } catch (e) {
         console.warn("[realtime] connect failed", e);
-        return () => {};
+        return () => { };
       }
     };
 
-    let unsubscribe = () => {};
+    let unsubscribe = () => { };
     connect().then((fn) => {
       if (typeof fn === "function") unsubscribe = fn;
     });
@@ -196,7 +196,7 @@ export default function ManageProduct() {
       try {
         const c = getRealtimeConnection();
         c.off("evt");
-      } catch {}
+      } catch { }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize, sortBy, sortDir, debouncedSearch]);
@@ -392,7 +392,15 @@ export default function ManageProduct() {
                     <td>{p.name}</td>
                     <td>{p.category}</td>
                     <td className="text-end">
-                      {(p.price ?? 0).toLocaleString("vi-VN")} ₫
+                      {(p.originalPrice ?? p.price ?? 0).toLocaleString("vi-VN")} ₫
+                      {p.originalPrice && p.originalPrice > p.price && (
+                        <Badge
+                          bg="danger"
+                          style={{ marginLeft: 8, fontSize: '0.7rem' }}
+                        >
+                          Đang chạy KM
+                        </Badge>
+                      )}
                     </td>
                     <td>{renderStatus(p.status)}</td>
                     <td className="text-end">

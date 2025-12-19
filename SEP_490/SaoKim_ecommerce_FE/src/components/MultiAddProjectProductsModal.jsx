@@ -38,7 +38,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
   const [all, setAll] = useState([]);
   const [q, setQ] = useState("");
 
-  const [sel, setSel] = useState({}); 
+  const [sel, setSel] = useState({});
   const [saving, setSaving] = useState(false);
 
   const existingSet = useMemo(
@@ -79,7 +79,8 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
       if (next[p.id]) {
         delete next[p.id];
       } else {
-        next[p.id] = { quantity: 1, unitPrice: p.price ?? 0 };
+        // Ưu tiên giá gốc cho PM
+        next[p.id] = { quantity: 1, unitPrice: p.originalPrice ?? p.price ?? 0 };
       }
       return next;
     });
@@ -97,7 +98,8 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
         });
       } else {
         filtered.forEach((p) => {
-          next[p.id] = next[p.id] || { quantity: 1, unitPrice: p.price ?? 0 };
+          // Ưu tiên giá gốc
+          next[p.id] = next[p.id] || { quantity: 1, unitPrice: p.originalPrice ?? p.price ?? 0 };
         });
       }
       return next;
@@ -260,7 +262,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
                               <td>{getProductUnit(p)}</td>
                               <td>{p.sku}</td>
                               <td style={{ textAlign: "right" }}>
-                                {Number(p.price || 0).toLocaleString("vi-VN")}
+                                {Number(p.originalPrice ?? p.price ?? 0).toLocaleString("vi-VN")}
                               </td>
                               <td style={{ textAlign: "right" }}>
                                 {isChecked ? (
@@ -284,7 +286,7 @@ function MultiAddProjectProductsModal({ projectId, existingProductIds = [], onCl
                                     inputMode="numeric"
                                     className="input"
                                     style={{ maxWidth: 140, textAlign: "right" }}
-                                    value={formatVnd(sel[p.id]?.unitPrice ?? p.price ?? 0)}
+                                    value={formatVnd(sel[p.id]?.unitPrice ?? p.originalPrice ?? p.price ?? 0)}
                                     onChange={(e) => setPrice(p.id, parseNumber(e.target.value))}
                                   />
                                 ) : (
