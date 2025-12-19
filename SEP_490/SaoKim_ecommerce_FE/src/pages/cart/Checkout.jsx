@@ -208,6 +208,9 @@ export default function Checkout() {
   const vat = Math.round(vatBase * 0.1);
   const total = Math.max(vatBase + vat + shippingFee, 0);
 
+  const LARGE_ORDER_LIMIT = 15000000;
+  const isLargeOrder = total > LARGE_ORDER_LIMIT;
+
   const qrAmount = Math.round(Number(total) || 0);
   const noneChecked = selectedIds.size === 0;
 
@@ -260,6 +263,13 @@ export default function Checkout() {
     }
 
     if (submitting) return;
+
+    if (total > LARGE_ORDER_LIMIT) {
+      alert(
+        "Bạn muốn mua đơn hàng có giá trị lớn? Liên hệ với chúng tôi để nhận ưu đãi"
+      );
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -366,6 +376,7 @@ export default function Checkout() {
     apiBase,
     navigate,
     submitting,
+    isLargeOrder,
   ]);
 
   const handleApplyVoucher = async () => {
@@ -465,6 +476,13 @@ export default function Checkout() {
     if (!selectedAddressId) {
       alert("Vui lòng thêm hoặc chọn địa chỉ giao hàng");
       navigate("/account/addresses", { state: { from: "/checkout" } });
+      return;
+    }
+
+    if (total > LARGE_ORDER_LIMIT) {
+      alert(
+        "Bạn muốn mua đơn hàng có giá trị lớn? Liên hệ với chúng tôi để biết thêm chi tiết"
+      );
       return;
     }
 
@@ -759,17 +777,13 @@ export default function Checkout() {
                                   <div className="fw-semibold text-primary">
                                     {opt.label}
                                   </div>
-                                  <div className="text-muted small">
-                                    {opt.time}
-                                  </div>
+                                  <div className="text-muted small">{opt.time}</div>
                                 </div>
                                 <div className="text-end">
                                   <div className="fw-semibold text-dark">
                                     {formatCurrency(optionFee)}
                                   </div>
-                                  <div className="text-muted small">
-                                    Ước tính phí
-                                  </div>
+                                  <div className="text-muted small">Ước tính phí</div>
                                 </div>
                               </div>
                             </div>
@@ -903,9 +917,7 @@ export default function Checkout() {
                     {selectedItems.map((it) => (
                       <div key={it.id} className="summary-item">
                         <div className="flex-grow-1">
-                          <div className="fw-semibold text-primary">
-                            {it.name}
-                          </div>
+                          <div className="fw-semibold text-primary">{it.name}</div>
                           <div className="text-muted small">× {it.quantity}</div>
                         </div>
                         <div className="text-end text-dark fw-semibold">
@@ -920,15 +932,11 @@ export default function Checkout() {
                   <div className="summary-pricing">
                     <div className="summary-row">
                       <span>Tạm tính:</span>
-                      <span className="fw-semibold">
-                        {formatCurrency(subtotal)}
-                      </span>
+                      <span className="fw-semibold">{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="summary-row">
                       <span>Phí ship:</span>
-                      <span className="fw-semibold">
-                        {formatCurrency(shippingFee)}
-                      </span>
+                      <span className="fw-semibold">{formatCurrency(shippingFee)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="summary-row text-success">
@@ -944,9 +952,7 @@ export default function Checkout() {
                     </div>
                     <div className="summary-row total-row">
                       <span>Tổng cộng:</span>
-                      <span className="total-amount">
-                        {formatCurrency(total)}
-                      </span>
+                      <span className="total-amount">{formatCurrency(total)}</span>
                     </div>
                   </div>
 
@@ -957,11 +963,16 @@ export default function Checkout() {
                       disabled={
                         submitting ||
                         noneChecked ||
+                        isLargeOrder ||
                         (paymentMethod === "QR" && !paymentVerified)
                       }
                       onClick={handlePay}
                     >
-                      {noneChecked ? "Chọn sản phẩm để thanh toán" : "Đặt hàng"}
+                      {noneChecked
+                        ? "Chọn sản phẩm để thanh toán"
+                        : isLargeOrder
+                        ? "Bạn muốn mua đơn hàng có giá trị lớn? Liên hệ với chúng tôi để biết thêm chi tiết"
+                        : "Đặt hàng"}
                     </Button>
 
                     <Button
@@ -973,6 +984,14 @@ export default function Checkout() {
                       Quay lại giỏ hàng
                     </Button>
                   </div>
+
+                  {isLargeOrder && !noneChecked && (
+                    <div className="text-muted small mt-3">
+                      Đơn hàng vượt quá 15.000.000. Vui lòng liên hệ với chúng tôi để
+                      được hỗ trợ.
+                    <div>0963 811 369</div>
+                    </div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -982,12 +1001,7 @@ export default function Checkout() {
 
       <EcommerceFooter />
 
-      <Modal
-        show={showQrModal}
-        onHide={handleCloseQrModal}
-        centered
-        size="lg"
-      >
+      <Modal show={showQrModal} onHide={handleCloseQrModal} centered size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Quét mã QR để thanh toán</Modal.Title>
         </Modal.Header>
@@ -1007,7 +1021,9 @@ export default function Checkout() {
             />
 
             <div className="mt-3">
-              <div className="fw-semibold">Số tiền: {formatCurrency(qrAmount)}</div>
+              <div className="fw-semibold">
+                Số tiền: {formatCurrency(qrAmount)}
+              </div>
               <div className="text-muted small mt-1">
                 Nội dung: <span className="fw-semibold">{qrAddInfo}</span>
               </div>

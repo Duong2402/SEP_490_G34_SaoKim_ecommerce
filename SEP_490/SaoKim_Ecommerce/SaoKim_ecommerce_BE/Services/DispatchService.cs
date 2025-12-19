@@ -394,7 +394,7 @@ namespace SaoKim_ecommerce_BE.Services
                     continue;
 
                 var product = await _db.Products
-                    .Where(p => p.ProductID == it.ProductId.Value)
+                    .Where(p => p.ProductID == it.ProductId.Value )
                     .Select(p => new { p.ProductID, p.ProductCode, p.ProductName })
                     .FirstOrDefaultAsync();
 

@@ -121,7 +121,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
         <label>Giá trị ưu đãi *</label>
         <input
           className="manager-form__control"
-          type="number"
+          type="text"
           min="0"
           step="1"
           name="discountValue"
@@ -136,7 +136,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
         <label>Đơn hàng tối thiểu (VND)</label>
         <input
           className="manager-form__control"
-          type="number"
+          type="text"
           min="0"
           step="1000"
           name="minOrderAmount"
@@ -150,7 +150,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
         <label>Tổng số lần sử dụng</label>
         <input
           className="manager-form__control"
-          type="number"
+          type="text"
           min="0"
           step="1"
           name="maxUsage"
@@ -164,7 +164,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
         <label>Giới hạn mỗi khách</label>
         <input
           className="manager-form__control"
-          type="number"
+          type="text"
           min="0"
           step="1"
           name="perUserLimit"

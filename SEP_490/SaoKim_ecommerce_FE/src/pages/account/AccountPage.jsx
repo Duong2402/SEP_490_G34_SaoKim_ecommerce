@@ -1008,17 +1008,6 @@ function PasswordTab() {
 
       <form className="account-form" onSubmit={handleSubmit}>
         <div className="account-field">
-          <label>Email của bạn</label>
-          <input
-            name="email"
-            type="email"
-            required
-            placeholder="manager@saokim.vn"
-            value={form.email}
-            onChange={handleChange}
-          />
-        </div>
-        <div className="account-field">
           <label>Mật khẩu hiện tại</label>
           <input
             name="currentPassword"

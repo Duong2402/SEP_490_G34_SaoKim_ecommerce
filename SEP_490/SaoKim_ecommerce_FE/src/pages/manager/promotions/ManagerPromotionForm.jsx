@@ -135,7 +135,7 @@ export default function ManagerPromotionForm({ initialValues, submitting, onSubm
         <label>Giá trị ưu đãi *</label>
         <input
           className="manager-form__control"
-          type="number"
+          type="text"
           min="0"
           step="1"
           name="discountValue"

@@ -41,7 +41,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            IQueryable<Product> productQuery = _db.Products.AsNoTracking();
+            IQueryable<Product> productQuery = _db.Products.AsNoTracking().Where(p => p.ProductDetails.Any(d => d.Status == "Active"));
 
             if (!string.IsNullOrWhiteSpace(q))
             {

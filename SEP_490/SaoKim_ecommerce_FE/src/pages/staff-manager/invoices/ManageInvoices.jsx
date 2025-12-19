@@ -159,17 +159,6 @@ export default function ManageInvoices() {
     }
   };
 
-  const onDeletePdf = async (id) => {
-    if (!window.confirm("Xóa file PDF đính kèm?")) return;
-    try {
-      await deletePdf(id);
-      await load();
-    } catch (err) {
-      console.error(err);
-      alert("Xóa PDF thất bại");
-    }
-  };
-
   const onSendEmail = async (inv) => {
     if (!inv.email) {
       alert("Hóa đơn này chưa có email khách hàng.");
@@ -417,15 +406,6 @@ export default function ManageInvoices() {
                             )}
                           </Button>
 
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="me-2"
-                            title="Xóa PDF"
-                            onClick={() => onDeletePdf(i.id)}
-                          >
-                            <FontAwesomeIcon icon={faFilePdf} />
-                          </Button>
                         </>
                       )}
 
