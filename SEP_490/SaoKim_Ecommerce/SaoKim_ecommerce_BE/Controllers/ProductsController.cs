@@ -6,6 +6,7 @@ using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Helpers;
 using SaoKim_ecommerce_BE.Models;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Controllers
 {
@@ -16,11 +17,13 @@ namespace SaoKim_ecommerce_BE.Controllers
     {
         private readonly SaoKimDBContext _db;
         private readonly IWebHostEnvironment _env;
+        private readonly IRealtimePublisher _rt;
 
-        public ProductsController(SaoKimDBContext db, IWebHostEnvironment env)
+        public ProductsController(SaoKimDBContext db, IWebHostEnvironment env, IRealtimePublisher rt)
         {
             _db = db;
             _env = env;
+            _rt = rt;
         }
 
         // GET: /api/products
@@ -38,7 +41,7 @@ namespace SaoKim_ecommerce_BE.Controllers
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 10;
 
-            IQueryable<Product> productQuery = _db.Products.AsNoTracking();
+            IQueryable<Product> productQuery = _db.Products.AsNoTracking().Where(p => p.ProductDetails.Any(d => d.Status == "Active"));
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -272,6 +275,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _rt.PublishToRoleAsync("staff", "product.status_changed", new
+            {
+                id,
+                status = detail.Status
+            });
+
             return Ok(new
             {
                 message = "Status updated successfully",
@@ -339,6 +348,17 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             _db.ProductDetails.Add(detail);
             await _db.SaveChangesAsync();
+
+            await _rt.PublishToRoleAsync("staff", "product.created", new
+            {
+                id = product.ProductID,
+                sku = product.ProductCode,
+                name = product.ProductName,
+                price = detail.Price,
+                stock = detail.Quantity,
+                status = detail.Status,
+                categoryId = detail.CategoryId
+            });
 
             return CreatedAtAction(nameof(GetById), new { id = product.ProductID }, new
             {
@@ -427,10 +447,19 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             await _db.SaveChangesAsync();
 
+            await _rt.PublishToRoleAsync("staff", "product.updated", new
+            {
+                id = product.ProductID,
+                sku = product.ProductCode,
+                name = product.ProductName,
+                price = detail.Price,
+                stock = detail.Quantity,
+                status = detail.Status,
+                categoryId = detail.CategoryId
+            });
+
             return Ok(new { message = "Product updated successfully" });
         }
-
-
 
         // DELETE: /api/products/{id}
         [HttpDelete("{id:int}")]
@@ -456,6 +485,12 @@ namespace SaoKim_ecommerce_BE.Controllers
 
             _db.Products.Remove(product);
             await _db.SaveChangesAsync();
+
+            await _rt.PublishToRoleAsync("staff", "product.deleted", new
+            {
+                id
+            });
+
 
             return Ok(new { message = "Product deleted successfully" });
         }

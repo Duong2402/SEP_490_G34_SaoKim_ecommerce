@@ -9,6 +9,7 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.Hubs;
 using SaoKim_ecommerce_BE.Services;
 using SaoKim_ecommerce_BE.Services.Ai;
+using SaoKim_ecommerce_BE.Services.ChatbotAnalytics;
 using SaoKim_ecommerce_BE.Services.ChatbotTools;
 using SaoKim_ecommerce_BE.Services.Realtime;
 using System.Security.Claims;
@@ -120,6 +121,8 @@ builder.Services.AddScoped<IInventorySnapshotService, InventorySnapshotService>(
 builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddScoped<IGeminiAiClient, GeminiAiClient>();
 builder.Services.AddScoped<IChatbotToolService, ChatbotToolService>();
+builder.Services.AddScoped<IChatbotAnalyticsService, ChatbotAnalyticsService>();
+builder.Services.AddScoped<IAdminChatbotAnalyticsReportService, AdminChatbotAnalyticsReportService>();
 
 // =====================
 // DB CONTEXT

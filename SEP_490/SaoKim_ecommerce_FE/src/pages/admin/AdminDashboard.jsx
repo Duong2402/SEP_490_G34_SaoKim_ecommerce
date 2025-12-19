@@ -1,3 +1,4 @@
+// AdminDashboard.jsx
 import { Link } from "react-router-dom";
 
 export default function AdminDashboard() {
@@ -60,6 +61,25 @@ export default function AdminDashboard() {
           Quản lý Users
           <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
             Quản lý tài khoản và phân quyền
+          </div>
+        </Link>
+
+        <Link
+          to="/admin/chatbot-analytics"
+          style={{
+            textDecoration: "none",
+            background: "#fff",
+            border: "1px solid var(--wm-border)",
+            borderRadius: 16,
+            padding: 16,
+            boxShadow: "var(--wm-shadow)",
+            color: "var(--wm-text)",
+            fontWeight: 700,
+          }}
+        >
+          Báo cáo Chatbot
+          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
+            Thống kê lượt chat, tỷ lệ có kết quả, CTR sản phẩm
           </div>
         </Link>
       </div>

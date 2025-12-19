@@ -112,24 +112,69 @@ namespace SaoKim_ecommerce_BE.Services
             var culture = new CultureInfo("vi-VN");
             string Money(decimal v) => string.Format(culture, "{0:C0}", v);
 
+            // Logo giống phiếu xuất
+            var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "saokim-logo.jpg");
+            byte[]? logoBytes = null;
+            if (File.Exists(logoPath))
+                logoBytes = File.ReadAllBytes(logoPath);
+
+            // thời gian in report (giữ form cũ)
+            var printedAt = DateTime.Now;
+
             var doc = Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Margin(36);
                     page.Size(PageSizes.A4);
+                    page.PageColor(Colors.White);
                     page.DefaultTextStyle(TextStyle.Default.FontSize(10));
 
-                    page.Header().Row(row =>
+                    // ===== HEADER: giống file phiếu xuất (company header + logo) =====
+                    page.Header().Element(header =>
                     {
-                        row.RelativeItem().Text("Project Status Report").SemiBold().FontSize(16);
-                        row.ConstantItem(160).AlignRight()
-                           .Text($"{DateTime.Now:dd/MM/yyyy HH:mm}");
+                        header.ShowOnce().Column(col =>
+                        {
+                            col.Item().Row(row =>
+                            {
+                                row.Spacing(10);
+
+                                row.ConstantItem(110).Height(60).Element(e =>
+                                {
+                                    if (logoBytes != null)
+                                        e.Image(logoBytes);
+                                });
+
+                                row.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("CÔNG TY TNHH THƯƠNG MẠI VÀ KỸ THUẬT SAO KIM")
+                                        .SemiBold().FontSize(11);
+                                    c.Item().Text("Số 40 ngõ 168 Nguyễn Xiển, P. Hạ Đình, Q. Thanh Xuân, TP. Hà Nội");
+                                    c.Item().Text("VPĐD: B44-24 Khu B KĐT mới Gleximco, đường Lê Trọng Tấn, P. Dương Nội, Q. Hà Đông, TP. Hà Nội");
+                                    c.Item().Text("Điện thoại: 0243.274.7089    Fax: 0243.274.7090");
+                                    c.Item().Text("Website: www.ske.com.vn    Email: info@ske.com.vn");
+                                    c.Item().Text("Tài khoản NH: 0909 222 5668 - Tại Ngân hàng Tiên Phong (TPBANK) - CN Trung Hòa");
+                                });
+                            });
+
+                            col.Item().PaddingTop(10).AlignCenter()
+                                .Text("BÁO CÁO TRẠNG THÁI DỰ ÁN")
+                                .FontSize(16).SemiBold();
+
+                            col.Item().AlignCenter().Text(text =>
+                            {
+                                text.Span($"In lúc: {printedAt:dd/MM/yyyy HH:mm}");
+                            });
+
+                            col.Item().PaddingTop(6).LineHorizontal(0.6f);
+                        });
                     });
 
+                    // ===== CONTENT: giữ nguyên form cũ của report project =====
                     page.Content().PaddingTop(8).Column(col =>
                     {
                         col.Item().Text($"{dto.Code ?? "-"} — {dto.Name}").Bold().FontSize(13);
+
                         col.Item().Text(txt =>
                         {
                             txt.Span("Khách hàng: ").SemiBold();
@@ -137,6 +182,7 @@ namespace SaoKim_ecommerce_BE.Services
                             txt.Span("    ·    Trạng thái: ").SemiBold();
                             txt.Span(dto.Status ?? "-");
                         });
+
                         col.Item().Text(txt =>
                         {
                             txt.Span("Thời gian: ").SemiBold();
@@ -163,7 +209,8 @@ namespace SaoKim_ecommerce_BE.Services
                             {
                                 c.Item().Text("Actual (All-in)").SemiBold();
                                 c.Item().Text(Money(dto.ActualAllIn)).FontSize(12);
-                                c.Item().Text($"SP {Money(dto.TotalProductAmount)} + CP {Money(dto.TotalOtherExpenses)}")
+                                c.Item()
+                                    .Text($"SP {Money(dto.TotalProductAmount)} + CP {Money(dto.TotalOtherExpenses)}")
                                     .FontColor(Colors.Grey.Darken2);
                             });
 
@@ -172,12 +219,13 @@ namespace SaoKim_ecommerce_BE.Services
                                 c.Item().Text("Variance").SemiBold();
                                 var color = dto.Variance < 0 ? Colors.Red.Medium : Colors.Green.Medium;
                                 c.Item().Text(Money(dto.Variance)).FontSize(12).FontColor(color);
-                                c.Item().Text(dto.Variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách")
+                                c.Item()
+                                    .Text(dto.Variance < 0 ? "Vượt ngân sách" : "Còn trong ngân sách")
                                     .FontColor(Colors.Grey.Darken2);
                             });
                         });
 
-                        // Revenue / Expenses / Profit
+                        // Revenue / Expenses (giữ như cũ)
                         col.Item().PaddingTop(6).Grid(grid =>
                         {
                             grid.Columns(3);
@@ -195,14 +243,7 @@ namespace SaoKim_ecommerce_BE.Services
                                 c.Item().Text(Money(dto.TotalOtherExpenses)).FontSize(11);
                             });
 
-                            grid.Item().Background(Colors.White).Border(0.5f).Padding(8).Column(c =>
-                            {
-                                c.Item().Text("Profit (approx)").SemiBold();
-                                var color = dto.ProfitApprox < 0 ? Colors.Red.Medium : Colors.Black;
-                                c.Item().Text(Money(dto.ProfitApprox)).FontSize(11).FontColor(color);
-                                c.Item().Text("≈ Revenue − Other Expenses")
-                                    .FontColor(Colors.Grey.Darken2);
-                            });
+                            // Ô thứ 3 bạn đang comment thì giữ nguyên
                         });
 
                         // Progress
@@ -236,12 +277,16 @@ namespace SaoKim_ecommerce_BE.Services
 
                             static IContainer CellHeader(IContainer c)
                                 => c.Background(Colors.Grey.Lighten3)
-                                    .Padding(4).BorderBottom(1).BorderColor(Colors.Grey.Darken2);
+                                    .Padding(4)
+                                    .BorderBottom(1)
+                                    .BorderColor(Colors.Grey.Darken2);
+
                             static IContainer Cell(IContainer c) => c.Padding(4);
                         });
 
                         // Issues
                         col.Item().PaddingTop(8).Text("Issues (Delayed Tasks)").SemiBold();
+
                         if (dto.Issues != null && dto.Issues.Count > 0)
                         {
                             col.Item().Column(c =>
@@ -256,6 +301,7 @@ namespace SaoKim_ecommerce_BE.Services
                         }
                     });
 
+                    // Footer giữ nguyên
                     page.Footer().AlignRight().Text(x =>
                     {
                         x.Span("Trang ");
@@ -268,5 +314,6 @@ namespace SaoKim_ecommerce_BE.Services
 
             return doc.GeneratePdf();
         }
+
     }
 }

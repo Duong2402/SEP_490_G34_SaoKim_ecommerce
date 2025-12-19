@@ -245,7 +245,7 @@ export default function CustomerOrder() {
                   </InputGroup>
                 </Col>
                 <Col md={3} className="d-grid">
-                  <Button className="btn-saokim rounded-3 w-100">Áp dụng</Button>
+                  <Button className="btn-saokim rounded-3 w-100">Tìm kiếm</Button>
                 </Col>
               </Row>
 
@@ -302,7 +302,7 @@ export default function CustomerOrder() {
                           return (
                             <tr key={getOrderCode(o)}>
                               <td className="fw-semibold text-primary">
-                                #{getOrderCode(o)}
+                                {getOrderCode(o)}
                               </td>
                               <td>
                                 <div className="d-flex align-items-center product-cell">

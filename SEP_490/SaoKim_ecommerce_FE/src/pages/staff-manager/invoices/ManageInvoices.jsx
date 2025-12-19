@@ -159,17 +159,6 @@ export default function ManageInvoices() {
     }
   };
 
-  const onDeletePdf = async (id) => {
-    if (!window.confirm("Xóa file PDF đính kèm?")) return;
-    try {
-      await deletePdf(id);
-      await load();
-    } catch (err) {
-      console.error(err);
-      alert("Xóa PDF thất bại");
-    }
-  };
-
   const onSendEmail = async (inv) => {
     if (!inv.email) {
       alert("Hóa đơn này chưa có email khách hàng.");
@@ -417,15 +406,6 @@ export default function ManageInvoices() {
                             )}
                           </Button>
 
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="me-2"
-                            title="Xóa PDF"
-                            onClick={() => onDeletePdf(i.id)}
-                          >
-                            <FontAwesomeIcon icon={faFilePdf} />
-                          </Button>
                         </>
                       )}
 
@@ -441,6 +421,7 @@ export default function ManageInvoices() {
                   </tr>
                 );
               })}
+
               {!loading && rows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-center text-muted py-4">
@@ -455,24 +436,24 @@ export default function ManageInvoices() {
             <div>
               Trang {page} / {totalPages}
             </div>
-            <Pagination className="mb-0">
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
+
+            {/* Pagination theo đúng UI bạn muốn: chỉ Trước | số trang | Sau */}
+            <Pagination className="mb-0 staff-pagination">
+              <Pagination.Item
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              >
+                Trước
+              </Pagination.Item>
+
               {renderPageItems(page, totalPages, (p) => setPage(p))}
-              <Pagination.Next
+
+              <Pagination.Item
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              >
+                Sau
+              </Pagination.Item>
             </Pagination>
           </div>
         </Card.Body>
@@ -502,9 +483,7 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2) {
-      items.push(<Pagination.Ellipsis key="s-ellipsis" disabled />);
-    }
+    if (start > 2) items.push(<Pagination.Ellipsis key="s-ellipsis" disabled />);
   }
 
   for (let p = start; p <= end; p++) {
@@ -520,9 +499,8 @@ function renderPageItems(current, total, onClick) {
   }
 
   if (end < total) {
-    if (end < total - 1) {
+    if (end < total - 1)
       items.push(<Pagination.Ellipsis key="e-ellipsis" disabled />);
-    }
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

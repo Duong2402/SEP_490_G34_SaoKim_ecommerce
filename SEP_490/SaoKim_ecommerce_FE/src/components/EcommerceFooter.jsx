@@ -43,19 +43,6 @@ const EcommerceFooter = () => {
                   </p>
                 </div>
               </div>
-              <div className="footer-newsletter">
-                <p className="newsletter-text">
-                  Đăng ký nhận tin khuyến mãi và xu hướng chiếu sáng mới nhất.
-                </p>
-                <Form onSubmit={(e) => e.preventDefault()}>
-                  <InputGroup>
-                    <Form.Control type="email" placeholder="Nhập email của bạn" />
-                    <Button type="submit" className="newsletter-btn">
-                      Đăng ký
-                    </Button>
-                  </InputGroup>
-                </Form>
-              </div>
             </Col>
 
             {/* Quick Links */}

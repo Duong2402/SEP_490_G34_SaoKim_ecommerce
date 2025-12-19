@@ -30,6 +30,7 @@ namespace SaoKim_ecommerce_BE.Services
             var query = _db.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
+                .Where(u => u.RoleId != 1)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q))

@@ -333,7 +333,7 @@ namespace SaoKim_ecommerce_BE.Services
                     new Claim("UserId", user.UserID.ToString()),
                     new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
                 }),
-                Expires = DateTime.UtcNow.AddHours(1),
+                Expires = DateTime.UtcNow.AddHours(3),
                 Issuer = issuer,
                 Audience = audience,
                 SigningCredentials = new SigningCredentials(

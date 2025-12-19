@@ -27,6 +27,7 @@ import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useOrdersApi from "../api/useOrders";
+import { ensureRealtimeStarted, getRealtimeConnection } from "../../../signalr/realtimeHub";
 
 export default function ManageOrders() {
   const { fetchOrders, updateOrderStatus } = useOrdersApi();
@@ -50,40 +51,40 @@ export default function ManageOrders() {
   const debouncedSearch = useDebounce(search, 400);
 
   const load = async () => {
-  setLoading(true);
-  try {
-    const res = await fetchOrders({
-      q: debouncedSearch,
-      status: status === "all" ? undefined : status, 
-      createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
-      createdTo: createdTo ? createdTo.toISOString() : undefined,
-      sortBy,
-      sortDir,
-      page,
-      pageSize,
-    });
+    setLoading(true);
+    try {
+      const res = await fetchOrders({
+        q: debouncedSearch,
+        status: status === "all" ? undefined : status,
+        createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
+        createdTo: createdTo ? createdTo.toISOString() : undefined,
+        sortBy,
+        sortDir,
+        page,
+        pageSize,
+      });
 
-    const data = res?.data ?? res;
+      const data = res?.data ?? res;
 
-    const items = data?.Items ?? data?.items ?? [];
-    const totalItems =
-      Number(data?.TotalItems ?? data?.totalItems ?? data?.total ?? data?.Total ?? 0) || 0;
+      const items = data?.Items ?? data?.items ?? [];
+      const totalItems =
+        Number(data?.TotalItems ?? data?.totalItems ?? data?.total ?? data?.Total ?? 0) || 0;
 
-    const ps = Number(data?.PageSize ?? data?.pageSize ?? pageSize) || pageSize;
-    const tp = Math.max(1, Math.ceil(totalItems / ps));
+      const ps = Number(data?.PageSize ?? data?.pageSize ?? pageSize) || pageSize;
+      const tp = Math.max(1, Math.ceil(totalItems / ps));
 
-    setRows(items);
-    setTotal(totalItems);
-    setTotalPages(tp);
+      setRows(items);
+      setTotal(totalItems);
+      setTotalPages(tp);
 
-    if (page > tp) setPage(tp);
-  } catch (e) {
-    console.error(e);
-    alert("Không tải được danh sách đơn hàng");
-  } finally {
-    setLoading(false);
-  }
-};
+      if (page > tp) setPage(tp);
+    } catch (e) {
+      console.error(e);
+      alert("Không tải được danh sách đơn hàng");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -141,13 +142,54 @@ export default function ManageOrders() {
   const isCodOrder = (order) => {
     const m = String(
       order.paymentMethod ||
-        order.PaymentMethod ||
-        order.payment?.method ||
-        order.Payment?.Method ||
-        ""
+      order.PaymentMethod ||
+      order.payment?.method ||
+      order.Payment?.Method ||
+      ""
     ).toLowerCase();
     return m === "cod" || m === "cash_on_delivery";
   };
+
+  useEffect(() => {
+    let mounted = true;
+    let t = null;
+
+    const connect = async () => {
+      try {
+        const c = await ensureRealtimeStarted();
+
+        const handler = (msg) => {
+          if (!mounted || !msg?.type) return;
+
+          if (!String(msg.type).startsWith("order.")) return;
+
+          if (t) clearTimeout(t);
+          t = setTimeout(() => {
+            if (!mounted) return;
+
+            load();
+          }, 200);
+        };
+
+        c.off("evt");
+        c.on("evt", handler);
+      } catch (e) {
+        console.warn("[realtime] connect failed", e);
+      }
+    };
+
+    connect();
+
+    return () => {
+      mounted = false;
+      if (t) clearTimeout(t);
+      try {
+        const c = getRealtimeConnection();
+        c.off("evt");
+      } catch { }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, sortBy, sortDir, status, createdFrom, createdTo, debouncedSearch]);
 
   return (
     <StaffLayout>
@@ -414,8 +456,8 @@ export default function ManageOrders() {
                           {updatingOrderId === o.id
                             ? "Đang lưu..."
                             : cod
-                            ? "Xác nhận đã thanh toán"
-                            : "Hoàn tất đơn"}
+                              ? "Xác nhận đã thanh toán"
+                              : "Hoàn tất đơn"}
                         </Button>
                       )}
 
@@ -452,24 +494,25 @@ export default function ManageOrders() {
             <div>
               Trang {page} / {totalPages}
             </div>
-            <Pagination>
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
+
+            <Pagination className="staff-pagination-simple">
+              <Pagination.Item
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
-              {renderPageItems(page, totalPages, setPage)}
-              <Pagination.Next
+              >
+                Trước
+              </Pagination.Item>
+
+              <Pagination.Item active>
+                {page}
+              </Pagination.Item>
+
+              <Pagination.Item
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              >
+                Sau
+              </Pagination.Item>
             </Pagination>
           </div>
         </Card.Body>

@@ -1,8 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SaoKim_ecommerce_BE.Entities;
-using SaoKim_ecommerce_BE.Models;
-using System.Data;
 
 
 namespace SaoKim_ecommerce_BE.Data
@@ -42,7 +39,10 @@ namespace SaoKim_ecommerce_BE.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<UserNotification> UserNotifications { get; set; }
         public DbSet<InventoryStockSnapshot> InventoryStockSnapshots { get; set; }
-
+        public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<ChatBotEvent> ChatBotEvents => Set<ChatBotEvent>();
+        public DbSet<ChatProductClick> ChatProductClicks => Set<ChatProductClick>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Role>(e =>

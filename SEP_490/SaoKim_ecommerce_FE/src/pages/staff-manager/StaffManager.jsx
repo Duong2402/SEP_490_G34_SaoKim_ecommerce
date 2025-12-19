@@ -23,15 +23,18 @@ import {
   Spinner,
   Table,
 } from "@themesberg/react-bootstrap";
-import { Dropdown } from "react-bootstrap";
-import { useEffect, useState, useMemo } from "react";
-import { Modal } from "react-bootstrap";
+import { Dropdown, Modal } from "react-bootstrap";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import StaffLayout from "../../layouts/StaffLayout";
 import AddProductForm from "./products/AddProductForm";
 import ConfirmDeleteModal from "./products/ConfirmDeleteModal";
 import EditProductForm from "./products/EditProductForm";
 import useProductsApi from "./api/useProducts";
+import {
+  ensureRealtimeStarted,
+  getRealtimeConnection,
+} from "../../signalr/realtimeHub";
 
 export default function ManageProduct() {
   const [search, setSearch] = useState("");
@@ -63,12 +66,14 @@ export default function ManageProduct() {
         sortBy: opts?.sortBy ?? sortBy,
         sortDir: opts?.sortDir ?? sortDir,
       });
+
       setRows(res?.items ?? []);
       setTotal(res?.total ?? 0);
       setTotalPages(res?.totalPages ?? 1);
 
       if (res?.page && res.page !== page) setPage(res.page);
-      if (res?.pageSize && res.pageSize !== pageSize) setPageSize(res.pageSize);
+      if (res?.pageSize && res.pageSize !== pageSize)
+        setPageSize(res.pageSize);
     } catch (e) {
       console.error(e);
     } finally {
@@ -90,16 +95,12 @@ export default function ManageProduct() {
     await load();
     if (page > 1 && rows.length === 1 && total > 0) {
       const newPage = Math.max(1, page - 1);
-      if (newPage !== page) {
-        setPage(newPage);
-      }
+      if (newPage !== page) setPage(newPage);
     }
   };
 
   const normalizeStatus = (status) =>
-    String(status || "")
-      .trim()
-      .toLowerCase();
+    String(status || "").trim().toLowerCase();
 
   const renderStatus = (status) => {
     const s = normalizeStatus(status);
@@ -131,10 +132,7 @@ export default function ManageProduct() {
     try {
       const res = await fetchProduct(row.id);
       const detail = res?.product || {};
-      setEditing({
-        ...row,
-        ...detail,
-      });
+      setEditing({ ...row, ...detail });
     } catch (e) {
       console.error(e);
       setEditing(row);
@@ -158,6 +156,51 @@ export default function ManageProduct() {
     };
   }, [editing]);
 
+  useEffect(() => {
+    let mounted = true;
+    let timer = null;
+
+    const connect = async () => {
+      try {
+        const c = await ensureRealtimeStarted();
+
+        const handler = (msg) => {
+          if (!mounted || !msg?.type) return;
+
+          if (!String(msg.type).startsWith("product.")) return;
+
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => {
+            if (!mounted) return;
+            handleReload();
+          }, 250);
+        };
+
+        c.on("evt", handler);
+        return () => c.off("evt", handler);
+      } catch (e) {
+        console.warn("[realtime] connect failed", e);
+        return () => {};
+      }
+    };
+
+    let unsubscribe = () => {};
+    connect().then((fn) => {
+      if (typeof fn === "function") unsubscribe = fn;
+    });
+
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+      try {
+        const c = getRealtimeConnection();
+        c.off("evt");
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, sortBy, sortDir, debouncedSearch]);
+
   return (
     <StaffLayout>
       <div className="staff-page-header">
@@ -175,6 +218,7 @@ export default function ManageProduct() {
             <Breadcrumb.Item>Sản phẩm</Breadcrumb.Item>
             <Breadcrumb.Item active>Quản lý sản phẩm</Breadcrumb.Item>
           </Breadcrumb>
+
           <h4 className="staff-page-title">Quản lý sản phẩm</h4>
           <p className="staff-page-lead">
             Tạo, chỉnh sửa và duy trì danh mục hàng hóa
@@ -182,11 +226,7 @@ export default function ManageProduct() {
         </div>
 
         <div className="staff-panel__actions">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowCreate(true)}
-          >
+          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
             <FontAwesomeIcon icon={faPlus} className="me-2" />
             Thêm sản phẩm
           </Button>
@@ -212,16 +252,12 @@ export default function ManageProduct() {
 
           <Col xs="auto" className="text-end">
             <Dropdown as={ButtonGroup}>
-              <Dropdown.Toggle
-                split
-                as={Button}
-                variant="link"
-                className="text-dark m-0 p-0"
-              >
+              <Dropdown.Toggle split as={Button} variant="link" className="text-dark m-0 p-0">
                 <span className="icon icon-sm icon-gray">
                   <FontAwesomeIcon icon={faCog} />
                 </span>
               </Dropdown.Toggle>
+
               <Dropdown.Menu className="dropdown-menu-xs dropdown-menu-right">
                 <Dropdown.Header>Hiển thị</Dropdown.Header>
                 {[10, 20, 30, 50].map((n) => (
@@ -245,6 +281,7 @@ export default function ManageProduct() {
 
                 <Dropdown.Divider />
                 <Dropdown.Header>Sắp xếp</Dropdown.Header>
+
                 <Dropdown.Item
                   onClick={() => {
                     setSortBy("id");
@@ -254,6 +291,7 @@ export default function ManageProduct() {
                 >
                   ID tăng dần
                 </Dropdown.Item>
+
                 <Dropdown.Item
                   onClick={() => {
                     setSortBy("id");
@@ -263,6 +301,7 @@ export default function ManageProduct() {
                 >
                   ID giảm dần
                 </Dropdown.Item>
+
                 <Dropdown.Item
                   onClick={() => {
                     setSortBy("created");
@@ -272,6 +311,7 @@ export default function ManageProduct() {
                 >
                   Ngày tạo mới nhất
                 </Dropdown.Item>
+
                 <Dropdown.Item
                   onClick={() => {
                     setSortBy("name");
@@ -281,6 +321,7 @@ export default function ManageProduct() {
                 >
                   Tên A → Z
                 </Dropdown.Item>
+
                 <Dropdown.Item
                   onClick={() => {
                     setSortBy("price");
@@ -360,9 +401,7 @@ export default function ManageProduct() {
                         size="sm"
                         className="me-2"
                         title="Xem chi tiết"
-                        onClick={() =>
-                          navigate(`/staff/manager-products/${p.id}`)
-                        }
+                        onClick={() => navigate(`/staff/manager-products/${p.id}`)}
                       >
                         <FontAwesomeIcon icon={faEye} className="text-primary" />
                       </Button>
@@ -378,9 +417,7 @@ export default function ManageProduct() {
                       </Button>
 
                       <Button
-                        variant={
-                          canDelete ? "outline-danger" : "outline-secondary"
-                        }
+                        variant={canDelete ? "outline-danger" : "outline-secondary"}
                         size="sm"
                         title={
                           canDelete
@@ -413,24 +450,24 @@ export default function ManageProduct() {
             <div>
               Trang {page} / {totalPages}
             </div>
-            <Pagination className="mb-0">
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
+
+            {/* Pagination theo đúng UI bạn muốn: chỉ Trước | số trang | Sau */}
+            <Pagination className="mb-0 staff-pagination">
+              <Pagination.Item
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              >
+                Trước
+              </Pagination.Item>
+
               {renderPageItems(page, totalPages, (p) => setPage(p))}
-              <Pagination.Next
+
+              <Pagination.Item
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              >
+                Sau
+              </Pagination.Item>
             </Pagination>
           </div>
 
@@ -441,9 +478,7 @@ export default function ManageProduct() {
             dialogClassName="staff-modal"
           >
             <Modal.Header closeButton>
-              <Modal.Title className="staff-modal__title">
-                Thêm sản phẩm
-              </Modal.Title>
+              <Modal.Title className="staff-modal__title">Thêm sản phẩm</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <AddProductForm
@@ -464,9 +499,7 @@ export default function ManageProduct() {
             dialogClassName="staff-modal"
           >
             <Modal.Header closeButton>
-              <Modal.Title className="staff-modal__title">
-                Chỉnh sửa sản phẩm
-              </Modal.Title>
+              <Modal.Title className="staff-modal__title">Chỉnh sửa sản phẩm</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {editing && (
@@ -539,11 +572,7 @@ function renderPageItems(current, total, onClick) {
 
   for (let p = start; p <= end; p++) {
     items.push(
-      <Pagination.Item
-        key={p}
-        active={p === current}
-        onClick={() => onClick(p)}
-      >
+      <Pagination.Item key={p} active={p === current} onClick={() => onClick(p)}>
         {p}
       </Pagination.Item>
     );
