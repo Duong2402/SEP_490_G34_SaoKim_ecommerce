@@ -20,15 +20,25 @@ import {
   Table,
 } from "@themesberg/react-bootstrap";
 import { Dropdown } from "react-bootstrap";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import StaffLayout from "../../../layouts/StaffLayout";
 import useCustomersApi from "../api/useCustomers";
+import {
+  ensureRealtimeStarted,
+  getRealtimeConnection,
+} from "../../../signalr/realtimeHub";
 
 export default function ManageCustomers() {
   const navigate = useNavigate();
-  const { fetchCustomers, exportCustomers } = useCustomersApi();
+  const api = useCustomersApi(); // { fetchCustomers, exportCustomers }
+
+  // Giữ function API trong ref để tránh thay đổi reference gây loop
+  const apiRef = useRef(api);
+  useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
 
   const [search, setSearch] = useState("");
   const [createdFrom, setCreatedFrom] = useState(null);
@@ -62,10 +72,11 @@ export default function ManageCustomers() {
     return Number.isFinite(n) ? n : undefined;
   }, [minSpend]);
 
-  const load = async () => {
+  // load KHÔNG phụ thuộc fetchCustomers trực tiếp nữa
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchCustomers({
+      const res = await apiRef.current.fetchCustomers({
         q: debouncedSearch,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
@@ -77,35 +88,102 @@ export default function ManageCustomers() {
         pageSize,
       });
 
-      setRows(res.items ?? []);
-      setTotal(res.total ?? 0);
-      setTotalPages(Math.max(1, Math.ceil((res.total ?? 0) / (res.pageSize ?? pageSize))));
+      const items = res?.items ?? [];
+      const totalItems = Number(res?.total ?? 0) || 0;
+      const ps = Number(res?.pageSize ?? pageSize) || pageSize;
+
+      setRows(items);
+      setTotal(totalItems);
+
+      const tp = Math.max(1, Math.ceil(totalItems / ps));
+      setTotalPages(tp);
+
+      // chỉ chỉnh page nếu vượt tp để tránh loop
+      if (page > tp) setPage(tp);
     } catch (error) {
       console.error(error);
       alert("Không tải được danh sách khách hàng");
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    load();
   }, [
     debouncedSearch,
     createdFrom,
     createdTo,
     parsedMinSpend,
     parsedMinOrders,
-    page,
-    pageSize,
     sortBy,
     sortDir,
+    page,
+    pageSize,
   ]);
+
+  // Load theo filter/paging
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Realtime: connect 1 lần, throttle reload
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
+  const throttleRef = useRef(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let handler;
+
+    const connect = async () => {
+      try {
+        const c = await ensureRealtimeStarted();
+
+        handler = (msg) => {
+          if (!mounted || !msg?.type) return;
+
+          const t = msg.type;
+
+          // Customer list phụ thuộc order => nghe event order
+          if (
+            t === "order.created" ||
+            t === "order.status.updated" ||
+            t === "order.deleted"
+          ) {
+            if (throttleRef.current) return;
+
+            throttleRef.current = setTimeout(() => {
+              throttleRef.current = null;
+              loadRef.current?.();
+            }, 400);
+          }
+        };
+
+        c.on("evt", handler);
+      } catch (e) {
+        console.warn("[realtime] connect failed", e);
+      }
+    };
+
+    connect();
+
+    return () => {
+      mounted = false;
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current);
+        throttleRef.current = null;
+      }
+      try {
+        const c = getRealtimeConnection();
+        if (handler) c.off("evt", handler);
+      } catch { }
+    };
+  }, []);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportCustomers({
+      const blob = await apiRef.current.exportCustomers({
         q: debouncedSearch,
         createdFrom: createdFrom ? createdFrom.toISOString() : undefined,
         createdTo: createdTo ? createdTo.toISOString() : undefined,
@@ -118,7 +196,10 @@ export default function ManageCustomers() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `customers_${new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14)}.xlsx`;
+      a.download = `customers_${new Date()
+        .toISOString()
+        .replace(/[-:T.]/g, "")
+        .slice(0, 14)}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -260,6 +341,7 @@ export default function ManageCustomers() {
                 >
                   <FontAwesomeIcon icon={faCog} />
                 </Dropdown.Toggle>
+
                 <Dropdown.Menu>
                   <Dropdown.Header>Hiển thị</Dropdown.Header>
                   {[10, 20, 30, 50].map((n) => (
@@ -271,7 +353,7 @@ export default function ManageCustomers() {
                         setPage(1);
                       }}
                     >
-                      {n} dòng
+                      {n} dòng{" "}
                       {pageSize === n && (
                         <FontAwesomeIcon icon={faCheck} className="ms-2" />
                       )}
@@ -290,6 +372,7 @@ export default function ManageCustomers() {
                   >
                     Ngày tạo mới nhất
                   </Dropdown.Item>
+
                   <Dropdown.Item
                     onClick={() => {
                       setSortBy("orders");
@@ -299,6 +382,7 @@ export default function ManageCustomers() {
                   >
                     Số đơn cao xuống thấp
                   </Dropdown.Item>
+
                   <Dropdown.Item
                     onClick={() => {
                       setSortBy("totalSpend");
@@ -308,6 +392,7 @@ export default function ManageCustomers() {
                   >
                     Chi tiêu cao xuống thấp
                   </Dropdown.Item>
+
                   <Dropdown.Item
                     onClick={() => {
                       setSortBy("lastOrder");
@@ -399,26 +484,22 @@ export default function ManageCustomers() {
             <div>
               Trang {page} / {totalPages}
             </div>
-            <Pagination>
-              <Pagination.First
-                disabled={page <= 1}
-                onClick={() => setPage(1)}
-              />
-              <Pagination.Prev
+            <Pagination className="staff-pagination-simple mb-0">
+              <Pagination.Item
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
+              >
+                Trước
+              </Pagination.Item>
 
-              {renderPageItems(page, totalPages, setPage)}
+              <Pagination.Item active>{page}</Pagination.Item>
 
-              <Pagination.Next
+              <Pagination.Item
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              />
-              <Pagination.Last
-                disabled={page >= totalPages}
-                onClick={() => setPage(totalPages)}
-              />
+              >
+                Sau
+              </Pagination.Item>
             </Pagination>
           </div>
         </Card.Body>
@@ -458,8 +539,7 @@ function renderPageItems(current, total, onClick) {
         1
       </Pagination.Item>
     );
-    if (start > 2)
-      items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
+    if (start > 2) items.push(<Pagination.Ellipsis disabled key="s-ellipsis" />);
   }
 
   for (let p = start; p <= end; p++) {
@@ -475,8 +555,7 @@ function renderPageItems(current, total, onClick) {
   }
 
   if (end < total) {
-    if (end < total - 1)
-      items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
+    if (end < total - 1) items.push(<Pagination.Ellipsis disabled key="e-ellipsis" />);
     items.push(
       <Pagination.Item key={total} onClick={() => onClick(total)}>
         {total}

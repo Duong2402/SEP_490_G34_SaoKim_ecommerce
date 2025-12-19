@@ -3,6 +3,7 @@ using SaoKim_ecommerce_BE.Data;
 using SaoKim_ecommerce_BE.DTOs;
 using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Models.Requests;
+using SaoKim_ecommerce_BE.Services.Realtime;
 
 namespace SaoKim_ecommerce_BE.Services
 {
@@ -14,13 +15,16 @@ namespace SaoKim_ecommerce_BE.Services
         private readonly ICouponService _couponService;
         private readonly decimal _vatPercent;
         private readonly INotificationService _notificationService;
+        private readonly IRealtimePublisher _rt;
+
         public OrdersService(
             SaoKimDBContext db,
             ILogger<OrdersService> logger,
             IDispatchService dispatchService,
             ICouponService couponService,
             IConfiguration config,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IRealtimePublisher rt)
         {
             _db = db;
             _logger = logger;
@@ -28,6 +32,7 @@ namespace SaoKim_ecommerce_BE.Services
             _couponService = couponService;
             _vatPercent = config.GetValue<decimal>("VAT:Value") / 100;
             _notificationService = notificationService;
+            _rt = rt;
         }
 
         public async Task<OrderCreateResultDto> CreateOrderAsync(CreateOrderRequest request, User user)
@@ -258,6 +263,27 @@ namespace SaoKim_ecommerce_BE.Services
                     .FirstOrDefaultAsync();
 
                 await tx.CommitAsync();
+
+                await _rt.PublishToRoleAsync("staff", "order.created", new
+                {
+                    orderId = order.OrderId,
+                    code = $"ORD-{order.OrderId}",
+                    status = order.Status,
+                    total = order.Total,
+                    createdAt = order.CreatedAt,
+                    customerName = user.Name,
+                    customerEmail = user.Email,
+                    customerPhone = user.PhoneNumber
+                });
+
+                await _rt.PublishToUserAsync(user.UserID, "order.created", new
+                {
+                    orderId = order.OrderId,
+                    code = $"ORD-{order.OrderId}",
+                    status = order.Status,
+                    total = order.Total,
+                    createdAt = order.CreatedAt
+                });
 
                 if (dispatchSlipId > 0)
                 {

@@ -55,12 +55,10 @@ public class AuthController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            // Thiếu email / password
             return BadRequest(new { message = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Sai thông tin đăng nhập / tài khoản bị khóa
             return Unauthorized(new { message = ex.Message });
         }
     }
