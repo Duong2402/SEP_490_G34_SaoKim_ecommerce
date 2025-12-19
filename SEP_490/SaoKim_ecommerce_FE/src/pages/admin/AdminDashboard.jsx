@@ -1,88 +1,71 @@
 // AdminDashboard.jsx
 import { Link } from "react-router-dom";
+import { FaImage, FaUsers, FaRobot } from "react-icons/fa";
+
+const features = [
+  {
+    to: "/admin/banner",
+    icon: FaImage,
+    title: "Quản lý Banner",
+    desc: "Tạo, chỉnh sửa và quản lý hiển thị các banner trên trang chủ",
+  },
+  {
+    to: "/admin/users",
+    icon: FaUsers,
+    title: "Quản lý Users",
+    desc: "Quản lý tài khoản người dùng, phân quyền và trạng thái hoạt động",
+  },
+  {
+    to: "/admin/chatbot-analytics",
+    icon: FaRobot,
+    title: "Báo cáo Chatbot",
+    desc: "Thống kê lượt chat, tỷ lệ thành công và CTR sản phẩm từ chatbot",
+  },
+];
 
 export default function AdminDashboard() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid var(--wm-border)",
-          borderRadius: 16,
-          padding: 18,
-          boxShadow: "var(--wm-shadow)",
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Dashboard</h2>
-        <p style={{ margin: "8px 0 0", color: "var(--wm-muted)" }}>
-          Chọn chức năng từ menu bên trái.
-        </p>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-        }}
-      >
-        <Link
-          to="/admin/banner"
-          style={{
-            textDecoration: "none",
-            background: "#fff",
-            border: "1px solid var(--wm-border)",
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: "var(--wm-shadow)",
-            color: "var(--wm-text)",
-            fontWeight: 700,
-          }}
-        >
-          Quản lý Banner
-          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
-            Tạo, sửa, ẩn/hiện banner
+    <div className="admin-section">
+      {/* Welcome Panel */}
+      <section className="admin-panel">
+        <div className="admin-panel__header">
+          <div>
+            <h2 className="admin-panel__title">Xin chào, Admin!</h2>
+            <p className="admin-panel__subtitle">
+              Chào mừng bạn đến với trang quản trị hệ thống Sao Kim. Chọn một
+              chức năng bên dưới để bắt đầu.
+            </p>
           </div>
-        </Link>
+        </div>
+      </section>
 
-        <Link
-          to="/admin/users"
-          style={{
-            textDecoration: "none",
-            background: "#fff",
-            border: "1px solid var(--wm-border)",
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: "var(--wm-shadow)",
-            color: "var(--wm-text)",
-            fontWeight: 700,
-          }}
-        >
-          Quản lý Users
-          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
-            Quản lý tài khoản và phân quyền
+      {/* Feature Cards */}
+      <section className="admin-panel">
+        <div className="admin-panel__header">
+          <div>
+            <h2 className="admin-panel__title">Công cụ quản trị</h2>
+            <p className="admin-panel__subtitle">
+              Truy cập nhanh các chức năng quản lý hệ thống
+            </p>
           </div>
-        </Link>
+        </div>
 
-        <Link
-          to="/admin/chatbot-analytics"
-          style={{
-            textDecoration: "none",
-            background: "#fff",
-            border: "1px solid var(--wm-border)",
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: "var(--wm-shadow)",
-            color: "var(--wm-text)",
-            fontWeight: 700,
-          }}
-        >
-          Báo cáo Chatbot
-          <div style={{ marginTop: 8, color: "var(--wm-muted)", fontWeight: 500 }}>
-            Thống kê lượt chat, tỷ lệ có kết quả, CTR sản phẩm
-          </div>
-        </Link>
-      </div>
+        <div className="admin-grid">
+          {features.map((feature) => (
+            <Link
+              key={feature.to}
+              to={feature.to}
+              className="admin-feature-card"
+            >
+              <div className="admin-feature-card__icon">
+                <feature.icon />
+              </div>
+              <h3 className="admin-feature-card__title">{feature.title}</h3>
+              <p className="admin-feature-card__desc">{feature.desc}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

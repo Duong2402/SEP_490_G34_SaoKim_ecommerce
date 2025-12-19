@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { FaSave, FaUndo } from "react-icons/fa";
 import { UserAPI } from "../../../api/users";
 
 const DEFAULT_FORM_VALUES = {
@@ -24,14 +25,26 @@ const toInputDate = (value) => {
   return "";
 };
 
+const getRoleLabel = (role) => {
+  const roleMap = {
+    admin: "Quản trị viên",
+    manager: "Quản lý",
+    staff: "Nhân viên",
+    warehouse_manager: "Quản lý kho",
+    project_manager: "Quản lý dự án",
+    customer: "Khách hàng",
+  };
+  return roleMap[role] || role || "";
+};
+
 const Field = ({ label, name, error, required, children }) => (
-  <div className="field-group">
-    <label className="field-label" htmlFor={name}>
+  <div className="admin-form__field">
+    <label className="admin-form__label" htmlFor={name}>
       {label}
-      {required && <span className="text-danger"> *</span>}
+      {required && <span className="admin-form__required"> *</span>}
     </label>
     {children}
-    {error && <p className="field-error">{error}</p>}
+    {error && <p className="admin-form__error">{error}</p>}
   </div>
 );
 
@@ -123,21 +136,21 @@ export default function UserForm({
 
   const errors = useMemo(() => {
     const issues = {};
-    if (!form.name.trim()) issues.name = "Name is required";
+    if (!form.name.trim()) issues.name = "Vui lòng nhập họ tên";
 
     if (!form.email.trim()) {
-      issues.email = "Email is required";
+      issues.email = "Vui lòng nhập email";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      issues.email = "Invalid email format";
+      issues.email = "Email không đúng định dạng";
     }
 
     if (!isEdit && !form.password.trim()) {
-      issues.password = "Password is required";
+      issues.password = "Vui lòng nhập mật khẩu";
     } else if (form.password && form.password.length < 8) {
-      issues.password = "Password must be at least 8 characters";
+      issues.password = "Mật khẩu tối thiểu 8 ký tự";
     }
 
-    if (!form.roleId) issues.roleId = "Role is required";
+    if (!form.roleId) issues.roleId = "Vui lòng chọn vai trò";
 
     return issues;
   }, [form, isEdit]);
@@ -188,7 +201,7 @@ export default function UserForm({
     event.preventDefault();
 
     if (!form.roleId || isNaN(parseInt(form.roleId))) {
-      alert("Role is required!");
+      alert("Vui lòng chọn vai trò!");
       return;
     }
 
@@ -217,19 +230,32 @@ export default function UserForm({
   };
 
   const resolvedSubmitLabel =
-    submitLabel || (isEdit ? "Update User" : "Create User");
+    submitLabel || (isEdit ? "Cập nhật" : "Tạo người dùng");
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "Active":
+        return "Hoạt động";
+      case "Inactive":
+        return "Không hoạt động";
+      case "Suspended":
+        return "Bị khóa";
+      default:
+        return status;
+    }
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="form-grid">
-      <Field label="Name" name="name" error={errors.name} required>
+    <form onSubmit={handleSubmit} className="admin-form">
+      <Field label="Họ tên" name="name" error={errors.name} required>
         <input
           id="name"
           name="name"
           value={form.name}
           onChange={handleChange}
-          className="input"
+          className="admin-form__input"
           disabled={submitting}
-          placeholder="Enter full name"
+          placeholder="Nhập họ và tên đầy đủ"
         />
       </Field>
 
@@ -240,14 +266,14 @@ export default function UserForm({
           type="email"
           value={form.email}
           onChange={handleChange}
-          className="input"
+          className="admin-form__input"
           disabled={submitting}
-          placeholder="Enter email"
+          placeholder="Nhập địa chỉ email"
         />
       </Field>
 
       <Field
-        label="Password"
+        label="Mật khẩu"
         name="password"
         error={errors.password}
         required={!isEdit}
@@ -258,128 +284,128 @@ export default function UserForm({
           type="password"
           value={form.password}
           onChange={handleChange}
-          className="input"
+          className="admin-form__input"
           disabled={submitting}
           placeholder={
             isEdit
-              ? "Leave blank to keep current password"
-              : "Enter password (min 8 characters)"
+              ? "Để trống nếu không đổi mật khẩu"
+              : "Nhập mật khẩu (tối thiểu 8 ký tự)"
           }
         />
       </Field>
 
-      <div className="form-grid double">
-        <Field label="Role" name="roleId" error={errors.roleId} required>
+      <div className="admin-form__row">
+        <Field label="Vai trò" name="roleId" error={errors.roleId} required>
           <select
             id="roleId"
             name="roleId"
             value={form.roleId}
             onChange={handleChange}
-            className="select"
+            className="admin-form__select"
             disabled={submitting || loadingRoles}
           >
-            <option value="">Select a role</option>
+            <option value="">-- Chọn vai trò --</option>
             {roles.map((role, idx) => (
               <option
                 key={role.roleId || role.id || idx}
                 value={role.roleId || role.id}
               >
-                {role.name}
+                {getRoleLabel(role.name)}
               </option>
             ))}
           </select>
         </Field>
 
-        <Field label="Status" name="status">
+        <Field label="Trạng thái" name="status">
           <input
             id="status"
             name="status"
-            value={form.status}
-            className="input"
+            value={getStatusLabel(form.status)}
+            className="admin-form__input admin-form__input--readonly"
             readOnly
           />
         </Field>
       </div>
 
-      <Field label="Phone Number" name="phoneNumber">
-        <input
-          id="phoneNumber"
-          name="phoneNumber"
-          value={form.phoneNumber}
-          onChange={handleChange}
-          className="input"
-          disabled={submitting}
-        />
-      </Field>
+      <div className="admin-form__row">
+        <Field label="Số điện thoại" name="phoneNumber">
+          <input
+            id="phoneNumber"
+            name="phoneNumber"
+            value={form.phoneNumber}
+            onChange={handleChange}
+            className="admin-form__input"
+            disabled={submitting}
+            placeholder="Nhập số điện thoại"
+          />
+        </Field>
 
-      <Field label="Address" name="address">
+        <Field label="Ngày sinh" name="dob">
+          <input
+            id="dob"
+            name="dob"
+            type="date"
+            value={form.dob}
+            onChange={handleChange}
+            className="admin-form__input"
+            disabled={submitting}
+          />
+        </Field>
+      </div>
+
+      <Field label="Địa chỉ" name="address">
         <input
           id="address"
           name="address"
           value={form.address}
           onChange={handleChange}
-          className="input"
+          className="admin-form__input"
           disabled={submitting}
+          placeholder="Nhập địa chỉ"
         />
       </Field>
 
-      <Field label="Date of Birth" name="dob">
-        <input
-          id="dob"
-          name="dob"
-          type="date"
-          value={form.dob}
-          onChange={handleChange}
-          className="input"
-          disabled={submitting}
-        />
-      </Field>
-
-      <Field label="Profile Image" name="image">
-        <div>
+      <Field label="Ảnh đại diện" name="image">
+        <div className="admin-form__file-wrapper">
           <input
             id="image"
             name="image"
             type="file"
             accept="image/*"
             onChange={handleChange}
-            className="input"
+            className="admin-form__file"
             disabled={submitting}
           />
           {imagePreview && (
-            <div style={{ marginTop: "8px" }}>
+            <div className="admin-form__preview">
               <img
                 src={imagePreview}
-                alt="Preview"
-                style={{
-                  maxWidth: "200px",
-                  maxHeight: "200px",
-                  objectFit: "cover",
-                  borderRadius: "4px",
-                  border: "1px solid #ddd",
-                }}
+                alt="Xem trước"
+                className="admin-form__preview-img"
               />
             </div>
           )}
         </div>
       </Field>
 
-      <div className="form-actions">
+      <div className="admin-form__actions">
         <button
           type="button"
-          className="btn btn-outline"
+          className="admin-btn admin-btn--outline"
           onClick={handleReset}
           disabled={submitting}
         >
-          Reset
+          <FaUndo style={{ marginRight: 8 }} />
+          Đặt lại
         </button>
 
         <button
           type="submit"
-          className="btn btn-primary"
+          className="admin-btn admin-btn--primary"
           disabled={submitting || Object.keys(errors).length > 0}
         >
-          {submitting ? "Saving..." : resolvedSubmitLabel}
+          <FaSave style={{ marginRight: 8 }} />
+          {submitting ? "Đang lưu..." : resolvedSubmitLabel}
         </button>
       </div>
     </form>

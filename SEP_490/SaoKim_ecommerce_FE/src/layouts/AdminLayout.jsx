@@ -85,7 +85,7 @@ export default function AdminLayout() {
           onClick={() => navigate("/")}
           onKeyDown={(e) => e.key === "Enter" && navigate("/")}
         >
-          <SaoKimLogo size="large" showText />
+          <SaoKimLogo size="large" showText title="Sao Kim Admin" />
         </div>
 
 
