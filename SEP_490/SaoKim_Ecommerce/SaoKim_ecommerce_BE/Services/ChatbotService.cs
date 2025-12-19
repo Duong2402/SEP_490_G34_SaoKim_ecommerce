@@ -1,5 +1,7 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using SaoKim_ecommerce_BE.DTOs;
+using SaoKim_ecommerce_BE.Entities;
 using SaoKim_ecommerce_BE.Services.Ai;
 using SaoKim_ecommerce_BE.Services.ChatbotTools;
 
@@ -10,12 +12,18 @@ namespace SaoKim_ecommerce_BE.Services
         private readonly IGeminiAiClient _gemini;
         private readonly IChatbotToolService _tools;
         private readonly IConfiguration _config;
+        private readonly IChatbotAnalyticsService _analytics;
 
-        public ChatbotService(IGeminiAiClient gemini, IChatbotToolService tools, IConfiguration config)
+        public ChatbotService(
+            IGeminiAiClient gemini,
+            IChatbotToolService tools,
+            IConfiguration config,
+            IChatbotAnalyticsService analytics)
         {
             _gemini = gemini;
             _tools = tools;
             _config = config;
+            _analytics = analytics;
         }
 
         public async Task<ChatOrchestratorResult> HandleMessageAsync(string baseUrl, ChatRequestDto req, CancellationToken ct)
@@ -33,9 +41,28 @@ namespace SaoKim_ecommerce_BE.Services
                 };
             }
 
-            var functionDeclarations = BuildFunctionDeclarations();
+            var ctx = req.Context ?? new ChatContextDto();
 
-            // ===== Request 1: user -> model (model có thể gọi function) =====
+            var sessionId = GetSessionIdFromContextOrNew(ctx);
+            var anonymousId = GetAnonymousIdFromContextOrNull(ctx);
+            int? userId = null;
+
+            var session = await _analytics.UpsertSessionAsync(
+                sessionId: sessionId,
+                userId: userId,
+                anonymousId: anonymousId,
+                page: ctx.Page,
+                productId: ctx.ProductId,
+                categoryId: ctx.CategoryId,
+                ct: ct);
+
+            var userMsg = await _analytics.LogMessageAsync(session.Id, "user", message, ct);
+
+            var functionDeclarations = BuildFunctionDeclarations();
+            var prompt = BuildPrompt(req, message);
+
+            var sw = Stopwatch.StartNew();
+
             var request1 = new
             {
                 contents = new object[]
@@ -43,7 +70,7 @@ namespace SaoKim_ecommerce_BE.Services
                     new
                     {
                         role = "user",
-                        parts = new object[] { new { text = BuildPrompt(req, message) } }
+                        parts = new object[] { new { text = prompt } }
                     }
                 },
                 tools = new object[]
@@ -55,27 +82,45 @@ namespace SaoKim_ecommerce_BE.Services
             using var resp1 = await _gemini.GenerateContentAsync(model, request1, ct);
             var (fnName, fnArgs) = TryExtractFunctionCall(resp1);
 
-            // ===== Không gọi tool =====
             if (string.IsNullOrWhiteSpace(fnName))
             {
+                sw.Stop();
                 var t = TryExtractText(resp1);
+
+                var finalNoTool = string.IsNullOrWhiteSpace(t)
+                    ? "Em chưa hiểu rõ nhu cầu của anh/chị. Anh/chị muốn tìm theo tên, theo mã hay theo khoảng giá ạ?"
+                    : t.Trim();
+
+                await _analytics.LogMessageAsync(session.Id, "assistant", finalNoTool, ct);
+
+                await _analytics.LogEventAsync(new ChatBotEvent
+                {
+                    SessionId = session.Id,
+                    MessageId = userMsg.Id,
+                    UserMessage = message,
+                    DetectedIntent = null,
+                    ToolName = null,
+                    ToolArgs = null,
+                    ToolResultCount = null,
+                    ResponseText = finalNoTool,
+                    ResponseType = "FreeText",
+                    LatencyMs = (int)sw.ElapsedMilliseconds,
+                    Model = model
+                }, ct);
 
                 return new ChatOrchestratorResult
                 {
-                    FinalText = string.IsNullOrWhiteSpace(t)
-                        ? "Em chưa hiểu rõ nhu cầu của anh/chị. Anh/chị muốn tìm theo tên, theo mã hay theo khoảng giá ạ?"
-                        : t,
+                    FinalText = finalNoTool,
                     QuickReplies = BuildQuickReplies(req),
                     Products = new List<ChatProductCardDto>()
                 };
             }
 
-            // ===== Execute tool =====
             List<ChatProductCardDto> products;
 
             if (fnName == "get_similar_products")
             {
-                var pid = GetInt(fnArgs, "productId") ?? req.Context?.ProductId;
+                var pid = GetInt(fnArgs, "productId") ?? ctx.ProductId;
                 var limit = GetInt(fnArgs, "limit") ?? 8;
 
                 products = pid.HasValue
@@ -85,10 +130,11 @@ namespace SaoKim_ecommerce_BE.Services
             else
             {
                 var keyword = GetString(fnArgs, "keyword") ?? message;
-                var categoryId = GetInt(fnArgs, "categoryId") ?? req.Context?.CategoryId;
-                var priceMin = GetDecimal(fnArgs, "priceMin") ?? req.Context?.PriceMin;
-                var priceMax = GetDecimal(fnArgs, "priceMax") ?? req.Context?.PriceMax;
-                var inStockOnly = GetBool(fnArgs, "inStockOnly") ?? req.Context?.InStockOnly ?? true;
+                var categoryId = GetInt(fnArgs, "categoryId") ?? ctx.CategoryId;
+                var priceMin = GetDecimal(fnArgs, "priceMin") ?? ctx.PriceMin;
+                var priceMax = GetDecimal(fnArgs, "priceMax") ?? ctx.PriceMax;
+
+                var inStockOnly = GetBool(fnArgs, "inStockOnly") ?? (ctx.InStockOnly ? true : true);
                 var limit = GetInt(fnArgs, "limit") ?? 8;
 
                 products = await _tools.SearchProductsAsync(
@@ -101,7 +147,6 @@ namespace SaoKim_ecommerce_BE.Services
                     limit);
             }
 
-            // ===== Request 2: user -> model(functionCall) -> user(functionResponse) =====
             var request2 = new
             {
                 contents = new object[]
@@ -109,7 +154,7 @@ namespace SaoKim_ecommerce_BE.Services
                     new
                     {
                         role = "user",
-                        parts = new object[] { new { text = BuildPrompt(req, message) } }
+                        parts = new object[] { new { text = prompt } }
                     },
                     GetCandidateContent(resp1),
                     new
@@ -135,9 +180,31 @@ namespace SaoKim_ecommerce_BE.Services
             };
 
             using var resp2 = await _gemini.GenerateContentAsync(model, request2, ct);
-            var finalText = (TryExtractText(resp2) ?? "").Trim();
+            sw.Stop();
 
+            var finalText = (TryExtractText(resp2) ?? "").Trim();
             finalText = NormalizeFinalTextByProducts(finalText, products);
+
+            await _analytics.LogMessageAsync(session.Id, "assistant", finalText, ct);
+
+            var responseType = products == null || products.Count == 0
+                ? "NoResult"
+                : (fnName == "get_similar_products" ? "Similar" : "ToolSearch");
+
+            await _analytics.LogEventAsync(new ChatBotEvent
+            {
+                SessionId = session.Id,
+                MessageId = userMsg.Id,
+                UserMessage = message,
+                DetectedIntent = null,
+                ToolName = fnName,
+                ToolArgs = fnArgs != null && fnArgs.Count > 0 ? JsonSerializer.Serialize(fnArgs) : null,
+                ToolResultCount = products?.Count ?? 0,
+                ResponseText = finalText,
+                ResponseType = responseType,
+                LatencyMs = (int)sw.ElapsedMilliseconds,
+                Model = model
+            }, ct);
 
             return new ChatOrchestratorResult
             {
@@ -147,7 +214,34 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
-        // ===== Function declarations for Gemini tool-calling =====
+        private static Guid? GetSessionIdFromContextOrNew(ChatContextDto ctx)
+        {
+            var val = ReadStringProperty(ctx, "SessionId");
+            if (Guid.TryParse(val, out var gid)) return gid;
+            return Guid.NewGuid();
+        }
+
+        private static string? GetAnonymousIdFromContextOrNull(ChatContextDto ctx)
+        {
+            var val = ReadStringProperty(ctx, "AnonymousId");
+            return string.IsNullOrWhiteSpace(val) ? null : val;
+        }
+
+        private static string? ReadStringProperty(object obj, string propName)
+        {
+            try
+            {
+                var p = obj.GetType().GetProperty(propName);
+                if (p == null) return null;
+                var v = p.GetValue(obj);
+                return v?.ToString();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static object[] BuildFunctionDeclarations()
         {
             return new object[]
@@ -182,13 +276,12 @@ namespace SaoKim_ecommerce_BE.Services
                             productId = new { type = "integer", description = "ID sản phẩm gốc." },
                             limit = new { type = "integer", description = "Số lượng sản phẩm trả về (1-12)." }
                         },
-                        required = new [] { "productId" }
+                        required = new[] { "productId" }
                     }
                 }
             };
         }
 
-        // ===== Chốt câu trả lời theo dữ liệu thật =====
         private static string NormalizeFinalTextByProducts(string finalText, List<ChatProductCardDto> products)
         {
             products ??= new List<ChatProductCardDto>();
@@ -218,7 +311,6 @@ namespace SaoKim_ecommerce_BE.Services
             return finalText;
         }
 
-        // ===== Prompt =====
         private static string BuildPrompt(ChatRequestDto req, string message)
         {
             var ctx = req.Context ?? new ChatContextDto();
@@ -270,7 +362,6 @@ GỢI Ý:
             return list;
         }
 
-        // ===== Helper: parse function call from Gemini response =====
         private static (string? name, Dictionary<string, object?> args) TryExtractFunctionCall(JsonDocument doc)
         {
             try
