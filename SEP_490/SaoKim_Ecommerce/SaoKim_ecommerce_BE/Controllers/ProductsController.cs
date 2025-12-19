@@ -219,7 +219,7 @@ namespace SaoKim_ecommerce_BE.Controllers
                         d.Category != null && d.Category.Name == product.category));
             }
 
-            var related = await relatedQuery
+            var relatedDtos = await relatedQuery
                 .Select(p => new
                 {
                     Product = p,
@@ -229,16 +229,36 @@ namespace SaoKim_ecommerce_BE.Controllers
                 })
                 .OrderByDescending(x => x.Detail != null ? x.Detail.CreateAt : null)
                 .Take(8)
-                .Select(x => new
+                .Select(x => new ProductListItemDto
                 {
-                    id = x.Product.ProductID,
-                    name = x.Product.ProductName,
-                    price = x.Detail != null ? x.Detail.Price : 0,
-                    image = x.Detail != null && x.Detail.Image != null
-                        ? $"{baseUrl}/images/{x.Detail.Image}"
-                        : null
+                    Id = x.Product.ProductID,
+                    Name = x.Product.ProductName,
+                    Sku = x.Product.ProductCode,
+                    Category = x.Detail != null && x.Detail.Category != null ? x.Detail.Category.Name : null,
+                    Price = x.Detail != null ? x.Detail.Price : 0,
+                    ThumbnailUrl = x.Detail != null && x.Detail.Image != null ? x.Detail.Image : null,
+                    CreatedAt = x.Detail != null ? x.Detail.CreateAt : null,
+                    Status = x.Detail != null ? x.Detail.Status : null,
+                    Quantity = x.Detail != null ? x.Detail.Quantity : 0,
+                    Stock = x.Detail != null ? x.Detail.Quantity : 0,
+                    Unit = x.Detail != null ? x.Detail.Unit : null
                 })
                 .ToListAsync();
+
+            // Apply promotion cho related products
+            await _productService.ApplyPromotionAsync(relatedDtos);
+
+            var related = relatedDtos.Select(x => new
+            {
+                id = x.Id,
+                name = x.Name,
+                price = x.Price,
+                originalPrice = x.OriginalPrice, // Thêm trường này
+                image = !string.IsNullOrEmpty(x.ThumbnailUrl)
+                    ? (x.ThumbnailUrl.StartsWith("http") ? x.ThumbnailUrl : $"{baseUrl}/images/{x.ThumbnailUrl}")
+                    : null,
+                category = x.Category
+            }).ToList();
 
             return Ok(new { product, related });
         }

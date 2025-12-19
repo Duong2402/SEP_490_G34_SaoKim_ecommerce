@@ -7,6 +7,7 @@ namespace SaoKim_ecommerce_BE.Services
     {
         Task<HomeProductsDto> GetHomeAsync(ProductQueryParams query);
         Task<PagedResult<ProductListItemDto>> GetPagedAsync(ProductQueryParams query);
+        Task ApplyPromotionAsync(IEnumerable<ProductListItemDto> items);
 
 
     }

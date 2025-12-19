@@ -185,7 +185,7 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
-        private async Task ApplyPromotionAsync(IEnumerable<ProductListItemDto> items)
+        public async Task ApplyPromotionAsync(IEnumerable<ProductListItemDto> items)
         {
             var list = items?.ToList() ?? new List<ProductListItemDto>();
             if (list.Count == 0) return;

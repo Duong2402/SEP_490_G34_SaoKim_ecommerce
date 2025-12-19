@@ -624,6 +624,7 @@ export default function ProductDetail() {
                           id: related.id,
                           name: related.name,
                           price: related.price,
+                          originalPrice: related.originalPrice,
                           image: related.thumbnailUrl || related.image || related.imageUrl,
                           category: related.category,
                         }}
