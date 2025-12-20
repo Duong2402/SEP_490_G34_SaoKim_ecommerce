@@ -22,7 +22,8 @@ export default function ProductSelector({ value, onSelect }) {
           id: p.id ?? p.productId ?? p.product_id,
           name: p.name ?? p.productName ?? p.product_name,
           sku: p.sku ?? p.productCode ?? p.product_code,
-          price: p.price ?? 0,
+          price: p.originalPrice ?? p.price ?? 0, // Ưu tiên giá gốc cho PM
+          originalPrice: p.originalPrice ?? null,
           unit: p.unit ?? p.uom ?? p.Unit ?? "",
           _raw: p,
         })).filter(x => x.id != null);

@@ -192,7 +192,24 @@ export default function ManagerProductList() {
                     <td>{product.name}</td>
                     <td>{product.category ?? "-"}</td>
                     <td>{product.unit ?? "-"}</td>
-                    <td>{formatCurrency(product.price)}</td>
+                    <td>
+                      {formatCurrency(product.originalPrice || product.price)}
+                      {product.originalPrice && product.originalPrice > product.price && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: '0.75rem',
+                            background: '#fee2e2',
+                            color: '#dc2626',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontWeight: 600
+                          }}
+                        >
+                          Đang chạy KM
+                        </span>
+                      )}
+                    </td>
                     <td>{product.stock ?? 0}</td>
                     <td>
                       {STATUS_LABELS[product.status] ??

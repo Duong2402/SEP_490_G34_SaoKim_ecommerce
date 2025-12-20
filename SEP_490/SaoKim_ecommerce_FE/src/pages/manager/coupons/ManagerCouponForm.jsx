@@ -22,17 +22,38 @@ const STATUS_OPTIONS = [
   { value: "Expired", label: "Đã hết hạn" },
 ];
 
+// Format số thành định dạng VND với dấu chấm phân cách hàng nghìn (vd: 100.000)
+const formatVND = (value) => {
+  if (!value && value !== 0) return "";
+  const numStr = String(value).replace(/\D/g, ""); // Chỉ giữ lại số
+  if (!numStr) return "";
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// Parse chuỗi VND thành số (vd: "100.000" -> 100000)
+const parseVND = (formattedValue) => {
+  if (!formattedValue) return "";
+  const numStr = String(formattedValue).replace(/\./g, ""); // Xóa dấu chấm
+  return numStr ? Number(numStr) : "";
+};
+
 export default function ManagerCouponForm({ initialValues, submitting, onSubmit }) {
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [errors, setErrors] = useState({});
+  // State riêng để lưu giá trị hiển thị đã format cho FixedAmount
+  const [displayDiscountValue, setDisplayDiscountValue] = useState("");
 
   useEffect(() => {
     if (!initialValues) return;
+    const discountType = initialValues.discountType ?? "Percentage";
+    const discountValue = initialValues.discountValue ?? "";
+
     setForm({
       code: initialValues.code ?? "",
       name: initialValues.name ?? "",
       description: initialValues.description ?? "",
-      discountType: initialValues.discountType ?? "Percentage",
-      discountValue: initialValues.discountValue ?? "",
+      discountType: discountType,
+      discountValue: discountValue,
       minOrderAmount: initialValues.minOrderAmount ?? "",
       maxUsage: initialValues.maxUsage ?? "",
       perUserLimit: initialValues.perUserLimit ?? "",
@@ -40,7 +61,69 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
       endDate: initialValues.endDate ? initialValues.endDate.substring(0, 16) : "",
       status: initialValues.status ?? "Draft",
     });
+
+    // Format giá trị hiển thị nếu là FixedAmount
+    if (discountType === "FixedAmount" && discountValue) {
+      setDisplayDiscountValue(formatVND(discountValue));
+    } else {
+      setDisplayDiscountValue(String(discountValue));
+    }
   }, [initialValues]);
+
+  // Validate discount value based on discount type
+  const validateDiscountValue = (value, discountType) => {
+    if (!value && value !== 0) return "";
+    const numValue = Number(value);
+    if (isNaN(numValue)) return "Giá trị ưu đãi phải là số";
+    if (numValue < 0) return "Giá trị ưu đãi phải lớn hơn 0";
+    if (discountType === "Percentage" && numValue > 99) {
+      return "Giá trị phần trăm không được vượt quá 99%";
+    }
+    return "";
+  };
+
+  // Xử lý thay đổi giá trị ưu đãi với format VND
+  const handleDiscountValueChange = (event) => {
+    const { value } = event.target;
+
+    if (form.discountType === "FixedAmount") {
+      // Cho FixedAmount: format với dấu chấm
+      const rawValue = parseVND(value);
+      const formattedValue = formatVND(value);
+
+      setDisplayDiscountValue(formattedValue);
+      setForm((prev) => ({ ...prev, discountValue: rawValue }));
+
+      const error = validateDiscountValue(rawValue, "FixedAmount");
+      setErrors((prevErrors) => ({ ...prevErrors, discountValue: error }));
+    } else {
+      // Cho Percentage: giữ nguyên như cũ
+      setDisplayDiscountValue(value);
+      setForm((prev) => ({ ...prev, discountValue: value }));
+
+      const error = validateDiscountValue(value, "Percentage");
+      setErrors((prevErrors) => ({ ...prevErrors, discountValue: error }));
+    }
+  };
+
+  // Xử lý thay đổi loại ưu đãi
+  const handleDiscountTypeChange = (event) => {
+    const newType = event.target.value;
+    const currentValue = form.discountValue;
+
+    setForm((prev) => ({ ...prev, discountType: newType }));
+
+    // Cập nhật format hiển thị dựa trên loại mới
+    if (newType === "FixedAmount" && currentValue) {
+      setDisplayDiscountValue(formatVND(currentValue));
+    } else {
+      setDisplayDiscountValue(String(currentValue));
+    }
+
+    // Re-validate với loại mới
+    const error = validateDiscountValue(currentValue, newType);
+    setErrors((prevErrors) => ({ ...prevErrors, discountValue: error }));
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -49,6 +132,14 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    // Validate before submit
+    const discountError = validateDiscountValue(form.discountValue, form.discountType);
+    if (discountError) {
+      setErrors((prevErrors) => ({ ...prevErrors, discountValue: discountError }));
+      return;
+    }
+
     await onSubmit({
       code: form.code.trim(),
       name: form.name.trim(),
@@ -109,7 +200,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
           className="manager-form__control"
           name="discountType"
           value={form.discountType}
-          onChange={handleChange}
+          onChange={handleDiscountTypeChange}
           disabled={submitting}
         >
           <option value="Percentage">Phần trăm</option>
@@ -118,18 +209,31 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
       </div>
 
       <div className="manager-form__field">
-        <label>Giá trị ưu đãi *</label>
+        <label>
+          Giá trị ưu đãi *
+          {form.discountType === "Percentage" && (
+            <span style={{ fontWeight: 'normal', fontSize: '0.85em', color: '#6c757d' }}> (tối đa 99%)</span>
+          )}
+          {form.discountType === "FixedAmount" && (
+            <span style={{ fontWeight: 'normal', fontSize: '0.85em', color: '#6c757d' }}> (VND)</span>
+          )}
+        </label>
         <input
-          className="manager-form__control"
-          type="text"
-          min="0"
-          step="1"
+          className={`manager-form__control ${errors.discountValue ? 'manager-form__control--error' : ''}`}
+          type={form.discountType === "Percentage" ? "text" : "text"}
+          min={form.discountType === "Percentage" ? "0" : undefined}
+          max={form.discountType === "Percentage" ? "99" : undefined}
+          step={form.discountType === "Percentage" ? "1" : undefined}
           name="discountValue"
-          value={form.discountValue}
-          onChange={handleChange}
+          value={displayDiscountValue}
+          onChange={handleDiscountValueChange}
           disabled={submitting}
           required
+          placeholder={form.discountType === "Percentage" ? "Nhập từ 1 đến 99" : "Ví dụ: 100.000"}
         />
+        {errors.discountValue && (
+          <span className="manager-form__error">{errors.discountValue}</span>
+        )}
       </div>
 
       <div className="manager-form__field">

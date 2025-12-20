@@ -4,6 +4,7 @@ const links = [
   { to: "/admin", label: "Dashboard" },
   { to: "/admin/banner", label: "Banner" },
   { to: "/admin/users", label: "Users" },
+  { to: "/admin/chatbot-analytics", label: "Chatbot" },
 ];
 
 export default function AdminSidebar() {

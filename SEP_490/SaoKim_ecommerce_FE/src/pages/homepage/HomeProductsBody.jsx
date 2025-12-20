@@ -96,6 +96,7 @@ function useHomeProducts(params) {
           id: product.id ?? product.productID ?? product.productId,
           name: product.name ?? product.productName ?? "Chưa đặt tên",
           price: product.price ?? 0,
+          originalPrice: product.originalPrice ?? null,
           thumbnailUrl: product.thumbnailUrl ?? product.image ?? null,
           stock: product.stock ?? product.quantity ?? null,
           createdAt: product.createdAt ?? product.createAt ?? product.date ?? null,
@@ -165,7 +166,7 @@ function HeroBlock() {
 function HomeBanner() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [index, setIndex] = useState(0); 
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,7 +211,7 @@ function HomeBanner() {
   const totalSlides = 1 + (banners?.length || 0);
 
   useEffect(() => {
-    if (totalSlides <= 1) return; 
+    if (totalSlides <= 1) return;
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % totalSlides);
     }, 5000);
@@ -230,7 +231,7 @@ function HomeBanner() {
             className="home-banner__media"
             style={{
               width: "100%",
-              height: "420px",       
+              height: "420px",
               overflow: "hidden",
               position: "relative",
               marginBottom: "24px",
@@ -309,8 +310,18 @@ function ProductCard({ product }) {
   const stockLabel =
     typeof product.stock === "number" && product.stock > 0 ? `${product.stock} còn hàng` : "Đang cập nhật";
 
+  // Kiểm tra có khuyến mãi không
+  const hasPromo = product.originalPrice && product.originalPrice > product.price;
+
   return (
     <article className="product-card">
+      {/* Badge Sale nếu có khuyến mãi */}
+      {hasPromo && (
+        <span className="product-card__sale-badge">
+          <i className="fa-solid fa-tag" /> Sale
+        </span>
+      )}
+
       <Link to={`/products/${product.id}`} className="product-card__media">
         <img src={imageSrc} alt={product.name || "Sản phẩm"} loading="lazy" onError={() => setImageError(true)} />
       </Link>
@@ -321,7 +332,14 @@ function ProductCard({ product }) {
           {product.name || "Sản phẩm"}
         </Link>
         <div className="product-card__meta">
-          <span className="product-card__price">{formatCurrency(product.price)}</span>
+          <span className={`product-card__price ${hasPromo ? 'product-card__price--promo' : ''}`}>
+            {formatCurrency(product.price)}
+          </span>
+          {hasPromo && (
+            <span className="product-card__price--original">
+              {formatCurrency(product.originalPrice)}
+            </span>
+          )}
           <span className="product-card__stock">{stockLabel}</span>
         </div>
       </div>
@@ -651,10 +669,10 @@ function HomeProductsBody({
             </a>
             <a
               className="home-btn-ghost"
-              href="mailto:contact@saokim.vn"
+              href="mailto:info@ske.com.vn"
               style={{ color: "#fff", border: "1px solid rgba(255,255,255,0.4)" }}
             >
-              contact@saokim.vn
+              info@ske.com.vn
             </a>
           </div>
         </div>

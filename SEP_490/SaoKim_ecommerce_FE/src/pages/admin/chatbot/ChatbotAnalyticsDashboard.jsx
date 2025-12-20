@@ -1,5 +1,5 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FaSync, FaComments, FaEnvelope, FaClock, FaMousePointer, FaQuestion, FaKey, FaShoppingCart } from "react-icons/fa";
 import { apiFetch } from "../../../api/lib/apiClient";
 
 function toISODate(d) {
@@ -20,29 +20,17 @@ async function apiGetJson(path) {
   return await res.json();
 }
 
-function Card({ children, style }) {
+function StatCard({ icon: Icon, label, value, sub, color = "var(--wm-primary)" }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid var(--wm-border)",
-        borderRadius: 16,
-        padding: 16,
-        boxShadow: "var(--wm-shadow)",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ color: "var(--wm-muted)", fontWeight: 600, fontSize: 13 }}>{label}</div>
-      <div style={{ fontWeight: 800, fontSize: 22, color: "var(--wm-text)" }}>{value}</div>
-      {sub ? <div style={{ color: "var(--wm-muted)", fontSize: 12 }}>{sub}</div> : null}
+    <div className="admin-chatbot__stat-card">
+      <div className="admin-chatbot__stat-icon" style={{ background: color }}>
+        {Icon && <Icon />}
+      </div>
+      <div className="admin-chatbot__stat-content">
+        <div className="admin-chatbot__stat-label">{label}</div>
+        <div className="admin-chatbot__stat-value">{value}</div>
+        {sub && <div className="admin-chatbot__stat-sub">{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -61,9 +49,12 @@ function drawLineChart(canvas, points, opts) {
 
   ctx.clearRect(0, 0, cssW, cssH);
 
-  const padding = 32;
-  const w = cssW - padding * 2;
-  const h = cssH - padding * 2;
+  const paddingLeft = 40;
+  const paddingRight = 20;
+  const paddingTop = 24;
+  const paddingBottom = 28;
+  const w = cssW - paddingLeft - paddingRight;
+  const h = cssH - paddingTop - paddingBottom;
 
   const values = points.map((p) => p.value);
   const minV = Math.min(...values, 0);
@@ -72,21 +63,70 @@ function drawLineChart(canvas, points, opts) {
   const xStep = points.length > 1 ? w / (points.length - 1) : w;
   const yScale = maxV - minV === 0 ? 1 : maxV - minV;
 
-  const xAt = (i) => padding + i * xStep;
-  const yAt = (v) => padding + h - ((v - minV) / yScale) * h;
+  const xAt = (i) => paddingLeft + i * xStep;
+  const yAt = (v) => paddingTop + h - ((v - minV) / yScale) * h;
 
+  const lineColor = opts?.color || "#1f76c0";
+
+  // Dashed grid lines
+  ctx.setLineDash([3, 3]);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(0,0,0,0.08)";
-  ctx.beginPath();
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
   for (let i = 0; i <= 4; i++) {
-    const y = padding + (h * i) / 4;
-    ctx.moveTo(padding, y);
-    ctx.lineTo(padding + w, y);
+    const y = paddingTop + (h * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(paddingLeft + w, y);
+    ctx.stroke();
   }
-  ctx.stroke();
+  ctx.setLineDash([]);
 
+  // Gradient fill under line
+  if (points.length > 1) {
+    const gradient = ctx.createLinearGradient(0, paddingTop, 0, paddingTop + h);
+    // Parse color for gradient
+    let r = 31, g = 118, b = 192; // Default blue
+
+    if (lineColor.startsWith("#")) {
+      const hex = lineColor.replace("#", "");
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      } else if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      }
+    } else if (lineColor.startsWith("rgb")) {
+      const sep = lineColor.indexOf(",") > -1 ? "," : " ";
+      const parts = lineColor.substring(4).split(")")[0].split(sep);
+      if (parts.length >= 3) {
+        r = parseInt(parts[0].trim());
+        g = parseInt(parts[1].trim());
+        b = parseInt(parts[2].trim());
+      }
+    }
+
+    gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.25)`);
+    gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.02)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(xAt(0), paddingTop + h);
+    points.forEach((p, i) => {
+      ctx.lineTo(xAt(i), yAt(p.value));
+    });
+    ctx.lineTo(xAt(points.length - 1), paddingTop + h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Main line
   ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(0,0,0,0.75)";
+  ctx.strokeStyle = lineColor;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.beginPath();
   points.forEach((p, i) => {
     const x = xAt(i);
@@ -96,76 +136,89 @@ function drawLineChart(canvas, points, opts) {
   });
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
+  // Data points
   points.forEach((p, i) => {
     const x = xAt(i);
     const y = yAt(p.value);
+
+    // White background
+    ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
+
+    // Colored border
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.stroke();
   });
 
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto";
-  ctx.textAlign = "left";
-  ctx.fillText(opts?.yLabel || "", padding, 16);
-
+  // Y-axis labels
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "500 10px system-ui, -apple-system, sans-serif";
   ctx.textAlign = "right";
-  ctx.fillText(String(maxV), padding + w, padding - 10);
-  ctx.fillText(String(minV), padding + w, padding + h + 18);
+  ctx.fillText(String(maxV), paddingLeft - 6, paddingTop + 4);
+  ctx.fillText(String(minV), paddingLeft - 6, paddingTop + h + 4);
 
-  if (points.length <= 10) {
-    ctx.textAlign = "center";
+  // Chart title/label
+  ctx.fillStyle = lineColor;
+  ctx.font = "600 10px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(opts?.yLabel || "", paddingLeft, paddingTop - 8);
+
+  // X-axis labels
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = "500 9px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+
+  if (points.length <= 8) {
     points.forEach((p, i) => {
-      const x = xAt(i);
-      ctx.fillText(p.label, x, padding + h + 18);
+      ctx.fillText(p.label, xAt(i), paddingTop + h + 16);
     });
   } else {
-    ctx.textAlign = "center";
-    const idx = [0, Math.floor(points.length / 2), points.length - 1];
-    idx.forEach((i) => {
-      const x = xAt(i);
-      ctx.fillText(points[i].label, x, padding + h + 18);
+    // Show only first, middle, last
+    const indices = [0, Math.floor(points.length / 2), points.length - 1];
+    indices.forEach((i) => {
+      ctx.fillText(points[i].label, xAt(i), paddingTop + h + 16);
     });
   }
 }
 
-function BarsTable({ title, rows, valueKey = "count" }) {
+
+function BarsTable({ title, icon: Icon, rows, valueKey = "count" }) {
   const max = Math.max(...rows.map((r) => Number(r[valueKey] || 0)), 1);
   return (
-    <Card>
-      <div style={{ fontWeight: 800, marginBottom: 12 }}>{title}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="admin-panel">
+      <div className="admin-chatbot__bars-header">
+        {Icon && <Icon className="admin-chatbot__bars-icon" />}
+        <h3 className="admin-chatbot__bars-title">{title}</h3>
+      </div>
+      <div className="admin-chatbot__bars-list">
         {rows.length === 0 ? (
-          <div style={{ color: "var(--wm-muted)" }}>Chưa có dữ liệu</div>
+          <div className="admin-chatbot__bars-empty">Chưa có dữ liệu</div>
         ) : (
           rows.map((r, idx) => {
             const v = Number(r[valueKey] || 0);
             const pct = Math.round((v / max) * 100);
             return (
-              <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 80px", gap: 10 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ fontWeight: 700, color: "var(--wm-text)", fontSize: 13 }}>
+              <div key={idx} className="admin-chatbot__bars-row">
+                <div className="admin-chatbot__bars-content">
+                  <div className="admin-chatbot__bars-label">
                     {r.label || r.keyword || r.question || r.name || "N/A"}
                   </div>
-                  <div
-                    style={{
-                      height: 10,
-                      borderRadius: 999,
-                      background: "rgba(0,0,0,0.08)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ width: `${pct}%`, height: "100%", background: "rgba(0,0,0,0.55)" }} />
+                  <div className="admin-chatbot__bars-track">
+                    <div className="admin-chatbot__bars-fill" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
-                <div style={{ textAlign: "right", fontWeight: 800 }}>{v}</div>
+                <div className="admin-chatbot__bars-value">{v}</div>
               </div>
             );
           })
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -222,13 +275,19 @@ export default function ChatbotAnalyticsDashboard() {
       label: (x.date || x.day || "").toString().slice(5),
       value: Number(x.sessions ?? x.totalSessions ?? 0),
     }));
-    drawLineChart(sessionsCanvasRef.current, pts1.length ? pts1 : [{ label: "", value: 0 }], { yLabel: "Sessions" });
+    drawLineChart(sessionsCanvasRef.current, pts1.length ? pts1 : [{ label: "", value: 0 }], {
+      yLabel: "Sessions",
+      color: "#1f76c0"
+    });
 
     const pts2 = (timeseries || []).map((x) => ({
       label: (x.date || x.day || "").toString().slice(5),
       value: Number(x.noResult ?? x.noResultCount ?? 0),
     }));
-    drawLineChart(noResultCanvasRef.current, pts2.length ? pts2 : [{ label: "", value: 0 }], { yLabel: "NoResult" });
+    drawLineChart(noResultCanvasRef.current, pts2.length ? pts2 : [{ label: "", value: 0 }], {
+      yLabel: "NoResult",
+      color: "#f47b20"
+    });
   }, [timeseries]);
 
   const ov = overview || {};
@@ -241,106 +300,148 @@ export default function ChatbotAnalyticsDashboard() {
   const ctr = ov.ctr ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <Card style={{ padding: 18 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+    <div className="admin-chatbot">
+      {/* Header Panel */}
+      <section className="admin-panel">
+        <div className="admin-chatbot__header">
           <div>
-            <h2 style={{ margin: 0 }}>Báo cáo Chatbot</h2>
-            <div style={{ marginTop: 6, color: "var(--wm-muted)" }}>Thống kê theo khoảng thời gian, phục vụ dashboard admin</div>
+            <h2 className="admin-panel__title">Báo cáo Chatbot</h2>
+            <p className="admin-panel__subtitle">
+              Thống kê hoạt động của chatbot theo khoảng thời gian
+            </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ fontSize: 12, color: "var(--wm-muted)", fontWeight: 700 }}>Từ ngày</div>
+          <div className="admin-chatbot__filters">
+            <div className="admin-chatbot__filter-group">
+              <label className="admin-chatbot__filter-label">Từ ngày</label>
               <input
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                style={{
-                  borderRadius: 10,
-                  border: "1px solid var(--wm-border)",
-                  padding: "8px 10px",
-                  background: "#fff",
-                  color: "var(--wm-text)",
-                }}
+                className="admin-form__input"
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ fontSize: 12, color: "var(--wm-muted)", fontWeight: 700 }}>Đến ngày</div>
+            <div className="admin-chatbot__filter-group">
+              <label className="admin-chatbot__filter-label">Đến ngày</label>
               <input
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                style={{
-                  borderRadius: 10,
-                  border: "1px solid var(--wm-border)",
-                  padding: "8px 10px",
-                  background: "#fff",
-                  color: "var(--wm-text)",
-                }}
+                className="admin-form__input"
               />
             </div>
 
             <button
               onClick={loadAll}
               disabled={loading}
-              style={{
-                alignSelf: "flex-end",
-                borderRadius: 12,
-                border: "1px solid var(--wm-border)",
-                padding: "10px 14px",
-                background: "#fff",
-                fontWeight: 800,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
+              className="admin-btn admin-btn--primary"
+              style={{ alignSelf: "flex-end" }}
             >
+              <FaSync style={{ marginRight: 8 }} />
               {loading ? "Đang tải..." : "Tải dữ liệu"}
             </button>
           </div>
         </div>
-      </Card>
+      </section>
 
-      {error ? (
-        <Card style={{ borderColor: "rgba(0,0,0,0.15)" }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Lỗi</div>
-          <div style={{ color: "var(--wm-muted)", whiteSpace: "pre-wrap" }}>{error}</div>
-        </Card>
-      ) : null}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-        <Card><Stat label="Tổng lượt chat (sessions)" value={String(totalSessions)} /></Card>
-        <Card><Stat label="Tổng tin nhắn" value={String(totalMessages)} /></Card>
-        <Card><Stat label="Độ trễ trung bình" value={`${Number(avgLatencyMs).toFixed(0)} ms`} /></Card>
-        <Card><Stat label="CTR sản phẩm" value={`${Number(ctr).toFixed(2)}%`} sub="Click / Sessions hoặc Click / Messages tùy backend" /></Card>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-        <Card>
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>Sessions theo ngày</div>
-          <div style={{ height: 240 }}>
-            <canvas ref={sessionsCanvasRef} style={{ width: "100%", height: "100%" }} />
+      {/* Error State */}
+      {error && (
+        <div className="admin-panel" style={{ borderColor: "#dc2626" }}>
+          <div className="admin-chatbot__error">
+            <strong>Lỗi:</strong> {error}
           </div>
-        </Card>
+        </div>
+      )}
 
-        <Card>
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>NoResult theo ngày</div>
-          <div style={{ height: 240 }}>
-            <canvas ref={noResultCanvasRef} style={{ width: "100%", height: "100%" }} />
+      {/* Stats Grid */}
+      <div className="admin-chatbot__stats-grid">
+        <StatCard
+          icon={FaComments}
+          label="Tổng lượt chat"
+          value={String(totalSessions)}
+          color="linear-gradient(135deg, #1f76c0, #155390)"
+        />
+        <StatCard
+          icon={FaEnvelope}
+          label="Tổng tin nhắn"
+          value={String(totalMessages)}
+          color="linear-gradient(135deg, #10b981, #059669)"
+        />
+        <StatCard
+          icon={FaClock}
+          label="Độ trễ trung bình"
+          value={`${Number(avgLatencyMs).toFixed(0)} ms`}
+          color="linear-gradient(135deg, #f59e0b, #d97706)"
+        />
+        <StatCard
+          icon={FaMousePointer}
+          label="CTR sản phẩm"
+          value={`${Number(ctr).toFixed(2)}%`}
+          sub="Click / Sessions"
+          color="linear-gradient(135deg, #8b5cf6, #7c3aed)"
+        />
+      </div>
+
+      {/* Charts Grid */}
+      <div className="admin-chatbot__charts-grid">
+        <div className="admin-panel">
+          <h3 className="admin-chatbot__chart-title">Sessions theo ngày</h3>
+          <div className="admin-chatbot__chart-container">
+            <canvas ref={sessionsCanvasRef} className="admin-chatbot__chart-canvas" />
           </div>
-        </Card>
+        </div>
+
+        <div className="admin-panel">
+          <h3 className="admin-chatbot__chart-title">NoResult theo ngày</h3>
+          <div className="admin-chatbot__chart-container">
+            <canvas ref={noResultCanvasRef} className="admin-chatbot__chart-canvas" />
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-        <Card><Stat label="Tỷ lệ trả lời từ FAQ" value={`${Number(faqRate).toFixed(2)}%`} /></Card>
-        <Card><Stat label="Tỷ lệ dùng tool" value={`${Number(toolRate).toFixed(2)}%`} /></Card>
-        <Card><Stat label="Tỷ lệ không có sản phẩm" value={`${Number(noResultRate).toFixed(2)}%`} /></Card>
+      {/* Rate Stats */}
+      <div className="admin-chatbot__rates-grid">
+        <div className="admin-panel">
+          <div className="admin-chatbot__rate">
+            <span className="admin-chatbot__rate-label">Tỷ lệ trả lời từ FAQ</span>
+            <span className="admin-chatbot__rate-value">{Number(faqRate).toFixed(2)}%</span>
+          </div>
+        </div>
+        <div className="admin-panel">
+          <div className="admin-chatbot__rate">
+            <span className="admin-chatbot__rate-label">Tỷ lệ dùng tool</span>
+            <span className="admin-chatbot__rate-value">{Number(toolRate).toFixed(2)}%</span>
+          </div>
+        </div>
+        <div className="admin-panel">
+          <div className="admin-chatbot__rate">
+            <span className="admin-chatbot__rate-label">Tỷ lệ không có sản phẩm</span>
+            <span className="admin-chatbot__rate-value" style={{ color: "#dc2626" }}>{Number(noResultRate).toFixed(2)}%</span>
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-        <BarsTable title="Top câu hỏi" rows={topQuestions.map((x) => ({ ...x, label: x.question || x.label }))} valueKey="count" />
-        <BarsTable title="Top keyword" rows={topKeywords.map((x) => ({ ...x, label: x.keyword || x.label }))} valueKey="count" />
-        <BarsTable title="Top sản phẩm được click" rows={topClicked.map((x) => ({ ...x, label: x.name || x.productName || x.label }))} valueKey="count" />
+      {/* Top Lists */}
+      <div className="admin-chatbot__tops-grid">
+        <BarsTable
+          title="Top câu hỏi"
+          icon={FaQuestion}
+          rows={topQuestions.map((x) => ({ ...x, label: x.question || x.label }))}
+          valueKey="count"
+        />
+        <BarsTable
+          title="Top keyword"
+          icon={FaKey}
+          rows={topKeywords.map((x) => ({ ...x, label: x.keyword || x.label }))}
+          valueKey="count"
+        />
+        <BarsTable
+          title="Top sản phẩm được click"
+          icon={FaShoppingCart}
+          rows={topClicked.map((x) => ({ ...x, label: x.name || x.productName || x.label }))}
+          valueKey="count"
+        />
       </div>
     </div>
   );

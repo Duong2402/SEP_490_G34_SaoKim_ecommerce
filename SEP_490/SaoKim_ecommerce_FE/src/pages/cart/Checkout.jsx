@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Breadcrumb,
@@ -14,6 +14,7 @@ import {
 import HomepageHeader from "../../components/HomepageHeader";
 import EcommerceFooter from "../../components/EcommerceFooter";
 import { readCart, writeCart, getCartKeys } from "../../api/cartStorage.js";
+import { ProductsAPI } from "../../api/products";
 import "../../styles/checkout.css";
 
 function readCheckoutItemsForOwner() {
@@ -34,6 +35,7 @@ function makePaymentToken() {
 export default function Checkout() {
   const navigate = useNavigate();
   const apiBase = import.meta.env.VITE_API_BASE || "https://localhost:7278";
+  const priceUpdateRef = useRef(false); // Tránh gọi API liên tục
 
   const [cartItems, setCartItems] = useState(() => readCart());
   const [checkoutItems, setCheckoutItems] = useState(() =>
@@ -110,6 +112,51 @@ export default function Checkout() {
     };
   }, []);
 
+  // Cập nhật giá khuyến mãi realtime từ API
+  useEffect(() => {
+    if (itemsForCheckout.length === 0 || priceUpdateRef.current) return;
+
+    const productIds = itemsForCheckout.map((it) => Number(it.id)).filter(Boolean);
+    if (productIds.length === 0) return;
+
+    priceUpdateRef.current = true;
+
+    ProductsAPI.getPrices(productIds)
+      .then((res) => {
+        const prices = res?.data ?? res ?? [];
+        if (!Array.isArray(prices) || prices.length === 0) return;
+
+        const priceMap = new Map(prices.map((p) => [p.productId, p.price]));
+
+        // Cập nhật checkoutItems hoặc cartItems với giá mới
+        if (checkoutItems && checkoutItems.length > 0) {
+          let hasChanges = false;
+          const updated = checkoutItems.map((it) => {
+            const newPrice = priceMap.get(Number(it.id));
+            if (newPrice !== undefined && newPrice !== it.price) {
+              hasChanges = true;
+              return { ...it, price: newPrice };
+            }
+            return it;
+          });
+
+          if (hasChanges) {
+            setCheckoutItems(updated);
+            const { checkoutKey } = getCartKeys();
+            localStorage.setItem(checkoutKey, JSON.stringify(updated));
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to update promo prices:", err);
+      })
+      .finally(() => {
+        setTimeout(() => {
+          priceUpdateRef.current = false;
+        }, 5000);
+      });
+  }, [itemsForCheckout.length]);
+
   useEffect(() => {
     const base =
       checkoutItems && checkoutItems.length > 0 ? checkoutItems : cartItems;
@@ -144,7 +191,7 @@ export default function Checkout() {
         } else {
           setSelectedAddressId(null);
         }
-      } catch {}
+      } catch { }
     })();
   }, [apiBase]);
 
@@ -164,7 +211,7 @@ export default function Checkout() {
         if (typeof data.fee === "number") {
           setBaseShippingFee(data.fee);
         }
-      } catch {}
+      } catch { }
     })();
   }, [selectedAddressId, apiBase]);
 
@@ -190,8 +237,8 @@ export default function Checkout() {
     shippingMethod === "fast"
       ? fastFee
       : shippingMethod === "express"
-      ? expressFee
-      : standardFee;
+        ? expressFee
+        : standardFee;
 
   const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
@@ -427,7 +474,7 @@ export default function Checkout() {
         try {
           const errData = await res.json();
           errMsg = errData.message || errData.Message || errMsg;
-        } catch {}
+        } catch { }
         setSelectedVoucher(null);
         setVoucherStatus({
           type: "error",
@@ -667,9 +714,8 @@ export default function Checkout() {
                           {addresses.map((a) => (
                             <label
                               key={a.addressId}
-                              className={`address-option ${
-                                selectedAddressId === a.addressId ? "active" : ""
-                              }`}
+                              className={`address-option ${selectedAddressId === a.addressId ? "active" : ""
+                                }`}
                             >
                               <Form.Check
                                 type="radio"
@@ -760,9 +806,8 @@ export default function Checkout() {
                         return (
                           <label
                             key={opt.value}
-                            className={`shipping-option ${
-                              shippingMethod === opt.value ? "active" : ""
-                            }`}
+                            className={`shipping-option ${shippingMethod === opt.value ? "active" : ""
+                              }`}
                           >
                             <Form.Check
                               type="radio"
@@ -836,9 +881,8 @@ export default function Checkout() {
 
                     <div className="d-grid gap-3">
                       <label
-                        className={`payment-option ${
-                          paymentMethod === "COD" ? "active" : ""
-                        }`}
+                        className={`payment-option ${paymentMethod === "COD" ? "active" : ""
+                          }`}
                       >
                         <Form.Check
                           type="radio"
@@ -865,9 +909,8 @@ export default function Checkout() {
                       </label>
 
                       <label
-                        className={`payment-option ${
-                          paymentMethod === "QR" ? "active" : ""
-                        }`}
+                        className={`payment-option ${paymentMethod === "QR" ? "active" : ""
+                          }`}
                       >
                         <Form.Check
                           type="radio"
@@ -971,8 +1014,8 @@ export default function Checkout() {
                       {noneChecked
                         ? "Chọn sản phẩm để thanh toán"
                         : isLargeOrder
-                        ? "Bạn muốn mua đơn hàng có giá trị lớn? Liên hệ với chúng tôi để biết thêm chi tiết"
-                        : "Đặt hàng"}
+                          ? "Bạn muốn mua đơn hàng có giá trị lớn? Liên hệ với chúng tôi để biết thêm chi tiết"
+                          : "Đặt hàng"}
                     </Button>
 
                     <Button
@@ -989,7 +1032,7 @@ export default function Checkout() {
                     <div className="text-muted small mt-3">
                       Đơn hàng vượt quá 15.000.000. Vui lòng liên hệ với chúng tôi để
                       được hỗ trợ.
-                    <div>0963 811 369</div>
+                      <div>0963 811 369</div>
                     </div>
                   )}
                 </Card.Body>

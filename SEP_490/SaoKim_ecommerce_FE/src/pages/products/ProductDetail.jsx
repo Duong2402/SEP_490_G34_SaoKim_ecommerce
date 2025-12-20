@@ -451,9 +451,8 @@ export default function ProductDetail() {
                       <button
                         type="button"
                         key={image}
-                        className={`product-gallery__thumb${
-                          index === activeImageIndex ? " is-active" : ""
-                        }`}
+                        className={`product-gallery__thumb${index === activeImageIndex ? " is-active" : ""
+                          }`}
                         onClick={() => setActiveImageIndex(index)}
                       >
                         <img src={image} alt={`Xem ảnh ${index + 1}`} />
@@ -466,9 +465,26 @@ export default function ProductDetail() {
 
             <div className="col-lg-6">
               <div className="product-card info-card">
-                <div className="product-info__price text-accent">
-                  {formatCurrency(product.price)}
+                {/* Sale Badge nếu có khuyến mãi */}
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <div className="product-detail-sale-badge">
+                    <i className="fa-solid fa-tag" aria-hidden="true" />
+                    Đang giảm giá
+                  </div>
+                )}
+
+                {/* Hiển thị giá với giá gốc gạch ngang nếu có */}
+                <div className="product-info__price">
+                  <span className={product.originalPrice && product.originalPrice > product.price ? "product-info__price--promo text-danger" : "text-accent"}>
+                    {formatCurrency(product.price)}
+                  </span>
+                  {product.originalPrice && product.originalPrice > product.price && (
+                    <span className="product-info__price--original">
+                      {formatCurrency(product.originalPrice)}
+                    </span>
+                  )}
                 </div>
+
                 <div className="product-info__stock">
                   {typeof product.quantity === "number" && product.quantity > 0 ? (
                     <>
@@ -608,6 +624,7 @@ export default function ProductDetail() {
                           id: related.id,
                           name: related.name,
                           price: related.price,
+                          originalPrice: related.originalPrice,
                           image: related.thumbnailUrl || related.image || related.imageUrl,
                           category: related.category,
                         }}

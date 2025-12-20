@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BannerAPI } from "../../../api/banner";
+import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";
 import "../../../styles/admin-banner.css";
 
 export default function BannerList() {
@@ -36,83 +37,111 @@ export default function BannerList() {
     }
   };
 
-  if (loading) return <div>Đang tải banner...</div>;
-
-  return (
-    <div>
-      <div className="admin-banner__header">
-        <div>
-          <h2 className="admin-banner__title">Quản lý Banner</h2>
-          <p className="admin-banner__subtitle">
-            Quản lý banner hiển thị trên trang chủ
-          </p>
-        </div>
-
-        <div className="admin-banner__actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate("/admin/banner/create")}
-          >
-            Thêm banner
-          </button>
+  if (loading) {
+    return (
+      <div className="admin-banner">
+        <div className="admin-panel">
+          <div className="admin-banner__loading">Đang tải banner...</div>
         </div>
       </div>
+    );
+  }
 
-      <table
-        style={{ marginTop: "20px", width: "100%", borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Ảnh
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Tiêu đề
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Link
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Kích hoạt
-            </th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>
-              Hành động
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {banners.map((b) => (
-            <tr key={b.id}>
-              <td style={{ padding: "8px" }}>
-                <img
-                  src={b.imageUrl}
-                  alt={b.title}
-                  style={{ width: "140px", height: "70px", objectFit: "cover" }}
-                />
-              </td>
-              <td style={{ padding: "8px" }}>{b.title}</td>
-              <td style={{ padding: "8px" }}>{b.linkUrl}</td>
-              <td style={{ padding: "8px" }}>{b.isActive ? "Có" : "Không"}</td>
-              <td style={{ padding: "8px" }}>
-                <button
-                  onClick={() => navigate(`/admin/banner/edit/${b.id}`)}
-                  style={{ marginRight: "8px" }}
-                >
-                  Sửa
-                </button>
-                <button onClick={() => handleDelete(b.id)}>Xóa</button>
-              </td>
-            </tr>
-          ))}
-          {!banners.length && (
-            <tr>
-              <td colSpan={5} style={{ padding: "8px", textAlign: "center" }}>
-                Chưa có banner nào
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+  return (
+    <div className="admin-banner">
+      <div className="admin-panel">
+        <div className="admin-banner__header">
+          <div>
+            <h2 className="admin-panel__title">Quản lý Banner</h2>
+            <p className="admin-panel__subtitle">
+              Quản lý banner hiển thị trên trang chủ
+            </p>
+          </div>
+
+          <div className="admin-banner__actions">
+            <button
+              className="admin-btn admin-btn--primary"
+              onClick={() => navigate("/admin/banner/create")}
+            >
+              <FaPlus style={{ marginRight: 8 }} />
+              Thêm banner
+            </button>
+          </div>
+        </div>
+
+        <div className="admin-banner__table-wrap">
+          <table className="admin-banner__table">
+            <thead>
+              <tr>
+                <th>Ảnh</th>
+                <th>Tiêu đề</th>
+                <th>Link</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {banners.map((b) => (
+                <tr key={b.id}>
+                  <td>
+                    <img
+                      src={b.imageUrl}
+                      alt={b.title}
+                      className="admin-banner__image"
+                    />
+                  </td>
+                  <td>{b.title}</td>
+                  <td>
+                    <a
+                      href={b.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "var(--wm-primary)", textDecoration: "none" }}
+                    >
+                      {b.linkUrl}
+                    </a>
+                  </td>
+                  <td>
+                    <span
+                      className={`admin-banner__status ${b.isActive
+                          ? "admin-banner__status--active"
+                          : "admin-banner__status--inactive"
+                        }`}
+                    >
+                      {b.isActive ? "Đang hiển thị" : "Ẩn"}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="admin-banner__row-actions">
+                      <button
+                        className="admin-btn admin-btn--outline"
+                        onClick={() => navigate(`/admin/banner/edit/${b.id}`)}
+                      >
+                        <FaEdit style={{ marginRight: 6 }} />
+                        Sửa
+                      </button>
+                      <button
+                        className="admin-btn admin-btn--danger"
+                        onClick={() => handleDelete(b.id)}
+                      >
+                        <FaTrash style={{ marginRight: 6 }} />
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!banners.length && (
+                <tr>
+                  <td colSpan={5} className="admin-banner__empty">
+                    Chưa có banner nào. Bấm "Thêm banner" để tạo mới.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

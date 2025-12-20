@@ -281,13 +281,16 @@
   .admin-sidebar {
     width: 240px;
   }
+
   .admin-main {
     margin-left: 240px;
     width: calc(100% - 240px);
   }
+
   .admin-topbar {
     padding: 22px 28px;
   }
+
   .admin-content {
     padding: 28px 28px 40px;
   }
@@ -337,7 +340,7 @@
   .admin-content {
     padding: 24px 20px 36px;
   }
-  
+
 }
 
 @media (max-width: 768px) {
@@ -351,5 +354,610 @@
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+}
+
+/* ============================================
+   ADMIN PANEL & FEATURE CARDS
+   Dùng cho Dashboard và các trang quản trị
+   ============================================ */
+
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-panel {
+  background: var(--wm-surface);
+  border-radius: 22px;
+  border: 1px solid var(--wm-border);
+  padding: 24px 28px;
+  box-shadow: 0 30px 80px -50px rgba(15, 44, 87, 0.35);
+}
+
+.admin-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-panel__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+.admin-panel__subtitle {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: var(--wm-muted);
+}
+
+/* Grid layout cho feature cards */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+/* Feature Card - Navigation cards với icons */
+.admin-feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 24px;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+  border: 1px solid var(--wm-border);
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--wm-text);
+  box-shadow: 0 16px 40px -28px rgba(15, 44, 87, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-feature-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--wm-primary) 0%, var(--wm-accent) 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.admin-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px -24px rgba(15, 44, 87, 0.5);
+  border-color: var(--wm-primary);
+}
+
+.admin-feature-card:hover::before {
+  opacity: 1;
+}
+
+.admin-feature-card__icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--wm-primary-soft);
+  color: var(--wm-primary);
+  font-size: 1.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.admin-feature-card:hover .admin-feature-card__icon {
+  background: var(--wm-primary);
+  color: #fff;
+}
+
+.admin-feature-card__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+.admin-feature-card__desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--wm-muted);
+  line-height: 1.5;
+}
+
+/* Quick stats cards */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.admin-stat-card {
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--wm-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px -22px rgba(15, 44, 87, 0.35);
+}
+
+.admin-stat-card__label {
+  font-size: 0.78rem;
+  color: var(--wm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.admin-stat-card__value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-panel {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .admin-feature-card {
+    padding: 18px 20px;
+  }
+
+  .admin-feature-card__icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.3rem;
+  }
+}
+
+/* ============================================
+   ADMIN BUTTONS
+   ============================================ */
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.admin-btn--primary {
+  background: var(--wm-primary);
+  color: #fff;
+  box-shadow: 0 16px 30px -18px rgba(31, 118, 192, 0.6);
+}
+
+.admin-btn--primary:hover {
+  background: var(--wm-primary-strong);
+  transform: translateY(-1px);
+}
+
+.admin-btn--outline {
+  background: transparent;
+  border: 1px solid var(--wm-border-strong);
+  color: var(--wm-primary);
+}
+
+.admin-btn--outline:hover {
+  background: var(--wm-primary-soft);
+  border-color: var(--wm-primary);
+}
+
+.admin-btn--danger {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.admin-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #dc2626;
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   ADMIN FORM STYLES
+   ============================================ */
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.admin-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-form__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+.admin-form__required {
+  color: #dc2626;
+}
+
+.admin-form__input,
+.admin-form__select {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--wm-border);
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--wm-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-form__input:focus,
+.admin-form__select:focus {
+  outline: none;
+  border-color: var(--wm-primary);
+  box-shadow: 0 0 0 3px rgba(31, 118, 192, 0.15);
+}
+
+.admin-form__input--readonly {
+  background: var(--wm-primary-soft);
+  color: var(--wm-muted);
+  cursor: not-allowed;
+}
+
+.admin-form__input::placeholder {
+  color: var(--wm-muted-soft);
+}
+
+.admin-form__select {
+  cursor: pointer;
+}
+
+.admin-form__error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.admin-form__file-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-form__file {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--wm-border);
+  background: #fafbfc;
+  cursor: pointer;
+}
+
+.admin-form__file:hover {
+  border-color: var(--wm-primary);
+  background: var(--wm-primary-soft);
+}
+
+.admin-form__preview {
+  display: inline-block;
+}
+
+.admin-form__preview-img {
+  max-width: 200px;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid var(--wm-border);
+  box-shadow: 0 8px 20px -12px rgba(15, 44, 87, 0.3);
+}
+
+.admin-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--wm-border);
+  margin-top: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form__actions {
+    flex-direction: column;
+  }
+
+  .admin-form__actions .admin-btn {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   ADMIN CHATBOT ANALYTICS STYLES (Compact)
+   ============================================ */
+
+.admin-chatbot {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-chatbot__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-chatbot__filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.admin-chatbot__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-chatbot__filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--wm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-chatbot__error {
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+/* Stats Grid - Compact */
+.admin-chatbot__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.admin-chatbot__stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--wm-border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 8px 20px -14px rgba(15, 44, 87, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-chatbot__stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -16px rgba(15, 44, 87, 0.35);
+}
+
+.admin-chatbot__stat-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.admin-chatbot__stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-chatbot__stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--wm-muted);
+}
+
+.admin-chatbot__stat-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--wm-text);
+}
+
+.admin-chatbot__stat-sub {
+  font-size: 0.68rem;
+  color: var(--wm-muted-soft);
+}
+
+/* Charts Grid - Compact */
+.admin-chatbot__charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.admin-chatbot__chart-title {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+.admin-chatbot__chart-container {
+  height: 200px;
+}
+
+.admin-chatbot__chart-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Rates Grid - Compact */
+.admin-chatbot__rates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.admin-chatbot__rate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-chatbot__rate-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--wm-text);
+}
+
+.admin-chatbot__rate-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--wm-primary);
+}
+
+/* Tops Grid (Bars) - Compact */
+.admin-chatbot__tops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.admin-chatbot__bars-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-chatbot__bars-icon {
+  font-size: 0.9rem;
+  color: var(--wm-primary);
+}
+
+.admin-chatbot__bars-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--wm-text);
+}
+
+.admin-chatbot__bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-chatbot__bars-empty {
+  color: var(--wm-muted);
+  font-style: italic;
+  padding: 12px 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.admin-chatbot__bars-row {
+  display: grid;
+  grid-template-columns: 1fr 50px;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-chatbot__bars-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-chatbot__bars-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--wm-text);
+}
+
+.admin-chatbot__bars-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--wm-primary-soft);
+  overflow: hidden;
+}
+
+.admin-chatbot__bars-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--wm-primary), var(--wm-primary-strong));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.admin-chatbot__bars-value {
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--wm-text);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-chatbot__header {
+    flex-direction: column;
+  }
+
+  .admin-chatbot__filters {
+    width: 100%;
+  }
+
+  .admin-chatbot__filter-group {
+    flex: 1;
+  }
+
+  .admin-chatbot__charts-grid {
+    grid-template-columns: 1fr;
   }
 }

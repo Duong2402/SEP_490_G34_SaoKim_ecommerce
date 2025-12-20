@@ -101,6 +101,18 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
   const [customerLoading, setCustomerLoading] = useState(false);
   const [customerLoadError, setCustomerLoadError] = useState("");
 
+  // Validation states
+  const [touched, setTouched] = useState({
+    name: false,
+    customerName: false,
+    customerContact: false,
+    startDate: false,
+    endDate: false,
+    budget: false,
+  });
+  const [errors, setErrors] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
   useEffect(() => {
     let mounted = true;
     async function loadPms() {
@@ -215,17 +227,64 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setSubmitAttempted(true);
+
+    // Validate all required fields
+    const newErrors = {};
+
+    if (!values.name?.trim()) {
+      newErrors.name = "Vui lòng nhập tên dự án";
+    }
+
+    if (!values.customerName?.trim()) {
+      newErrors.customerName = "Vui lòng nhập tên khách hàng";
+    }
+
+    if (!values.customerContact?.trim()) {
+      newErrors.customerContact = "Vui lòng nhập thông tin liên hệ khách hàng";
+    } else {
+      const nextContactError = getCustomerContactError(values.customerContact);
+      if (nextContactError) {
+        newErrors.customerContact = nextContactError;
+      }
+    }
+
+    if (!values.startDate) {
+      newErrors.startDate = "Vui lòng chọn ngày bắt đầu";
+    }
+
+    if (!values.endDate) {
+      newErrors.endDate = "Vui lòng chọn ngày kết thúc";
+    }
+
     const nextDateError = getDateError(values.startDate, values.endDate);
     if (nextDateError) {
+      newErrors.endDate = nextDateError;
       setDateError(nextDateError);
+    }
+
+    if (!values.budget?.trim()) {
+      newErrors.budget = "Vui lòng nhập giá trị dự án";
+    }
+
+    setErrors(newErrors);
+
+    // Mark all fields as touched
+    setTouched({
+      name: true,
+      customerName: true,
+      customerContact: true,
+      startDate: true,
+      endDate: true,
+      budget: true,
+    });
+    setContactTouched(true);
+
+    // If there are errors, don't submit
+    if (Object.keys(newErrors).length > 0) {
       return;
     }
 
-    const nextContactError = getCustomerContactError(values.customerContact);
-    if (nextContactError) {
-      setContactTouched(true);
-      return;
-    }
     const normalizedBudget = normalizeBudgetValue(values.budget);
     const normalizedCustomerContact = values.customerContact
       ? values.customerContact.includes("@")
@@ -243,6 +302,10 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
     await onSubmit(payload);
   };
 
+  const handleBlur = (fieldName) => {
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="manager-form">
       <div className="manager-form__field">
@@ -251,9 +314,19 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
           name="name"
           value={values.name}
           onChange={handleChange}
+          onBlur={() => handleBlur('name')}
           required
-          className="manager-form__control"
+          className={`manager-form__control${(touched.name || submitAttempted) && errors.name ? " manager-form__control--error" : ""
+            }`}
         />
+        {(touched.name || submitAttempted) && errors.name && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {errors.name}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field">
@@ -296,15 +369,17 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
       </div>
 
       <div className="manager-form__field">
-        <label>Tên khách hàng</label>
+        <label>Tên khách hàng *</label>
         <input
           name="customerName"
           value={values.customerName}
           onChange={handleChange}
+          onBlur={() => handleBlur('customerName')}
           list="customer-name-suggestions"
           placeholder="Chọn hoặc nhập tên khách hàng"
           autoComplete="off"
-          className="manager-form__control"
+          className={`manager-form__control${(touched.customerName || submitAttempted) && errors.customerName ? " manager-form__control--error" : ""
+            }`}
         />
         <datalist id="customer-name-suggestions">
           {customerSuggestions.map((c, idx) => (
@@ -331,69 +406,102 @@ export default function ManagerProjectForm({ initialValues, onSubmit, submitting
             {customerLoadError}
           </div>
         )}
-      </div>
-
-      <div className="manager-form__field">
-        <label>Liên hệ khách hàng</label>
-        <input
-          name="customerContact"
-          value={values.customerContact}
-          onChange={handleChange}
-          onBlur={() => setContactTouched(true)}
-          placeholder="SDT (0xxxxxxxxx) hoặc Gmail (example@gmail.com)"
-          aria-invalid={contactTouched && !!contactError}
-          className={`manager-form__control${
-            contactTouched && contactError ? " manager-form__control--error" : ""
-          }`}
-        />
-        {contactTouched && contactError && (
+        {(touched.customerName || submitAttempted) && errors.customerName && (
           <div
             className="manager-form__hint"
             style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
           >
-            {contactError}
+            {errors.customerName}
           </div>
         )}
       </div>
 
       <div className="manager-form__field">
-        <label>Ngày bắt đầu</label>
+        <label>Liên hệ khách hàng *</label>
+        <input
+          name="customerContact"
+          value={values.customerContact}
+          onChange={handleChange}
+          onBlur={() => {
+            setContactTouched(true);
+            handleBlur('customerContact');
+          }}
+          placeholder="SDT (0xxxxxxxxx) hoặc Gmail (example@gmail.com)"
+          aria-invalid={(contactTouched || touched.customerContact || submitAttempted) && (!!contactError || !!errors.customerContact)}
+          className={`manager-form__control${(contactTouched || touched.customerContact || submitAttempted) && (contactError || errors.customerContact) ? " manager-form__control--error" : ""
+            }`}
+        />
+        {(contactTouched || touched.customerContact || submitAttempted) && (contactError || errors.customerContact) && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {contactError || errors.customerContact}
+          </div>
+        )}
+      </div>
+
+      <div className="manager-form__field">
+        <label>Ngày bắt đầu *</label>
         <input
           type="date"
           name="startDate"
           value={values.startDate}
           onChange={handleChange}
-          className="manager-form__control"
+          onBlur={() => handleBlur('startDate')}
+          className={`manager-form__control${(touched.startDate || submitAttempted) && errors.startDate ? " manager-form__control--error" : ""
+            }`}
         />
-      </div>
-
-      <div className="manager-form__field">
-        <label>Ngày kết thúc</label>
-        <input
-          type="date"
-          name="endDate"
-          value={values.endDate}
-          onChange={handleChange}
-          className="manager-form__control"
-        />
-        {dateError && (
+        {(touched.startDate || submitAttempted) && errors.startDate && (
           <div
             className="manager-form__hint"
             style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
           >
-            {dateError}
+            {errors.startDate}
           </div>
         )}
       </div>
 
       <div className="manager-form__field">
-        <label>Giá trị dự án (VND)</label>
+        <label>Ngày kết thúc *</label>
+        <input
+          type="date"
+          name="endDate"
+          value={values.endDate}
+          onChange={handleChange}
+          onBlur={() => handleBlur('endDate')}
+          className={`manager-form__control${(touched.endDate || submitAttempted) && (dateError || errors.endDate) ? " manager-form__control--error" : ""
+            }`}
+        />
+        {(touched.endDate || submitAttempted) && (dateError || errors.endDate) && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {dateError || errors.endDate}
+          </div>
+        )}
+      </div>
+
+      <div className="manager-form__field">
+        <label>Giá trị dự án (VND) *</label>
         <input
           name="budget"
           value={values.budget}
           onChange={handleChange}
-          className="manager-form__control"
+          onBlur={() => handleBlur('budget')}
+          placeholder="Nhập giá trị dự án"
+          className={`manager-form__control${(touched.budget || submitAttempted) && errors.budget ? " manager-form__control--error" : ""
+            }`}
         />
+        {(touched.budget || submitAttempted) && errors.budget && (
+          <div
+            className="manager-form__hint"
+            style={{ color: "#d94a4a", fontSize: 12, marginTop: 4 }}
+          >
+            {errors.budget}
+          </div>
+        )}
       </div>
 
       <div className="manager-form__field" style={{ gridColumn: "1 / -1" }}>

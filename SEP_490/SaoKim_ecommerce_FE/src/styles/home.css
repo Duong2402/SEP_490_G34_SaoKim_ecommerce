@@ -365,12 +365,10 @@ h6 {
 .category-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-      180deg,
+  background: linear-gradient(180deg,
       rgba(0, 28, 66, 0.18) 0%,
       rgba(0, 51, 102, 0.78) 65%,
-      rgba(0, 51, 102, 0.94) 100%
-    );
+      rgba(0, 51, 102, 0.94) 100%);
   transition: opacity 0.4s ease, background 0.4s ease;
   z-index: 0;
   opacity: 0.95;
@@ -381,12 +379,10 @@ h6 {
 }
 
 .category-card:hover .category-gradient {
-  background: linear-gradient(
-      180deg,
+  background: linear-gradient(180deg,
       rgba(0, 28, 66, 0.26) 0%,
       rgba(0, 51, 102, 0.9) 75%,
-      rgba(0, 51, 102, 0.98) 100%
-    );
+      rgba(0, 51, 102, 0.98) 100%);
   opacity: 1;
 }
 
@@ -637,6 +633,41 @@ h6 {
   text-transform: uppercase;
   z-index: 2;
   box-shadow: 0 14px 30px rgba(255, 140, 0, 0.35);
+}
+
+/* Sale Badge - Màu đỏ nổi bật */
+.home-product-badge.sale-badge {
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  box-shadow: 0 14px 30px rgba(255, 68, 68, 0.35);
+  animation: pulse-sale 2s infinite;
+}
+
+@keyframes pulse-sale {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Giá khuyến mãi */
+.home-product-price .promo-price {
+  color: #e53935;
+  font-weight: 900;
+}
+
+/* Giá gốc gạch ngang */
+.home-product-price .original-price {
+  display: inline-block;
+  margin-left: 8px;
+  color: #999;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: line-through;
 }
 
 /* Product Card - Luxury */

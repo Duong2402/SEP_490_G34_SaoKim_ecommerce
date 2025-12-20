@@ -702,6 +702,13 @@
   box-shadow: 0 0 0 3px rgba(217, 74, 74, 0.12);
 }
 
+.manager-form__error {
+  color: #d94a4a;
+  font-size: 13px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
 .manager-form__actions {
   display: flex;
   justify-content: flex-end;

@@ -6,10 +6,18 @@ namespace SaoKim_ecommerce_BE.DTOs
     {
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 12;
-        public string? SortBy { get; set; } = "new"; 
+
+        // "new" | "price_asc" | "price_desc"
+        public string? SortBy { get; set; } = "new";
         public string? Keyword { get; set; }
-        public int? CategoryId { get; set; }        
+
+        // Homepage controller nhận Category theo name, nhưng service lọc theo CategoryId
+        public int? CategoryId { get; set; }
+
         public bool? Featured { get; set; }
+
+        // Phục vụ homepage newArrivals
+        public int NewWithinDays { get; set; } = 14;
     }
 
     public class HomeProductsDto

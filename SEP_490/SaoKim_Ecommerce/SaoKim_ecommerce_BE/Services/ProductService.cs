@@ -37,35 +37,61 @@ namespace SaoKim_ecommerce_BE.Services
                 {
                     Id = x.Product.ProductID,
                     Name = x.Product.ProductName,
+                    Sku = x.Product.ProductCode,
                     Slug = null,
+
+                    Category = x.Detail!.Category != null ? x.Detail.Category.Name : null,
+                    Description = x.Detail.Description,
+
                     Price = x.Detail!.Price,
                     Unit = x.Detail!.Unit,
+
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
-                    Stock = x.Detail.Quantity
+
+                    Quantity = x.Detail.Quantity,
+                    Stock = x.Detail.Quantity,
+                    Status = x.Detail.Status
                 })
                 .ToListAsync();
+
+            var cutoff = DateTime.UtcNow.AddDays(-Math.Max(0, query.NewWithinDays));
 
             var newArrivals = await productWithDetail
                 .Where(x =>
                     x.Detail != null &&
-                    (x.Detail.Status == "Active" || x.Detail.Status == null))
+                    (x.Detail.Status == "Active" || x.Detail.Status == null) &&
+                    x.Detail.CreateAt >= cutoff)
                 .OrderByDescending(x => x.Detail!.CreateAt)
                 .Take(12)
                 .Select(x => new ProductListItemDto
                 {
                     Id = x.Product.ProductID,
                     Name = x.Product.ProductName,
+                    Sku = x.Product.ProductCode,
                     Slug = null,
+
+                    Category = x.Detail!.Category != null ? x.Detail.Category.Name : null,
+                    Description = x.Detail.Description,
+
                     Price = x.Detail!.Price,
                     Unit = x.Detail!.Unit,
+
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
-                    Stock = x.Detail.Quantity
+
+                    Quantity = x.Detail.Quantity,
+                    Stock = x.Detail.Quantity,
+                    Status = x.Detail.Status
                 })
                 .ToListAsync();
 
             var all = await GetPagedAsync(query);
+
+            // Apply promotion cho cả 3 cụm
+            await ApplyPromotionAsync(featured);
+            await ApplyPromotionAsync(newArrivals);
+            await ApplyPromotionAsync(all.Items);
 
             return new HomeProductsDto
             {
@@ -100,7 +126,13 @@ namespace SaoKim_ecommerce_BE.Services
                 q = q.Where(x => EF.Functions.Like(x.Product.ProductName, $"%{kw}%"));
             }
 
-            q = query.SortBy switch
+            if (query.CategoryId.HasValue)
+            {
+                var cid = query.CategoryId.Value;
+                q = q.Where(x => x.Detail != null && x.Detail.CategoryId == cid);
+            }
+
+            q = (query.SortBy ?? "new").ToLowerInvariant() switch
             {
                 "price_asc" => q
                     .OrderBy(x => x.Detail!.Price)
@@ -123,14 +155,26 @@ namespace SaoKim_ecommerce_BE.Services
                 {
                     Id = x.Product.ProductID,
                     Name = x.Product.ProductName,
+                    Sku = x.Product.ProductCode,
                     Slug = null,
+
+                    Category = x.Detail!.Category != null ? x.Detail.Category.Name : null,
+                    Description = x.Detail.Description,
+
                     Price = x.Detail!.Price,
                     Unit = x.Detail!.Unit,
+
                     ThumbnailUrl = x.Detail.Image,
                     CreatedAt = x.Detail.CreateAt,
-                    Stock = x.Detail.Quantity
+
+                    Quantity = x.Detail.Quantity,
+                    Stock = x.Detail.Quantity,
+                    Status = x.Detail.Status
                 })
                 .ToListAsync();
+
+            // Apply promotion cho page list
+            await ApplyPromotionAsync(items);
 
             return new PagedResult<ProductListItemDto>
             {
@@ -141,5 +185,104 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
+        public async Task ApplyPromotionAsync(IEnumerable<ProductListItemDto> items)
+        {
+            var list = items?.ToList() ?? new List<ProductListItemDto>();
+            if (list.Count == 0) return;
+
+            var ids = list.Select(x => x.Id).Distinct().ToList();
+            var promosByProduct = await GetActivePromotionsByProductIdAsync(ids);
+
+            foreach (var item in list)
+            {
+                if (!promosByProduct.TryGetValue(item.Id, out var promos) || promos.Count == 0)
+                    continue;
+
+                var basePrice = item.Price;
+
+                Promotion? best = null;
+                var bestFinal = basePrice;
+
+                foreach (var p in promos)
+                {
+                    var final = CalcFinalPrice(basePrice, p.DiscountType, p.DiscountValue);
+
+                    if (final < bestFinal)
+                    {
+                        bestFinal = final;
+                        best = p;
+                    }
+                    else if (final == bestFinal && best != null)
+                    {
+                        // Tie-break: ưu tiên promotion UpdatedAt/CreatedAt mới hơn
+                        var bestTime = best.UpdatedAt ?? best.CreatedAt;
+                        var pTime = p.UpdatedAt ?? p.CreatedAt;
+                        if (pTime > bestTime)
+                        {
+                            bestFinal = final;
+                            best = p;
+                        }
+                    }
+                }
+
+                if (best != null && bestFinal < basePrice)
+                {
+                    item.OriginalPrice = basePrice;
+                    item.Price = bestFinal;
+
+                    item.AppliedPromotionId = best.Id;
+                    item.AppliedPromotionName = best.Name;
+                    item.AppliedDiscountType = best.DiscountType.ToString();
+                    item.AppliedDiscountValue = best.DiscountValue;
+                }
+            }
+        }
+
+        private async Task<Dictionary<int, List<Promotion>>> GetActivePromotionsByProductIdAsync(List<int> productIds)
+        {
+            if (productIds.Count == 0) return new();
+
+            var now = DateTimeOffset.UtcNow;
+
+            var rows = await _db.PromotionProducts
+                .AsNoTracking()
+                .Where(pp => productIds.Contains(pp.ProductId))
+                .Select(pp => new
+                {
+                    pp.ProductId,
+                    Promo = pp.Promotion
+                })
+                .Where(x =>
+                    (x.Promo.Status == PromotionStatus.Active || x.Promo.Status == PromotionStatus.Scheduled) &&
+                    x.Promo.StartDate <= now &&
+                    now <= x.Promo.EndDate
+                )
+                .ToListAsync();
+
+            return rows
+                .GroupBy(x => x.ProductId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Promo).ToList());
+        }
+
+        private static decimal CalcFinalPrice(decimal basePrice, DiscountType type, decimal value)
+        {
+            decimal final;
+
+            if (type == DiscountType.Percentage)
+            {
+                final = basePrice * (1 - (value / 100m));
+            }
+            else if (type == DiscountType.FixedAmount)
+            {
+                final = basePrice - value;
+            }
+            else
+            {
+                final = basePrice;
+            }
+
+            if (final < 0) final = 0;
+            return Math.Round(final, 2, MidpointRounding.AwayFromZero);
+        }
     }
 }

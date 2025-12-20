@@ -14,6 +14,21 @@ const CATEGORIES = [
   "Khác",
 ];
 
+// Format số thành định dạng VND với dấu chấm phân cách hàng nghìn (vd: 1.000.000)
+const formatVND = (value) => {
+  if (!value && value !== 0) return "";
+  const numStr = String(value).replace(/\D/g, ""); // Chỉ giữ lại số
+  if (!numStr) return "";
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// Parse chuỗi VND thành số (vd: "1.000.000" -> 1000000)
+const parseVND = (formattedValue) => {
+  if (!formattedValue) return "";
+  const numStr = String(formattedValue).replace(/\./g, ""); // Xóa dấu chấm
+  return numStr ? Number(numStr) : "";
+};
+
 export default function AddEditProjectExpenseModal({
   open = false,
   projectId,
@@ -32,6 +47,7 @@ export default function AddEditProjectExpenseModal({
     amount: "",
     receiptUrl: "",
   });
+  const [displayAmount, setDisplayAmount] = useState(""); // Giá trị hiển thị đã format
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -45,6 +61,7 @@ export default function AddEditProjectExpenseModal({
 
   useEffect(() => {
     if (expense) {
+      const amountValue = expense.amount ?? "";
       setForm({
         date: dayjs(expense.date).isValid()
           ? dayjs(expense.date).format("YYYY-MM-DD")
@@ -52,9 +69,10 @@ export default function AddEditProjectExpenseModal({
         category: expense.category || "",
         vendor: expense.vendor || "",
         description: expense.description || "",
-        amount: String(expense.amount ?? ""),
+        amount: String(amountValue),
         receiptUrl: expense.receiptUrl || "",
       });
+      setDisplayAmount(formatVND(amountValue));
     } else {
       setForm({
         date: dayjs().format("YYYY-MM-DD"),
@@ -64,6 +82,7 @@ export default function AddEditProjectExpenseModal({
         amount: "",
         receiptUrl: "",
       });
+      setDisplayAmount("");
     }
     setErrors({});
   }, [expense, open]);
@@ -77,11 +96,21 @@ export default function AddEditProjectExpenseModal({
     return Object.keys(issue).length === 0;
   };
 
+  // Xử lý thay đổi số tiền với format VND
+  const handleAmountChange = (ev) => {
+    const { value } = ev.target;
+    const rawValue = parseVND(value);
+    const formattedValue = formatVND(value);
+
+    setDisplayAmount(formattedValue);
+    setForm((prev) => ({ ...prev, amount: rawValue }));
+  };
+
   const handleChange = (ev) => {
     const { name, value } = ev.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === "amount" ? value.replace(/[^\d.]/g, "") : value,
+      [name]: value,
     }));
   };
 
@@ -196,10 +225,11 @@ export default function AddEditProjectExpenseModal({
               <input
                 name="amount"
                 className="input"
-                inputMode="decimal"
-                value={form.amount}
-                onChange={handleChange}
+                inputMode="numeric"
+                value={displayAmount}
+                onChange={handleAmountChange}
                 disabled={saving}
+                placeholder="Ví dụ: 1.000.000"
               />
               {errors.amount ? (
                 <p style={{ color: "#b91c1c", fontSize: 12 }}>{errors.amount}</p>

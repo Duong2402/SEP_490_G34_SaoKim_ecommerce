@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { FaArrowLeft, FaUserEdit } from "react-icons/fa";
 import { UserAPI } from "../../../api/users";
 import UserForm from "./UserForm";
 
@@ -21,7 +22,7 @@ export default function UserEdit() {
         setUser(res || null);
       } catch (err) {
         console.error(err);
-        setError(err?.response?.data?.message || "Failed to load user");
+        setError(err?.response?.data?.message || "Không thể tải thông tin người dùng");
       } finally {
         setLoading(false);
       }
@@ -36,14 +37,14 @@ export default function UserEdit() {
     try {
       setSaving(true);
       await UserAPI.update(id, payload);
-      alert("User updated successfully");
+      alert("Cập nhật người dùng thành công!");
       navigate("/admin/users");
     } catch (err) {
       console.error(err);
       const errorMsg =
         err?.response?.data?.message ||
         err?.response?.data?.title ||
-        "Failed to update user";
+        "Không thể cập nhật người dùng";
       alert(errorMsg);
     } finally {
       setSaving(false);
@@ -52,9 +53,9 @@ export default function UserEdit() {
 
   if (loading) {
     return (
-      <div className="container">
-        <div className="panel">
-          <div className="loading-state">Loading user...</div>
+      <div className="admin-users">
+        <div className="admin-panel">
+          <div className="admin-users__loading">Đang tải thông tin người dùng...</div>
         </div>
       </div>
     );
@@ -62,15 +63,16 @@ export default function UserEdit() {
 
   if (error || !user) {
     return (
-      <div className="container">
-        <div className="panel">
-          <div className="empty-state">
-            <div className="empty-state-title">Error</div>
-            <div className="empty-state-subtitle">
-              {error || "User not found"}
+      <div className="admin-users">
+        <div className="admin-panel">
+          <div className="admin-users__empty">
+            <div className="admin-users__empty-title">Lỗi</div>
+            <div className="admin-users__empty-subtitle">
+              {error || "Không tìm thấy người dùng"}
             </div>
-            <Link to="/admin/users" className="btn btn-primary">
-              Back to Users
+            <Link to="/admin/users" className="admin-btn admin-btn--primary">
+              <FaArrowLeft style={{ marginRight: 8 }} />
+              Quay lại danh sách
             </Link>
           </div>
         </div>
@@ -87,16 +89,22 @@ export default function UserEdit() {
     : null;
 
   return (
-    <div className="container">
-      <div className="panel">
-        <header className="page-header">
+    <div className="admin-users">
+      <div className="admin-panel">
+        <header className="admin-users__header">
           <div>
-            <h1 className="page-title">Edit User</h1>
-            <p className="page-subtitle">Update user information</p>
+            <h2 className="admin-panel__title">
+              <FaUserEdit style={{ marginRight: 10, verticalAlign: "middle" }} />
+              Chỉnh sửa người dùng
+            </h2>
+            <p className="admin-panel__subtitle">
+              Cập nhật thông tin tài khoản: <strong>{user.name}</strong>
+            </p>
           </div>
-          <div className="actions">
-            <Link to="/admin/users" className="btn btn-ghost">
-              Cancel
+          <div className="admin-users__actions">
+            <Link to="/admin/users" className="admin-btn admin-btn--outline">
+              <FaArrowLeft style={{ marginRight: 8 }} />
+              Quay lại
             </Link>
           </div>
         </header>

@@ -35,6 +35,7 @@ const ProductsPage = () => {
       id: p.id || p.productID || p.productId || index,
       name: p.name || p.productName || "Sản phẩm",
       price: Number(p.price) || 0,
+      originalPrice: p.originalPrice ? Number(p.originalPrice) : null,
       image:
         p.thumbnailUrl || p.image || p.imageUrl || "https://via.placeholder.com/600x450?text=No+Image",
       category: p.category || p.categoryName || p.categoryTitle || "Khác",

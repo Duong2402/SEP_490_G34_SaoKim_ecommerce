@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserAPI } from "../../../api/users";
+import { FaPlus, FaSync, FaEdit, FaBan, FaCheckCircle, FaSearch } from "react-icons/fa";
 import "../../../styles/admin-users.css";
 
 export default function UserList() {
@@ -55,23 +56,14 @@ export default function UserList() {
       await UserAPI.setStatus(id, newStatus);
       await load();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to change status");
-    }
-  };
-
-  const handleSetStatus = async (id, status) => {
-    try {
-      await UserAPI.setStatus(id, status);
-      await load();
-    } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update status");
+      alert(err?.response?.data?.message || "Không thể thay đổi trạng thái");
     }
   };
 
   const formatDate = (v) => {
     if (!v) return "-";
     const d = new Date(v);
-    return Number.isNaN(d.valueOf()) ? "-" : d.toLocaleDateString();
+    return Number.isNaN(d.valueOf()) ? "-" : d.toLocaleDateString("vi-VN");
   };
 
   const getStatusBadgeClass = (status) => {
@@ -87,90 +79,121 @@ export default function UserList() {
     }
   };
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "Active":
+        return "Hoạt động";
+      case "Inactive":
+        return "Không hoạt động";
+      case "Suspended":
+        return "Bị khóa";
+      default:
+        return status || "Hoạt động";
+    }
+  };
+
+  const getRoleLabel = (role) => {
+    const roleMap = {
+      admin: "Quản trị viên",
+      manager: "Quản lý",
+      staff: "Nhân viên",
+      warehouse_manager: "Quản lý kho",
+      project_manager: "Quản lý dự án",
+      customer: "Khách hàng",
+    };
+    return roleMap[role] || role || "-";
+  };
+
   return (
-    <div className="container">
-      <div className="panel">
-        <header className="page-header">
+    <div className="admin-users">
+      <div className="admin-panel">
+        <header className="admin-users__header">
           <div>
-            <h1 className="page-title">User Management</h1>
-            <p className="page-subtitle">Manage user accounts and permissions</p>
+            <h2 className="admin-panel__title">Quản lý người dùng</h2>
+            <p className="admin-panel__subtitle">
+              Quản lý tài khoản và phân quyền người dùng trong hệ thống
+            </p>
           </div>
-          <div className="actions">
+          <div className="admin-users__actions">
             <button
               type="button"
-              className="btn btn-outline"
+              className="admin-btn admin-btn--outline"
               onClick={load}
               disabled={loading}
             >
-              Refresh
+              <FaSync style={{ marginRight: 8 }} />
+              Làm mới
             </button>
 
-            {/** FIX: đúng path /admin/users/create */}
-            <Link to="/admin/users/create" className="btn btn-primary">
-              Add User
+            <Link to="/admin/users/create" className="admin-btn admin-btn--primary">
+              <FaPlus style={{ marginRight: 8 }} />
+              Thêm người dùng
             </Link>
           </div>
         </header>
 
-        <div className="filters-row">
-          <input
-            className="input"
-            type="search"
-            placeholder="Search by name, email, or phone..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+        <div className="admin-users__filters">
+          <div className="admin-users__search">
+            <FaSearch className="admin-users__search-icon" />
+            <input
+              className="admin-users__input"
+              type="search"
+              placeholder="Tìm theo tên, email hoặc số điện thoại..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
 
           <select
-            className="select"
+            className="admin-users__select"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
           >
-            <option value="all">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Suspended">Suspended</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="Active">Hoạt động</option>
+            <option value="Inactive">Không hoạt động</option>
+            <option value="Suspended">Bị khóa</option>
           </select>
 
           <select
-            className="select"
+            className="admin-users__select"
             value={roleFilter}
             onChange={(e) => {
               setRoleFilter(e.target.value);
               setPage(1);
             }}
           >
-            <option value="all">All Roles</option>
+            <option value="all">Tất cả vai trò</option>
             {roles.map((r) => (
               <option key={r.id} value={r.name}>
-                {r.name}
+                {getRoleLabel(r.name)}
               </option>
             ))}
           </select>
         </div>
 
         {loading ? (
-          <div className="loading-state">Loading users...</div>
+          <div className="admin-users__loading">Đang tải danh sách người dùng...</div>
         ) : users.length ? (
           <>
-            <div className="table-responsive">
-              <table className="table">
+            <div className="admin-users__table-wrap">
+              <table className="admin-users__table">
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Name</th>
+                    <th>Họ tên</th>
                     <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Phone</th>
-                    <th>Created At</th>
-                    <th>Actions</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th>Số điện thoại</th>
+                    <th>Ngày tạo</th>
+                    <th>Hành động</th>
                   </tr>
                 </thead>
 
@@ -183,20 +206,17 @@ export default function UserList() {
                         <td>{u.id}</td>
 
                         <td>
-                          <Link className="link" to={`/admin/users/${u.id}/edit`}>
+                          <Link className="admin-users__link" to={`/admin/users/${u.id}/edit`}>
                             {u.name}
                           </Link>
                         </td>
 
                         <td>{u.email || "-"}</td>
-                        <td>{u.role || "-"}</td>
+                        <td>{getRoleLabel(u.role)}</td>
 
                         <td>
-                          <span
-                            className={getStatusBadgeClass(u.status)}
-                            style={{ marginRight: 8 }}
-                          >
-                            {u.status || "Active"}
+                          <span className={getStatusBadgeClass(u.status)}>
+                            {getStatusLabel(u.status)}
                           </span>
                         </td>
 
@@ -205,30 +225,32 @@ export default function UserList() {
                         <td>{formatDate(u.createdAt)}</td>
 
                         <td>
-                          <div className="table-actions">
-                            {/** FIX: đúng path /admin/users/:id/edit */}
+                          <div className="admin-users__row-actions">
                             <Link
                               to={`/admin/users/${u.id}/edit`}
-                              className="btn btn-outline"
+                              className="admin-btn admin-btn--outline"
                             >
-                              Edit
+                              <FaEdit style={{ marginRight: 6 }} />
+                              Sửa
                             </Link>
 
                             {u.status === "Active" ? (
                               <button
                                 type="button"
-                                className="btn btn-ghost btn-danger"
+                                className="admin-btn admin-btn--danger"
                                 onClick={() => handleToggle(u.id, u.status)}
                               >
-                                Deactivate
+                                <FaBan style={{ marginRight: 6 }} />
+                                Vô hiệu
                               </button>
                             ) : (
                               <button
                                 type="button"
-                                className="btn btn-primary"
+                                className="admin-btn admin-btn--success"
                                 onClick={() => handleToggle(u.id, u.status)}
                               >
-                                Activate
+                                <FaCheckCircle style={{ marginRight: 6 }} />
+                                Kích hoạt
                               </button>
                             )}
                           </div>
@@ -240,44 +262,44 @@ export default function UserList() {
             </div>
 
             {totalPages > 1 && (
-              <div className="pagination">
+              <div className="admin-users__pagination">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="admin-btn admin-btn--outline"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
                 >
-                  Previous
+                  Trước
                 </button>
 
                 <span>
-                  Page {page} of {totalPages} (Total: {totalItems} users)
+                  Trang {page} / {totalPages} (Tổng: {totalItems} người dùng)
                 </span>
 
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="admin-btn admin-btn--outline"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
                 >
-                  Next
+                  Sau
                 </button>
               </div>
             )}
           </>
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-title">No users found</div>
+          <div className="admin-users__empty">
+            <div className="admin-users__empty-title">Không tìm thấy người dùng</div>
 
-            <div className="empty-state-subtitle">
+            <div className="admin-users__empty-subtitle">
               {search || statusFilter !== "all" || roleFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Get started by creating a new user"}
+                ? "Thử điều chỉnh bộ lọc của bạn"
+                : "Bắt đầu bằng cách tạo người dùng mới"}
             </div>
 
-            {/** FIX: đúng path */}
-            <Link to="/admin/users/create" className="btn btn-primary">
-              Add User
+            <Link to="/admin/users/create" className="admin-btn admin-btn--primary">
+              <FaPlus style={{ marginRight: 8 }} />
+              Thêm người dùng
             </Link>
           </div>
         )}
