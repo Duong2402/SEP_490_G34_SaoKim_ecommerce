@@ -242,6 +242,7 @@ namespace SaoKim_ecommerce_BE.Services
 
             return list;
         }
+
         public async Task<PagedResult<InventoryListItemDto>> GetInventoryAsync(InventoryListQuery q)
         {
             if (q.Page <= 0) q.Page = 1;
@@ -275,9 +276,10 @@ namespace SaoKim_ecommerce_BE.Services
                 {
                     d.ProductID,
                     d.Unit,
-                    d.Quantity
+                    Qty = (int?)d.Quantity // ép nullable “thô”
                 };
 
+            // QUAN TRỌNG: baseQuery chỉ lấy cột nullable, không cast/coalesce về non-nullable ở đây
             var baseQuery =
                 from p in productQuery
 
@@ -291,12 +293,17 @@ namespace SaoKim_ecommerce_BE.Services
 
                 select new
                 {
-                    p.ProductID,
+                    ProductID = (int?)p.ProductID,
                     p.ProductCode,
                     p.ProductName,
-                    Quantity = d != null ? (decimal)d.Quantity : 0m,
+
                     Unit = d != null ? d.Unit : null,
-                    MinStock = (int?)th.MinStock ?? 0
+
+                    // nullable
+                    Quantity = d != null ? (decimal?)d.Qty : null,
+
+                    // nullable (trong trường hợp th null)
+                    MinStock = th != null ? (int?)th.MinStock : null
                 };
 
             if (!string.IsNullOrWhiteSpace(q.Status) && q.Status != "all")
@@ -304,40 +311,44 @@ namespace SaoKim_ecommerce_BE.Services
                 switch (q.Status)
                 {
                     case "critical":
-                        baseQuery = baseQuery.Where(x => x.Quantity <= 0);
+                        baseQuery = baseQuery.Where(x => (x.Quantity ?? 0m) <= 0m);
                         break;
 
                     case "alert":
                         baseQuery = baseQuery.Where(x =>
-                            x.MinStock > 0 && x.Quantity > 0 && x.Quantity < x.MinStock);
+                            (x.MinStock ?? 0) > 0 &&
+                            (x.Quantity ?? 0m) > 0m &&
+                            (x.Quantity ?? 0m) < (x.MinStock ?? 0));
                         break;
 
                     case "stock":
                         baseQuery = baseQuery.Where(x =>
-                            x.MinStock == 0 || x.Quantity >= x.MinStock);
+                            (x.MinStock ?? 0) == 0 ||
+                            (x.Quantity ?? 0m) >= (x.MinStock ?? 0));
                         break;
                 }
             }
 
             var total = await baseQuery.CountAsync();
 
-            var pageItems = await baseQuery
+            var rawPage = await baseQuery
                 .OrderBy(x => x.ProductName)
                 .ThenBy(x => x.ProductCode)
                 .Skip((q.Page - 1) * q.PageSize)
                 .Take(q.PageSize)
-                .Select(x => new InventoryListItemDto
-                {
-                    ProductId = x.ProductID,
-                    ProductCode = x.ProductCode,
-                    ProductName = x.ProductName,
-                    OnHand = x.Quantity,
-                    UomName = x.Unit,
-                    MinStock = x.MinStock,
-                    Status = null,
-                    Note = null
-                })
                 .ToListAsync();
+
+            var pageItems = rawPage.Select(x => new InventoryListItemDto
+            {
+                ProductId = x.ProductID ?? 0,
+                ProductCode = x.ProductCode,
+                ProductName = x.ProductName,
+                OnHand = x.Quantity ?? 0m,
+                UomName = x.Unit,
+                MinStock = x.MinStock ?? 0,
+                Status = null,
+                Note = null
+            }).ToList();
 
             return new PagedResult<InventoryListItemDto>
             {
@@ -348,9 +359,10 @@ namespace SaoKim_ecommerce_BE.Services
             };
         }
 
+
         private static TimeZoneInfo GetAppTimeZone()
         {
-            
+
             try { return TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok"); }
             catch { }
 
@@ -376,7 +388,7 @@ namespace SaoKim_ecommerce_BE.Services
             if (!fromLocalDate.HasValue && !toLocalDate.HasValue)
             {
                 toLocalDate = DateTime.Now.Date;
-                fromLocalDate = toLocalDate.Value.AddDays(-6); 
+                fromLocalDate = toLocalDate.Value.AddDays(-6);
             }
             else if (!fromLocalDate.HasValue && toLocalDate.HasValue)
             {
@@ -384,7 +396,7 @@ namespace SaoKim_ecommerce_BE.Services
             }
             else if (fromLocalDate.HasValue && !toLocalDate.HasValue)
             {
-                toLocalDate = fromLocalDate.Value; 
+                toLocalDate = fromLocalDate.Value;
             }
 
             if (toLocalDate!.Value < fromLocalDate!.Value)

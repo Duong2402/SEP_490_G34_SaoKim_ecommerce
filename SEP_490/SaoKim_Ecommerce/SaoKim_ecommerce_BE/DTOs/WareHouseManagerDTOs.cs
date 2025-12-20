@@ -299,9 +299,9 @@ public class InventoryListItemDto
     public int ProductId { get; set; }
     public string? ProductCode { get; set; }
     public string ProductName { get; set; } = "";
-    public decimal OnHand { get; set; }
+    public decimal? OnHand { get; set; }
     public string? UomName { get; set; }
-    public int MinStock { get; set; }
+    public int? MinStock { get; set; }
     public string? Status { get; set; }
     public string? Note { get; set; }
 }
