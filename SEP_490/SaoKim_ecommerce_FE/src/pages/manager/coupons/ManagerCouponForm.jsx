@@ -220,7 +220,7 @@ export default function ManagerCouponForm({ initialValues, submitting, onSubmit 
         </label>
         <input
           className={`manager-form__control ${errors.discountValue ? 'manager-form__control--error' : ''}`}
-          type={form.discountType === "Percentage" ? "number" : "text"}
+          type={form.discountType === "Percentage" ? "text" : "text"}
           min={form.discountType === "Percentage" ? "0" : undefined}
           max={form.discountType === "Percentage" ? "99" : undefined}
           step={form.discountType === "Percentage" ? "1" : undefined}
